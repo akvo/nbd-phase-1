@@ -1,0 +1,34 @@
+<h2>Admin Interface — Who does what?</h2>
+<p class="subtitle">Clarifying the two roles before we design the interface</p>
+
+<div class="section">
+  <p>The current access control model has <strong>Akvo staff</strong> doing everything in the admin layer. The user wants to distinguish between <strong>Admin</strong> and <strong>Reviewer</strong>. Here's how those could split:</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Admin = Akvo, Reviewer = CSO staff</h3>
+      <p><strong>Admin:</strong> Full access — configure sites, manage users, approve final publications, view all data<br>
+      <strong>Reviewer (CSO):</strong> Flag, comment, and validate submissions for their assigned sites — but cannot publish or approve</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Admin = Akvo, Reviewer = Akvo junior staff</h3>
+      <p><strong>Admin:</strong> Full access — configure, manage, publish<br>
+      <strong>Reviewer:</strong> Internal Akvo role — can clean, tag, and score submissions but cannot approve for publication. Final approval stays with Admin</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Three-tier: Admin / Akvo Reviewer / CSO Reviewer</h3>
+      <p><strong>Admin (Akvo):</strong> Configure, manage, publish<br>
+      <strong>Akvo Reviewer:</strong> Clean, tag, score, approve<br>
+      <strong>CSO Reviewer:</strong> Flag anomalies, add field notes — limited to their sites only</p>
+    </div>
+  </div>
+</div>

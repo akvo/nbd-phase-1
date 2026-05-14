@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Interface Wireframes</title>
+<script src="/helper.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; margin: 0; padding: 20px; }
+
+  h2 { color: #f8fafc; font-size: 1.2rem; margin-bottom: 2px; }
+  .subtitle { color: #64748b; font-size: 0.8rem; margin-bottom: 20px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { padding: 6px 18px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+  .tab.active-admin    { background: #7f1d1d; color: #fca5a5; border-color: #f87171; }
+  .tab.active-reviewer { background: #431407; color: #fb923c; border-color: #fb923c; }
+  .tab.active-login    { background: #1e3a5f; color: #93c5fd; border-color: #3b82f6; }
+  .tab.inactive { background: #1e293b; color: #64748b; border-color: #334155; }
+
+  .screen { display: none; }
+  .screen.visible { display: flex; gap: 0; }
+  .screen.login-screen { display: none; }
+  .screen.login-screen.visible { display: flex; align-items: center; justify-content: center; min-height: 560px; background: #111827; border-radius: 8px; }
+
+  /* ── sidebar ── */
+  .sidebar { width: 190px; background: #111827; border-right: 1px solid #1f2937; border-radius: 8px 0 0 8px; padding: 14px 0; flex-shrink: 0; }
+  .sidebar-logo { padding: 0 16px 14px; border-bottom: 1px solid #1f2937; font-size: 0.75rem; font-weight: 700; color: #60a5fa; }
+  .sidebar-role { padding: 6px 16px 12px; font-size: 0.62rem; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; }
+  .nav-section { padding: 10px 16px 4px; font-size: 0.6rem; color: #334155; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 16px; font-size: 0.73rem; color: #94a3b8; cursor: pointer; border-left: 2px solid transparent; }
+  .nav-item:hover { background: #1e293b44; }
+  .nav-item.active { color: #f1f5f9; background: #1e293b; border-left-color: #60a5fa; }
+  .nav-item.disabled { color: #334155; cursor: default; }
+  .nav-icon { width: 16px; text-align: center; font-size: 0.8rem; }
+
+  /* ── main ── */
+  .main { flex: 1; background: #161b27; border-radius: 0 8px 8px 0; padding: 20px; min-height: 560px; }
+  .page-title { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+  .page-sub   { font-size: 0.7rem; color: #64748b; margin-bottom: 18px; }
+
+  /* ── filter bar ── */
+  .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-group { display: flex; flex-direction: column; gap: 3px; }
+  .filter-label { font-size: 0.58rem; color: #475569; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
+  .filter-select {
+    background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+    color: #e2e8f0; font-size: 0.72rem; padding: 5px 28px 5px 10px;
+    cursor: pointer; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+    min-width: 150px;
+  }
+  .filter-select:focus { outline: none; border-color: #3b82f6; }
+  .result-count { margin-left: auto; font-size: 0.65rem; color: #475569; align-self: flex-end; padding-bottom: 2px; }
+  .clear-btn { align-self: flex-end; padding: 5px 10px; background: transparent; border: 1px solid #334155; border-radius: 6px; font-size: 0.65rem; color: #64748b; cursor: pointer; margin-bottom: 1px; }
+  .btn-add-new { margin-left: 4px; align-self: flex-end; padding: 5px 14px; background: #1d4ed8; color: #fff; border: none; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; margin-bottom: 1px; }
+  .btn-add-new:hover { background: #2563eb; }
+
+  /* ── table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+  th { text-align: left; padding: 6px 10px; color: #475569; font-weight: 600; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #1e293b; }
+  td { padding: 7px 10px; color: #cbd5e1; border-bottom: 1px solid #1e293b44; vertical-align: middle; }
+
+  tr.data-row { cursor: pointer; }
+  tr.data-row:hover td { background: #1e293b66; }
+  tr.data-row td:first-child::before { content: "▶ "; font-size: 0.55rem; color: #475569; }
+  tr.data-row.open td:first-child::before { content: "▼ "; color: #60a5fa; }
+
+  tr.expanded-row { display: none; }
+  tr.expanded-row.visible { display: table-row; }
+  tr.expanded-row td { background: #1e2940; border-left: 3px solid #2563eb; padding: 10px 16px; }
+  .expand-grid { display: flex; gap: 20px; flex-wrap: wrap; }
+  .expand-field { min-width: 120px; }
+  .expand-label { font-size: 0.58rem; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .expand-val { font-size: 0.7rem; color: #e2e8f0; }
+  .expand-notes { margin-top: 8px; padding: 7px 10px; background: #111827; border-radius: 5px; font-size: 0.68rem; color: #94a3b8; font-style: italic; border-left: 2px solid #334155; }
+  .expand-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .eact { padding: 3px 12px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; cursor: pointer; }
+  .eact-approve { background: #14532d; color: #4ade80; border: 1px solid #22c55e; }
+  .eact-reject  { background: #7f1d1d; color: #fca5a5; border: 1px solid #f87171; }
+  .eact-edit    { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+  .eact-delete  { background: transparent; color: #f87171; border: 1px solid #f87171; }
+
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 0.6rem; font-weight: 600; }
+  .badge-pending  { background: #1e3a5f; color: #93c5fd; }
+  .badge-approved { background: #14532d; color: #4ade80; }
+
+  .form-chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.62rem; font-weight: 600; }
+  .chip-poll  { background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+  .chip-samp  { background: #431407; color: #fb923c; border: 1px solid #7c2d12; }
+  .chip-labqa { background: #14532d44; color: #86efac; border: 1px solid #166534; }
+  .chip-fgd   { background: #164e63; color: #67e8f9; border: 1px solid #0891b2; }
+
+  .basin-chip { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.62rem; font-weight: 600; }
+  .chip-mara { background: #1e3a5f; color: #93c5fd; }
+  .chip-sio  { background: #312e81; color: #c4b5fd; }
+
+  /* IK signal bars in FGD expanded view */
+  .ik-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+  .ik-label { font-size: 0.6rem; color: #64748b; width: 110px; flex-shrink: 0; }
+  .ik-bar-bg { flex: 1; background: #0f172a; border-radius: 999px; height: 5px; }
+  .ik-bar { height: 5px; border-radius: 999px; }
+  .ik-val { font-size: 0.6rem; color: #94a3b8; width: 80px; flex-shrink: 0; }
+
+  /* modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: #00000099; z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 24px; width: 440px; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+  .modal-sub { font-size: 0.7rem; color: #64748b; margin-bottom: 18px; }
+  .form-field { margin-bottom: 14px; }
+  .form-field label { display: block; font-size: 0.62rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+  .form-field select, .form-field input, .form-field textarea {
+    width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+    color: #e2e8f0; font-size: 0.72rem; padding: 7px 10px; font-family: inherit;
+  }
+  .form-field textarea { height: 60px; resize: vertical; }
+  .modal-divider { font-size: 0.6rem; color: #334155; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; border-top: 1px solid #334155; padding-top: 12px; margin: 14px 0 10px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .modal-cancel { padding: 6px 16px; background: transparent; border: 1px solid #334155; border-radius: 6px; color: #64748b; font-size: 0.7rem; cursor: pointer; }
+  .modal-submit { padding: 6px 16px; background: #1d4ed8; border: none; border-radius: 6px; color: #fff; font-size: 0.7rem; font-weight: 600; cursor: pointer; }
+
+  /* admin-only section */
+  .admin-only { background: #7f1d1d22; border: 1px solid #f8717133; border-radius: 7px; padding: 14px; }
+  .admin-only-label { font-size: 0.6rem; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .user-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .user-card { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; min-width: 130px; }
+  .user-card h5 { margin: 0 0 2px; font-size: 0.7rem; color: #f1f5f9; }
+  .user-card p  { margin: 0; font-size: 0.62rem; color: #64748b; }
+  .urb { display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 999px; font-size: 0.58rem; font-weight: 600; }
+  .urb-admin    { background: #7f1d1d; color: #fca5a5; }
+  .urb-reviewer { background: #431407; color: #fb923c; }
+  .btn-red { padding: 4px 12px; background: #7f1d1d; color: #fca5a5; border: 1px solid #f87171; border-radius: 5px; font-size: 0.68rem; font-weight: 600; cursor: pointer; }
+  .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .table-title { font-size: 0.75rem; font-weight: 600; color: #e2e8f0; }
+  .sso-note { font-size: 0.62rem; color: #475569; margin-top: 10px; padding: 8px 10px; background: #1e3a5f22; border: 1px solid #1e3a5f; border-radius: 5px; }
+
+  .doc-pill { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; background: #1e293b; border: 1px solid #334155; border-radius: 4px; font-size: 0.6rem; color: #64748b; cursor: pointer; }
+  .doc-pill:hover { border-color: #60a5fa; color: #93c5fd; }
+
+  /* doc list in site expanded */
+  .doc-list { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .doc-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; background: #111827; border: 1px solid #1e293b; border-radius: 5px; font-size: 0.68rem; }
+  .doc-name { color: #93c5fd; }
+  .doc-meta { color: #475569; font-size: 0.6rem; }
+
+  .role-note { font-size: 0.63rem; color: #64748b; font-style: italic; margin-top: 14px; padding-top: 10px; border-top: 1px solid #1e293b; }
+  .role-note strong { color: #94a3b8; }
+
+  .view { display: none; }
+  .view.visible { display: block; }
+
+  /* SSO login screen */
+  .login-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 32px; width: 360px; text-align: center; }
+  .login-logo { font-size: 1.4rem; font-weight: 800; color: #60a5fa; margin-bottom: 4px; }
+  .login-tagline { font-size: 0.7rem; color: #475569; margin-bottom: 28px; }
+  .sso-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 10px; border-radius: 7px; font-size: 0.75rem; font-weight: 600; cursor: pointer; margin-bottom: 10px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; }
+  .sso-btn:hover { border-color: #60a5fa; }
+  .sso-icon { font-size: 1rem; }
+  .login-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+  .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: #334155; }
+  .login-divider span { font-size: 0.6rem; color: #475569; }
+  .login-input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-size: 0.72rem; padding: 8px 10px; font-family: inherit; margin-bottom: 8px; }
+  .login-submit { width: 100%; padding: 9px; background: #1d4ed8; border: none; border-radius: 6px; color: #fff; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+  .login-note { font-size: 0.6rem; color: #475569; margin-top: 14px; }
+  .login-note a { color: #60a5fa; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<h2>Admin Interface — Wireframes</h2>
+<p class="subtitle">Two roles: Admin (full access) · Reviewer (data cleaning and approval) · Login via SSO</p>
+
+<div class="tabs">
+  <div class="tab active-reviewer" id="tab-r" onclick="showRole('reviewer',this)">Reviewer view</div>
+  <div class="tab inactive"        id="tab-a" onclick="showRole('admin',this)">Admin view</div>
+  <div class="tab inactive"        id="tab-l" onclick="showRole('login',this)">Login screen</div>
+</div>
+
+<!-- ══════════ REVIEWER ══════════ -->
+<div class="screen visible" id="screen-reviewer">
+  <div class="sidebar">
+    <div class="sidebar-logo">🌿 Wetland Admin</div>
+    <div class="sidebar-role">Signed in as: Reviewer</div>
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item active" onclick="showView('r','data',this)">
+      <span class="nav-icon">🗂</span> Data
+    </div>
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><span class="nav-icon">👤</span> My profile</div>
+    <div class="nav-item disabled"><span class="nav-icon">🔒</span> User management</div>
+    <div class="nav-item disabled"><span class="nav-icon">🔒</span> Site management</div>
+  </div>
+
+  <div class="main">
+    <div class="view visible" id="r-view-data">
+      <div class="page-title">Data</div>
+      <div class="page-sub">Search and filter across all submitted data · Click a row to review</div>
+
+      <div class="filter-bar">
+        <div class="filter-group">
+          <div class="filter-label">Form</div>
+          <select class="filter-select" id="r-form-sel" onchange="applyFilters('r')">
+            <option value="all">All forms</option>
+            <option value="poll">Pollution report</option>
+            <option value="samp">Sampling data</option>
+            <option value="lab">Lab QA report</option>
+            <option value="fgd">FGD session</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Status</div>
+          <select class="filter-select" id="r-status-sel" onchange="applyFilters('r')">
+            <option value="all">All statuses</option>
+            <option value="pending">Pending approval</option>
+            <option value="approved">Approved</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Basin</div>
+          <select class="filter-select" id="r-basin-sel" onchange="applyFilters('r')">
+            <option value="all">All basins</option>
+            <option value="mara">Mara Basin</option>
+            <option value="sio">Sio-Siteko</option>
+          </select>
+        </div>
+        <div class="result-count" id="r-count">7 records</div>
+        <div class="clear-btn" onclick="clearFilters('r')">Clear</div>
+        <button class="btn-add-new" onclick="openModal()">+ Add New</button>
+      </div>
+
+      <table id="r-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Form</th><th>Basin / Site</th><th>Date</th><th>Submitted by</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="data-row" data-form="poll" data-status="pending" data-basin="mara" onclick="toggle('r-1')">
+            <td>PE-20260508-041</td>
+            <td><span class="form-chip chip-poll">Pollution report</span></td>
+            <td><span class="basin-chip chip-mara">Mara Basin</span></td>
+            <td>2026-05-08 07:14</td><td>+254 *** 4821</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="r-1"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Basin</div><div class="expand-val">Mara Basin</div></div>
+              <div class="expand-field"><div class="expand-label">Observation</div><div class="expand-val">Oil sheen visible on water surface</div></div>
+              <div class="expand-field"><div class="expand-label">Photo</div><div class="expand-val">📷 1 attachment</div></div>
+              <div class="expand-field"><div class="expand-label">GPS (approx.)</div><div class="expand-val">-1.39, 35.12</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve</span>
+              <span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="poll" data-status="pending" data-basin="sio" onclick="toggle('r-2')">
+            <td>PE-20260506-022</td>
+            <td><span class="form-chip chip-poll">Pollution report</span></td>
+            <td><span class="basin-chip chip-sio">Sio-Siteko</span></td>
+            <td>2026-05-06 09:10</td><td>+256 *** 3390</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="r-2"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Basin</div><div class="expand-val">Sio-Siteko</div></div>
+              <div class="expand-field"><div class="expand-label">Observation</div><div class="expand-val">Dead fish along shoreline</div></div>
+              <div class="expand-field"><div class="expand-label">Photo</div><div class="expand-val">📷 3 attachments</div></div>
+              <div class="expand-field"><div class="expand-label">GPS (approx.)</div><div class="expand-val">0.24, 34.08</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve</span>
+              <span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="samp" data-status="pending" data-basin="mara" onclick="toggle('r-3')">
+            <td>SP-20260501-018</td>
+            <td><span class="form-chip chip-samp">Sampling data</span></td>
+            <td><span class="basin-chip chip-mara">Mara</span> &nbsp;NBD-MARA-001</td>
+            <td>2026-05-01</td><td>CS-KE-04</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="r-3"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-MARA-001</div></div>
+              <div class="expand-field"><div class="expand-label">Score / Class</div><div class="expand-val">0.55 &nbsp;<strong style="color:#fde047">C</strong> <span style="font-size:0.58rem;color:#475569;margin-left:4px;">(IK-adjusted)</span></div></div>
+              <div class="expand-field"><div class="expand-label">pH</div><div class="expand-val">7.2</div></div>
+              <div class="expand-field"><div class="expand-label">Dissolved O₂</div><div class="expand-val">6.8 mg/L</div></div>
+              <div class="expand-field"><div class="expand-label">Turbidity</div><div class="expand-val">12 NTU</div></div>
+              <div class="expand-field"><div class="expand-label">Shadow sample</div><div class="expand-val">Match ✓</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve &amp; publish</span>
+              <span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="samp" data-status="pending" data-basin="sio" onclick="toggle('r-4')">
+            <td>SP-20260501-014</td>
+            <td><span class="form-chip chip-samp">Sampling data</span></td>
+            <td><span class="basin-chip chip-sio">Sio-Siteko</span> &nbsp;NBD-SIOS-001</td>
+            <td>2026-05-01</td><td>CS-UG-02</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="r-4"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-SIOS-001</div></div>
+              <div class="expand-field"><div class="expand-label">Score / Class</div><div class="expand-val">0.52 &nbsp;<strong style="color:#fbbf24">C</strong></div></div>
+              <div class="expand-field"><div class="expand-label">pH</div><div class="expand-val">6.1</div></div>
+              <div class="expand-field"><div class="expand-label">Dissolved O₂</div><div class="expand-val">4.2 mg/L</div></div>
+              <div class="expand-field"><div class="expand-label">Turbidity</div><div class="expand-val">48 NTU</div></div>
+              <div class="expand-field"><div class="expand-label">Shadow sample</div><div class="expand-val">Deviation flagged ⚠</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve &amp; publish</span>
+              <span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="lab" data-status="approved" data-basin="mara" onclick="toggle('r-5')">
+            <td>LAB-20260501-003</td>
+            <td><span class="form-chip chip-labqa">Lab QA report</span></td>
+            <td><span class="basin-chip chip-mara">Mara</span> &nbsp;NBD-MARA-001</td>
+            <td>2026-05-03</td><td>Makerere Univ.</td>
+            <td><span class="badge badge-approved">Approved</span></td>
+          </tr>
+          <tr class="expanded-row" id="r-5"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-MARA-001</div></div>
+              <div class="expand-field"><div class="expand-label">Sample ref</div><div class="expand-val">SP-20260501-018</div></div>
+              <div class="expand-field"><div class="expand-label">Heavy metals</div><div class="expand-val">Within limits ✓</div></div>
+              <div class="expand-field"><div class="expand-label">Coliform</div><div class="expand-val">210 CFU/100 mL</div></div>
+              <div class="expand-field"><div class="expand-label">BOD</div><div class="expand-val">3.1 mg/L</div></div>
+              <div class="expand-field"><div class="expand-label">Lab</div><div class="expand-val">Makerere University</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-edit">View full report</span>
+            </div>
+          </td></tr>
+
+          <!-- FGD SESSION ROW -->
+          <tr class="data-row" data-form="fgd" data-status="pending" data-basin="mara" onclick="toggle('r-6')">
+            <td>FGD-20260501-002</td>
+            <td><span class="form-chip chip-fgd">FGD session</span></td>
+            <td><span class="basin-chip chip-mara">Mara</span> &nbsp;NBD-MARA-001</td>
+            <td>2026-05-01</td><td>Grace Achieng (UWASNET)</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="r-6"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-MARA-001</div></div>
+              <div class="expand-field"><div class="expand-label">Baraza date</div><div class="expand-val">2026-05-01</div></div>
+              <div class="expand-field"><div class="expand-label">Participants</div><div class="expand-val">12</div></div>
+              <div class="expand-field"><div class="expand-label">Facilitator</div><div class="expand-val">Grace Achieng</div></div>
+            </div>
+            <div style="margin-top:10px;">
+              <div class="expand-label" style="margin-bottom:6px;">Community signals (IK health — higher is better)</div>
+              <div class="ik-row">
+                <span class="ik-label">Fish abundance</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:40%;background:#f97316;"></div></div>
+                <span class="ik-val">Moderately declined</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Water clarity</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:10%;background:#ef4444;"></div></div>
+                <span class="ik-val">Much worse</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Vegetation cover</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:55%;background:#eab308;"></div></div>
+                <span class="ik-val">Partially lost</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Pollution events</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:50%;background:#eab308;"></div></div>
+                <span class="ik-val">Occasional</span>
+              </div>
+            </div>
+            <div class="expand-notes">"Elders note seasonal fish decline has worsened over the past 3 years. Papyrus reed coverage on the eastern bank noticeably reduced."</div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve</span>
+              <span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="fgd" data-status="approved" data-basin="sio" onclick="toggle('r-7')">
+            <td>FGD-20260501-001</td>
+            <td><span class="form-chip chip-fgd">FGD session</span></td>
+            <td><span class="basin-chip chip-sio">Sio-Siteko</span> &nbsp;NBD-SIOS-001</td>
+            <td>2026-04-28</td><td>David Otieno (KEWASNET)</td>
+            <td><span class="badge badge-approved">Approved</span></td>
+          </tr>
+          <tr class="expanded-row" id="r-7"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-SIOS-001</div></div>
+              <div class="expand-field"><div class="expand-label">Baraza date</div><div class="expand-val">2026-04-28</div></div>
+              <div class="expand-field"><div class="expand-label">Participants</div><div class="expand-val">9</div></div>
+              <div class="expand-field"><div class="expand-label">Facilitator</div><div class="expand-val">David Otieno</div></div>
+            </div>
+            <div style="margin-top:10px;">
+              <div class="expand-label" style="margin-bottom:6px;">Community signals (IK health — higher is better)</div>
+              <div class="ik-row">
+                <span class="ik-label">Fish abundance</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:65%;background:#22c55e;"></div></div>
+                <span class="ik-val">Slightly declined</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Water clarity</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:55%;background:#eab308;"></div></div>
+                <span class="ik-val">Somewhat worse</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Vegetation cover</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:80%;background:#22c55e;"></div></div>
+                <span class="ik-val">Same or more</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Pollution events</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:90%;background:#22c55e;"></div></div>
+                <span class="ik-val">None reported</span>
+              </div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-edit">View</span>
+            </div>
+          </td></tr>
+
+        </tbody>
+      </table>
+      <p class="role-note"><strong>Reviewer:</strong> Approve or reject submissions. Score and class are calculated automatically — not editable. IK-adjusted scores incorporate the most recent approved FGD session for that site and period.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ ADMIN ══════════ -->
+<div class="screen" id="screen-admin">
+  <div class="sidebar">
+    <div class="sidebar-logo">🌿 Wetland Admin</div>
+    <div class="sidebar-role">Signed in as: Admin</div>
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item active" id="a-nav-data" onclick="showView('a','data',this)">
+      <span class="nav-icon">🗂</span> Data
+    </div>
+    <div class="nav-section">Management</div>
+    <div class="nav-item" id="a-nav-users" onclick="showView('a','users',this)">
+      <span class="nav-icon">👥</span> User management
+    </div>
+    <div class="nav-item" id="a-nav-sites" onclick="showView('a','sites',this)">
+      <span class="nav-icon">📍</span> Site management
+    </div>
+    <div class="nav-section">Account</div>
+    <div class="nav-item"><span class="nav-icon">👤</span> My profile</div>
+  </div>
+
+  <div class="main">
+
+    <!-- DATA view -->
+    <div class="view visible" id="a-view-data">
+      <div class="page-title">Data</div>
+      <div class="page-sub">Search and filter across all submitted data · Click a row to review</div>
+
+      <div class="filter-bar">
+        <div class="filter-group">
+          <div class="filter-label">Form</div>
+          <select class="filter-select" id="a-form-sel" onchange="applyFilters('a')">
+            <option value="all">All forms</option>
+            <option value="poll">Pollution report</option>
+            <option value="samp">Sampling data</option>
+            <option value="lab">Lab QA report</option>
+            <option value="fgd">FGD session</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Status</div>
+          <select class="filter-select" id="a-status-sel" onchange="applyFilters('a')">
+            <option value="all">All statuses</option>
+            <option value="pending">Pending approval</option>
+            <option value="approved">Approved</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Basin</div>
+          <select class="filter-select" id="a-basin-sel" onchange="applyFilters('a')">
+            <option value="all">All basins</option>
+            <option value="mara">Mara Basin</option>
+            <option value="sio">Sio-Siteko</option>
+          </select>
+        </div>
+        <div class="result-count" id="a-count">7 records</div>
+        <div class="clear-btn" onclick="clearFilters('a')">Clear</div>
+        <button class="btn-add-new" onclick="openModal()">+ Add New</button>
+      </div>
+
+      <table id="a-table">
+        <thead>
+          <tr><th>ID</th><th>Form</th><th>Basin / Site</th><th>Date</th><th>Submitted by</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr class="data-row" data-form="poll" data-status="pending" data-basin="mara" onclick="toggle('a-1')">
+            <td>PE-20260508-041</td>
+            <td><span class="form-chip chip-poll">Pollution report</span></td>
+            <td><span class="basin-chip chip-mara">Mara Basin</span></td>
+            <td>2026-05-08 07:14</td><td>+254 *** 4821</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="a-1"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Basin</div><div class="expand-val">Mara Basin</div></div>
+              <div class="expand-field"><div class="expand-label">Observation</div><div class="expand-val">Oil sheen visible on water surface</div></div>
+              <div class="expand-field"><div class="expand-label">Photo</div><div class="expand-val">📷 1 attachment</div></div>
+              <div class="expand-field"><div class="expand-label">GPS (approx.)</div><div class="expand-val">-1.39, 35.12</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve</span><span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span><span class="eact eact-delete">Delete</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="poll" data-status="approved" data-basin="sio" onclick="toggle('a-2')">
+            <td>PE-20260506-022</td>
+            <td><span class="form-chip chip-poll">Pollution report</span></td>
+            <td><span class="basin-chip chip-sio">Sio-Siteko</span></td>
+            <td>2026-05-06 09:10</td><td>+256 *** 3390</td>
+            <td><span class="badge badge-approved">Approved</span></td>
+          </tr>
+          <tr class="expanded-row" id="a-2"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Basin</div><div class="expand-val">Sio-Siteko</div></div>
+              <div class="expand-field"><div class="expand-label">Observation</div><div class="expand-val">Dead fish along shoreline</div></div>
+              <div class="expand-field"><div class="expand-label">Photo</div><div class="expand-val">📷 3 attachments</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-edit">Edit</span><span class="eact eact-delete">Delete</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="samp" data-status="pending" data-basin="mara" onclick="toggle('a-3')">
+            <td>SP-20260501-018</td>
+            <td><span class="form-chip chip-samp">Sampling data</span></td>
+            <td><span class="basin-chip chip-mara">Mara</span> &nbsp;NBD-MARA-001</td>
+            <td>2026-05-01</td><td>CS-KE-04</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="a-3"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-MARA-001</div></div>
+              <div class="expand-field"><div class="expand-label">Score / Class</div><div class="expand-val">0.55 &nbsp;<strong style="color:#fde047">C</strong> <span style="font-size:0.58rem;color:#475569;margin-left:4px;">(IK-adjusted)</span></div></div>
+              <div class="expand-field"><div class="expand-label">pH</div><div class="expand-val">7.2</div></div>
+              <div class="expand-field"><div class="expand-label">Dissolved O₂</div><div class="expand-val">6.8 mg/L</div></div>
+              <div class="expand-field"><div class="expand-label">Turbidity</div><div class="expand-val">12 NTU</div></div>
+              <div class="expand-field"><div class="expand-label">Shadow sample</div><div class="expand-val">Match ✓</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve &amp; publish</span><span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span><span class="eact eact-delete">Delete</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="samp" data-status="pending" data-basin="sio" onclick="toggle('a-4')">
+            <td>SP-20260501-014</td>
+            <td><span class="form-chip chip-samp">Sampling data</span></td>
+            <td><span class="basin-chip chip-sio">Sio-Siteko</span> &nbsp;NBD-SIOS-001</td>
+            <td>2026-05-01</td><td>CS-UG-02</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="a-4"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-SIOS-001</div></div>
+              <div class="expand-field"><div class="expand-label">Score / Class</div><div class="expand-val">0.52 &nbsp;<strong style="color:#fbbf24">C</strong></div></div>
+              <div class="expand-field"><div class="expand-label">pH</div><div class="expand-val">6.1</div></div>
+              <div class="expand-field"><div class="expand-label">Dissolved O₂</div><div class="expand-val">4.2 mg/L</div></div>
+              <div class="expand-field"><div class="expand-label">Shadow sample</div><div class="expand-val">Deviation flagged ⚠</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve &amp; publish</span><span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span><span class="eact eact-delete">Delete</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="lab" data-status="approved" data-basin="mara" onclick="toggle('a-5')">
+            <td>LAB-20260501-003</td>
+            <td><span class="form-chip chip-labqa">Lab QA report</span></td>
+            <td><span class="basin-chip chip-mara">Mara</span> &nbsp;NBD-MARA-001</td>
+            <td>2026-05-03</td><td>Makerere Univ.</td>
+            <td><span class="badge badge-approved">Approved</span></td>
+          </tr>
+          <tr class="expanded-row" id="a-5"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-MARA-001</div></div>
+              <div class="expand-field"><div class="expand-label">Sample ref</div><div class="expand-val">SP-20260501-018</div></div>
+              <div class="expand-field"><div class="expand-label">Heavy metals</div><div class="expand-val">Within limits ✓</div></div>
+              <div class="expand-field"><div class="expand-label">Coliform</div><div class="expand-val">210 CFU/100 mL</div></div>
+              <div class="expand-field"><div class="expand-label">BOD</div><div class="expand-val">3.1 mg/L</div></div>
+              <div class="expand-field"><div class="expand-label">Lab</div><div class="expand-val">Makerere University</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-edit">View full report</span><span class="eact eact-delete">Delete</span>
+            </div>
+          </td></tr>
+
+          <!-- FGD ROWS (ADMIN) -->
+          <tr class="data-row" data-form="fgd" data-status="pending" data-basin="mara" onclick="toggle('a-6')">
+            <td>FGD-20260501-002</td>
+            <td><span class="form-chip chip-fgd">FGD session</span></td>
+            <td><span class="basin-chip chip-mara">Mara</span> &nbsp;NBD-MARA-001</td>
+            <td>2026-05-01</td><td>Grace Achieng (UWASNET)</td>
+            <td><span class="badge badge-pending">Pending approval</span></td>
+          </tr>
+          <tr class="expanded-row" id="a-6"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-MARA-001</div></div>
+              <div class="expand-field"><div class="expand-label">Baraza date</div><div class="expand-val">2026-05-01</div></div>
+              <div class="expand-field"><div class="expand-label">Participants</div><div class="expand-val">12</div></div>
+              <div class="expand-field"><div class="expand-label">Facilitator</div><div class="expand-val">Grace Achieng</div></div>
+            </div>
+            <div style="margin-top:10px;">
+              <div class="expand-label" style="margin-bottom:6px;">Community signals (IK health — higher is better)</div>
+              <div class="ik-row">
+                <span class="ik-label">Fish abundance</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:40%;background:#f97316;"></div></div>
+                <span class="ik-val">Moderately declined</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Water clarity</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:10%;background:#ef4444;"></div></div>
+                <span class="ik-val">Much worse</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Vegetation cover</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:55%;background:#eab308;"></div></div>
+                <span class="ik-val">Partially lost</span>
+              </div>
+              <div class="ik-row">
+                <span class="ik-label">Pollution events</span>
+                <div class="ik-bar-bg"><div class="ik-bar" style="width:50%;background:#eab308;"></div></div>
+                <span class="ik-val">Occasional</span>
+              </div>
+            </div>
+            <div class="expand-notes">"Elders note seasonal fish decline has worsened over the past 3 years. Papyrus reed coverage on the eastern bank noticeably reduced."</div>
+            <div class="expand-actions">
+              <span class="eact eact-approve">Approve</span><span class="eact eact-reject">Reject</span>
+              <span class="eact eact-edit">Edit</span><span class="eact eact-delete">Delete</span>
+            </div>
+          </td></tr>
+
+          <tr class="data-row" data-form="fgd" data-status="approved" data-basin="sio" onclick="toggle('a-7')">
+            <td>FGD-20260428-001</td>
+            <td><span class="form-chip chip-fgd">FGD session</span></td>
+            <td><span class="basin-chip chip-sio">Sio-Siteko</span> &nbsp;NBD-SIOS-001</td>
+            <td>2026-04-28</td><td>David Otieno (KEWASNET)</td>
+            <td><span class="badge badge-approved">Approved</span></td>
+          </tr>
+          <tr class="expanded-row" id="a-7"><td colspan="6">
+            <div class="expand-grid">
+              <div class="expand-field"><div class="expand-label">Site</div><div class="expand-val">NBD-SIOS-001</div></div>
+              <div class="expand-field"><div class="expand-label">Baraza date</div><div class="expand-val">2026-04-28</div></div>
+              <div class="expand-field"><div class="expand-label">Participants</div><div class="expand-val">9</div></div>
+            </div>
+            <div class="expand-actions">
+              <span class="eact eact-edit">View</span><span class="eact eact-delete">Delete</span>
+            </div>
+          </td></tr>
+
+        </tbody>
+      </table>
+      <p class="role-note"><strong>Admin:</strong> All reviewer actions plus delete. IK-adjusted scores incorporate the most recent approved FGD session for that site and period.</p>
+    </div>
+
+    <!-- USER MANAGEMENT -->
+    <div class="view" id="a-view-users">
+      <div class="page-title">User Management</div>
+      <div class="page-sub">Admin-only — invite users and assign roles</div>
+      <div class="admin-only" style="margin-top:4px;">
+        <div class="admin-only-label">🔐 Admin-only</div>
+        <div class="table-header">
+          <div class="table-title">Platform users</div>
+          <button class="btn-red">+ Invite user</button>
+        </div>
+        <div class="user-grid">
+          <div class="user-card"><h5>Amara Osei</h5><p>akvo.org</p><span class="urb urb-admin">Admin</span></div>
+          <div class="user-card"><h5>Fatuma Wanjiku</h5><p>kewasnet.ke</p><span class="urb urb-reviewer">Reviewer</span></div>
+          <div class="user-card"><h5>Grace Achieng</h5><p>uwasnet.org</p><span class="urb urb-reviewer">Reviewer</span></div>
+          <div class="user-card"><h5>David Otieno</h5><p>kewasnet.ke</p><span class="urb urb-reviewer">Reviewer</span></div>
+          <div style="display:flex;align-items:center;justify-content:center;min-width:130px;background:#1e293b22;border:1px dashed #334155;border-radius:6px;padding:8px 12px;font-size:0.65rem;color:#475569;cursor:pointer;">+ Invite user</div>
+        </div>
+        <div class="sso-note">🔑 Users sign in via SSO (Google, Microsoft) or email and password. Accounts must be invited — self-registration is disabled.</div>
+      </div>
+    </div>
+
+    <!-- SITE MANAGEMENT -->
+    <div class="view" id="a-view-sites">
+      <div class="page-title">Site Management</div>
+      <div class="page-sub">Admin-only — manage monitoring sites and attached documents</div>
+      <div class="admin-only" style="margin-top:4px;">
+        <div class="admin-only-label">🔐 Admin-only</div>
+        <div class="table-header">
+          <div class="table-title">Monitoring sites</div>
+          <button class="btn-red">+ Add site</button>
+        </div>
+        <table>
+          <thead><tr><th>Site ID</th><th>Name</th><th>Country</th><th>Basin</th><th>Lat / Lon</th><th>Documents</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr class="data-row" onclick="toggle('site-1')">
+              <td>NBD-MARA-001</td><td>Mara River — upstream</td><td>Kenya</td>
+              <td><span class="basin-chip chip-mara">Mara</span></td><td>-1.39, 35.12</td>
+              <td><span class="doc-pill">📎 2 docs</span></td>
+              <td>
+                <span class="eact eact-edit" style="font-size:0.6rem;padding:2px 8px;">Edit</span>
+                <span class="eact eact-reject" style="font-size:0.6rem;padding:2px 8px;">Disable</span>
+              </td>
+            </tr>
+            <tr class="expanded-row" id="site-1"><td colspan="7">
+              <div class="expand-label" style="margin-bottom:6px;">Attached documents</div>
+              <div class="doc-list">
+                <div class="doc-item">
+                  <span class="doc-name">📄 Mara_management_plan_2025.pdf</span>
+                  <span class="doc-meta">Uploaded 2026-03-12 · 1.4 MB</span>
+                </div>
+                <div class="doc-item">
+                  <span class="doc-name">📄 NBD-MARA-001_baseline_assessment.pdf</span>
+                  <span class="doc-meta">Uploaded 2026-04-02 · 3.1 MB</span>
+                </div>
+                <div style="margin-top:6px;">
+                  <span class="eact eact-edit" style="font-size:0.62rem;padding:3px 10px;">+ Attach document</span>
+                </div>
+              </div>
+            </td></tr>
+
+            <tr class="data-row" onclick="toggle('site-2')">
+              <td>NBD-MARA-002</td><td>Mara River — delta</td><td>Tanzania</td>
+              <td><span class="basin-chip chip-mara">Mara</span></td><td>-1.61, 34.50</td>
+              <td><span class="doc-pill">📎 1 doc</span></td>
+              <td>
+                <span class="eact eact-edit" style="font-size:0.6rem;padding:2px 8px;">Edit</span>
+                <span class="eact eact-reject" style="font-size:0.6rem;padding:2px 8px;">Disable</span>
+              </td>
+            </tr>
+            <tr class="expanded-row" id="site-2"><td colspan="7">
+              <div class="expand-label" style="margin-bottom:6px;">Attached documents</div>
+              <div class="doc-list">
+                <div class="doc-item">
+                  <span class="doc-name">📷 NBD-MARA-002_field_photos_Apr2026.jpg</span>
+                  <span class="doc-meta">Uploaded 2026-04-15 · 2.8 MB</span>
+                </div>
+                <div style="margin-top:6px;">
+                  <span class="eact eact-edit" style="font-size:0.62rem;padding:3px 10px;">+ Attach document</span>
+                </div>
+              </div>
+            </td></tr>
+
+            <tr class="data-row" onclick="toggle('site-3')">
+              <td>NBD-SIOS-001</td><td>Sio River mouth</td><td>Kenya / Uganda</td>
+              <td><span class="basin-chip chip-sio">Sio-Siteko</span></td><td>0.24, 34.08</td>
+              <td><span class="doc-pill" style="color:#475569;">📎 0 docs</span></td>
+              <td>
+                <span class="eact eact-edit" style="font-size:0.6rem;padding:2px 8px;">Edit</span>
+                <span class="eact eact-reject" style="font-size:0.6rem;padding:2px 8px;">Disable</span>
+              </td>
+            </tr>
+            <tr class="expanded-row" id="site-3"><td colspan="7">
+              <div class="expand-label" style="margin-bottom:6px;">Attached documents</div>
+              <div style="font-size:0.68rem;color:#475569;font-style:italic;margin-bottom:8px;">No documents attached yet.</div>
+              <span class="eact eact-edit" style="font-size:0.62rem;padding:3px 10px;">+ Attach document</span>
+            </td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:0.62rem;color:#475569;margin-top:10px;">Supported formats: PDF, JPG, PNG · Max 10 MB per file · Documents are admin-only; not visible on the public portal.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ LOGIN SCREEN ══════════ -->
+<div class="screen login-screen" id="screen-login">
+  <div class="login-card">
+    <div class="login-logo">🌿 Wetland Admin</div>
+    <div class="login-tagline">Citizen-Led Wetland Monitoring Platform</div>
+
+    <button class="sso-btn">
+      <span class="sso-icon">G</span> Continue with Google
+    </button>
+    <button class="sso-btn">
+      <span class="sso-icon">⊞</span> Continue with Microsoft
+    </button>
+
+    <div class="login-divider"><span>or sign in with email</span></div>
+
+    <input class="login-input" type="email" placeholder="your@organisation.org" />
+    <input class="login-input" type="password" placeholder="Password" />
+    <button class="login-submit">Sign in</button>
+
+    <div class="login-note">
+      No account? Contact your platform administrator.<br/>
+      Self-registration is not available.
+    </div>
+  </div>
+</div>
+
+<!-- ADD NEW MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">Add New Submission</div>
+    <div class="modal-sub">Select a form type to open the webform</div>
+    <div class="form-field">
+      <label>Form type</label>
+      <select id="modal-form-type" onchange="onModalFormChange()">
+        <option value="">— Select a form —</option>
+        <option value="poll">Pollution report</option>
+        <option value="samp">Sampling data</option>
+        <option value="lab">Lab QA report</option>
+        <option value="fgd">FGD session</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Basin</label>
+      <select>
+        <option value="">— Select a basin —</option>
+        <option>Mara Basin</option>
+        <option>Sio-Siteko</option>
+      </select>
+    </div>
+    <div class="form-field" id="modal-site-field" style="display:none;">
+      <label>Site</label>
+      <select>
+        <option>NBD-MARA-001 — Mara River, upstream</option>
+        <option>NBD-MARA-002 — Mara River, delta</option>
+        <option>NBD-SIOS-001 — Sio River mouth</option>
+      </select>
+    </div>
+    <div class="form-field" id="modal-period-field" style="display:none;">
+      <label>Baraza period (month / year)</label>
+      <input type="month" value="2026-05" />
+    </div>
+
+    <!-- FGD-specific fields, shown only when FGD session selected -->
+    <div id="modal-fgd-fields" style="display:none;">
+      <div class="modal-divider">Community signals — FGD session</div>
+      <div class="form-field">
+        <label>Fish abundance change</label>
+        <select>
+          <option>— Select —</option>
+          <option>Same or increased</option>
+          <option>Slightly declined</option>
+          <option>Moderately declined</option>
+          <option>Severely declined</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Water clarity change</label>
+        <select>
+          <option>— Select —</option>
+          <option>Same or clearer</option>
+          <option>Somewhat worse</option>
+          <option>Much worse</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Vegetation cover change</label>
+        <select>
+          <option>— Select —</option>
+          <option>Same or more</option>
+          <option>Partially lost</option>
+          <option>Severely lost</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Pollution events reported</label>
+        <select>
+          <option>— Select —</option>
+          <option>None</option>
+          <option>Occasional</option>
+          <option>Frequent</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Number of participants</label>
+        <input type="number" placeholder="e.g. 12" min="1" />
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label>Notes / reference</label>
+      <textarea id="modal-notes-label" placeholder="Optional reference or notes…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-submit" id="modal-submit-btn">Open webform →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function onModalFormChange() {
+  const v = document.getElementById('modal-form-type').value;
+  document.getElementById('modal-site-field').style.display   = (v === 'samp' || v === 'fgd') ? '' : 'none';
+  document.getElementById('modal-period-field').style.display = (v === 'fgd') ? '' : 'none';
+  document.getElementById('modal-fgd-fields').style.display   = (v === 'fgd') ? '' : 'none';
+  document.getElementById('modal-submit-btn').textContent     = (v === 'fgd') ? 'Submit FGD session' : 'Open webform →';
+}
+
+function openModal() { document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function showRole(role, el) {
+  ['reviewer','admin','login'].forEach(r => {
+    const s = document.getElementById('screen-'+r);
+    s.classList.remove('visible');
+  });
+  document.getElementById('screen-'+role).classList.add('visible');
+  ['tab-r','tab-a','tab-l'].forEach(id => document.getElementById(id).className = 'tab inactive');
+  el.className = 'tab active-' + role;
+}
+
+function showView(prefix, key, navEl) {
+  document.querySelectorAll('#screen-'+prefix+' .view').forEach(v => v.classList.remove('visible'));
+  document.getElementById(prefix+'-view-'+key).classList.add('visible');
+  document.querySelectorAll('#screen-'+prefix+' .nav-item').forEach(n => n.classList.remove('active'));
+  navEl.classList.add('active');
+}
+
+function toggle(id) {
+  const exp = document.getElementById(id);
+  const row = exp.previousElementSibling;
+  const open = exp.classList.toggle('visible');
+  row.classList.toggle('open', open);
+}
+
+function applyFilters(prefix) {
+  const form   = document.getElementById(prefix+'-form-sel').value;
+  const status = document.getElementById(prefix+'-status-sel').value;
+  const basin  = document.getElementById(prefix+'-basin-sel').value;
+  const rows   = document.querySelectorAll('#'+prefix+'-table tr.data-row');
+  let count = 0;
+  rows.forEach(row => {
+    const match =
+      (form   === 'all' || row.dataset.form   === form)   &&
+      (status === 'all' || row.dataset.status === status) &&
+      (basin  === 'all' || row.dataset.basin  === basin);
+    row.style.display = match ? '' : 'none';
+    const exp = row.nextElementSibling;
+    if (!match) { exp.classList.remove('visible'); row.classList.remove('open'); }
+    if (match) count++;
+  });
+  document.getElementById(prefix+'-count').textContent = count + ' record' + (count !== 1 ? 's' : '');
+}
+
+function clearFilters(prefix) {
+  ['form','status','basin'].forEach(f => document.getElementById(prefix+'-'+f+'-sel').value = 'all');
+  applyFilters(prefix);
+}
+</script>
+</body>
+</html>

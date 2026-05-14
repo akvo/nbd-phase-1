@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>System Architecture</title>
+<script src="/helper.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; margin: 0; padding: 24px; }
+  h2 { color: #f8fafc; margin-bottom: 4px; font-size: 1.3rem; }
+  .subtitle { color: #94a3b8; margin-bottom: 24px; font-size: 0.85rem; }
+
+  .arch { display: flex; flex-direction: column; gap: 0; }
+
+  .layer { border-radius: 10px; padding: 16px 20px; position: relative; }
+  .layer-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; opacity: 0.7; }
+  .layer-boxes { display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; }
+
+  .collection { background: #1e3a5f; border: 1px solid #2563eb44; }
+  .external  { background: #1a2e1a; border: 1px solid #16a34a44; }
+  .admin     { background: #3b1f1f; border: 1px solid #dc262644; }
+  .portal    { background: #1e1b3a; border: 1px solid #7c3aed44; }
+
+  .box { border-radius: 7px; padding: 10px 14px; font-size: 0.78rem; min-width: 120px; flex: 1; }
+  .box h4 { margin: 0 0 4px; font-size: 0.8rem; }
+  .box p  { margin: 0; font-size: 0.72rem; opacity: 0.75; line-height: 1.4; }
+
+  .collection .box { background: #1d4ed822; border: 1px solid #3b82f655; }
+  .external .box   { background: #15803d22; border: 1px solid #22c55e55; }
+  .admin .box      { background: #b91c1c22; border: 1px solid #f8717155; }
+  .portal .box     { background: #6d28d922; border: 1px solid #a78bfa55; }
+
+  /* arrows between layers */
+  .arrow-row { display: flex; justify-content: center; align-items: center; gap: 40px; padding: 6px 0; }
+  .arrow { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .arrow span { font-size: 0.65rem; color: #64748b; }
+  .arrow-line { width: 1px; height: 18px; background: #334155; }
+  .arrow-head { color: #334155; font-size: 14px; line-height: 1; }
+
+  /* external data side entry */
+  .arch-row { display: flex; gap: 0; align-items: stretch; }
+  .main-col { flex: 1; display: flex; flex-direction: column; gap: 0; }
+  .side-col  { display: flex; flex-direction: column; justify-content: center; padding-left: 12px; }
+  .side-arrow { display: flex; align-items: center; gap: 6px; color: #64748b; font-size: 0.65rem; }
+  .side-arrow-line { height: 1px; width: 24px; background: #334155; }
+
+  .role-pill { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 0.65rem; font-weight: 600; margin: 2px 2px 0 0; }
+  .pill-admin { background: #7f1d1d; color: #fca5a5; }
+  .pill-reviewer { background: #431407; color: #fb923c; }
+  .pill-public { background: #1e3a5f; color: #93c5fd; }
+  .pill-auth   { background: #312e81; color: #c4b5fd; }
+
+  .legend { margin-top: 20px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.7rem; color: #64748b; }
+  .leg-item { display: flex; align-items: center; gap: 6px; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<h2>System Architecture — Wetland Monitoring Platform</h2>
+<p class="subtitle">Three layers; two pipelines converging at the portal</p>
+
+<div class="arch">
+
+  <!-- DATA COLLECTION LAYER -->
+  <div class="layer collection">
+    <div class="layer-label">① Data Collection Layer</div>
+    <div class="layer-boxes">
+      <div class="box">
+        <h4>📱 USSD</h4>
+        <p>Feature phone users<br>Africa's Talking gateway<br>GSM voice only</p>
+      </div>
+      <div class="box">
+        <h4>💬 WhatsApp Business Bot</h4>
+        <p>Smartphone users<br>Africa's Talking gateway<br>Menu-driven flow</p>
+      </div>
+      <div class="box">
+        <h4>📋 KoboCollect</h4>
+        <p>Citizen scientists<br>Android, offline-capable<br>Self-hosted KoboToolbox</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow-row">
+    <div class="arrow"><span>Pollution episodes</span><div class="arrow-line"></div><div class="arrow-head">▼</div></div>
+    <div class="arrow"><span>Pollution episodes</span><div class="arrow-line"></div><div class="arrow-head">▼</div></div>
+    <div class="arrow"><span>Monthly samples</span><div class="arrow-line"></div><div class="arrow-head">▼</div></div>
+  </div>
+
+  <!-- ADMIN LAYER + EXTERNAL DATA SIDE -->
+  <div class="arch-row">
+    <div class="main-col">
+      <div class="layer admin">
+        <div class="layer-label">② Admin / Processing Layer</div>
+        <div class="layer-boxes">
+          <div class="box">
+            <h4>🔴 Pollution Pipeline</h4>
+            <p>Ingest → Clean → Tag → Approve<br><br>
+            <span class="role-pill pill-reviewer">Reviewer</span> Clean &amp; Tag<br>
+            <span class="role-pill pill-reviewer">Reviewer</span> Approve<br>
+            <span class="role-pill pill-admin">Admin</span> Configure &amp; Manage</p>
+          </div>
+          <div class="box">
+            <h4>🟠 Sampling Pipeline</h4>
+            <p>Ingest → Clean → QA Review → Score → Classify → Publish<br><br>
+            <span class="role-pill pill-reviewer">Reviewer</span> Clean, QA, Score<br>
+            <span class="role-pill pill-reviewer">Reviewer</span> Classify &amp; Publish<br>
+            <span class="role-pill pill-admin">Admin</span> Users &amp; Site config</p>
+          </div>
+          <div class="box">
+            <h4>⚙️ Admin Interface</h4>
+            <p><span class="role-pill pill-admin">Admin</span> User management<br>
+            <span class="role-pill pill-admin">Admin</span> Site management<br>
+            <span class="role-pill pill-admin">Admin</span> Platform config<br>
+            <span class="role-pill pill-admin">Admin</span> Audit logs</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXTERNAL DATA SIDE ENTRY -->
+    <div class="side-col">
+      <div class="layer external" style="min-width:160px;">
+        <div class="layer-label">External Data</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="box">
+            <h4>🛰 Sentinel 1 &amp; 2</h4>
+            <p>EO batch pipeline<br>GeoTIFF ingest</p>
+          </div>
+          <div class="box">
+            <h4>🌧 CHIRPS</h4>
+            <p>Climate / precip<br>Batch scheduled</p>
+          </div>
+          <div class="box">
+            <h4>🧪 Lab QA</h4>
+            <p>Academic partners<br>CSV upload (quarterly)</p>
+          </div>
+        </div>
+      </div>
+      <div class="side-arrow" style="padding:8px 0 0 12px;">
+        <div class="side-arrow-line"></div>
+        <span>feeds into<br>processing</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow-row">
+    <div class="arrow"><span>Validated &amp; scored outputs</span><div class="arrow-line"></div><div class="arrow-head">▼</div></div>
+  </div>
+
+  <!-- PORTAL LAYER -->
+  <div class="layer portal">
+    <div class="layer-label">③ Wetland Data Portal</div>
+    <div class="layer-boxes">
+      <div class="box">
+        <h4>🌍 Public View</h4>
+        <p><span class="role-pill pill-public">No login</span><br><br>
+        Pollution incident map<br>Aggregated health scores<br>Traffic light status<br>PDF export</p>
+      </div>
+      <div class="box">
+        <h4>🔒 Partner View</h4>
+        <p><span class="role-pill pill-auth">NBD / NDF</span> <span class="role-pill pill-auth">County / District</span><br><br>
+        Raw observations<br>Site-level detail<br>Trend data<br>Management actions<br>API access (GeoJSON)</p>
+      </div>
+      <div class="box">
+        <h4>🔬 CSO / Academic View</h4>
+        <p><span class="role-pill pill-auth">CSO</span> <span class="role-pill pill-auth">Academic</span><br><br>
+        CSO: validation status, account mgmt<br>Academic: submit lab QA records<br>Both: partner-restricted data</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#3b82f6"></div> Collection layer</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#22c55e"></div> External data</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div> Admin / processing</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#7c3aed"></div> Portal output</div>
+</div>
+</body>
+</html>

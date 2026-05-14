@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wetland Data Portal</title>
+<script src="/helper.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── view tabs ── */
+  .view-tabs { display: flex; gap: 2px; padding: 8px 20px 0; background: #0b0f19; border-bottom: 1px solid #1f2937; flex-shrink: 0; }
+  .vt { padding: 6px 14px; font-size: 0.65rem; font-weight: 600; color: #475569; cursor: pointer; border-radius: 5px 5px 0 0; border: 1px solid transparent; border-bottom: none; }
+  .vt.active { background: #111827; color: #e2e8f0; border-color: #1f2937; border-bottom: 1px solid #111827; margin-bottom: -1px; }
+
+  /* ── top nav ── */
+  .topnav { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #111827; border-bottom: 1px solid #1f2937; flex-shrink: 0; }
+  .nav-logo { font-size: 0.85rem; font-weight: 700; color: #60a5fa; letter-spacing: 0.04em; }
+  .nav-links { display: flex; gap: 20px; font-size: 0.72rem; color: #64748b; }
+  .nav-links span { cursor: pointer; }
+  .nav-links span.active { color: #e2e8f0; }
+  .nav-right { display: flex; gap: 10px; align-items: center; }
+  .basin-toggle { display: flex; border: 1px solid #334155; border-radius: 5px; overflow: hidden; font-size: 0.65rem; font-weight: 600; }
+  .bt-btn { padding: 4px 12px; cursor: pointer; color: #64748b; background: transparent; }
+  .bt-btn.active { background: #1d4ed8; color: #fff; }
+  .btn-export { padding: 4px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 5px; font-size: 0.65rem; color: #94a3b8; cursor: pointer; }
+  .btn-login { padding: 4px 12px; background: #1d4ed822; border: 1px solid #3b82f6; border-radius: 5px; font-size: 0.65rem; color: #93c5fd; cursor: pointer; font-weight: 600; }
+
+  /* ── main layout: map + sidebar ── */
+  .body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── map area ── */
+  .map-area { flex: 1; position: relative; background: #1a2332; overflow: hidden; }
+  .map-placeholder { width: 100%; height: 100%; position: relative; }
+
+  /* fake map background */
+  .map-bg { position: absolute; inset: 0; background: linear-gradient(160deg, #1a2e1a 0%, #1a2332 50%, #1a2020 100%); }
+  .map-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #334155; font-size: 0.7rem; line-height: 1.8; pointer-events: none; }
+
+  /* satellite toggle */
+  .satellite-toggle { position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .layer-btn { background: #111827cc; border: 1px solid #334155; border-radius: 5px; padding: 5px 10px; font-size: 0.62rem; color: #94a3b8; cursor: pointer; backdrop-filter: blur(4px); }
+  .layer-btn.on { border-color: #3b82f6; color: #93c5fd; background: #1d4ed844; }
+
+  /* site markers */
+  .marker { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+  .marker-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 8px #00000066; }
+  .marker-label { font-size: 0.58rem; color: #e2e8f0; background: #111827cc; padding: 1px 5px; border-radius: 3px; margin-top: 3px; white-space: nowrap; backdrop-filter: blur(4px); }
+  .dot-green  { background: #22c55e; }
+  .dot-yellow { background: #eab308; }
+  .dot-red    { background: #ef4444; }
+
+  /* pollution pins */
+  .pin { position: absolute; font-size: 1rem; cursor: pointer; filter: drop-shadow(0 2px 4px #000); }
+
+  /* map popup */
+  .map-popup { position: absolute; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; min-width: 200px; font-size: 0.7rem; box-shadow: 0 8px 24px #00000066; }
+  .mp-title { font-weight: 700; color: #f1f5f9; margin-bottom: 6px; font-size: 0.75rem; }
+  .mp-row { display: flex; justify-content: space-between; gap: 16px; color: #94a3b8; margin-bottom: 3px; }
+  .mp-val { color: #e2e8f0; font-weight: 500; }
+  .tl-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .mp-action { margin-top: 8px; padding: 6px 8px; background: #71310f44; border: 1px solid #92400e; border-radius: 5px; font-size: 0.62rem; color: #fde68a; line-height: 1.5; }
+  .mp-action-red { background: #7f1d1d44; border-color: #991b1b; color: #fca5a5; }
+  .ik-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; background: #164e6344; border: 1px solid #0891b2; border-radius: 3px; font-size: 0.55rem; color: #67e8f9; margin-left: 4px; vertical-align: middle; }
+
+  /* ── right sidebar ── */
+  .sidebar { width: 290px; background: #111827; border-left: 1px solid #1f2937; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; }
+
+  .sb-section { padding: 14px 16px; border-bottom: 1px solid #1f2937; }
+  .sb-title { font-size: 0.65rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+  /* health score cards */
+  .site-card { background: #1e293b; border: 1px solid #334155; border-radius: 7px; padding: 10px 12px; margin-bottom: 8px; }
+  .sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .sc-name { font-size: 0.72rem; font-weight: 600; color: #f1f5f9; }
+  .sc-id { font-size: 0.58rem; color: #475569; margin-top: 1px; }
+  .class-badge { font-size: 1rem; font-weight: 800; }
+  .cl-A { color: #22c55e; }
+  .cl-B { color: #86efac; }
+  .cl-C { color: #eab308; }
+  .cl-D { color: #f97316; }
+  .cl-E { color: #ef4444; }
+  .score-bar-bg { background: #0f172a; border-radius: 999px; height: 5px; margin-bottom: 6px; overflow: hidden; }
+  .score-bar { height: 5px; border-radius: 999px; }
+  .sc-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.6rem; color: #475569; }
+  .tl-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font-size: 0.6rem; font-weight: 600; }
+  .tl-green  { background: #14532d; color: #4ade80; }
+  .tl-yellow { background: #713f12; color: #fde047; }
+  .tl-red    { background: #7f1d1d; color: #fca5a5; }
+  .ik-adj { font-size: 0.55rem; color: #67e8f9; margin-top: 3px; display: flex; align-items: center; gap: 3px; }
+
+  /* action description */
+  .action-box { margin-top: 6px; padding: 5px 8px; border-radius: 4px; font-size: 0.6rem; line-height: 1.5; }
+  .action-yellow { background: #71310f22; border-left: 2px solid #f59e0b; color: #fde68a; }
+  .action-red { background: #7f1d1d22; border-left: 2px solid #ef4444; color: #fca5a5; }
+
+  /* mini trend */
+  .trend-line { display: flex; align-items: flex-end; gap: 2px; height: 28px; margin-bottom: 4px; }
+  .trend-bar { flex: 1; border-radius: 2px 2px 0 0; min-width: 6px; }
+
+  /* pollution feed */
+  .poll-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid #1f2937; }
+  .poll-item:last-child { border-bottom: none; }
+  .poll-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-top: 3px; flex-shrink: 0; }
+  .poll-text { font-size: 0.68rem; color: #94a3b8; line-height: 1.5; }
+  .poll-site { color: #e2e8f0; font-weight: 500; }
+  .poll-time { font-size: 0.58rem; color: #475569; }
+
+  /* legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 0.62rem; color: #64748b; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── partner view extras ── */
+  .partner-banner { display: flex; align-items: center; justify-content: space-between; padding: 6px 20px; background: #0c1a3a; border-bottom: 1px solid #1d4ed844; font-size: 0.65rem; }
+  .partner-name { color: #93c5fd; }
+  .partner-logout { color: #475569; cursor: pointer; }
+  .raw-table { width: 100%; border-collapse: collapse; font-size: 0.62rem; }
+  .raw-table th { text-align: left; color: #475569; font-weight: 600; padding: 5px 6px; border-bottom: 1px solid #1f2937; }
+  .raw-table td { padding: 5px 6px; color: #94a3b8; border-bottom: 1px solid #0f172a; }
+  .raw-table td:first-child { color: #e2e8f0; font-weight: 500; }
+  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; background: #1e293b; border: 1px solid #334155; border-radius: 3px; font-size: 0.6rem; color: #94a3b8; cursor: pointer; }
+
+  /* ── login screen ── */
+  .login-screen { flex: 1; display: flex; align-items: center; justify-content: center; background: #0b0f19; }
+  .login-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 36px 40px; width: 340px; }
+  .login-logo { font-size: 1.1rem; font-weight: 700; color: #60a5fa; margin-bottom: 4px; }
+  .login-sub { font-size: 0.7rem; color: #475569; margin-bottom: 28px; }
+  .login-section-label { font-size: 0.6rem; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .sso-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 14px; background: #1e293b; border: 1px solid #334155; border-radius: 7px; font-size: 0.72rem; color: #e2e8f0; cursor: pointer; margin-bottom: 8px; }
+  .sso-icon { font-size: 1rem; }
+  .login-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+  .login-divider span { font-size: 0.6rem; color: #334155; }
+  .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: #1f2937; }
+  .login-input { width: 100%; padding: 8px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; font-size: 0.72rem; color: #e2e8f0; margin-bottom: 8px; outline: none; }
+  .login-input:focus { border-color: #3b82f6; }
+  .login-submit { width: 100%; padding: 9px; background: #1d4ed8; border: none; border-radius: 7px; font-size: 0.72rem; font-weight: 600; color: #fff; cursor: pointer; margin-top: 4px; }
+  .login-note { margin-top: 16px; font-size: 0.6rem; color: #334155; text-align: center; line-height: 1.6; }
+
+  /* tab hide/show */
+  .view { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .view.active { display: flex; }
+</style>
+</head>
+<body>
+
+<!-- VIEW TABS -->
+<div class="view-tabs">
+  <div class="vt active" onclick="showView('public')">Public view</div>
+  <div class="vt" onclick="showView('partner')">Partner view (logged in)</div>
+  <div class="vt" onclick="showView('login')">Partner login</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     VIEW 1 — PUBLIC (no login required)
+══════════════════════════════════════════════ -->
+<div class="view active" id="view-public" style="flex-direction:column;">
+
+  <!-- TOP NAV -->
+  <div class="topnav">
+    <div class="nav-logo">🌿 Wetland Data Portal</div>
+    <div class="nav-links">
+      <span class="active">Map</span>
+      <span>Health scores</span>
+      <span>Trends</span>
+      <span>About</span>
+    </div>
+    <div class="nav-right">
+      <div class="basin-toggle">
+        <div class="bt-btn active">All basins</div>
+        <div class="bt-btn">Mara</div>
+        <div class="bt-btn">Sio-Siteko</div>
+      </div>
+      <div class="btn-export">⬇ Export PDF</div>
+      <div class="btn-login" onclick="showView('login')">Partner login →</div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- MAP -->
+    <div class="map-area">
+      <div class="map-placeholder">
+        <div class="map-bg"></div>
+        <div class="map-label">
+          Interactive map<br>
+          <span style="font-size:0.6rem;">(OpenStreetMap / Leaflet in production)</span>
+        </div>
+
+        <!-- Layer toggles -->
+        <div class="satellite-toggle">
+          <div class="layer-btn on">🛰 Sentinel-2 overlay: ON</div>
+          <div class="layer-btn">🌊 Water extent</div>
+          <div class="layer-btn">🌧 Rainfall (CHIRPS)</div>
+          <div class="layer-btn" style="font-size:0.55rem;color:#334155;cursor:default;margin-top:2px;">via Google Earth Engine</div>
+        </div>
+
+        <!-- Site markers: Mara basin -->
+        <div class="marker" style="left:28%;top:38%;">
+          <div class="marker-dot dot-green"></div>
+          <div class="marker-label">NBD-MARA-001</div>
+        </div>
+        <div class="marker" style="left:22%;top:55%;">
+          <div class="marker-dot dot-yellow"></div>
+          <div class="marker-label">NBD-MARA-002</div>
+        </div>
+
+        <!-- Site marker: Sio basin -->
+        <div class="marker" style="left:62%;top:30%;">
+          <div class="marker-dot dot-red"></div>
+          <div class="marker-label">NBD-SIOS-001</div>
+        </div>
+
+        <!-- Pollution pins -->
+        <div class="pin" style="left:30%;top:34%;" title="Pollution episode">🔴</div>
+        <div class="pin" style="left:20%;top:58%;" title="Pollution episode">🔴</div>
+        <div class="pin" style="left:64%;top:26%;" title="Pollution episode">🔴</div>
+
+        <!-- Map popup (NBD-MARA-002 selected) -->
+        <div class="map-popup" style="left:25%;top:56%;">
+          <div class="mp-title">NBD-MARA-002 — Mara River, delta</div>
+          <div class="mp-row"><span>Health class</span><span class="mp-val"><span class="class-badge cl-C">C</span> Moderate concern</span></div>
+          <div class="mp-row">
+            <span>Score</span>
+            <span class="mp-val">0.52 / 1.00 <span class="ik-badge">IK-adjusted</span></span>
+          </div>
+          <div class="mp-row"><span>Community signal</span><span class="mp-val" style="color:#67e8f9;">↓ declining</span></div>
+          <div class="mp-row"><span>Sampled</span><span class="mp-val">2026-05-01</span></div>
+          <div class="mp-row"><span>Incidents (30 d)</span><span class="mp-val">2 pollution reports</span></div>
+          <div class="mp-action">
+            🟡 <strong>Community response triggered</strong><br>
+            Site stewards notified. Next Baraza: 2026-06-12.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Health scores -->
+      <div class="sb-section">
+        <div class="sb-title">Wetland Health Scores</div>
+
+        <!-- Site card 1 — Green, no FGD adjustment shown -->
+        <div class="site-card">
+          <div class="sc-header">
+            <div>
+              <div class="sc-name">Mara River — upstream</div>
+              <div class="sc-id">NBD-MARA-001 · Kenya</div>
+            </div>
+            <div class="class-badge cl-A">A</div>
+          </div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:74%;background:#22c55e;"></div></div>
+          <div class="sc-meta">
+            <span>Score: 0.74</span>
+            <span class="tl-pill tl-green">🟢 No action required</span>
+          </div>
+          <div class="ik-adj">🤝 Community signal: stable</div>
+        </div>
+
+        <!-- Site card 2 — Yellow, IK-adjusted -->
+        <div class="site-card">
+          <div class="sc-header">
+            <div>
+              <div class="sc-name">Mara River — delta</div>
+              <div class="sc-id">NBD-MARA-002 · Tanzania</div>
+            </div>
+            <div class="class-badge cl-C">C</div>
+          </div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:52%;background:#eab308;"></div></div>
+          <div class="sc-meta">
+            <span>Score: 0.52 <span class="ik-badge">IK-adjusted</span></span>
+            <span class="tl-pill tl-yellow">🟡 Community response</span>
+          </div>
+          <div class="ik-adj">🤝 Community signal: declining fish &amp; water clarity</div>
+          <div class="action-box action-yellow">
+            Action: Site stewards notified. Baraza scheduled 2026-06-12.
+          </div>
+        </div>
+
+        <!-- Site card 3 — Red, IK-adjusted -->
+        <div class="site-card">
+          <div class="sc-header">
+            <div>
+              <div class="sc-name">Sio River mouth</div>
+              <div class="sc-id">NBD-SIOS-001 · Kenya / Uganda</div>
+            </div>
+            <div class="class-badge cl-D">D</div>
+          </div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:31%;background:#f97316;"></div></div>
+          <div class="sc-meta">
+            <span>Score: 0.31 <span class="ik-badge">IK-adjusted</span></span>
+            <span class="tl-pill tl-red">🔴 Government escalation</span>
+          </div>
+          <div class="ik-adj">🤝 Community signal: severe vegetation loss &amp; pollution</div>
+          <div class="action-box action-red">
+            Action: NBD notified 2026-05-09. Incident report filed with environment authority.
+          </div>
+        </div>
+      </div>
+
+      <!-- Trend chart -->
+      <div class="sb-section">
+        <div class="sb-title">6-Month Trend — NBD-MARA-002</div>
+        <div class="trend-line">
+          <div class="trend-bar" style="height:60%;background:#22c55e;"></div>
+          <div class="trend-bar" style="height:55%;background:#86efac;"></div>
+          <div class="trend-bar" style="height:50%;background:#eab308;"></div>
+          <div class="trend-bar" style="height:47%;background:#eab308;"></div>
+          <div class="trend-bar" style="height:40%;background:#eab308;"></div>
+          <div class="trend-bar" style="height:52%;background:#eab308;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.58rem;color:#475569;">
+          <span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>May</span>
+        </div>
+        <div style="font-size:0.6rem;color:#64748b;margin-top:6px;font-style:italic;">Declining trend — Class B → C over 6 months</div>
+      </div>
+
+      <!-- Recent pollution incidents -->
+      <div class="sb-section">
+        <div class="sb-title">Recent Pollution Incidents</div>
+        <div class="poll-item">
+          <div class="poll-dot"></div>
+          <div class="poll-text">
+            <span class="poll-site">NBD-SIOS-001</span> — Oil sheen and dead fish reported<br>
+            <span class="poll-time">2026-05-08 · Approved</span>
+          </div>
+        </div>
+        <div class="poll-item">
+          <div class="poll-dot"></div>
+          <div class="poll-text">
+            <span class="poll-site">NBD-MARA-002</span> — Foam and discolouration near bank<br>
+            <span class="poll-time">2026-05-07 · Approved</span>
+          </div>
+        </div>
+        <div class="poll-item">
+          <div class="poll-dot"></div>
+          <div class="poll-text">
+            <span class="poll-site">NBD-MARA-001</span> — Chemical smell upstream<br>
+            <span class="poll-time">2026-05-06 · Approved</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="sb-section">
+        <div class="sb-title">Legend</div>
+        <div class="legend" style="margin-bottom:8px;">
+          <div class="leg"><div class="leg-dot" style="background:#22c55e;"></div> Class A — Excellent</div>
+          <div class="leg"><div class="leg-dot" style="background:#86efac;"></div> Class B — Good</div>
+          <div class="leg"><div class="leg-dot" style="background:#eab308;"></div> Class C — Moderate</div>
+          <div class="leg"><div class="leg-dot" style="background:#f97316;"></div> Class D — Poor</div>
+          <div class="leg"><div class="leg-dot" style="background:#ef4444;"></div> Class E — Critical</div>
+        </div>
+        <div class="legend" style="margin-bottom:6px;">
+          <div class="leg">🔴 Pollution incident</div>
+          <div class="leg">● Monitoring site</div>
+        </div>
+        <div style="font-size:0.58rem;color:#334155;border-top:1px solid #1f2937;padding-top:6px;margin-top:2px;">
+          <span class="ik-badge" style="margin-right:4px;">IK-adjusted</span> Score includes indigenous knowledge signal from FGD community sessions
+        </div>
+      </div>
+
+      <!-- Data note -->
+      <div class="sb-section">
+        <div style="font-size:0.6rem;color:#475569;line-height:1.6;">
+          Data updated monthly. Scores combine citizen scientist sampling (validated by Makerere University and University of Nairobi) with indigenous knowledge gathered through community FGD sessions (Monthly Baraza).<br><br>
+          Satellite layers processed via <strong style="color:#64748b;">Google Earth Engine</strong>: Sentinel 1 &amp; 2 (ESA Copernicus), CHIRPS rainfall.<br><br>
+          Public view — no login required. <span style="color:#93c5fd;cursor:pointer;" onclick="showView('login')">Partners: log in for full data access →</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     VIEW 2 — PARTNER (authenticated)
+══════════════════════════════════════════════ -->
+<div class="view" id="view-partner" style="flex-direction:column;">
+
+  <!-- Partner banner -->
+  <div class="partner-banner">
+    <span class="partner-name">🔐 Logged in as: Dr. Amara Diallo — Makerere University (Partner)</span>
+    <span class="partner-logout" onclick="showView('login')">Sign out</span>
+  </div>
+
+  <!-- TOP NAV (partner) -->
+  <div class="topnav">
+    <div class="nav-logo">🌿 Wetland Data Portal</div>
+    <div class="nav-links">
+      <span>Map</span>
+      <span class="active">Site data</span>
+      <span>Raw sampling</span>
+      <span>FGD records</span>
+      <span>About</span>
+    </div>
+    <div class="nav-right">
+      <div class="basin-toggle">
+        <div class="bt-btn active">All basins</div>
+        <div class="bt-btn">Mara</div>
+        <div class="bt-btn">Sio-Siteko</div>
+      </div>
+      <div class="btn-export">⬇ Export CSV</div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- MAP (same as public) -->
+    <div class="map-area">
+      <div class="map-placeholder">
+        <div class="map-bg"></div>
+        <div class="map-label">Interactive map<br><span style="font-size:0.6rem;">(OpenStreetMap / Leaflet in production)</span></div>
+        <div class="satellite-toggle">
+          <div class="layer-btn on">🛰 Sentinel-2 overlay: ON</div>
+          <div class="layer-btn">🌊 Water extent</div>
+          <div class="layer-btn">🌧 Rainfall (CHIRPS)</div>
+          <div class="layer-btn" style="font-size:0.55rem;color:#334155;cursor:default;margin-top:2px;">via Google Earth Engine</div>
+        </div>
+        <div class="marker" style="left:28%;top:38%;"><div class="marker-dot dot-green"></div><div class="marker-label">NBD-MARA-001</div></div>
+        <div class="marker" style="left:22%;top:55%;"><div class="marker-dot dot-yellow"></div><div class="marker-label">NBD-MARA-002</div></div>
+        <div class="marker" style="left:62%;top:30%;"><div class="marker-dot dot-red"></div><div class="marker-label">NBD-SIOS-001</div></div>
+        <div class="pin" style="left:30%;top:34%;">🔴</div>
+        <div class="pin" style="left:20%;top:58%;">🔴</div>
+        <div class="pin" style="left:64%;top:26%;">🔴</div>
+
+        <!-- Expanded popup for partners: includes raw parameter breakdown -->
+        <div class="map-popup" style="left:25%;top:50%;min-width:220px;">
+          <div class="mp-title">NBD-MARA-002 — Mara River, delta</div>
+          <div class="mp-row"><span>Composite score</span><span class="mp-val">0.52 <span class="ik-badge">IK-adjusted</span></span></div>
+          <div class="mp-row" style="font-size:0.58rem;"><span style="color:#334155;">Pre-adjustment</span><span style="color:#475569;">0.60</span></div>
+          <div class="mp-row" style="font-size:0.58rem;"><span style="color:#334155;">IK health signal</span><span style="color:#67e8f9;">0.33 (low)</span></div>
+          <div style="margin: 6px 0 4px; font-size: 0.58rem; color: #475569; text-transform: uppercase; letter-spacing: 0.06em;">Parameter groups</div>
+          <div class="mp-row"><span>Physico-chemical</span><span class="mp-val">0.68</span></div>
+          <div class="mp-row"><span>Catchment / hydro</span><span class="mp-val">0.72</span></div>
+          <div class="mp-row"><span>Ecological</span><span class="mp-val">0.65</span></div>
+          <div class="mp-row"><span>Governance</span><span class="mp-val">0.50</span></div>
+          <div class="mp-action">
+            🟡 <strong>Community response triggered</strong><br>
+            Site stewards notified. Next Baraza: 2026-06-12.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PARTNER SIDEBAR — more data -->
+    <div class="sidebar" style="width:320px;">
+
+      <!-- Score breakdown -->
+      <div class="sb-section">
+        <div class="sb-title">Score Breakdown — NBD-MARA-002</div>
+
+        <div style="font-size:0.62rem;color:#94a3b8;margin-bottom:8px;">Parameter group scores (May 2026 sampling)</div>
+
+        <div style="margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;margin-bottom:2px;"><span style="color:#e2e8f0;">Physico-chemical</span><span style="color:#86efac;">0.68</span></div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:68%;background:#86efac;"></div></div>
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;margin-bottom:2px;"><span style="color:#e2e8f0;">Catchment / hydro</span><span style="color:#86efac;">0.72</span></div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:72%;background:#86efac;"></div></div>
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;margin-bottom:2px;"><span style="color:#e2e8f0;">Ecological</span><span style="color:#eab308;">0.65</span></div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:65%;background:#eab308;"></div></div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;margin-bottom:2px;"><span style="color:#e2e8f0;">Governance</span><span style="color:#f97316;">0.50</span></div>
+          <div class="score-bar-bg"><div class="score-bar" style="width:50%;background:#f97316;"></div></div>
+        </div>
+
+        <div style="border-top:1px solid #1f2937;padding-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;margin-bottom:2px;"><span style="color:#e2e8f0;">Composite (pre-adjustment)</span><span style="color:#e2e8f0;">0.60</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;margin-bottom:2px;"><span style="color:#67e8f9;">IK health signal (FGD)</span><span style="color:#67e8f9;">0.33</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:700;margin-top:6px;"><span style="color:#f1f5f9;">Adjusted score</span><span style="color:#eab308;">0.52 — Class C</span></div>
+        </div>
+      </div>
+
+      <!-- Raw sampling records -->
+      <div class="sb-section">
+        <div class="sb-title">Raw Sampling Records</div>
+        <div style="overflow-x:auto;">
+          <table class="raw-table">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Value</th>
+                <th>Unit</th>
+                <th>Flag</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>pH</td><td>7.2</td><td>—</td><td style="color:#4ade80;">✓</td></tr>
+              <tr><td>Dissolved O₂</td><td>4.1</td><td>mg/L</td><td style="color:#fde047;">⚠ low</td></tr>
+              <tr><td>Temperature</td><td>26.4</td><td>°C</td><td style="color:#4ade80;">✓</td></tr>
+              <tr><td>Turbidity</td><td>38</td><td>NTU</td><td style="color:#fde047;">⚠ elevated</td></tr>
+              <tr><td>Water level</td><td>142</td><td>cm</td><td style="color:#4ade80;">✓</td></tr>
+              <tr><td>Macroinvertebrate score</td><td>0.48</td><td>index</td><td style="color:#fde047;">⚠</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:8px;"><div class="dl-btn">⬇ Download full record (CSV)</div></div>
+      </div>
+
+      <!-- FGD record -->
+      <div class="sb-section">
+        <div class="sb-title">FGD Session — May 2026 Baraza</div>
+        <div style="font-size:0.62rem;color:#94a3b8;margin-bottom:8px;">22 participants · Facilitator: Mercy Achieng</div>
+        <div style="font-size:0.62rem;margin-bottom:5px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:#64748b;">Fish abundance</span><span style="color:#f97316;">Moderately declined</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:#64748b;">Water clarity</span><span style="color:#ef4444;">Much worse</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:#64748b;">Vegetation cover</span><span style="color:#f97316;">Partially lost</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:#64748b;">Pollution events</span><span style="color:#fde047;">Occasional</span></div>
+        </div>
+        <div style="font-size:0.6rem;color:#475569;border-top:1px solid #1f2937;padding-top:6px;margin-top:4px;">
+          IK health signal = 0.33 (low) → pulled composite score from 0.60 → 0.52
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     VIEW 3 — PARTNER LOGIN
+══════════════════════════════════════════════ -->
+<div class="view" id="view-login">
+  <div class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">🌿 Wetland Data Portal</div>
+      <div class="login-sub">Partner access — restricted data views</div>
+
+      <div class="login-section-label">Sign in with your organisation</div>
+
+      <div class="sso-btn">
+        <span class="sso-icon">G</span>
+        <span>Continue with Google</span>
+      </div>
+      <div class="sso-btn">
+        <span class="sso-icon" style="color:#4fc3f7;">⊞</span>
+        <span>Continue with Microsoft</span>
+      </div>
+
+      <div class="login-divider"><span>or use email</span></div>
+
+      <input class="login-input" type="email" placeholder="Email address">
+      <input class="login-input" type="password" placeholder="Password">
+      <button class="login-submit" onclick="showView('partner')">Sign in</button>
+
+      <div class="login-note">
+        No account? Contact your administrator.<br>
+        Self-registration is not available.<br><br>
+        <span style="color:#1f2937;">Public data requires no login.</span>
+        <span style="color:#3b82f6;cursor:pointer;" onclick="showView('public')"> View public portal →</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.vt').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  const tabs = document.querySelectorAll('.vt');
+  const map = { public: 0, partner: 1, login: 2 };
+  tabs[map[name]].classList.add('active');
+}
+</script>
+
+</body>
+</html>

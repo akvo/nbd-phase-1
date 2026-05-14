@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Playwright MCP artifacts (logs/screenshots)
+.playwright-mcp/
+
+# Superpowers temp state/logs
+.superpowers/brainstorm/*/state/
