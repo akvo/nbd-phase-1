@@ -14,8 +14,8 @@ NBD brings together civil society, academic institutions, and government bodies 
 
 This assignment addresses that gap. It establishes a citizen-led monitoring system at two transboundary pilot sites:
 
-- **Mara Wetlands** — shared between Kenya and Tanzania; covers the Butiama, Rorya, Tarime, and Serengeti districts
-- **Sio-Siteko Wetland Landscape** — shared between Kenya and Uganda; Lower Sio River catchment (1,437 km²)
+- **Mara Basin** — shared between Kenya and Tanzania;
+- **Sio Basin** — shared between Kenya and Uganda;
 
 This document describes the technical backbone of that system. The platform collects data submitted by community members, processes and validates it, and presents results to partners and decision-makers through a public-facing portal.
 
@@ -252,7 +252,7 @@ Form saved locally on device (no connectivity required)
 Connectivity available → KoboCollect syncs to KoboToolbox server
         │
         ▼
-Submission received by KoboToolbox (self-hosted)
+Submission received by KoboToolbox
         │
         ▼
 KoboToolbox API → processing service pulls new submissions
@@ -275,7 +275,7 @@ Lab QA results are ingested as a separate record type in the admin layer, linked
 
 ### 4.4 Admin Interface
 
-The admin interface is the internal processing layer. It is a web application accessible to authorised staff only, served separately from the public portal.
+The admin interface is the internal processing layer. It is a restricted section of the platform, accessible to authorised staff only. The admin interface and the public portal are part of the same application — admin routes are protected by role-based access control.
 
 #### Roles
 
@@ -401,7 +401,7 @@ The portal gives NBD Secretariat, NDFs, county and district officials, CSOs, aca
 |-------|-----------|-----------|
 | Data collection — USSD | Africa's Talking | GSM-only; no smartphone or data required |
 | Data collection — WhatsApp | WhatsApp Business bot (Africa's Talking) | Menu-driven; same gateway as USSD |
-| Data collection — structured sampling | KoboToolbox (self-hosted) | Open source; offline-capable; proven in field contexts |
+| Data collection — structured sampling | KoboToolbox | Open source; offline-capable; proven in field contexts |
 | Satellite data processing | Google Earth Engine | Managed compute; free tier for non-commercial use; no infrastructure to maintain |
 | Database | PostgreSQL + PostGIS | Open source; relational; robust geospatial support |
 | Backend API | FastAPI (Python) | Open source; fast; auto-generates OpenAPI documentation |
@@ -448,8 +448,8 @@ Sentinel 1 & 2 imagery and CHIRPS precipitation data are processed using Google 
 | Category | Parameters | Collected by |
 |----------|-----------|--------------|
 | Physico-chemical | pH, Temperature, Dissolved Oxygen | Citizen scientists (handheld multi-parameter probes) |
-| Ecological | Papyrus density, Bird sightings (Cranes), Invasive floral species, Fish Catch Per Unit Effort (CPUE) | Citizen scientists |
-| Hydrological / catchment | Water levels/flow, Flooding extent, Encroachment indicators | Citizen scientists + wetland watchers |
+| Ecological | Fish Catch Per Unit Effort (CPUE) | Citizen scientists |
+| Hydrological / catchment | Water levels/flow, Flooding extent | Citizen scientists + wetland watchers |
 | Pollution episodes | Industrial/sewage discharge, Storm events, Overgrazing, Encroachment | Wetland watchers (USSD/WhatsApp) |
 | Lab validation | Biochemical Oxygen Demand, Orthophosphate, Nitrate, Mercury, Heavy metals and nutrient loads (N/P) | Academic partners (shadow sampling) |
 | Indigenous knowledge | Community observations captured through FGD sessions at Monthly Barazas | CSO staff (via admin FGD session form) |
@@ -468,7 +468,7 @@ Sentinel 1 & 2 imagery and CHIRPS precipitation data are processed using Google 
 
 ### 5.5 Site Identifiers
 
-Persistent, structured site identifiers follow the format `NBD-MARA-001`, `NBD-SIOSIT-001`, etc. Four sampling sites per wetland. The site ID must be consistent across all data layers.
+Persistent, structured site identifiers follow the format `NBD-MARA-001`, `NBD-SIO-001`, etc. Four sampling sites per wetland. The site ID must be consistent across all data layers.
 
 The site ID is the primary key for interoperability. It is embedded in every layer of the platform:
 
@@ -509,7 +509,7 @@ Health scores are calculated at the parameter level, aggregated into group means
 |----------------|------------------|
 | Physico-chemical | Water temperature, pH, Dissolved Oxygen (converted to Water Quality Index score) |
 | Catchment and hydrological | % wetland converted to non-wetland use; ratio of natural inlets choked/diverted to total natural inlets |
-| Ecological | % wetland area covered by invasive macrophytes; Fish Catch Per Unit Effort; annual waterbird count as % of 5-year average |
+| Ecological | % wetland area covered by invasive macrophytes; Fish Catch Per Unit Effort |
 
 Each group is scored on a 0.0–1.0 scale. Group scores are averaged to produce the composite score.
 
@@ -545,7 +545,7 @@ Monthly sampling record (approved)
                    │
                    ▼
      ┌─────────────────────────────┐
-     │  Health class: C (Fair)     │
+     │  Health class: C (Moderate) │
      │  Traffic light: YELLOW      │
      │  Action: community response │
      └─────────────────────────────┘
@@ -596,11 +596,36 @@ Without the FGD data, 0.638 would classify as Green. No action would be taken.
 
 | Status | Score threshold | Action triggered |
 |--------|----------------|-----------------|
-| Green | *to be agreed* | No immediate action required |
-| Yellow | *to be agreed* | Local community response triggered |
-| Red | *to be agreed* | Formal report submitted to NBD and relevant national/local government authority for enforcement |
+| Green | > 0.6 | No immediate action required |
+| Yellow | 0.4 – 0.6 | Local community response triggered |
+| Red | 0 – 0.4 | Formal report submitted to NBD and relevant national/local government authority for enforcement |
 
-Exact score thresholds to be agreed with academic partners and NBD during the O2 co-design workstream, informed by the wetland health report card methodology (Annex 2 of the inception report).
+#### Management Actions
+
+Management actions are displayed publicly on the portal alongside the traffic light status for each site. Each action shows a short 3-word label as the primary display, with the full description available on expansion. Actions are defined per wetland by the NBD Secretariat and national partners and updated via the admin interface.
+
+**Green — No action required.** The wetland is within acceptable health bounds. Monitoring continues at the regular monthly cadence.
+
+**Yellow — Community response.** The following six actions are triggered:
+
+- **Establishment of Silt Traps and Grass Strips** — Install vegetative filters along the edges of agricultural plots to catch sediment and nutrient runoff (phosphates/nitrates) before they reach the water.
+- **Constructed Wetlands for Tertiary Treatment** — Encourage small-scale, man-made wetlands at the edge of settlement zones to naturally treat domestic greywater.
+- **Promotion of Livelihoods** — Transition farmers in the buffer zone from high-input crops (like sugarcane or maize) to low-impact activities such as apiculture (beekeeping) or sustainable papyrus harvesting.
+- **Riparian Re-vegetation** — Conduct targeted planting of indigenous species (e.g., Ficus sycomorus or Typha) in degraded patches to maintain the 0.4–0.6 ecological integrity score.
+- **Establishment of Community Conservation Areas (CCAs)** — Designate no-catch zones or seasonal closures during fish spawning periods to allow stocks to replenish.
+- **Introduction of Co-Management Groups** — Form Beach Management Units (BMUs) that are empowered to self-regulate gear sizes and monitor illegal fishing, reducing the burden on the central Authority.
+
+**Red — Government escalation.** The following five actions are triggered and displayed on the portal:
+
+| Label | Full action |
+|-------|-------------|
+| **Report effluent discharge** | Prompt reporting of effluent and sewage discharge incidences to the local unit of the Ministry of Environment and Water. Contact: XXXXXX |
+| **Install interceptor STPs** | Set up interceptor sewage treatment plants to direct sewage to a sewage treatment plant or combined effluent treatment plant. A budget and timeline plan will be presented at the meeting on xx.xx.2026. |
+| **Enforce buffer zones** | Prevent further wetland encroachment by enacting protected area and buffer zone regulations — including increasing buffer widths — under the Environment Management and Coordination Act. Violations to be reported immediately to the County Environment Committee. Contact: XXXXXX |
+| **Upgrade fishing gear** | Fishermen to switch to lower mesh-size gillnets to improve catch per unit effort and reduce overfishing pressure on the wetland. |
+| **Draft management plan** | The Environment Management Authority to prepare a draft wetland management plan for public review by December 2026. |
+
+The portal shows the 3-word label on the site health card. Clicking it expands the full action text. All Red actions are publicly visible — no login required. The NBD Secretariat updates action text via the admin interface when escalation steps change.
 
 ---
 
@@ -610,39 +635,28 @@ Exact score thresholds to be agreed with academic partners and NBD during the O2
 |-------------|-----------|---------|-------|
 | Africa's Talking (USSD) | Inbound | HTTP webhook | Stateful session management required |
 | Africa's Talking (WhatsApp Business bot) | Inbound/outbound | HTTP webhook | Menu-driven flow |
-| KoboToolbox API | Outbound pull | REST/JSON | Scheduled sync |
+| KoboToolbox API | Outbound pull | REST/JSON | Scheduled daily sync |
 | Wetland data portal data feed | Internal | FastAPI REST endpoints | Admin layer serves data to portal frontend via documented API |
-| Sentinel 1 & 2 ingestion | Inbound | GEE export (GeoTIFF / GeoJSON) | Scheduled batch pipeline |
-| CHIRPS ingestion | Inbound | GEE export (GeoJSON) | Batch, scheduled |
-| Lab QA data ingestion | Inbound | Portal webform (Add New → Lab QA report) | Reviewed before publication |
+| Sentinel 1 & 2 ingestion | Inbound (Monthly) | GEE export (GeoTIFF / GeoJSON) | Scheduled batch pipeline |
+| CHIRPS ingestion | Inbound (Monthly) | GEE export (GeoJSON) | Batch, scheduled |
+| Lab QA data ingestion | Inbound (Quarterly) | Portal webform (Add New → Lab QA report) | Reviewed before publication |
 
 ---
 
 ## 7. Security, Privacy & Data Governance
 
-### 7.1 Threat Model
-
-
-**Attack surfaces and mitigations:**
-
-| Attack surface | Mitigation |
-|---------------|-----------|
-| Wetland watcher identity | Pollution reports published as aggregated basin-level counts only; no individual report is linkable to a phone number |
-| Admin layer | Role-based access control; all admin actions audit-logged with actor, timestamp, and before/after state |
-| Cloud infrastructure | No credentials in code or Docker images; environment secrets via secrets manager; automated security patching for base images |
-
-### 7.2 Citizen Data Privacy
+### 7.1 Citizen Data Privacy
 
 All personal identifiable information is stripped before data is displayed on the public portal. Only aggregated data is displayed for pollution episodes.
 
-### 7.3 Data Classification
+### 7.2 Data Classification
 
 | Tier | Examples | Who can access |
 |------|----------|---------------|
 | Public | Aggregated wetland health scores, pollution incident map, trend charts | Anyone |
 | Private | Wetland watcher / citizen scientist PII, phone numbers, individual episode links | Admins only |
 
-### 7.5 Access Control Model
+### 7.3 Access Control Model
 
 | Role | Permissions |
 |------|------------|
@@ -657,14 +671,14 @@ All personal identifiable information is stripped before data is displayed on th
 - No self-registration. All accounts are created by an Admin via the invite flow.
 - Public portal views require no login.
 
-### 7.6 Data Ownership & Sovereignty
+### 7.4 Data Ownership & Sovereignty
 
 **Ownership.** NBD and the communities from which data is collected are the data owners. Akvo is the data processor — it operates the platform on behalf of NBD .
 
 **Akvo's role.** Akvo has no right to use platform data for any purpose beyond operating the platform for this project. Akvo will not share, sell, or analyse the data for its own purposes.
 
 
-### 7.7 Infrastructure Security
+### 7.5 Infrastructure Security
 
 - Secrets management: no credentials in code or Docker images; use environment secrets or a secrets manager
 - Encryption at rest: all PII and observation data
@@ -714,6 +728,17 @@ Three environments are maintained: development, staging, and production.
 
 - Field pilot with actual wetland watchers and citizen scientists before full rollout; document failure modes
 - Train-the-Trainers (ToT) workshop as a system validation checkpoint — system must be usable by ToT-trained users from day one
+
+---
+
+## 10. Project Timeline
+
+| Milestone | Date |
+|-----------|------|
+| Design signoff | 22 May 2026 |
+| Platform development | 25 May – 26 June 2026 |
+| Training | End of June 2026 |
+| Data collection begins | Early July 2026 |
 
 ---
 

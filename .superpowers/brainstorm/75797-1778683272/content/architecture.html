@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Platform Architecture — Citizen-Led Wetland Monitoring</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0efeb;
+    display: flex;
+    justify-content: center;
+    padding: 20px 24px;
+    min-height: 100vh;
+  }
+
+  .diagram {
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.09);
+    padding: 36px 40px 28px;
+    width: 980px;
+    flex-shrink: 0;
+  }
+
+  /* ── header ── */
+  .diagram-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #1f2937;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .diagram-sub {
+    font-size: 0.65rem;
+    color: #9ca3af;
+    margin-bottom: 30px;
+  }
+
+  /* ── column headers ── */
+  .col-heads {
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-left: 2px;
+  }
+  .ch {
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: #6b7280;
+    letter-spacing: 0.01em;
+  }
+
+  /* ── main layout ── */
+  .main { display: flex; align-items: stretch; gap: 0; }
+
+  /* ── swim lane wrapper ── */
+  .lanes { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+  /* ── swim lane ── */
+  .lane {
+    border: 2px dashed #a8bece;
+    border-radius: 12px;
+    padding: 12px 14px 14px;
+    background: #fcfcfe;
+  }
+  .lane.ext { border-color: #a4beaa; background: #fafcfa; }
+
+  .lane-label {
+    font-size: 0.6rem;
+    color: #6b7280;
+    font-style: italic;
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  /* ── lane grid: users | arr | collect | arr | admin ── */
+  .lg {
+    display: grid;
+    grid-template-columns: 148px 26px 172px 26px 1fr;
+    row-gap: 10px;
+    column-gap: 0;
+    align-items: center;
+  }
+
+  /* ── arrow ── */
+  .arr {
+    position: relative;
+    height: 20px;
+    justify-self: stretch;
+    align-self: center;
+  }
+  .arr::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 9px;
+    top: 50%; height: 1px;
+    background: #b0bec8;
+  }
+  .arr::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 50%;
+    transform: translateY(-50%);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid #b0bec8;
+  }
+
+  /* vertical centering for spanning arrow */
+  .arr-span { align-self: stretch; display: flex; align-items: center; }
+  .arr-span .arr { flex: 1; }
+
+  /* ── boxes ── */
+  .box {
+    border-radius: 9px;
+    padding: 9px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .bx-title { font-size: 0.71rem; font-weight: 700; line-height: 1.3; margin-bottom: 2px; }
+  .bx-sub   { font-size: 0.59rem; line-height: 1.45; opacity: 0.82; }
+  .bx-tag   {
+    display: inline-block;
+    font-size: 0.53rem;
+    border-radius: 4px;
+    padding: 2px 5px;
+    margin-top: 4px;
+    line-height: 1.4;
+    width: fit-content;
+  }
+
+  /* user / source */
+  .bu {
+    background: #fff;
+    border: 1px solid #e2e6ea;
+    color: #374151;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .bu .bx-sub  { color: #6b7280; opacity: 1; }
+  .bu .bx-tag  { background: #f3f4f6; color: #6b7280; }
+
+  /* data collection — teal */
+  .bc { background: #3da8a0; color: #fff; }
+  .bc .bx-tag  { background: rgba(255,255,255,0.18); color: #e0f7f5; }
+
+  /* admin — olive green */
+  .ba { background: #6b8f48; color: #fff; }
+  .ba .bx-tag  { background: rgba(255,255,255,0.18); color: #dff0cf; }
+
+  /* admin spanning full lane height */
+  .ba-span { align-self: stretch; height: 100%; justify-content: flex-start; gap: 2px; }
+  .ba-span .bx-sub { margin-bottom: 7px; }
+  .ba-span .sep {
+    height: 1px;
+    background: rgba(255,255,255,0.2);
+    margin: 6px 0;
+  }
+
+  /* ── portal arrow bridge ── */
+  .bridge {
+    width: 30px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .bridge::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 8px;
+    top: 50%; height: 1px;
+    background: #b0bec8;
+  }
+  .bridge::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 50%;
+    transform: translateY(-50%);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid #b0bec8;
+  }
+
+  /* ── portal output ── */
+  .portal {
+    flex-shrink: 0;
+    width: 184px;
+    background: #f0e4cc;
+    border: 1.5px solid #cfb98a;
+    border-radius: 13px;
+    padding: 16px 14px 14px;
+    display: flex;
+    flex-direction: column;
+  }
+  .portal-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #3d2a14;
+    text-align: center;
+    margin-bottom: 14px;
+    line-height: 1.3;
+  }
+  .pf {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .pf-icon { font-size: 0.75rem; flex-shrink: 0; margin-top: 1px; }
+  .pf-text { font-size: 0.62rem; color: #5a3e24; line-height: 1.45; }
+  .pf-text strong { font-weight: 700; color: #3a2410; display: block; margin-bottom: 1px; }
+  .p-div { height: 1px; background: #cfb98a; margin: 8px 0; }
+  .p-access {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #cfb98a;
+    font-size: 0.58rem;
+    color: #7a5c3a;
+    text-align: center;
+    line-height: 1.7;
+  }
+  .p-badge {
+    display: inline-block;
+    background: rgba(0,0,0,0.08);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.54rem;
+    margin-top: 2px;
+  }
+
+  /* ── footer note ── */
+  .footnote {
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.59rem;
+    color: #9ca3af;
+    line-height: 1.7;
+  }
+  .footnote strong { color: #6b7280; }
+  code {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    font-size: 0.84em;
+    color: #374151;
+  }
+</style>
+</head>
+<body>
+
+<div class="diagram">
+
+  <div class="diagram-title">Platform architecture</div>
+  <div class="diagram-sub">Citizen-Led Wetland Monitoring — Nile Basin Discourse &nbsp;·&nbsp; Solution Design v0.1 &nbsp;·&nbsp; May 2026</div>
+
+  <!-- Column headers -->
+  <div class="col-heads">
+    <div class="ch" style="width:148px;">User / source</div>
+    <div style="width:26px;"></div>
+    <div class="ch" style="width:172px;">Data collection</div>
+    <div style="width:26px;"></div>
+    <div class="ch" style="flex:1;">Admin layer</div>
+    <div style="width:30px;"></div>
+    <div class="ch" style="width:184px; text-align:center;">Output</div>
+  </div>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+
+    <!-- LEFT: swim lanes -->
+    <div class="lanes">
+
+      <!-- ════ LANE 1: Pollution reporting ════ -->
+      <div class="lane">
+        <div class="lane-label">Pollution reporting — Kenya</div>
+        <div class="lg">
+
+          <!-- Row 1: Feature phone -->
+          <div class="box bu" style="grid-column:1; grid-row:1;">
+            <div class="bx-title">Wetland watcher</div>
+            <div class="bx-sub">Feature phone user</div>
+            <span class="bx-tag">GSM only · no data required</span>
+          </div>
+          <div class="arr" style="grid-column:2; grid-row:1;"></div>
+          <div class="box bc" style="grid-column:3; grid-row:1;">
+            <div class="bx-title">USSD bot</div>
+            <div class="bx-sub">Africa's Talking · dial short code</div>
+            <span class="bx-tag">Branching menu · incident type + location</span>
+          </div>
+
+          <!-- Row 2: Smartphone -->
+          <div class="box bu" style="grid-column:1; grid-row:2;">
+            <div class="bx-title">Wetland watcher</div>
+            <div class="bx-sub">Smartphone user</div>
+            <span class="bx-tag">WhatsApp · photo + voice note</span>
+          </div>
+          <div class="arr" style="grid-column:2; grid-row:2;"></div>
+          <div class="box bc" style="grid-column:3; grid-row:2;">
+            <div class="bx-title">WhatsApp bot</div>
+            <div class="bx-sub">Africa's Talking · menu-driven</div>
+            <span class="bx-tag">Same gateway as USSD · optional photo</span>
+          </div>
+
+          <!-- Admin (spans rows 1–2) -->
+          <div class="arr-span" style="grid-column:4; grid-row:1/3;">
+            <div class="arr"></div>
+          </div>
+          <div class="box ba ba-span" style="grid-column:5; grid-row:1/3;">
+            <div class="bx-title">Ingest &amp; clean</div>
+            <div class="bx-sub">Review for completeness. Remove erroneous or duplicate entries.</div>
+            <div class="sep"></div>
+            <div class="bx-title">Approve</div>
+            <div class="bx-sub">Publish to portal. Contribute to basin traffic light classification.</div>
+            <span class="bx-tag" style="margin-top:6px;">Phone numbers hashed at ingest · never stored in plain text</span>
+          </div>
+
+        </div>
+      </div><!-- /lane 1 -->
+
+      <!-- ════ LANE 2: Monthly sampling ════ -->
+      <div class="lane">
+        <div class="lane-label">Monthly structured sampling — Tanzania · Kenya · Uganda</div>
+        <div class="lg">
+
+          <!-- Row 1: Citizen scientist -->
+          <div class="box bu" style="grid-column:1; grid-row:1;">
+            <div class="bx-title">Citizen scientist</div>
+            <div class="bx-sub">Monthly site visit</div>
+            <span class="bx-tag">Android · KoboCollect · offline-capable</span>
+          </div>
+          <div class="arr" style="grid-column:2; grid-row:1;"></div>
+          <div class="box bc" style="grid-column:3; grid-row:1;">
+            <div class="bx-title">KoboCollect survey</div>
+            <div class="bx-sub">Offline capture · auto-sync on reconnect</div>
+            <span class="bx-tag">pH · DO · temp · ecology · hydrology · photos · GPS</span>
+          </div>
+
+          <!-- Row 2: Academic partner -->
+          <div class="box bu" style="grid-column:1; grid-row:2;">
+            <div class="bx-title">Academic partner</div>
+            <div class="bx-sub">Makerere Univ · Univ of Nairobi</div>
+            <span class="bx-tag">Shadow sampling · quarterly</span>
+          </div>
+          <div class="arr" style="grid-column:2; grid-row:2;"></div>
+          <div class="box bc" style="grid-column:3; grid-row:2;">
+            <div class="bx-title">Lab QA webform</div>
+            <div class="bx-sub">Admin → Add New → Lab QA report</div>
+            <span class="bx-tag">BOD · nitrate · mercury · orthophosphate</span>
+          </div>
+
+          <!-- Admin (spans rows 1–2) -->
+          <div class="arr-span" style="grid-column:4; grid-row:1/3;">
+            <div class="arr"></div>
+          </div>
+          <div class="box ba ba-span" style="grid-column:5; grid-row:1/3;">
+            <div class="bx-title">Clean, QA &amp; approve</div>
+            <div class="bx-sub">Cross-check citizen vs. shadow sample. Min-max validation on probe values. Flag discrepancies for retraining.</div>
+            <div class="sep"></div>
+            <div class="bx-title">Score &amp; classify</div>
+            <div class="bx-sub">Auto-score parameter groups (0.0 – 1.0). Apply fuzzy logic with IK signal. Assign health class A – E.</div>
+            <span class="bx-tag" style="margin-top:6px;">Scoring: physico-chemical · catchment/hydro · ecological</span>
+          </div>
+
+        </div>
+      </div><!-- /lane 2 -->
+
+      <!-- ════ LANE 3: External & community data ════ -->
+      <div class="lane ext">
+        <div class="lane-label">External data &amp; indigenous knowledge — automated pipeline + community input</div>
+        <div class="lg">
+
+          <!-- Row 1: GEE -->
+          <div class="box bu" style="grid-column:1; grid-row:1;">
+            <div class="bx-title">Google Earth Engine</div>
+            <div class="bx-sub">Automated batch pipeline</div>
+            <span class="bx-tag">Scheduled monthly · no manual steps</span>
+          </div>
+          <div class="arr" style="grid-column:2; grid-row:1;"></div>
+          <div class="box bc" style="grid-column:3; grid-row:1;">
+            <div class="bx-title">Sentinel 1&amp;2 + CHIRPS</div>
+            <div class="bx-sub">GEE scripts process and export</div>
+            <span class="bx-tag">NDVI · water extent · land use change · rainfall</span>
+          </div>
+
+          <!-- Row 2: CSO / FGD -->
+          <div class="box bu" style="grid-column:1; grid-row:2;">
+            <div class="bx-title">CSO staff</div>
+            <div class="bx-sub">UWASNET · KEWASNET</div>
+            <span class="bx-tag">Baraza facilitators · monthly</span>
+          </div>
+          <div class="arr" style="grid-column:2; grid-row:2;"></div>
+          <div class="box bc" style="grid-column:3; grid-row:2;">
+            <div class="bx-title">FGD session form</div>
+            <div class="bx-sub">Admin → Add New → FGD session</div>
+            <span class="bx-tag">Fish abundance · water clarity · vegetation · pollution</span>
+          </div>
+
+          <!-- Admin (spans rows 1–2) -->
+          <div class="arr-span" style="grid-column:4; grid-row:1/3;">
+            <div class="arr"></div>
+          </div>
+          <div class="box ba ba-span" style="grid-column:5; grid-row:1/3;">
+            <div class="bx-title">GEE batch ingest</div>
+            <div class="bx-sub">GeoTIFF / GeoJSON exported by GEE scripts. Ingested to database, linked by site ID + period.</div>
+            <div class="sep"></div>
+            <div class="bx-title">IK signal (FGD → fuzzy)</div>
+            <div class="bx-sub">Structured dropdown responses encoded as decline scores, averaged to IK signal (0.0 – 1.0). Input to fuzzy logic adjustment of composite health score.</div>
+          </div>
+
+        </div>
+      </div><!-- /lane 3 -->
+
+    </div><!-- /lanes -->
+
+    <!-- Bridge arrow (lane block → portal) -->
+    <div class="bridge"></div>
+
+    <!-- ════ PORTAL ════ -->
+    <div class="portal">
+      <div class="portal-title">Wetland<br>Data Portal</div>
+
+      <div class="pf">
+        <div class="pf-icon">🗺</div>
+        <div class="pf-text">
+          <strong>Pollution incident map</strong>
+          Basin-level · aggregated counts · no individual PII
+        </div>
+      </div>
+
+      <div class="pf">
+        <div class="pf-icon">📊</div>
+        <div class="pf-text">
+          <strong>Wetland health scores</strong>
+          Class A–E · IK-adjusted · per site &amp; period
+        </div>
+      </div>
+
+      <div class="pf">
+        <div class="pf-icon">🚦</div>
+        <div class="pf-text">
+          <strong>Traffic light — management actions</strong>
+        </div>
+      </div>
+      <div style="margin: 0 0 8px 22px; font-size:0.59rem; line-height:1.8; color:#5a3e24;">
+        <div><span style="color:#4a7c3f; font-weight:700;">● Green</span> &nbsp;No action required</div>
+        <div><span style="color:#a06020; font-weight:700;">● Yellow</span> &nbsp;Community response</div>
+        <div style="margin-top:3px; font-weight:700; color:#8b2020;">● Red</div>
+        <div style="margin-left:10px; line-height:2;">
+          <div>Report effluent discharge</div>
+          <div>Install interceptor STPs</div>
+          <div>Enforce buffer zones</div>
+          <div>Upgrade fishing gear</div>
+          <div>Draft management plan</div>
+        </div>
+      </div>
+
+      <div class="pf">
+        <div class="pf-icon">📈</div>
+        <div class="pf-text">
+          <strong>Trend charts</strong>
+          6-month history per site (ECharts)
+        </div>
+      </div>
+
+      <div class="pf">
+        <div class="pf-icon">🛰</div>
+        <div class="pf-text">
+          <strong>Satellite overlays</strong>
+          Sentinel 1&amp;2 · CHIRPS via GEE · Leaflet.js
+        </div>
+      </div>
+
+      <div class="p-div"></div>
+
+      <div class="p-access">
+        <div><span class="p-badge">Public</span> no login required</div>
+        <div style="margin-top:3px;"><span class="p-badge">Partners</span> SSO · email login</div>
+        <div style="margin-top:6px; font-style:italic; font-size:0.55rem;">Mobile-friendly · PDF export</div>
+      </div>
+    </div><!-- /portal -->
+
+  </div><!-- /main -->
+
+  <!-- Footer note -->
+  <div class="footnote">
+    <strong>Interoperability via site identifier — </strong>
+    Every record in every layer carries a persistent site ID (e.g. <code>NBD-MARA-001</code>).
+    The ID is pre-loaded in the KoboCollect form, embedded in admin records, GEE pipeline outputs, lab QA records, FGD session records, and all portal API responses.
+    Any external dataset can join to platform data using this key alone — no custom field mapping required.
+    &nbsp;&nbsp;·&nbsp;&nbsp;
+    <strong>Stack: </strong>PostgreSQL + PostGIS · FastAPI · Next.js · ECharts · Leaflet.js · Docker · GitHub Actions
+  </div>
+
+</div><!-- /diagram -->
+
+</body>
+</html>

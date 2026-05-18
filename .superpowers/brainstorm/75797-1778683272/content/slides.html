@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Technical Support to Implement Citizen-Led Data Generation and Management Activities</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #e8e6e0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.deck {
+  width: 1100px;
+  height: 660px;
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.18);
+}
+
+.slide {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  flex-direction: column;
+}
+.slide.active { display: flex; }
+
+/* ── top bar ── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 44px 0;
+  flex-shrink: 0;
+}
+.sec-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.slide-num {
+  font-size: 0.7rem;
+  color: #d1d5db;
+  letter-spacing: 0.05em;
+}
+
+/* ── content ── */
+.content {
+  flex: 1;
+  padding: 20px 44px 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.slide-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.15;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+.slide-title .accent { color: #3da8a0; }
+
+/* ── bottom bar ── */
+.bottom-bar {
+  flex-shrink: 0;
+  padding: 12px 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #f3f4f6;
+}
+.progress { flex: 1; height: 3px; background: #f3f4f6; border-radius: 999px; margin: 0 24px; }
+.progress-fill { height: 100%; background: #3da8a0; border-radius: 999px; }
+.nav-btn {
+  padding: 7px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+.nav-btn:hover { background: #f9fafb; color: #374151; border-color: #d1d5db; }
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── shared ── */
+.cols { display: flex; gap: 20px; flex: 1; }
+.col  { flex: 1; }
+
+.lbl {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.card-title { font-size: 0.88rem; font-weight: 700; color: #111827; margin-bottom: 5px; }
+.card-body  { font-size: 0.82rem; color: #6b7280; line-height: 1.55; }
+
+.tag {
+  display: inline-block;
+  font-size: 0.64rem;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 4px;
+  padding: 3px 8px;
+  margin: 2px 2px 0 0;
+}
+.tag.teal   { background: #ccf0ee; color: #0f766e; }
+.tag.olive  { background: #d7ebc4; color: #3a5c1a; }
+.tag.green  { background: #dcfce7; color: #15803d; }
+
+.chip {
+  display: inline-flex; align-items: center;
+  gap: 5px; padding: 5px 12px;
+  border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+  border: 1px solid;
+}
+.chip.teal { background: #f0fdfb; border-color: #99e6e0; color: #0f766e; }
+
+/* table */
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.tbl th { text-align: left; padding: 8px 10px; background: #f9fafb; color: #6b7280; font-weight: 600; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #e5e7eb; }
+.tbl td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: top; line-height: 1.45; }
+.tbl td:first-child { font-weight: 600; color: #111827; white-space: nowrap; }
+.tbl tr:last-child td { border-bottom: none; }
+
+/* ── slide 0 title ── */
+#s0 { background: linear-gradient(135deg, #f8f7f4 60%, #e8f7f5 100%); }
+#s0 .content { justify-content: center; }
+.title-eyebrow { font-size: 0.75rem; font-weight: 700; color: #3da8a0; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px; }
+.title-main { font-size: 2.6rem; font-weight: 900; color: #111827; line-height: 1.12; margin-bottom: 10px; }
+.title-sub { font-size: 1rem; color: #6b7280; margin-bottom: 28px; }
+.title-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 36px; }
+.title-meta { font-size: 0.68rem; color: #9ca3af; }
+
+/* ── principle cards ── */
+.principle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; }
+.pcard {
+  border-radius: 12px; padding: 18px 18px 16px;
+  display: flex; flex-direction: column; gap: 7px;
+  border: 1.5px solid;
+}
+.pcard.t1 { background: #f0fdfb; border-color: #99e6e0; }
+.pcard.t2 { background: #fefce8; border-color: #fde68a; }
+.pcard.t3 { background: #f4f9ee; border-color: #b5d993; }
+.pcard.t4 { background: #f8f0ff; border-color: #d8b4fe; }
+.pcard-icon  { font-size: 1.4rem; }
+.pcard-title { font-size: 0.9rem; font-weight: 800; color: #111827; }
+.pcard-body  { font-size: 0.78rem; color: #4b5563; line-height: 1.55; }
+.pcard-tag   { margin-top: auto; }
+
+/* ── scope flow ── */
+.pl-lane {
+  border: 1.5px dashed #b0c4d8; border-radius: 10px; padding: 11px 14px;
+  flex: 1; margin-bottom: 10px;
+}
+.pl-lane:last-child { margin-bottom: 0; }
+.pl-lane.ext { border-color: #a4beaa; background: #fafcfa; }
+.pl-title { font-size: 0.68rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.pl-row { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+.pl-row:last-child { margin-bottom: 0; }
+.pl-box { border-radius: 6px; padding: 6px 10px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+.pl-teal  { background: #3da8a0; color: #fff; }
+.pl-olive { background: #6b8f48; color: #fff; }
+.pl-grey  { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+.pl-arr   { color: #b0bec8; font-size: 1rem; }
+.pl-output {
+  width: 192px; flex-shrink: 0;
+  background: #f5e9cf; border: 1.5px solid #d4be9a; border-radius: 10px;
+  padding: 14px 14px; margin-left: 14px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.pl-output-title { font-size: 0.85rem; font-weight: 800; color: #3d2a14; text-align: center; margin-bottom: 10px; }
+.pl-output-item  { font-size: 0.7rem; color: #5a3e24; margin-bottom: 5px; }
+
+/* ── mini arch ── */
+.arch-lane {
+  display: grid;
+  grid-template-columns: 132px 22px 178px 22px 1fr;
+  column-gap: 0; row-gap: 8px;
+  align-items: center;
+  background: #fcfcfe; border: 1.5px dashed #a8bece;
+  border-radius: 9px; padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.arch-lane:last-child { margin-bottom: 0; }
+.arch-lane.ext { border-color: #a4beaa; background: #fafcfa; }
+.arch-label { font-size: 0.62rem; color: #9ca3af; font-style: italic; grid-column: 1/-1; margin-bottom: 2px; }
+.ab { border-radius: 7px; padding: 7px 10px; }
+.abu { background: #fff; border: 1px solid #e2e6ea; }
+.abu .t { font-size: 0.68rem; font-weight: 700; color: #111827; }
+.abu .s { font-size: 0.6rem;  color: #9ca3af; margin-top: 1px; }
+.abc { background: #3da8a0; }
+.abc .t { font-size: 0.68rem; font-weight: 700; color: #fff; }
+.abc .s { font-size: 0.6rem;  color: rgba(255,255,255,0.75); margin-top: 1px; }
+.aba { background: #6b8f48; }
+.aba .t { font-size: 0.68rem; font-weight: 700; color: #fff; }
+.aba .s { font-size: 0.6rem;  color: rgba(255,255,255,0.75); margin-top: 1px; }
+.aba.span { align-self: stretch; grid-row: 1/3; display: flex; flex-direction: column; justify-content: center; }
+.a-arr { position: relative; height: 16px; align-self: center; }
+.a-arr::before { content:''; position:absolute; left:0; right:8px; top:50%; height:1px; background:#b0bec8; }
+.a-arr::after  { content:''; position:absolute; right:0; top:50%; transform:translateY(-50%); border-top:4px solid transparent; border-bottom:4px solid transparent; border-left:6px solid #b0bec8; }
+.a-arr.span { align-self: stretch; grid-row: 1/3; display:flex; align-items:center; }
+.a-arr.span::before { left:0; right:8px; top:50%; }
+.arch-portal {
+  flex-shrink: 0; width: 164px;
+  background: #f5e9cf; border: 1.5px solid #d4be9a; border-radius: 10px;
+  padding: 13px 12px 11px; margin-left: 10px;
+  display: flex; flex-direction: column;
+}
+.arch-portal-title { font-size: 0.82rem; font-weight: 800; color: #3d2a14; text-align: center; margin-bottom: 9px; }
+.arch-portal-item  { font-size: 0.66rem; color: #5a3e24; padding: 3px 0; border-bottom: 1px solid #e8d5b0; }
+.arch-portal-item:last-child { border-bottom: none; }
+.arch-stack { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; flex-shrink: 0; }
+
+/* ── security ── */
+.threat-row { display: flex; gap: 14px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+.threat-row:last-child { border-bottom: none; }
+.threat-surface { width: 160px; flex-shrink: 0; font-size: 0.8rem; font-weight: 700; color: #374151; }
+.threat-mit { font-size: 0.8rem; color: #6b7280; flex: 1; line-height: 1.5; }
+
+/* ── big stat ── */
+.big-stat  { font-size: 2.2rem; font-weight: 800; color: #3da8a0; line-height: 1; }
+.big-label { font-size: 0.72rem; color: #9ca3af; margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+<!-- ════ 0: TITLE ════ -->
+<div class="slide active" id="s0">
+  <div class="top-bar">
+    <div class="sec-label">System Design Document · v0.1 Draft</div>
+    <div class="slide-num">1 / 13</div>
+  </div>
+  <div class="content">
+    <div class="title-eyebrow">Nile Basin Discourse · Akvo Foundation</div>
+    <div class="title-main">Technical Support to Implement<br>Citizen-Led Data Generation<br>and Management Activities</div>
+    <div class="title-sub">System Design Document - May 2026</div>
+    <div class="title-chips">
+      <span class="chip teal">🌿 Mara Wetlands — Kenya / Tanzania</span>
+      <span class="chip teal">🌿 Sio-Siteko — Kenya / Uganda</span>
+    </div>
+    <div class="title-meta">Arrow keys or buttons to navigate</div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)" disabled>← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:8%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 1: BACKGROUND ════ -->
+<div class="slide" id="s1">
+  <div class="top-bar">
+    <div class="sec-label">§1 — Background &amp; Context</div>
+    <div class="slide-num">2 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Background &amp; <span class="accent">Context</span></div>
+    <div class="cols">
+      <div class="col" style="flex:1.1;">
+        <div class="lbl">The Sites</div>
+        
+        <div style="display:flex; gap:10px;">
+          <div class="card" style="flex:1; margin-bottom:0;">
+            <div class="card-title">🌿 Mara Wetlands</div>
+            <div class="card-body">Kenya ↔ Tanzania</div>
+          </div>
+          <div class="card" style="flex:1; margin-bottom:0;">
+            <div class="card-title">🌿 Sio-Siteko</div>
+            <div class="card-body">Kenya ↔ Uganda</div>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:15%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 2: PROBLEM ════ -->
+<div class="slide" id="s2">
+  <div class="top-bar">
+    <div class="sec-label">§2 — Problem Statement</div>
+    <div class="slide-num">3 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Problem <span class="accent">Statement</span></div>
+    <div style="background:#f9fafb; border-left:3px solid #3da8a0; border-radius:0 8px 8px 0; padding:13px 18px; margin-bottom:22px; font-size:0.9rem; color:#374151; line-height:1.6; flex-shrink:0;">
+      Communities see the changes every day — the water colour shifting, fish disappearing, farms encroaching. <strong>That knowledge has no formal channel into decisions.</strong>
+    </div>
+    <div class="cols">
+      <div class="card col" style="margin-bottom:0;">
+        <div style="font-size:1.5rem; margin-bottom:8px;">📡</div>
+        <div class="card-title">Connectivity</div>
+        <div class="card-body">Many sites have no mobile data. The system needs to work on a basic voice network alone.</div>
+      </div>
+      <div class="card col" style="margin-bottom:0;">
+        <div style="font-size:1.5rem; margin-bottom:8px;">📱</div>
+        <div class="card-title">Device access</div>
+        <div class="card-body">Not everyone has a smartphone. Pollution reporting must work on any basic phone.</div>
+      </div>
+      <div class="card col" style="margin-bottom:0;">
+        <div style="font-size:1.5rem; margin-bottom:8px;">📚</div>
+        <div class="card-title">Digital literacy</div>
+        <div class="card-body">The interface must guide users through every step. No reading required. No manual.</div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:23%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 3: GUIDING PRINCIPLES ════ -->
+<div class="slide" id="s3">
+  <div class="top-bar">
+    <div class="sec-label">§3 — Solution Overview · 1 of 2</div>
+    <div class="slide-num">4 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Guiding <span class="accent">Principles</span></div>
+    <div class="principle-grid">
+      <div class="pcard t1">
+        <div class="pcard-icon">🔓</div>
+        <div class="pcard-title">Open source first</div>
+        <div class="pcard-body">Everything we build is open source. KoboToolbox, FastAPI, PostgreSQL, Next.js — no proprietary tools. No lock-in.</div>
+        <div class="pcard-tag"><span class="tag teal">GEE free tier for non-commercial use</span></div>
+      </div>
+      <div class="pcard t2">
+        <div class="pcard-icon">📡</div>
+        <div class="pcard-title">Works without data</div>
+        <div class="pcard-body">USSD runs on voice only. KoboCollect saves offline and syncs when there's a connection. No data plan needed.</div>
+        <div class="pcard-tag"><span class="tag">Designed for the most remote sites</span></div>
+      </div>
+      <div class="pcard t3">
+        <div class="pcard-icon">🤝</div>
+        <div class="pcard-title">Data belongs to communities</div>
+        <div class="pcard-body">The data belongs to NBD and the communities who collected it.</div>
+        <div class="pcard-tag"><span class="tag olive">Formal Data Processing Agreement</span></div>
+      </div>
+      <div class="pcard t4">
+        <div class="pcard-icon">🔗</div>
+        <div class="pcard-title">One ID connects everything</div>
+        <div class="pcard-body">Every site has a fixed ID — e.g. <code style="font-size:0.78rem; background:#ede9fe; padding:1px 5px; border-radius:3px;">NBD-MARA-001</code>. It appears in every record, every export, every API call. Any dataset can join on that key alone.</div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:31%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 5: USERS ════ -->
+<div class="slide" id="s5">
+  <div class="top-bar">
+    <div class="sec-label">§3 — Solution Overview · 2 of 2</div>
+    <div class="slide-num">5 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Users &amp; <span class="accent">Devices</span></div>
+    <table class="tbl" style="margin-bottom:16px;">
+      <thead>
+        <tr><th>Role</th><th>What they do</th><th>Minimum device</th><th>Connectivity</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Wetland watcher</td><td>Reports pollution episodes (Kenya)</td><td>Basic feature phone</td><td><span class="tag">GSM only</span> or <span class="tag">WhatsApp</span></td></tr>
+        <tr><td>Citizen scientist</td><td>Monthly water quality sampling</td><td>Android + KoboCollect</td><td><span class="tag teal">Offline-capable</span></td></tr>
+        <tr><td>CSO staff</td><td>Platform facilitation · FGD data entry</td><td>Laptop or tablet</td><td>Low–medium bandwidth</td></tr>
+        <tr><td>Academic partner</td><td>Shadow sampling · lab QA entry</td><td>Any browser</td><td>Reliable internet</td></tr>
+        <tr><td>NBD / NDF / Officials</td><td>Portal users</td><td>Any browser</td><td>Reliable internet</td></tr>
+      </tbody>
+    </table>
+    <div class="cols" style="flex:0; gap:14px;">
+      <div class="card col" style="margin-bottom:0;">
+        <div class="card-title">Train-the-Trainers model</div>
+        <div class="card-body">Users trained via ToT. The ToT workshop is also a system validation checkpoint.</div>
+      </div>
+      <div class="card col" style="margin-bottom:0;">
+        <div class="card-title">Hardware</div>
+        <div class="card-body">The project provides handheld probes for pH, temperature, and dissolved oxygen. Readings go into KoboCollect.</div>
+      </div>
+      <div class="card col" style="margin-bottom:0;">
+        <div class="card-title">Infrastructure</div>
+        <div class="card-body">Cloud-hosted · Dockerised<br>8 GB RAM · 4-core · 30 GB storage<br>Dev · staging · production</div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:38%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 6: ARCHITECTURE ════ -->
+<div class="slide" id="s6">
+  <div class="top-bar">
+    <div class="sec-label">§4 — Architecture Design</div>
+    <div class="slide-num">6 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Architecture <span class="accent">Design</span></div>
+    <div style="display:flex; gap:10px; flex:1; align-items:stretch;">
+      <div style="flex:1; display:flex; flex-direction:column;">
+
+        <div class="arch-lane">
+          <div class="arch-label">Pollution reporting — Kenya</div>
+          <div class="ab abu" style="grid-column:1;grid-row:2;"><div class="t">Wetland watcher</div><div class="s">Feature phone / smartphone</div></div>
+          <div class="a-arr" style="grid-column:2;grid-row:2;"></div>
+          <div class="ab abc" style="grid-column:3;grid-row:2;"><div class="t">USSD · WhatsApp bot</div><div class="s">Africa's Talking · GSM only</div></div>
+          <div class="a-arr span" style="grid-column:4;grid-row:2/4;"><div class="a-arr" style="flex:1;"></div></div>
+          <div class="ab aba span" style="grid-column:5;grid-row:2/4;"><div class="t">Clean &amp; approve</div><div class="s">Publish to portal · traffic light</div></div>
+        </div>
+
+        <div class="arch-lane">
+          <div class="arch-label">Monthly sampling — Tanzania · Kenya · Uganda</div>
+          <div class="ab abu" style="grid-column:1;grid-row:2;"><div class="t">Citizen scientist</div><div class="s">Android · KoboCollect</div></div>
+          <div class="a-arr" style="grid-column:2;grid-row:2;"></div>
+          <div class="ab abc" style="grid-column:3;grid-row:2;"><div class="t">KoboCollect survey</div><div class="s">Offline · auto-sync</div></div>
+          <div class="ab abu" style="grid-column:1;grid-row:3;"><div class="t">Academic partner</div><div class="s">Shadow sampling · quarterly</div></div>
+          <div class="a-arr" style="grid-column:2;grid-row:3;"></div>
+          <div class="ab abc" style="grid-column:3;grid-row:3;"><div class="t">Lab QA webform</div><div class="s">BOD · nitrate · mercury</div></div>
+          <div class="a-arr span" style="grid-column:4;grid-row:2/4;"><div class="a-arr" style="flex:1;"></div></div>
+          <div class="ab aba span" style="grid-column:5;grid-row:2/4;"><div class="t">Score &amp; classify</div><div class="s">Fuzzy logic · IK signal · Class A–E</div></div>
+        </div>
+
+        <div class="arch-lane ext">
+          <div class="arch-label">External data &amp; community knowledge</div>
+          <div class="ab abu" style="grid-column:1;grid-row:2;"><div class="t">Google Earth Engine</div><div class="s">Automated pipeline</div></div>
+          <div class="a-arr" style="grid-column:2;grid-row:2;"></div>
+          <div class="ab abc" style="grid-column:3;grid-row:2;"><div class="t">Sentinel 1&amp;2 + CHIRPS</div><div class="s">NDVI · water extent · rainfall</div></div>
+          <div class="ab abu" style="grid-column:1;grid-row:3;"><div class="t">CSO staff</div><div class="s">Monthly Baraza</div></div>
+          <div class="a-arr" style="grid-column:2;grid-row:3;"></div>
+          <div class="ab abc" style="grid-column:3;grid-row:3;"><div class="t">FGD session form</div><div class="s">Fish · clarity · vegetation</div></div>
+          <div class="a-arr span" style="grid-column:4;grid-row:2/4;"><div class="a-arr" style="flex:1;"></div></div>
+          <div class="ab aba span" style="grid-column:5;grid-row:2/4;"><div class="t">GEE ingest · IK signal</div><div class="s">Batch pipeline · fuzzy input</div></div>
+        </div>
+
+      </div>
+      <div class="arch-portal">
+        <div class="arch-portal-title">Wetland<br>Data Portal</div>
+        <div class="arch-portal-item">🗺 Pollution incident map</div>
+        <div class="arch-portal-item">📊 Health scores A–E</div>
+        <div class="arch-portal-item">🚦 Traffic light + actions</div>
+        <div class="arch-portal-item">📈 Trend charts</div>
+        <div class="arch-portal-item" style="margin-bottom:9px;">🛰 Satellite overlays</div>
+        <div style="font-size:0.62rem; color:#7c5a1e; text-align:center; line-height:1.8; border-top:1px solid #d4be9a; padding-top:7px; margin-top:auto;">
+          Public · no login<br>Partners · SSO / email<br><span style="font-style:italic;">Mobile · PDF</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-stack">
+      <span class="tag teal">PostgreSQL + PostGIS</span>
+      <span class="tag teal">FastAPI</span>
+      <span class="tag teal">Next.js</span>
+      <span class="tag teal">ECharts</span>
+      <span class="tag teal">Leaflet.js</span>
+      <span class="tag olive">KoboToolbox</span>
+      <span class="tag olive">Google Earth Engine</span>
+      <span class="tag">Africa's Talking</span>
+      <span class="tag">Docker</span>
+      <span class="tag">GitHub Actions</span>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:46%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 8: ARCHITECTURE WIREFRAME ════ -->
+<div class="slide" id="s-arch">
+  <div class="top-bar">
+    <div class="sec-label">§4 — Admin Interface</div>
+    <div class="slide-num">7 / 13</div>
+  </div>
+  <div style="flex:1; overflow:hidden; position:relative;">
+    <iframe src="admin-interface.html"
+      style="border:none; width:1100px; height:660px; position:absolute; top:0; left:0;"
+      scrolling="no" loading="eager">
+    </iframe>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:54%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 9: PORTAL WIREFRAME ════ -->
+<div class="slide" id="s-portal">
+  <div class="top-bar">
+    <div class="sec-label">§4 — Portal Wireframe</div>
+    <div class="slide-num">8 / 13</div>
+  </div>
+  <div style="flex:1; overflow:hidden; position:relative;">
+    <iframe src="portal.html"
+      style="border:none; width:1100px; height:580px; position:absolute; top:0; left:0;"
+      scrolling="no" loading="eager">
+    </iframe>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:62%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 10: INTEGRATION ════ -->
+<div class="slide" id="s7">
+  <div class="top-bar">
+    <div class="sec-label">§6 — Integration Design</div>
+    <div class="slide-num">9 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Integration <span class="accent">Design</span></div>
+    <table class="tbl">
+      <thead>
+        <tr><th>System</th><th>Direction</th><th>Protocol</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Africa's Talking — USSD</td><td><span class="tag">Inbound</span></td><td>HTTP webhook</td><td>Stateful session management · GSM only</td></tr>
+        <tr><td>Africa's Talking — WhatsApp</td><td><span class="tag">In / Out</span></td><td>HTTP webhook</td><td>Menu-driven bot · same gateway as USSD</td></tr>
+        <tr><td>KoboToolbox API</td><td><span class="tag">Pull</span></td><td>REST / JSON</td><td>Scheduled sync · not public-facing</td></tr>
+        <tr><td>Portal data feed</td><td><span class="tag teal">Internal</span></td><td>FastAPI REST</td><td>Admin layer serves data to portal via documented API</td></tr>
+        <tr><td>Sentinel 1 &amp; 2 (GEE)</td><td><span class="tag">Inbound</span></td><td>GEE export · GeoTIFF / GeoJSON</td><td>Scheduled batch · linked by site ID + period</td></tr>
+        <tr><td>CHIRPS rainfall (GEE)</td><td><span class="tag">Inbound</span></td><td>GEE export · GeoJSON</td><td>Batch · scheduled monthly</td></tr>
+        <tr><td>Lab QA results</td><td><span class="tag">Inbound</span></td><td>Portal webform</td><td>Add New → Lab QA report · reviewed before publication</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:69%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 8: SECURITY ════ -->
+<div class="slide" id="s8">
+  <div class="top-bar">
+    <div class="sec-label">§7 — Security, Privacy &amp; Data Governance</div>
+    <div class="slide-num">10 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Security &amp; <span class="accent">Governance</span></div>
+    <div class="cols">
+      <div class="col">
+        <div class="lbl">Threats &amp; mitigations</div>
+        <div class="threat-row">
+          <div class="threat-surface">Watcher identity</div>
+          <div class="threat-mit">Reports show basin-level counts only. No submission can be traced to a phone number.</div>
+        </div>
+        <div class="threat-row">
+          <div class="threat-surface">Admin layer</div>
+          <div class="threat-mit">Role-based access control.</div>
+        </div>
+        <div class="threat-row">
+          <div class="threat-surface">Infrastructure</div>
+          <div class="threat-mit">No secrets in code. TLS everywhere. Encryption at rest. Automated patching.</div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="lbl">Authentication</div>
+          <div style="font-size:0.82rem; color:#374151; line-height:1.9;">
+            <div>Admin interface &nbsp;<span class="tag teal">SSO — Google / Microsoft</span></div>
+            <div>Portal partners &nbsp;<span class="tag">Email + password</span></div>
+            <div>Public portal &nbsp;<span class="tag green">No login required</span></div>
+            <div style="margin-top:4px; color:#9ca3af; font-size:0.7rem;">No self-registration — Admin creates all accounts via invite</div>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="lbl">Data ownership</div>
+        <div class="card" style="border-left:3px solid #3da8a0;">
+          <div class="card-title">Owners: NBD + communities</div>
+          <div class="card-body">The data belongs to NBD and the communities who collected it.</div>
+        </div>
+        <div class="card" style="border-left:3px solid #6b8f48;">
+          <div class="card-title">Processor: Akvo</div>
+          <div class="card-body">Akvo runs the platform for NBD under a formal Data Processing Agreement. We have no rights over the data beyond operating the platform.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:77%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 9: DEPLOYMENT ════ -->
+<div class="slide" id="s9">
+  <div class="top-bar">
+    <div class="sec-label">§8 — Deployment Architecture</div>
+    <div class="slide-num">11 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Deployment <span class="accent">Architecture</span></div>
+    <div class="cols">
+      <div class="col">
+        <div class="lbl">Infrastructure</div>
+        <div style="display:flex; gap:10px; margin-bottom:12px;">
+          <div style="text-align:center; flex:1;"><div class="big-stat">8</div><div class="big-label">GB RAM</div></div>
+          <div style="text-align:center; flex:1;"><div class="big-stat">4</div><div class="big-label">CPU cores</div></div>
+          <div style="text-align:center; flex:1;"><div class="big-stat">30</div><div class="big-label">GB storage</div></div>
+        </div>
+        <div class="card" style="margin-bottom:8px;">
+          <div class="card-body">Cloud-hosted. Also supports in-country server deployment for post-pilot handover.</div>
+        </div>
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-body">Photos and documents go to cloud object storage — separate from the VM.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="lbl">Containers &amp; environments</div>
+        <div class="card" style="margin-bottom:10px;">
+          <div class="card-title">Fully Dockerised</div>
+          <div class="card-body">Each component runs as a separate Docker service. Portable across providers.</div>
+        </div>
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-title">Three environments</div>
+          <div class="card-body"><span class="tag">Development</span> <span class="tag">Staging</span> <span class="tag teal">Production</span></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="lbl">CI / CD &amp; monitoring</div>
+        <div class="card" style="margin-bottom:10px;">
+          <div class="card-title">GitHub — Akvo organisation</div>
+          <div class="card-body">Tests run on every pull request. Deployments to staging and production triggered via GitHub Actions.</div>
+        </div>
+        <div class="card" style="margin-bottom:10px;">
+          <div class="card-title">Backup</div>
+          <div class="card-body">Daily automated backups. 30-day retention.</div>
+        </div>
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-title">Alerting</div>
+          <div class="card-body">Email alerts for critical failures. Monitors webhooks, sync, and portal availability.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:85%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ════ 10: TESTING ════ -->
+<div class="slide" id="s10">
+  <div class="top-bar">
+    <div class="sec-label">§9 — Testing &amp; Validation Strategy</div>
+    <div class="slide-num">12 / 13</div>
+  </div>
+  <div class="content">
+    <div class="slide-title">Testing &amp; <span class="accent">Validation</span></div>
+    <div class="cols">
+      <div class="col">
+        <div class="lbl">Technical testing</div>
+        <div class="card">
+          <div class="card-title">Unit tests</div>
+          <div class="card-body">Health score calculation · validation rules · traffic light classification · data transformations</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Integration tests</div>
+          <div class="card-body">USSD flows · WhatsApp bot · KoboToolbox API sync · GEE ingestion pipelines</div>
+        </div>
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-title">End-to-end tests</div>
+          <div class="card-body">Full wetland watcher journey and full citizen scientist journey</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="lbl">Field validation</div>
+        <div class="card" style="border-left:3px solid #3da8a0;">
+          <div class="card-title">Pilot with real users</div>
+          <div class="card-body">Field pilot with wetland watchers and citizen scientists before full rollout. Failure modes documented.</div>
+        </div>
+        <div class="card" style="border-left:3px solid #6b8f48; margin-bottom:0;">
+          <div class="card-title">Train-the-Trainers checkpoint</div>
+          <div class="card-body">The ToT workshop serves as a system validation checkpoint.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:92%;"></div></div>
+    <button class="nav-btn" onclick="go(1)">Next →</button>
+  </div>
+</div><!-- /s10 -->
+
+<!-- Slide 12: Timeline -->
+<div class="slide" id="s11">
+  <div class="slide-header">
+    <div class="slide-num">13 / 13</div>
+    <div class="slide-title">Project Timeline</div>
+  </div>
+  <div class="slide-body" style="display:flex; flex-direction:column; justify-content:center; height:100%; padding:0 32px;">
+    <div style="position:relative; margin: 24px 0 36px;">
+      <!-- Horizontal line -->
+      <div style="position:absolute; top:28px; left:0; right:0; height:3px; background:#3da8a0; border-radius:2px;"></div>
+      <!-- Milestones -->
+      <div style="display:flex; justify-content:space-between; position:relative;">
+        <!-- Milestone 1 -->
+        <div style="display:flex; flex-direction:column; align-items:center; width:22%;">
+          <div style="width:14px; height:14px; border-radius:50%; background:#3da8a0; border:3px solid #fff; box-shadow:0 0 0 2px #3da8a0; margin-bottom:10px; margin-top:22px;"></div>
+          <div style="font-size:0.72rem; font-weight:700; color:#1a3c34; text-align:center; margin-bottom:4px;">Design signoff</div>
+          <div style="font-size:0.68rem; color:#6b7280; text-align:center;">22 May 2026</div>
+        </div>
+        <!-- Milestone 2 -->
+        <div style="display:flex; flex-direction:column; align-items:center; width:22%;">
+          <div style="width:14px; height:14px; border-radius:50%; background:#6b8f48; border:3px solid #fff; box-shadow:0 0 0 2px #6b8f48; margin-bottom:10px; margin-top:22px;"></div>
+          <div style="font-size:0.72rem; font-weight:700; color:#1a3c34; text-align:center; margin-bottom:4px;">Platform development</div>
+          <div style="font-size:0.68rem; color:#6b7280; text-align:center;">25 May – 26 June 2026</div>
+        </div>
+        <!-- Milestone 3 -->
+        <div style="display:flex; flex-direction:column; align-items:center; width:22%;">
+          <div style="width:14px; height:14px; border-radius:50%; background:#6b8f48; border:3px solid #fff; box-shadow:0 0 0 2px #6b8f48; margin-bottom:10px; margin-top:22px;"></div>
+          <div style="font-size:0.72rem; font-weight:700; color:#1a3c34; text-align:center; margin-bottom:4px;">Training</div>
+          <div style="font-size:0.68rem; color:#6b7280; text-align:center;">End of June 2026</div>
+        </div>
+        <!-- Milestone 4 -->
+        <div style="display:flex; flex-direction:column; align-items:center; width:22%;">
+          <div style="width:14px; height:14px; border-radius:50%; background:#b45309; border:3px solid #fff; box-shadow:0 0 0 2px #b45309; margin-bottom:10px; margin-top:22px;"></div>
+          <div style="font-size:0.72rem; font-weight:700; color:#1a3c34; text-align:center; margin-bottom:4px;">Data collection begins</div>
+          <div style="font-size:0.68rem; color:#6b7280; text-align:center;">Early July 2026</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; gap:12px; justify-content:center; margin-top:8px;">
+      <div style="display:flex; align-items:center; gap:6px; font-size:0.7rem; color:#6b7280;"><span style="width:10px;height:10px;border-radius:50%;background:#3da8a0;display:inline-block;"></span> Design</div>
+      <div style="display:flex; align-items:center; gap:6px; font-size:0.7rem; color:#6b7280;"><span style="width:10px;height:10px;border-radius:50%;background:#6b8f48;display:inline-block;"></span> Build &amp; Train</div>
+      <div style="display:flex; align-items:center; gap:6px; font-size:0.7rem; color:#6b7280;"><span style="width:10px;height:10px;border-radius:50%;background:#b45309;display:inline-block;"></span> Field deployment</div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="go(-1)">← Prev</button>
+    <div class="progress"><div class="progress-fill" style="width:100%;"></div></div>
+    <button class="nav-btn" disabled>Next →</button>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<div style="margin-top:14px; font-size:0.68rem; color:#9ca3af; text-align:center;">
+  ← → arrow keys &nbsp;·&nbsp; <span id="slide-counter">Slide 1 of 13</span>
+</div>
+
+<script>
+  let cur = 0;
+  const total = 13;
+  const slides = document.querySelectorAll('.slide');
+
+  function go(dir) {
+    const next = cur + dir;
+    if (next < 0 || next >= total) return;
+    slides[cur].classList.remove('active');
+    cur = next;
+    slides[cur].classList.add('active');
+    document.getElementById('slide-counter').textContent = 'Slide ' + (cur + 1) + ' of ' + total;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1);
+  });
+</script>
+</body>
+</html>
