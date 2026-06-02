@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title> — NBD SDD</title>
+<style>
+  :root { font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif; }
+  body { margin: 0; padding: 24px; background: #eceff1; color: #1a1a1a; }
+  header { max-width: 1100px; margin: 0 auto 16px; }
+  header h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: #0e7a66; }
+  header p { margin: 0; font-size: 12px; color: #4a4a4a; }
+  .canvas { max-width: 1100px; margin: 0 auto; background: #ffffff;
+            padding: 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .canvas svg { width: 100%; height: auto; display: block; }
+  footer { max-width: 1100px; margin: 16px auto 0; font-size: 11px; color: #6a6a6a; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    header, footer { display: none; }
+    .canvas { box-shadow: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1></h1>
+    <p>To edit: open this file in a text editor and modify the inline SVG markup below. Refresh the browser to preview. To export back to a standalone SVG, copy everything from <code>&lt;svg&gt;</code> to <code>&lt;/svg&gt;</code> and paste into a new <code>.svg</code> file with an <code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</code> declaration on the first line.</p>
+  </header>
+  <div class="canvas">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 760" font-family="'Open Sans','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a4a4a"/>
+    </marker>
+    <style>
+      .section-label { font-size: 11px; font-weight: 600; fill: #4a4a4a; letter-spacing: 0.5px; }
+      .ent-title { font-size: 12px; font-weight: 700; fill: #ffffff; }
+      .ent-desc { font-size: 9px; fill: #ffffff; }
+      .ent-title-y { font-size: 12px; font-weight: 700; fill: #4a3a0f; }
+      .ent-desc-y { font-size: 9px; fill: #4a3a0f; }
+      .ent-title-d { font-size: 12px; font-weight: 700; fill: #1a1a1a; }
+      .ent-desc-d { font-size: 9px; fill: #4a4a4a; }
+      .card { font-size: 10px; font-weight: 700; fill: #1a1a1a; }
+      .rel-label { font-size: 9px; fill: #4a4a4a; font-style: italic; }
+    </style>
+  </defs>
+
+  <rect width="1040" height="760" fill="#fafafa"/>
+
+  <text x="30" y="34" class="section-label">CONCEPTUAL DATA MODEL · ENTITY-RELATIONSHIP</text>
+  <line x1="30" y1="44" x2="1010" y2="44" stroke="#d0d0d0"/>
+
+  <!-- Top hierarchy: Basin → Wetland → Site -->
+  <g>
+    <rect x="60" y="80" width="160" height="56" rx="6" fill="#0e7a66"/>
+    <text x="140" y="103" text-anchor="middle" class="ent-title">Basin</text>
+    <text x="140" y="119" text-anchor="middle" class="ent-desc">MARA · SIO</text>
+    <text x="140" y="131" text-anchor="middle" class="ent-desc">Countries (ISO codes)</text>
+  </g>
+
+  <line x1="220" y1="108" x2="290" y2="108" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="227" y="100" class="card">1</text>
+  <text x="278" y="100" class="card">N</text>
+  <text x="230" y="125" class="rel-label">contains</text>
+
+  <g>
+    <rect x="290" y="80" width="160" height="56" rx="6" fill="#0e7a66"/>
+    <text x="370" y="103" text-anchor="middle" class="ent-title">Wetland</text>
+    <text x="370" y="119" text-anchor="middle" class="ent-desc">Polygon boundary</text>
+    <text x="370" y="131" text-anchor="middle" class="ent-desc">Mara · Sio-Siteko</text>
+  </g>
+
+  <line x1="450" y1="108" x2="520" y2="108" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="457" y="100" class="card">1</text>
+  <text x="508" y="100" class="card">N</text>
+  <text x="460" y="125" class="rel-label">contains</text>
+
+  <g>
+    <rect x="520" y="80" width="160" height="56" rx="6" fill="#0e7a66"/>
+    <text x="600" y="103" text-anchor="middle" class="ent-title">Site</text>
+    <text x="600" y="119" text-anchor="middle" class="ent-desc">NBD-MARA-001 · ...</text>
+    <text x="600" y="131" text-anchor="middle" class="ent-desc">Point location</text>
+  </g>
+
+  <!-- Site → ManagementAction (one or more actions per site, surfaced by traffic light) -->
+  <line x1="680" y1="108" x2="760" y2="108" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="687" y="100" class="card">1</text>
+  <text x="748" y="100" class="card">N</text>
+  <text x="688" y="125" class="rel-label">actions per site</text>
+
+  <g>
+    <rect x="760" y="80" width="220" height="56" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="870" y="103" text-anchor="middle" class="ent-title-y">ManagementAction</text>
+    <text x="870" y="119" text-anchor="middle" class="ent-desc-y">Per site · per traffic light</text>
+    <text x="870" y="131" text-anchor="middle" class="ent-desc-y">Short label + full text</text>
+  </g>
+
+  <!-- Basin → PollutionReport (basin-level submission, no specific site required) -->
+  <line x1="140" y1="136" x2="170" y2="220" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="148" y="180" class="rel-label">submitted per basin</text>
+
+  <!-- Site → site-level submissions (SamplingRecord, LabQAResult) -->
+  <line x1="600" y1="136" x2="430" y2="220" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <line x1="600" y1="136" x2="680" y2="220" stroke="#4a4a4a" marker-end="url(#arr)"/>
+
+  <!-- Wetland → ExternalDataPoint (wetland-polygon data: Sentinel NDVI, water extent) -->
+  <!-- Basin → ExternalDataPoint (basin-catchment data: CHIRPS rainfall) -->
+  <path d="M370 136 Q 700 175 900 220" stroke="#4a4a4a" fill="none" marker-end="url(#arr)"/>
+  <path d="M140 136 Q 500 200 900 220" stroke="#4a4a4a" fill="none" marker-end="url(#arr)" stroke-dasharray="3,3"/>
+  <text x="700" y="170" class="rel-label">wetland-polygon</text>
+  <text x="500" y="195" class="rel-label">basin-catchment</text>
+
+  <!-- Wetland → FGDRecord (per wetland · per period; Baraza is a wetland-community meeting) -->
+  <path d="M370 136 Q 380 240 420 340" stroke="#4a4a4a" fill="none" marker-end="url(#arr)"/>
+  <text x="270" y="240" class="rel-label">per wetland · per period</text>
+
+  <!-- Submissions row -->
+  <g>
+    <rect x="60" y="220" width="220" height="74" rx="6" fill="#1ba88f"/>
+    <text x="170" y="244" text-anchor="middle" class="ent-title">PollutionReport</text>
+    <text x="170" y="262" text-anchor="middle" class="ent-desc">Basin-level · USSD or WhatsApp</text>
+    <text x="170" y="276" text-anchor="middle" class="ent-desc">Incident type · sub-county</text>
+    <text x="170" y="288" text-anchor="middle" class="ent-desc">Media keys · status</text>
+  </g>
+
+  <g>
+    <rect x="310" y="220" width="220" height="74" rx="6" fill="#1ba88f"/>
+    <text x="420" y="244" text-anchor="middle" class="ent-title">SamplingRecord</text>
+    <text x="420" y="262" text-anchor="middle" class="ent-desc">KoboCollect · monthly</text>
+    <text x="420" y="276" text-anchor="middle" class="ent-desc">pH · DO · temp · ecological</text>
+    <text x="420" y="288" text-anchor="middle" class="ent-desc">Photos · GPS </text>
+  </g>
+
+  <g>
+    <rect x="560" y="220" width="220" height="74" rx="6" fill="#1ba88f"/>
+    <text x="670" y="244" text-anchor="middle" class="ent-title">LabQAResult</text>
+    <text x="670" y="262" text-anchor="middle" class="ent-desc">Academic partner · quarterly</text>
+    <text x="670" y="276" text-anchor="middle" class="ent-desc">BOD · nitrate · mercury</text>
+    <text x="670" y="288" text-anchor="middle" class="ent-desc">Reconciled vs. sampling</text>
+  </g>
+
+  <g>
+    <rect x="810" y="220" width="180" height="74" rx="6" fill="#1ba88f"/>
+    <text x="900" y="244" text-anchor="middle" class="ent-title">ExternalDataPoint</text>
+    <text x="900" y="262" text-anchor="middle" class="ent-desc">Sentinel (wetland) · CHIRPS (basin)</text>
+    <text x="900" y="276" text-anchor="middle" class="ent-desc">Per polygon · per date</text>
+    <text x="900" y="288" text-anchor="middle" class="ent-desc">value_json · provenance</text>
+  </g>
+
+  <!-- Citizen entity -->
+  <g>
+    <rect x="60" y="340" width="220" height="60" rx="6" fill="#1ba88f"/>
+    <text x="170" y="362" text-anchor="middle" class="ent-title">Citizen</text>
+    <text x="170" y="378" text-anchor="middle" class="ent-desc">Watcher or scientist</text>
+    <text x="170" y="392" text-anchor="middle" class="ent-desc">Phone (PII) · home site</text>
+  </g>
+
+  <line x1="170" y1="294" x2="170" y2="340" stroke="#4a4a4a" marker-end="url(#arr)" marker-start="url(#arr)"/>
+  <text x="178" y="319" class="rel-label">submitted by</text>
+
+  <line x1="420" y1="294" x2="220" y2="340" stroke="#4a4a4a" marker-end="url(#arr)"/>
+
+  <!-- FGD record -->
+  <g>
+    <rect x="310" y="340" width="220" height="60" rx="6" fill="#1ba88f"/>
+    <text x="420" y="362" text-anchor="middle" class="ent-title">FGDRecord</text>
+    <text x="420" y="378" text-anchor="middle" class="ent-desc">Monthly Baraza · CSO staff</text>
+    <text x="420" y="392" text-anchor="middle" class="ent-desc">Fish · clarity · vegetation</text>
+  </g>
+
+  <!-- Scoring section -->
+  <line x1="420" y1="294" x2="420" y2="430" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="430" y="320" class="rel-label">produces (on approval)</text>
+
+  <line x1="420" y1="400" x2="420" y2="430" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="430" y="420" class="rel-label">IK signal feeds fuzzy adjust</text>
+
+  <g>
+    <rect x="310" y="430" width="220" height="80" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="420" y="453" text-anchor="middle" class="ent-title-y">HealthScore</text>
+    <text x="420" y="470" text-anchor="middle" class="ent-desc-y">Per site · per period</text>
+    <text x="420" y="484" text-anchor="middle" class="ent-desc-y">Composite · IK signal · adjusted</text>
+    <text x="420" y="498" text-anchor="middle" class="ent-desc-y">Class A–E · Green / Yellow / Red</text>
+  </g>
+
+  <!-- Score back to Site -->
+  <path d="M530 470 Q700 470 700 200 L680 136" stroke="#4a4a4a" fill="none" marker-end="url(#arr)"/>
+  <text x="585" y="464" class="rel-label">attached to site</text>
+
+  <!-- Lab QA feeds health score too -->
+  <line x1="670" y1="294" x2="500" y2="430" stroke="#4a4a4a" stroke-dasharray="3,3" marker-end="url(#arr)"/>
+  <text x="566" y="370" class="rel-label">validation input</text>
+
+  <!-- User / Role on the side -->
+  <g>
+    <rect x="780" y="340" width="100" height="60" rx="6" fill="#ffffff" stroke="#cccccc"/>
+    <text x="830" y="362" text-anchor="middle" class="ent-title-d">User</text>
+    <text x="830" y="378" text-anchor="middle" class="ent-desc-d">Admin / Reviewer</text>
+    <text x="830" y="392" text-anchor="middle" class="ent-desc-d">SSO subject</text>
+  </g>
+  <g>
+    <rect x="890" y="340" width="100" height="60" rx="6" fill="#ffffff" stroke="#cccccc"/>
+    <text x="940" y="362" text-anchor="middle" class="ent-title-d">Role</text>
+    <text x="940" y="378" text-anchor="middle" class="ent-desc-d">Permissions</text>
+    <text x="940" y="392" text-anchor="middle" class="ent-desc-d">RBAC</text>
+  </g>
+  <line x1="880" y1="370" x2="890" y2="370" stroke="#4a4a4a" marker-end="url(#arr)" marker-start="url(#arr)"/>
+  <text x="827" y="412" class="card">N</text>
+  <text x="900" y="412" class="card">N</text>
+
+  <!-- User → reviews submissions -->
+  <line x1="780" y1="370" x2="540" y2="294" stroke="#4a4a4a" stroke-dasharray="3,3"/>
+  <text x="620" y="338" class="rel-label">reviewed_by</text>
+
+  <!-- Legend -->
+  <text x="30" y="565" class="section-label">LEGEND</text>
+  <line x1="30" y1="575" x2="1010" y2="575" stroke="#d0d0d0"/>
+
+  <g transform="translate(30, 590)">
+    <rect x="0" y="0" width="22" height="14" rx="3" fill="#0e7a66"/>
+    <text x="32" y="11" font-size="10" fill="#1a1a1a">Reference entity (slow-changing)</text>
+  </g>
+  <g transform="translate(280, 590)">
+    <rect x="0" y="0" width="22" height="14" rx="3" fill="#1ba88f"/>
+    <text x="32" y="11" font-size="10" fill="#1a1a1a">Submission or transactional entity</text>
+  </g>
+  <g transform="translate(560, 590)">
+    <rect x="0" y="0" width="22" height="14" rx="3" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="32" y="11" font-size="10" fill="#1a1a1a">Derived / published entity</text>
+  </g>
+  <g transform="translate(820, 590)">
+    <rect x="0" y="0" width="22" height="14" rx="3" fill="#ffffff" stroke="#cccccc"/>
+    <text x="32" y="11" font-size="10" fill="#1a1a1a">Access-control entity</text>
+  </g>
+
+  <g transform="translate(30, 620)">
+    <line x1="0" y1="7" x2="40" y2="7" stroke="#4a4a4a" marker-end="url(#arr)"/>
+    <text x="50" y="11" font-size="10" fill="#1a1a1a">Required relationship · 1 → N</text>
+  </g>
+  <g transform="translate(280, 620)">
+    <line x1="0" y1="7" x2="40" y2="7" stroke="#4a4a4a" stroke-dasharray="3,3" marker-end="url(#arr)"/>
+    <text x="50" y="11" font-size="10" fill="#1a1a1a">Metadata relationship</text>
+  </g>
+
+  <!-- Notes block -->
+  <rect x="30" y="650" width="980" height="80" rx="6" fill="#ffffff" stroke="#cccccc"/>
+  <text x="44" y="670" font-size="11" font-weight="700" fill="#1a1a1a">Interoperability keys (three levels)</text>
+  <text x="44" y="688" font-size="10" fill="#1a1a1a">Each scope of data joins on its own identifier: site_id (NBD-MARA-001) for sampling and lab QA records; wetland_id for FGD records</text>
+  <text x="44" y="703" font-size="10" fill="#1a1a1a">and wetland-polygon external data (Sentinel); basin_id for catchment-scale external data (CHIRPS) and pollution reports.</text>
+  <text x="44" y="722" font-size="10" fill="#4a4a4a" font-style="italic">Attributes, datatypes, keys and constraints are in §5.3 (logical model). PostgreSQL+PostGIS DDL is in §5.4 (physical model).</text>
+
+</svg>
+  </div>
+</body>
+</html>

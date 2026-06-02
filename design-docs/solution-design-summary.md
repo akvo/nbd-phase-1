@@ -10,7 +10,7 @@
 
 The Nile Basin Discourse (NBD) and its partners are building a citizen-led data platform to monitor the health of two transboundary wetlands — the Mara Wetlands (Kenya/Tanzania) and the Sio-Siteko Wetland Landscape (Kenya/Uganda). The platform gives community members a simple way to report what they observe in and around the wetlands, aggregates that data into standardised health scores, and presents the results through a public portal that partners and government officials can use to take informed action.
 
-The platform has two data collection workflows. In Kenya, community members called wetland watchers report pollution episodes and unusual events using their mobile phone — either via a basic USSD menu that works on any phone with a SIM card, or via a WhatsApp bot for smartphone users. In Tanzania, trained citizen scientists visit designated sampling sites once a month, take water quality measurements using a handheld probe, and submit structured data through the KoboCollect app, which works offline in areas with no internet coverage.
+The platform has two data collection workflows. In Kenya, community members called citizen reporters report pollution episodes and unusual events using their mobile phone — either via a basic USSD menu that works on any phone with a SIM card, or via a WhatsApp bot for smartphone users. In Tanzania, trained citizen scientists visit designated sampling sites once a month, take water quality measurements using a handheld probe, and submit structured data through the KoboCollect app, which works offline in areas with no internet coverage.
 
 All data is reviewed and validated by Akvo staff, cross-checked by community meetings (Monthly Baraza), and periodically verified through laboratory analysis by academic partners. Validated results are displayed on the wetland data portal alongside satellite imagery, showing each wetland's current health class and the management actions that class requires.
 
@@ -24,15 +24,15 @@ The platform is a mobile-first data system built around the communities who live
 
 | Who | What they do on the platform |
 |-----|------------------------------|
-| **Wetland watchers** (Kenya) | Report pollution episodes and unusual events using their mobile phone, via USSD or WhatsApp |
+| **Citizen reporters** (Kenya) | Report pollution episodes and unusual events using their mobile phone, via USSD or WhatsApp |
 | **Citizen scientists** (Tanzania) | Record monthly water quality measurements and ecological observations using the KoboCollect app |
-| **CSO staff** (UWASNET / KEWASNET) | Oversee data quality; manage wetland watcher and citizen scientist accounts |
+| **CSO staff** (UWASNET / KEWASNET) | Oversee data quality; manage citizen reporter and citizen scientist accounts |
 | **Academic partners** (Makerere University / University of Nairobi) | Submit quarterly laboratory validation results |
 | **NBD Secretariat, NDFs, County and District officials** | View wetland health scores, pollution incident maps, and management actions on the portal |
 
 ### What devices are needed
 
-Wetland watchers need only a basic mobile phone with a SIM card to use the USSD channel. No internet, no app, no smartphone required. Wetland watchers with smartphones can also use WhatsApp.
+Citizen reporters need only a basic mobile phone with a SIM card to use the USSD channel. No internet, no app, no smartphone required. Citizen reporters with smartphones can also use WhatsApp.
 
 Citizen scientists need an Android smartphone with the KoboCollect app installed. The app is free and works entirely offline — data is stored on the device and uploaded automatically when the phone reconnects to the internet. Citizen scientists also use a handheld multi-parameter probe (provided by the project) to measure pH, temperature, and dissolved oxygen at the sampling site.
 
@@ -40,9 +40,9 @@ Citizen scientists need an Android smartphone with the KoboCollect app installed
 
 ## 3. How It Works
 
-### 3.1 Reporting a Pollution Episode (Kenya — Wetland Watchers)
+### 3.1 Reporting a Pollution Episode (Kenya — Citizen Reporters)
 
-When a wetland watcher observes something unusual — a change in water colour or smell, an industrial discharge, flooding, encroachment, or overgrazing — they report it immediately using their mobile phone. No internet connection is required.
+When a citizen reporter observes something unusual — a change in water colour or smell, an industrial discharge, flooding, encroachment, or overgrazing — they report it immediately using their mobile phone. No internet connection is required.
 
 **If using a basic feature phone (no smartphone needed):**
 1. Dial a short code
@@ -92,7 +92,7 @@ Every three months, academic partners from Makerere University and the Universit
 
 The platform does not rely on technology alone for data quality. Three community-based mechanisms run in parallel:
 
-- **Monthly Baraza** — a regular community meeting at which wetland watchers and citizen scientists review the data together, flag anomalies, and validate observations
+- **Monthly Baraza** — a regular community meeting at which citizen reporters and citizen scientists review the data together, flag anomalies, and validate observations
 - **Shadow sampling** — academic partners (Makerere University, University of Nairobi) periodically conduct independent sampling alongside citizen scientists to verify results
 - **Lab QA** — water samples are sent to academic partner laboratories for independent chemical analysis (heavy metals, nutrients, biochemical oxygen demand)
 
@@ -100,7 +100,7 @@ The platform does not rely on technology alone for data quality. Three community
 
 ## 4. Benefits & Outcomes
 
-### For wetland watchers and citizen scientists
+### For citizen reporters and citizen scientists
 - A direct, structured channel to report what they observe — replacing informal complaints with validated records
 - Confirmation that their report was received, with a contact for follow-up (KEWASNET representative)
 - Visibility of the impact of their data through the wetland data portal
@@ -111,7 +111,7 @@ The platform does not rely on technology alone for data quality. Three community
 - A Red health status triggers formal escalation to government authorities — giving communities a documented enforcement pathway
 
 ### For CSOs (UWASNET / KEWASNET)
-- A managed platform for overseeing data quality across their network of wetland watchers and citizen scientists
+- A managed platform for overseeing data quality across their network of citizen reporters and citizen scientists
 - Visibility of all submissions for their area, including flagged records requiring follow-up
 
 ### For NBD Secretariat, NDFs, County and District officials

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title> — NBD SDD</title>
+<style>
+  :root { font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif; }
+  body { margin: 0; padding: 24px; background: #eceff1; color: #1a1a1a; }
+  header { max-width: 1100px; margin: 0 auto 16px; }
+  header h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: #0e7a66; }
+  header p { margin: 0; font-size: 12px; color: #4a4a4a; }
+  .canvas { max-width: 1100px; margin: 0 auto; background: #ffffff;
+            padding: 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .canvas svg { width: 100%; height: auto; display: block; }
+  footer { max-width: 1100px; margin: 16px auto 0; font-size: 11px; color: #6a6a6a; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    header, footer { display: none; }
+    .canvas { box-shadow: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1></h1>
+    <p>To edit: open this file in a text editor and modify the inline SVG markup below. Refresh the browser to preview. To export back to a standalone SVG, copy everything from <code>&lt;svg&gt;</code> to <code>&lt;/svg&gt;</code> and paste into a new <code>.svg</code> file with an <code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</code> declaration on the first line.</p>
+  </header>
+  <div class="canvas">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 620" font-family="'Open Sans','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <style>
+      .section-label { font-size: 11px; font-weight: 600; fill: #4a4a4a; letter-spacing: 0.5px; }
+      .zone-label-yellow { font-size: 12px; font-weight: 700; fill: #4a3a0f; letter-spacing: 0.5px; }
+      .zone-label-white  { font-size: 12px; font-weight: 700; fill: #ffffff;  letter-spacing: 0.5px; }
+      .panel-title { font-size: 11px; font-weight: 600; fill: #4a4a4a; letter-spacing: 0.5px; }
+      .row-zone { font-size: 11px; font-weight: 700; fill: #1a1a1a; }
+      .row-line { font-size: 10px; fill: #4a4a4a; }
+      .row-label { font-size: 9px; font-weight: 600; fill: #6a6a6a; letter-spacing: 0.3px; }
+    </style>
+  </defs>
+
+  <rect width="1040" height="620" fill="#fafafa"/>
+
+  <text x="30" y="34" class="section-label">SECURITY BOUNDARY / TRUST ZONES</text>
+  <line x1="30" y1="44" x2="1010" y2="44" stroke="#d0d0d0"/>
+
+  <!-- ============================================================
+       CONCENTRIC ZONES — each inner ring is more restricted
+       ============================================================ -->
+
+  <!-- Zone 1: PUBLIC (outermost) -->
+  <rect x="30" y="70" width="590" height="520" rx="10" fill="#f5e5a4" stroke="#d6c47a" stroke-width="1.5"/>
+  <text x="48" y="92" class="zone-label-yellow">1 · PUBLIC</text>
+
+  <!-- Zone 2: PARTNER -->
+  <rect x="80" y="125" width="490" height="420" rx="10" fill="#7bc9b8" stroke="#1ba88f" stroke-width="1.5"/>
+  <text x="98" y="147" class="zone-label-white">2 · PARTNER (authenticated)</text>
+
+  <!-- Zone 3: ADMIN -->
+  <rect x="130" y="180" width="390" height="320" rx="10" fill="#1ba88f" stroke="#0e7a66" stroke-width="1.5"/>
+  <text x="148" y="202" class="zone-label-white">3 · ADMIN / PROCESSING</text>
+
+  <!-- Zone 4: DATA STORAGE -->
+  <rect x="180" y="235" width="290" height="220" rx="10" fill="#0e7a66" stroke="#0a5d4d" stroke-width="1.5"/>
+  <text x="198" y="257" class="zone-label-white">4 · DATA STORAGE</text>
+
+  <!-- Zone 5: SECRETS (innermost) -->
+  <rect x="230" y="290" width="190" height="120" rx="10" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="1.5"/>
+  <text x="248" y="312" class="zone-label-white">5 · SECRETS</text>
+  <text x="248" y="335" font-size="10" fill="#dddddd">Cloud secrets manager</text>
+  <text x="248" y="350" font-size="10" fill="#dddddd">Injected at container</text>
+  <text x="248" y="364" font-size="10" fill="#dddddd">start; no creds in code</text>
+
+  <!-- Footnote inside the diagram -->
+  <text x="325" y="575" text-anchor="middle" font-size="10" fill="#4a3a0f" font-style="italic">Each inner ring is more restricted · authentication gate required to cross each boundary inward</text>
+
+  <!-- ============================================================
+       SIDE PANEL — what lives in each zone, who can reach it, auth gate
+       ============================================================ -->
+
+  <text x="650" y="92" class="panel-title">ZONE PROFILES</text>
+  <line x1="650" y1="100" x2="1010" y2="100" stroke="#d0d0d0"/>
+
+  <!-- Row 1: PUBLIC -->
+  <g transform="translate(650, 115)">
+    <rect x="0" y="2" width="14" height="14" rx="2" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="22" y="13" class="row-zone">1 · Public</text>
+    <text x="0"  y="32" class="row-label">CONTAINS</text>
+    <text x="62" y="32" class="row-line">Portal public-tier endpoints (aggregated scores, map)</text>
+    <text x="0"  y="48" class="row-label">WHO REACHES</text>
+    <text x="76" y="48" class="row-line">Anyone on the internet · no login</text>
+    <text x="0"  y="64" class="row-label">AUTH GATE IN</text>
+    <text x="76" y="64" class="row-line">None — this is the outer perimeter</text>
+  </g>
+
+  <!-- Row 2: PARTNER -->
+  <g transform="translate(650, 195)">
+    <rect x="0" y="2" width="14" height="14" rx="2" fill="#7bc9b8" stroke="#1ba88f"/>
+    <text x="22" y="13" class="row-zone">2 · Partner (authenticated)</text>
+    <text x="0"  y="32" class="row-label">CONTAINS</text>
+    <text x="62" y="32" class="row-line">Portal partner-tier endpoints · restricted data layers</text>
+    <text x="0"  y="48" class="row-label">WHO REACHES</text>
+    <text x="76" y="48" class="row-line">Academic partners · CSO staff · County / NDF</text>
+    <text x="0"  y="64" class="row-label">AUTH GATE IN</text>
+    <text x="76" y="64" class="row-line">SSO or email + password · account created by Admin</text>
+  </g>
+
+  <!-- Row 3: ADMIN -->
+  <g transform="translate(650, 275)">
+    <rect x="0" y="2" width="14" height="14" rx="2" fill="#1ba88f" stroke="#0e7a66"/>
+    <text x="22" y="13" class="row-zone">3 · Admin / Processing</text>
+    <text x="0"  y="32" class="row-label">CONTAINS</text>
+    <text x="62" y="32" class="row-line">Admin web app · FastAPI privileged endpoints</text>
+    <text x="0"  y="48" class="row-label">WHO REACHES</text>
+    <text x="76" y="48" class="row-line">Akvo ops + project lead · NBD Secretariat admins</text>
+    <text x="0"  y="64" class="row-label">AUTH GATE IN</text>
+    <text x="76" y="64" class="row-line">SSO only (Google / Microsoft) · MFA at IdP</text>
+  </g>
+
+  <!-- Row 4: DATA STORAGE -->
+  <g transform="translate(650, 355)">
+    <rect x="0" y="2" width="14" height="14" rx="2" fill="#0e7a66" stroke="#0a5d4d"/>
+    <text x="22" y="13" class="row-zone">4 · Data Storage</text>
+    <text x="0"  y="32" class="row-label">CONTAINS</text>
+    <text x="62" y="32" class="row-line">PostgreSQL + PostGIS · cloud object storage bucket</text>
+    <text x="0"  y="48" class="row-label">WHO REACHES</text>
+    <text x="76" y="48" class="row-line">FastAPI · background workers (no direct human access)</text>
+    <text x="0"  y="64" class="row-label">AUTH GATE IN</text>
+    <text x="76" y="64" class="row-line">Internal network only (Docker overlay) · DB role</text>
+  </g>
+
+  <!-- Row 5: SECRETS -->
+  <g transform="translate(650, 435)">
+    <rect x="0" y="2" width="14" height="14" rx="2" fill="#3a3a3a" stroke="#1a1a1a"/>
+    <text x="22" y="13" class="row-zone">5 · Secrets</text>
+    <text x="0"  y="32" class="row-label">CONTAINS</text>
+    <text x="62" y="32" class="row-line">Cloud secrets manager · no credentials in code or images</text>
+    <text x="0"  y="48" class="row-label">WHO REACHES</text>
+    <text x="76" y="48" class="row-line">Cloud IAM admins (audited)</text>
+    <text x="0"  y="64" class="row-label">AUTH GATE IN</text>
+    <text x="76" y="64" class="row-line">Separate cloud IAM identity per service</text>
+  </g>
+
+  <text x="650" y="540" font-size="9" fill="#9a9a9a" font-style="italic">All zones use TLS in transit.</text>
+</svg>
+  </div>
+</body>
+</html>

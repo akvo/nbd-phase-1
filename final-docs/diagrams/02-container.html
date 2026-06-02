@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Container Diagram — NBD SDD</title>
+<style>
+  :root { font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif; }
+  body { margin: 0; padding: 24px; background: #eceff1; color: #1a1a1a; }
+  header { max-width: 1100px; margin: 0 auto 16px; }
+  header h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: #0e7a66; }
+  header p { margin: 0; font-size: 12px; color: #4a4a4a; }
+  .canvas { max-width: 1100px; margin: 0 auto; background: #ffffff;
+            padding: 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .canvas svg { width: 100%; height: auto; display: block; }
+  footer { max-width: 1100px; margin: 16px auto 0; font-size: 11px; color: #6a6a6a; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    header, footer { display: none; }
+    .canvas { box-shadow: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Container Diagram </h1>
+    <p>To edit: open this file in a text editor and modify the inline SVG markup below. Refresh the browser to preview. To export back to a standalone SVG, copy everything from <code>&lt;svg&gt;</code> to <code>&lt;/svg&gt;</code> and paste into a new <code>.svg</code> file with an <code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</code> declaration on the first line.</p>
+  </header>
+  <div class="canvas">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 820" font-family="'Open Sans','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a4a4a"/>
+    </marker>
+    <marker id="arr-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ffffff"/>
+    </marker>
+    <style>
+      .section-label { font-size: 11px; font-weight: 600; fill: #4a4a4a; letter-spacing: 0.5px; }
+      .cloud-label { font-size: 12px; font-weight: 600; fill: #5a78a0; letter-spacing: 0.5px; }
+      .vm-label { font-size: 13px; font-weight: 600; fill: #0e7a66; }
+      .container-title { font-size: 13px; font-weight: 600; fill: #ffffff; }
+      .container-sub { font-size: 11px; fill: #ffffff; font-style: italic; }
+      .container-desc { font-size: 10px; fill: #ffffff; }
+      .infra-title { font-size: 12px; font-weight: 600; fill: #1a1a1a; }
+      .infra-desc { font-size: 10px; fill: #4a4a4a; }
+      .ext-title { font-size: 11px; font-weight: 600; fill: #4a3a0f; }
+      .ext-desc { font-size: 10px; fill: #4a3a0f; }
+      .label-sm { font-size: 10px; fill: #4a4a4a; }
+      .proto { font-size: 9px; fill: #4a4a4a; font-style: italic; }
+    </style>
+  </defs>
+
+  <rect width="1040" height="820" fill="#fafafa"/>
+
+  <text x="30" y="34" class="section-label">CONTAINER DIAGRAM </text>
+  <line x1="30" y1="44" x2="1010" y2="44" stroke="#d0d0d0"/>
+
+  <!-- ============================================================
+       Cloud account outer boundary
+       ============================================================ -->
+  <rect x="20" y="58" width="1000" height="490" rx="10" fill="#ffffff"
+        stroke="#8aa6c4" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="34" y="78" class="cloud-label">Cloud provider account (single tenant — Akvo / NBD)</text>
+
+  <!-- ============================================================
+       Docker VM inner boundary
+       ============================================================ -->
+  <rect x="30" y="92" width="720" height="440" rx="8" fill="#ffffff"
+        stroke="#1ba88f" stroke-width="2"/>
+  <text x="50" y="116" class="vm-label">Cloud VM · Docker host · 4 containers</text>
+  <text x="50" y="132" class="label-sm">Single host · internal Docker overlay network</text>
+
+  <!-- TLS termination note (no container drawn — deployment-time choice) -->
+
+  <!-- Container 1: Next.js (Portal + Admin) -->
+  <g>
+    <rect x="50" y="150" width="320" height="120" rx="6" fill="#1ba88f"/>
+    <text x="210" y="174" text-anchor="middle" class="container-title">Next.js</text>
+    <text x="210" y="190" text-anchor="middle" class="container-sub">two surfaces in one app</text>
+    <line x1="70" y1="200" x2="350" y2="200" stroke="#ffffff" opacity="0.4"/>
+    <text x="210" y="219" text-anchor="middle" class="container-desc">· Portal (public, SSR / ISR, edge-cached)</text>
+    <text x="210" y="236" text-anchor="middle" class="container-desc">· Admin (SSO-gated, internal review UI)</text>
+    <text x="210" y="258" text-anchor="middle" class="container-desc">Calls FastAPI for all data</text>
+  </g>
+
+  <!-- Container 2: FastAPI Backend (collapses webhooks + scoring) -->
+  <g>
+    <rect x="410" y="150" width="320" height="120" rx="6" fill="#1ba88f"/>
+    <text x="570" y="174" text-anchor="middle" class="container-title">FastAPI Backend</text>
+    <text x="570" y="190" text-anchor="middle" class="container-sub">single API container</text>
+    <line x1="430" y1="200" x2="710" y2="200" stroke="#ffffff" opacity="0.4"/>
+    <text x="570" y="219" text-anchor="middle" class="container-desc">· /api/v1/* (read + write)</text>
+    <text x="570" y="236" text-anchor="middle" class="container-desc">· USSD / WhatsApp webhook endpoints</text>
+    <text x="570" y="253" text-anchor="middle" class="container-desc">· Scoring engine (runs on approval)</text>
+  </g>
+
+  <!-- Container 3: PostgreSQL + PostGIS -->
+  <g>
+    <rect x="50" y="290" width="320" height="110" rx="6" fill="#1ba88f"/>
+    <text x="210" y="314" text-anchor="middle" class="container-title">PostgreSQL + PostGIS</text>
+    <text x="210" y="330" text-anchor="middle" class="container-sub">relational + geospatial</text>
+    <line x1="70" y1="340" x2="350" y2="340" stroke="#ffffff" opacity="0.4"/>
+    <text x="210" y="359" text-anchor="middle" class="container-desc">Encryption at rest</text>
+    <text x="210" y="376" text-anchor="middle" class="container-desc">PII columns role-restricted</text>
+    <text x="210" y="393" text-anchor="middle" class="container-desc">Snapshotted daily</text>
+  </g>
+
+  <!-- Container 4: Background workers (collapses Kobo pull + GEE batch) -->
+  <g>
+    <rect x="410" y="290" width="320" height="110" rx="6" fill="#1ba88f"/>
+    <text x="570" y="314" text-anchor="middle" class="container-title">Background workers</text>
+    <text x="570" y="330" text-anchor="middle" class="container-sub">one container · scheduled jobs</text>
+    <line x1="430" y1="340" x2="710" y2="340" stroke="#ffffff" opacity="0.4"/>
+    <text x="570" y="359" text-anchor="middle" class="container-desc">· KoboCollect pull </text>
+    <text x="570" y="376" text-anchor="middle" class="container-desc">· GEE batch ingest — monthly</text>
+    <text x="570" y="393" text-anchor="middle" class="container-desc">Writes via FastAPI · cursor in DB</text>
+  </g>
+
+  <!-- ============================================================
+       CLOUD ACCOUNT INFRASTRUCTURE — inside cloud account, outside the Docker VM
+       ============================================================ -->
+  <text x="770" y="116" class="cloud-label">Cloud infrastructure</text>
+
+  <g>
+    <rect x="770" y="130" width="240" height="100" rx="6" fill="#dde7f1" stroke="#8aa6c4"/>
+    <text x="890" y="153" text-anchor="middle" class="infra-title">Cloud object storage</text>
+    <text x="890" y="170" text-anchor="middle" class="infra-desc">Photos · GeoTIFF · attachments</text>
+    <text x="890" y="186" text-anchor="middle" class="infra-desc">Private bucket</text>
+  </g>
+
+  <g>
+    <rect x="770" y="245" width="240" height="76" rx="6" fill="#dde7f1" stroke="#8aa6c4"/>
+    <text x="890" y="268" text-anchor="middle" class="infra-title">Backup target</text>
+    <text x="890" y="285" text-anchor="middle" class="infra-desc">Cloud snapshot</text>
+    <text x="890" y="299" text-anchor="middle" class="infra-desc">Daily · 30 days retention</text>
+  </g>
+
+  <!-- ============================================================
+       THIRD-PARTY SERVICES — outside the cloud account
+       ============================================================ -->
+  <text x="30" y="643" class="section-label">THIRD-PARTY SERVICES (outside Akvo / NBD cloud account)</text>
+  <line x1="30" y1="652" x2="1010" y2="652" stroke="#d0d0d0"/>
+
+  <g>
+    <rect x="30" y="664" width="235" height="86" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="148" y="687" text-anchor="middle" class="ext-title">Africa's Talking</text>
+    <text x="148" y="704" text-anchor="middle" class="ext-desc">USSD short code + WhatsApp Business</text>
+    <text x="148" y="720" text-anchor="middle" class="ext-desc">Kenya </text>
+    <text x="148" y="738" text-anchor="middle" class="proto" fill="#4a3a0f">HTTP webhook</text>
+  </g>
+
+  <g>
+    <rect x="275" y="664" width="235" height="86" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="393" y="687" text-anchor="middle" class="ext-title">KoboToolbox cloud (free tier)</text>
+    <text x="393" y="704" text-anchor="middle" class="ext-desc">Forms · device sync · attachments</text>
+    <text x="393" y="738" text-anchor="middle" class="proto" fill="#4a3a0f">REST API</text>
+  </g>
+
+  <g>
+    <rect x="520" y="664" width="235" height="86" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="638" y="687" text-anchor="middle" class="ext-title">Google Earth Engine</text>
+    <text x="638" y="704" text-anchor="middle" class="ext-desc">Sentinel 1 &amp; 2 · CHIRPS</text>
+    <text x="638" y="720" text-anchor="middle" class="ext-desc">Non-commercial free tier</text>
+    <text x="638" y="738" text-anchor="middle" class="proto" fill="#4a3a0f">Async export task · GeoTIFF / GeoJSON output</text>
+  </g>
+
+  <g>
+    <rect x="765" y="664" width="245" height="86" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="888" y="687" text-anchor="middle" class="ext-title">SSO Identity Provider</text>
+    <text x="888" y="704" text-anchor="middle" class="ext-desc">Google · Microsoft</text>
+  </g>
+
+  <!-- ============================================================
+       ARROWS
+       ============================================================ -->
+
+  <!-- (no proxy arrows — TLS termination is upstream of the VM, see note above) -->
+
+  <!-- Next.js ↔ FastAPI (REST) -->
+  <line x1="370" y1="210" x2="410" y2="210" stroke="#ffffff" stroke-width="2" marker-end="url(#arr-w)" marker-start="url(#arr-w)"/>
+  <text x="390" y="203" text-anchor="middle" class="proto">REST</text>
+
+  <!-- FastAPI → Postgres (SQL) -->
+  <line x1="570" y1="270" x2="570" y2="290" stroke="#4a4a4a"/>
+  <line x1="570" y1="280" x2="370" y2="325" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="440" y="286" class="proto">SQL</text>
+
+  <!-- Workers → FastAPI -->
+  <line x1="570" y1="290" x2="570" y2="270" stroke="#4a4a4a" stroke-dasharray="3,3" marker-end="url(#arr)"/>
+  <text x="580" y="284" class="proto">writes</text>
+
+  <!-- FastAPI ↔ Cloud object storage -->
+  <line x1="730" y1="190" x2="770" y2="180" stroke="#4a4a4a" marker-end="url(#arr)" marker-start="url(#arr)"/>
+  <text x="730" y="172" class="proto">media</text>
+
+  <!-- Postgres → Backup target -->
+  <path d="M370 345 Q 760 340 770 283" stroke="#4a4a4a" fill="none" stroke-dasharray="3,3" marker-end="url(#arr)"/>
+  <text x="600" y="338" class="proto">daily snapshot</text>
+
+  <!-- Workers → third-party services -->
+  <!-- Background workers → KoboToolbox cloud -->
+  <line x1="500" y1="400" x2="393" y2="664" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="412" y="500" class="proto">pull</text>
+
+  <!-- Background workers ⇄ Google Earth Engine (worker submits task; result returns as GeoTIFF/GeoJSON) -->
+  <line x1="640" y1="400" x2="638" y2="664" stroke="#4a4a4a" marker-end="url(#arr)" marker-start="url(#arr)"/>
+  <text x="647" y="500" class="proto">submit ⇄ fetch</text>
+
+  <!-- Africa's Talking → FastAPI webhook -->
+  <line x1="148" y1="664" x2="500" y2="270" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="320" y="450" class="proto">webhook</text>
+
+  <!-- Next.js Admin → SSO IdP -->
+  <path d="M370 180 Q 870 180 888 664" stroke="#4a4a4a" fill="none" stroke-dasharray="3,3" marker-end="url(#arr)"/>
+  <text x="830" y="380" class="proto">OIDC</text>
+
+  <!-- ============================================================
+       LEGEND
+       ============================================================ -->
+  <text x="30" y="775" class="section-label">LEGEND</text>
+  <line x1="30" y1="784" x2="1010" y2="784" stroke="#d0d0d0"/>
+
+  <g transform="translate(30, 794)">
+    <rect x="0" y="0" width="22" height="14" rx="3" fill="#1ba88f"/>
+    <text x="32" y="11" class="label-sm">Docker container (4 in total)</text>
+  </g>
+  <g transform="translate(260, 794)">
+    <rect x="0" y="0" width="22" height="14" rx="3" fill="#dde7f1" stroke="#8aa6c4"/>
+    <text x="32" y="11" class="label-sm">Cloud infrastructure (our account)</text>
+  </g>
+  <g transform="translate(540, 794)">
+    <rect x="0" y="0" width="22" height="14" rx="3" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="32" y="11" class="label-sm">Third-party service (external vendor)</text>
+  </g>
+  <g transform="translate(820, 794)">
+    <line x1="0" y1="7" x2="30" y2="7" stroke="#8aa6c4" stroke-dasharray="6,4" stroke-width="1.5"/>
+    <text x="40" y="11" class="label-sm">Cloud account boundary</text>
+  </g>
+</svg>
+  </div>
+</body>
+</html>

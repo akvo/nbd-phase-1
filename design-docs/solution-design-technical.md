@@ -46,7 +46,7 @@ This platform creates that channel. The design must respect three real-world con
 
 **Device access.** Not all community members have smartphones. The pollution reporting workflow must be accessible from a basic feature phone.
 
-**Digital literacy.** Wetland watchers and citizen scientists are not technical users. Every interaction must be guided, menu-driven, and completable without reading instructions.
+**Digital literacy.** Citizen reporters and citizen scientists are not technical users. Every interaction must be guided, menu-driven, and completable without reading instructions.
 
 ---
 
@@ -84,7 +84,7 @@ The platform has three layers: data collection, administration, and visualisatio
 
 | Role | Description | Minimum device | Connectivity needed |
 |------|-------------|---------------|---------------------|
-| **Wetland watcher** | Community member reporting pollution episodes (Kenya) | Basic feature phone | GSM only (USSD) or smartphone with WhatsApp |
+| **Citizen reporter** | Community member reporting pollution episodes (Kenya) | Basic feature phone | GSM only (USSD) or smartphone with WhatsApp |
 | **Citizen scientist** | Trained volunteer conducting monthly structured water quality sampling (Tanzania, Kenya, Uganda) | Android smartphone with KoboCollect | Intermittent data (offline-capable) |
 | **CSO staff** | UWASNET / KEWASNET staff socialising the platform and entering FGD session data | Laptop or tablet | Reliable medium to low bandwidth internet |
 | **Academic partner** | Makerere / UoN staff conducting shadow sampling and lab QA | Any browser-capable device | Reliable internet |
@@ -92,7 +92,7 @@ The platform has three layers: data collection, administration, and visualisatio
 
 KoboCollect stores survey data on the device when there is no connectivity. It syncs automatically to the KoboToolbox server when the device reconnects.
 
-Citizen scientists and wetland watchers are trained through a Train-the-Trainers (ToT) model. The platform must be fully usable from the first day of deployment by users who received training second-hand, without requiring IT support.
+Citizen scientists and citizen reporters are trained through a Train-the-Trainers (ToT) model. The platform must be fully usable from the first day of deployment by users who received training second-hand, without requiring IT support.
 
 Handheld multi-parameter probes — used by citizen scientists to measure pH, temperature, and dissolved oxygen — are provided by the project. These are separate hardware items. The data they produce is entered through the KoboCollect form.
 
@@ -148,7 +148,7 @@ The platform has three layers. The two data collection workflows maintain separa
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Data Collection Layer** — the citizen-facing interfaces. Wetland watchers submit pollution episodes via USSD or WhatsApp Business bot. Citizen scientists submit monthly structured sampling data via KoboCollect.
+**Data Collection Layer** — the citizen-facing interfaces. Citizen reporters submit pollution episodes via USSD or WhatsApp Business bot. Citizen scientists submit monthly structured sampling data via KoboCollect.
 
 **Admin / Processing Layer** — the internal layer where staff clean and approve submissions. The pollution and sampling pipelines remain separate. Scoring is automated from approved data. External data (Sentinel 1 & 2, CHIRPS, lab QA results) and FGD session records are also ingested here.
 
@@ -156,7 +156,7 @@ The platform has three layers. The two data collection workflows maintain separa
 
 ### 4.2 Pollution Episode Reporting (Kenya)
 
-**Actors:** wetland watchers — community members who report pollution events as they occur.
+**Actors:** citizen reporters — community members who report pollution events as they occur.
 
 **Incident types reported:** unusual water colour, smell, fish or other animal kills, storm events, changes in water levels.
 
@@ -167,7 +167,7 @@ Two parallel channels serve the same reporting flow:
 Feature phone users dial a dedicated short code and navigate a branching menu.
 
 ```
-Wetland watcher dials short code
+Citizen reporter dials short code
         │
         ▼
 USSD branching menu presented
@@ -186,7 +186,7 @@ The flow runs entirely over the GSM voice network. No mobile data, smartphone, o
 #### Channel B — WhatsApp Business Bot (Smartphone Users)
 
 ```
-Wetland watcher opens WhatsApp
+Citizen reporter opens WhatsApp
         │
         ▼
 Menu-driven bot flow initiated
@@ -335,7 +335,7 @@ Four form types are available:
 - Open notes (stored but not scored)
 - Facilitator name
 
-FGD records link to a basin and sampling period. The scoring pipeline reads the most recent FGD record for each site and period to compute the indigenous knowledge signal used in the fuzzy logic adjustment (see Section 5.6).
+FGD records are wetland-level: each record links to a specific wetland (Mara or Sio-Siteko) and a sampling period. The scoring pipeline reads the most recent FGD record for each wetland and period; the resulting indigenous knowledge signal is applied uniformly to every site in that wetland during the fuzzy logic adjustment (see Section 5.6).
 
 ```
 Monthly Baraza (FGD session)
@@ -449,8 +449,8 @@ Sentinel 1 & 2 imagery and CHIRPS precipitation data are processed using Google 
 |----------|-----------|--------------|
 | Physico-chemical | pH, Temperature, Dissolved Oxygen | Citizen scientists (handheld multi-parameter probes) |
 | Ecological | Fish Catch Per Unit Effort (CPUE) | Citizen scientists |
-| Hydrological / catchment | Water levels/flow, Flooding extent | Citizen scientists + wetland watchers |
-| Pollution episodes | Industrial/sewage discharge, Storm events, Overgrazing, Encroachment | Wetland watchers (USSD/WhatsApp) |
+| Hydrological / catchment | Water levels/flow, Flooding extent | Citizen scientists + citizen reporters |
+| Pollution episodes | Industrial/sewage discharge, Storm events, Overgrazing, Encroachment | Citizen reporters (USSD/WhatsApp) |
 | Lab validation | Biochemical Oxygen Demand, Orthophosphate, Nitrate, Mercury, Heavy metals and nutrient loads (N/P) | Academic partners (shadow sampling) |
 | Indigenous knowledge | Community observations captured through FGD sessions at Monthly Barazas | CSO staff (via admin FGD session form) |
 
@@ -478,16 +478,17 @@ KoboCollect form      →  site_id field (fixed, pre-loaded per device)
         ▼
 Admin layer record    →  site_id: NBD-MARA-001
         │
-        ├──► GEE pipeline output    {"site_id": "NBD-MARA-001", "ndvi": 0.72}
+        ├──► GEE pipeline output    {"wetland_id": "MARA-WETLAND", "ndvi": 0.72}   ← wetland scope
+        │                            {"basin_id":   "MARA",         "rainfall_mm": 142}  ← basin scope
         │
         ├──► Lab QA record          site_id: NBD-MARA-001, period: 2026-06
         │
-        ├──► FGD session record     site_id: NBD-MARA-001, period: 2026-06
+        ├──► FGD session record     wetland_id: MARA-WETLAND, period: 2026-06   ← wetland scope
         │
         └──► Portal API response    GET /api/sites/NBD-MARA-001/scores
 ```
 
-Any external dataset can join to platform data using the site ID alone. No custom field mapping is needed.
+Site, wetland, and basin identifiers each join their own scope of data: site for sampling and lab QA records, wetland for FGD records and wetland-polygon external data (Sentinel), basin for catchment-scale external data (CHIRPS). The hierarchy `site → wetland → basin` lets a query roll up from any level. No custom field mapping is needed.
 
 ### 5.6 Wetland Health Scores
 
@@ -654,13 +655,13 @@ All personal identifiable information is stripped before data is displayed on th
 | Tier | Examples | Who can access |
 |------|----------|---------------|
 | Public | Aggregated wetland health scores, pollution incident map, trend charts | Anyone |
-| Private | Wetland watcher / citizen scientist PII, phone numbers, individual episode links | Admins only |
+| Private | Citizen reporter / citizen scientist PII, phone numbers, individual episode links | Admins only |
 
 ### 7.3 Access Control Model
 
 | Role | Permissions |
 |------|------------|
-| Wetland watcher | Submit own pollution episode reports only |
+| Citizen reporter | Submit own pollution episode reports only |
 | Citizen scientist | Submit own sampling records via KoboCollect only |
 | Akvo , NBD| Full platform administration |
 | Public | Read public tier only (portal) |
@@ -722,11 +723,11 @@ Three environments are maintained: development, staging, and production.
 
 - Unit testing: core business logic (health score calculation, validation rules, traffic light classification, data transformations)
 - Integration testing: USSD session flows, WhatsApp Business bot flows, KoboToolbox API sync, Sentinel 1 & 2 and CHIRPS ingestion pipelines
-- End-to-end testing: full wetland watcher journey (pollution episode) and full citizen scientist journey (monthly sampling)
+- End-to-end testing: full citizen reporter journey (pollution episode) and full citizen scientist journey (monthly sampling)
 
 ### 9.2 Field Validation
 
-- Field pilot with actual wetland watchers and citizen scientists before full rollout; document failure modes
+- Field pilot with actual citizen reporters and citizen scientists before full rollout; document failure modes
 - Train-the-Trainers (ToT) workshop as a system validation checkpoint — system must be usable by ToT-trained users from day one
 
 ---

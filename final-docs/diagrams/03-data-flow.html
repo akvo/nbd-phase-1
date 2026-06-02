@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title> — NBD SDD</title>
+<style>
+  :root { font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif; }
+  body { margin: 0; padding: 24px; background: #eceff1; color: #1a1a1a; }
+  header { max-width: 1100px; margin: 0 auto 16px; }
+  header h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: #0e7a66; }
+  header p { margin: 0; font-size: 12px; color: #4a4a4a; }
+  .canvas { max-width: 1100px; margin: 0 auto; background: #ffffff;
+            padding: 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .canvas svg { width: 100%; height: auto; display: block; }
+  footer { max-width: 1100px; margin: 16px auto 0; font-size: 11px; color: #6a6a6a; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    header, footer { display: none; }
+    .canvas { box-shadow: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1></h1>
+    <p>To edit: open this file in a text editor and modify the inline SVG markup below. Refresh the browser to preview. To export back to a standalone SVG, copy everything from <code>&lt;svg&gt;</code> to <code>&lt;/svg&gt;</code> and paste into a new <code>.svg</code> file with an <code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</code> declaration on the first line.</p>
+  </header>
+  <div class="canvas">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 720" font-family="'Open Sans','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a4a4a"/>
+    </marker>
+    <style>
+      .section-label { font-size: 11px; font-weight: 600; fill: #4a4a4a; letter-spacing: 0.5px; }
+      .actor-title { font-size: 12px; font-weight: 600; fill: #1a1a1a; }
+      .actor-desc { font-size: 10px; fill: #4a4a4a; }
+      .proc-title { font-size: 13px; font-weight: 600; fill: #ffffff; }
+      .proc-step { font-size: 11px; fill: #ffffff; }
+      .store-title { font-size: 12px; font-weight: 600; fill: #ffffff; }
+      .store-desc { font-size: 10px; fill: #ffffff; }
+      .out-title { font-size: 12px; font-weight: 600; fill: #4a3a0f; }
+      .out-desc { font-size: 10px; fill: #4a3a0f; }
+      .flow-label { font-size: 9px; fill: #4a4a4a; font-style: italic; }
+      .boundary-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; }
+    </style>
+  </defs>
+
+  <rect width="1040" height="720" fill="#fafafa"/>
+
+  <text x="30" y="34" class="section-label">DATA FLOW DIAGRAM </text>
+  <line x1="30" y1="44" x2="1010" y2="44" stroke="#d0d0d0"/>
+
+  <!-- Column headers -->
+  <text x="135" y="78" text-anchor="middle" class="section-label">SOURCES</text>
+  <text x="450" y="78" text-anchor="middle" class="section-label">ADMIN / PROCESSING</text>
+  <text x="800" y="78" text-anchor="middle" class="section-label">OUTPUTS</text>
+
+  <!-- Sources column -->
+  <g>
+    <rect x="30" y="100" width="220" height="56" rx="4" fill="#ffffff" stroke="#cccccc"/>
+    <text x="40" y="120" class="actor-title">Citizen reporter</text>
+    <text x="40" y="136" class="actor-desc">Pollution report</text>
+    <text x="40" y="150" class="actor-desc">USSD / WhatsApp</text>
+  </g>
+  <g>
+    <rect x="30" y="170" width="220" height="56" rx="4" fill="#ffffff" stroke="#cccccc"/>
+    <text x="40" y="190" class="actor-title">Citizen scientist</text>
+    <text x="40" y="206" class="actor-desc">Monthly sampling record</text>
+    <text x="40" y="220" class="actor-desc">KoboCollect</text>
+  </g>
+  <g>
+    <rect x="30" y="240" width="220" height="56" rx="4" fill="#ffffff" stroke="#cccccc"/>
+    <text x="40" y="260" class="actor-title">Academic partner</text>
+    <text x="40" y="276" class="actor-desc">Lab QA result</text>
+    <text x="40" y="290" class="actor-desc">Portal webform · quarterly</text>
+  </g>
+  <g>
+    <rect x="30" y="310" width="220" height="56" rx="4" fill="#ffffff" stroke="#cccccc"/>
+    <text x="40" y="330" class="actor-title">CSO staff</text>
+    <text x="40" y="346" class="actor-desc">FGD session record</text>
+    <text x="40" y="360" class="actor-desc">Portal webform · monthly</text>
+  </g>
+  <g>
+    <rect x="30" y="380" width="220" height="56" rx="4" fill="#ffffff" stroke="#cccccc"/>
+    <text x="40" y="400" class="actor-title">GEE pipeline</text>
+    <text x="40" y="416" class="actor-desc">GeoTIFF / GeoJSON</text>
+    <text x="40" y="430" class="actor-desc">Scheduled batch · monthly</text>
+  </g>
+
+  <!-- Admin / Processing block -->
+  <rect x="320" y="100" width="260" height="336" rx="8" fill="#1ba88f"/>
+  <text x="450" y="124" text-anchor="middle" class="proc-title">Admin / Processing layer</text>
+  <line x1="340" y1="138" x2="560" y2="138" stroke="#ffffff" opacity="0.4"/>
+
+  <g font-size="11" fill="#ffffff">
+    <rect x="340" y="156" width="220" height="46" rx="4" fill="rgba(255,255,255,0.12)" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="354" y="174" font-weight="600">1 · Ingest</text>
+    <text x="354" y="190" font-size="10">Write submission to admin tier </text>
+
+    <rect x="340" y="210" width="220" height="46" rx="4" fill="rgba(255,255,255,0.12)" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="354" y="228" font-weight="600">2 · Clean</text>
+    <text x="354" y="244" font-size="10">Reviewer validates · flags out-of-range</text>
+
+    <rect x="340" y="264" width="220" height="46" rx="4" fill="rgba(255,255,255,0.12)" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="354" y="282" font-weight="600">3 · Approve</text>
+    <text x="354" y="298" font-size="10">Record published to portal pipeline</text>
+
+    <rect x="340" y="318" width="220" height="100" rx="4" fill="rgba(255,255,255,0.12)" stroke="#ffffff" stroke-opacity="0.3"/>
+    <text x="354" y="336" font-weight="600">4 · Score</text>
+    <text x="354" y="352" font-size="10">Parameter groups → composite</text>
+    <text x="354" y="367" font-size="10">FGD IK signal → fuzzy adjust</text>
+    <text x="354" y="382" font-size="10">Health class A–E</text>
+    <text x="354" y="397" font-size="10">Traffic light Green / Yellow / Red</text>
+  </g>
+
+  <!-- Outputs column -->
+  <g>
+    <rect x="650" y="100" width="290" height="100" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="664" y="124" class="out-title">Portal · public tier</text>
+    <text x="664" y="142" class="out-desc">Aggregated scores · pollution map · trends</text>
+    <text x="664" y="158" class="out-desc">No PII · no raw individual submissions</text>
+    <text x="664" y="174" class="out-desc">Public OpenAPI </text>
+    <text x="664" y="190" class="out-desc">→ General public</text>
+  </g>
+  <g>
+    <rect x="650" y="210" width="290" height="80" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="664" y="234" class="out-title">Portal · partner tier</text>
+    <text x="664" y="252" class="out-desc">Restricted data layers · SSO / email login</text>
+    <text x="664" y="268" class="out-desc">→ Academic, county, NDF, NBD partners</text>
+  </g>
+  <g>
+    <rect x="650" y="300" width="290" height="76" rx="6" fill="#f5e5a4" stroke="#d6c47a"/>
+    <text x="664" y="324" class="out-title">Admin views (internal)</text>
+    <text x="664" y="342" class="out-desc">Raw submissions ·  PII</text>
+    <text x="664" y="358" class="out-desc">SSO · Admin / Reviewer roles</text>
+    <text x="664" y="374" class="out-desc">→ Akvo · NBD secretariat</text>
+  </g>
+
+  <!-- Data store -->
+  <rect x="320" y="475" width="620" height="100" rx="8" fill="#0e7a66"/>
+  <text x="630" y="498" text-anchor="middle" class="store-title">PostgreSQL + PostGIS · Cloud object storage</text>
+  <text x="630" y="518" text-anchor="middle" class="store-desc">All submissions, scores, attachments</text>
+  <text x="630" y="535" text-anchor="middle" class="store-desc">Encryption at rest · daily backup</text>
+  <text x="630" y="555" text-anchor="middle" class="store-desc">Reads by admin layer (full) and portal layer </text>
+
+  <!-- Arrows from sources into Admin -->
+  <line x1="250" y1="128" x2="320" y2="170" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <line x1="250" y1="198" x2="320" y2="225" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <line x1="250" y1="268" x2="320" y2="285" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <line x1="250" y1="338" x2="320" y2="318" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <line x1="250" y1="408" x2="320" y2="370" stroke="#4a4a4a" marker-end="url(#arr)"/>
+
+  <!-- Arrows from Admin → outputs -->
+  <line x1="580" y1="150" x2="650" y2="150" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="595" y="142" class="flow-label">public-tier</text>
+  <line x1="580" y1="250" x2="650" y2="250" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="595" y="242" class="flow-label">partner-tier</text>
+  <line x1="580" y1="340" x2="650" y2="340" stroke="#4a4a4a" marker-end="url(#arr)"/>
+  <text x="595" y="332" class="flow-label">admin-only</text>
+
+  <!-- Admin ↔ data store -->
+  <line x1="450" y1="436" x2="450" y2="475" stroke="#4a4a4a" marker-end="url(#arr)" marker-start="url(#arr)"/>
+  <text x="460" y="462" class="flow-label">read · write</text>
+
+  <!-- Data store → outputs (read for portal) -->
+  <line x1="795" y1="475" x2="795" y2="376" stroke="#4a4a4a" stroke-dasharray="3,3" marker-end="url(#arr)"/>
+  <text x="800" y="462" class="flow-label">read · public projection</text>
+
+  <!-- ── Trust boundary overlays ── -->
+
+  <!-- Vertical divider: EXTERNAL SOURCES ↔ INTERNAL -->
+  <line x1="284" y1="86" x2="284" y2="458" stroke="#1a1a1a" stroke-width="1.5" stroke-dasharray="7,4"/>
+
+  <!-- PUBLIC / INTERNET boundary around public-tier output -->
+  <rect x="642" y="93" width="305" height="114" rx="9" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+
+  <!-- AUTHENTICATED PARTNER boundary around partner-tier output -->
+  <rect x="642" y="203" width="305" height="94" rx="9" fill="none" stroke="#1ba88f" stroke-width="2" stroke-dasharray="4,4"/>
+
+  <!-- ADMIN ONLY boundary around admin-views output -->
+  <rect x="642" y="293" width="305" height="88" rx="9" fill="none" stroke="#c44d2c" stroke-width="2" stroke-dasharray="2,3"/>
+
+  <!-- ADMIN ONLY boundary around admin/processing block -->
+  <rect x="313" y="92" width="274" height="352" rx="10" fill="none" stroke="#c44d2c" stroke-width="1.5" stroke-dasharray="2,3"/>
+
+  <!-- ADMIN ONLY boundary around data store -->
+  <rect x="313" y="467" width="630" height="116" rx="10" fill="none" stroke="#c44d2c" stroke-width="1.5" stroke-dasharray="2,3"/>
+
+  <!-- Trust boundary legend block -->
+  <text x="30" y="615" class="section-label">TRUST BOUNDARIES</text>
+  <line x1="30" y1="625" x2="1010" y2="625" stroke="#d0d0d0"/>
+
+  <g transform="translate(30, 640)">
+    <line x1="0" y1="10" x2="50" y2="10" stroke="#1a1a1a" stroke-width="3"/>
+    <text x="60" y="14" class="boundary-label" fill="#1a1a1a">PUBLIC / INTERNET</text>
+    <text x="60" y="29" class="actor-desc">Anyone can reach the portal</text>
+  </g>
+  <g transform="translate(280, 640)">
+    <line x1="0" y1="10" x2="50" y2="10" stroke="#1ba88f" stroke-width="3" stroke-dasharray="4,4"/>
+    <text x="60" y="14" class="boundary-label" fill="#1ba88f">AUTHENTICATED PARTNER</text>
+    <text x="60" y="29" class="actor-desc">SSO or email/password required</text>
+  </g>
+  <g transform="translate(560, 640)">
+    <line x1="0" y1="10" x2="50" y2="10" stroke="#c44d2c" stroke-width="3" stroke-dasharray="2,3"/>
+    <text x="60" y="14" class="boundary-label" fill="#c44d2c">ADMIN ONLY</text>
+    <text x="60" y="29" class="actor-desc">SSO; Akvo / NBD secretariat staff</text>
+  </g>
+  <g transform="translate(820, 640)">
+    <rect x="0" y="3" width="14" height="14" rx="2" fill="#1ba88f"/>
+    <text x="22" y="14" class="boundary-label" fill="#1a1a1a">PII boundary</text>
+    <text x="22" y="29" class="actor-desc">PII stays in admin tier</text>
+  </g>
+
+</svg>
+  </div>
+</body>
+</html>
