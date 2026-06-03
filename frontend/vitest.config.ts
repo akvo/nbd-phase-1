@@ -13,7 +13,13 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text"],
       reportsDirectory: "node_modules/.cache/coverage",
-      exclude: ["node_modules/**", ".next/**"],
+      exclude: [
+        "node_modules/**",
+        ".next/**",
+        "next.config.ts",
+        "postcss.config.mjs",
+        "next-env.d.ts",
+      ],
     },
   },
 });
