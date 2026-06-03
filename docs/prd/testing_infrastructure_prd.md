@@ -79,8 +79,9 @@ As the platform expands with KoboToolbox ingestion, indigenous knowledge fuzzy l
 - Installing `vitest`, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/jest-dom`, and `jsdom` to the frontend.
 - Implementing dedicated unit tests for all backend endpoints in `backend/app/main.py` (`test_main.py`).
 - Implementing unit tests for the APScheduler daemon and job functions in `backend/app/scheduler.py` (`test_scheduler.py`).
-- Adding component unit tests in the frontend for `button.tsx`, `card.tsx`, `input.tsx`, `loader.tsx`, and `progress.tsx` under their respective local `__tests__` folders.
-- Ensuring backend coverage reaches >80% and frontend coverage reaches >50%.
+- Adding component unit tests in the frontend for `badge.tsx`, `button.tsx`, `card.tsx`, `input.tsx`, `loader.tsx`, `progress.tsx`, `checkbox.tsx`, `dialog.tsx`, `dropdown.tsx`, `echarts-chart.tsx`, `google-signin-button.tsx`, `map-legend.tsx`, `map-viewer.tsx`, `message-note.tsx`, `site-drawer.tsx`, `site-header.tsx`, `table.tsx`, and `toggle.tsx` under their respective local `__tests__` folders.
+- Ensuring backend coverage reaches >80% and frontend coverage reaches >80%.
+
 
 **v1 — Explicitly Out of Scope**:
 - Full end-to-end testing with Playwright or Cypress (will be addressed in a future QA phase).

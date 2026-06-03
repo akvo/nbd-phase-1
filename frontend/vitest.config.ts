@@ -12,7 +12,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text"],
-      reportsDirectory: "/tmp/coverage",
+      reportsDirectory: "node_modules/.cache/coverage",
       exclude: ["node_modules/**", ".next/**"],
     },
   },

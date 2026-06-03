@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

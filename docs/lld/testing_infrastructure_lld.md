@@ -74,7 +74,7 @@ export default defineConfig({
    - Test execution of `hourly_kobotoolbox_pull` and `monthly_gee_ingest` with mock timing (e.g. mocking `time.sleep`) to prevent tests from hanging.
    - Mock `BlockingScheduler` class to assert jobs are registered correctly with correct intervals (cron schedules) and verify the exception-handling path when starting the scheduler.
 3. **Frontend UI Component Tests**:
-   - For `button.tsx`, `card.tsx`, `input.tsx`, `loader.tsx`, and `progress.tsx`, write unit tests under `frontend/src/components/ui/__tests__/` asserting rendering states, default properties, interaction behaviors, and disabled states.
+   - For all UI components (`button.tsx`, `card.tsx`, `input.tsx`, `loader.tsx`, `progress.tsx`, `checkbox.tsx`, `dialog.tsx`, `dropdown.tsx`, `echarts-chart.tsx`, `google-signin-button.tsx`, `map-legend.tsx`, `map-viewer.tsx`, `message-note.tsx`, `site-drawer.tsx`, `site-header.tsx`, `table.tsx`, `toggle.tsx`), write unit tests under `frontend/src/components/ui/__tests__/` asserting rendering states, default properties, interaction behaviors, and disabled states.
 
 ---
 
@@ -103,6 +103,43 @@ export default defineConfig({
 
 #### [NEW] [progress.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/progress.test.tsx)
 - Unit test for progress bar rendering and percentage completion.
+
+#### [NEW] [checkbox.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/checkbox.test.tsx)
+- Unit test for checkbox toggle and state changes.
+
+#### [NEW] [dialog.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/dialog.test.tsx)
+- Unit test for modal dialog opening, closing, and overlays.
+
+#### [NEW] [dropdown.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/dropdown.test.tsx)
+- Unit test for dropdown menus, options selection, and trigger states.
+
+#### [NEW] [echarts-chart.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/echarts-chart.test.tsx)
+- Unit test verifying canvas mounting and chart container structures.
+
+#### [NEW] [google-signin-button.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/google-signin-button.test.tsx)
+- Unit test for Google sign-in click actions and layout attributes.
+
+#### [NEW] [map-legend.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/map-legend.test.tsx)
+- Unit test for map legend legends layout and color scales.
+
+#### [NEW] [map-viewer.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/map-viewer.test.tsx)
+- Unit test checking map canvas placeholders and interactive layering.
+
+#### [NEW] [message-note.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/message-note.test.tsx)
+- Unit test for alerts, success/error notice blocks, and content strings.
+
+#### [NEW] [site-drawer.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/site-drawer.test.tsx)
+- Unit test for drawer layout panel slide-ins and navigation lists.
+
+#### [NEW] [site-header.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/site-header.test.tsx)
+- Unit test for site header navigation, logo titles, and branding slots.
+
+#### [NEW] [table.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/table.test.tsx)
+- Unit test verifying table grid rows, table headers, and data populating.
+
+#### [NEW] [toggle.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/toggle.test.tsx)
+- Unit test for switch/toggle triggers and selected values.
+
 
 
 
