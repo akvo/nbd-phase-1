@@ -38,6 +38,9 @@ services:
       - SMTP_USE_TLS=${SMTP_USE_TLS}
       - SMTP_USE_SSL=${SMTP_USE_SSL}
       - MAIL_FROM=${MAIL_FROM}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+    volumes:
+      - ./credentials:/credentials:ro
     command: ./start.sh
     depends_on:
       - db

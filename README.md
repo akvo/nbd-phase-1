@@ -55,6 +55,13 @@ cp .env.example .env
 
 Review and adjust the database credentials and app settings inside `.env` if necessary.
 
+#### Google Cloud Storage Credentials (Local Development)
+
+If integration with Google Cloud Storage is required for local development:
+1. Create a `credentials/` folder in the root directory: `mkdir -p credentials` (this folder is ignored by git).
+2. Place your GCP Service Account JSON key inside it (e.g. `credentials/nbd-service-account.json`).
+3. Set the `GOOGLE_APPLICATION_CREDENTIALS` path in `.env` to point to `/credentials/your-key-name.json`.
+
 ### 🏃 Running Locally
 
 Use the wrapper CLI script `./dc.sh` (modeled after IDH-IDC style) to run compose commands securely using the base configuration and developer overrides:

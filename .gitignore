@@ -24,6 +24,7 @@ agent_docs/
 .env.production.local
 *.pem
 *.key
+/credentials/
 
 # Python / Poetry / venv
 __pycache__/
