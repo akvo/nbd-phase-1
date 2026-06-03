@@ -75,10 +75,12 @@ As the platform expands with KoboToolbox ingestion, indigenous knowledge fuzzy l
 ## 7. Scope
 
 **v1 — In Scope**:
-- Adding `pytest-cov` to backend dependencies and configuring it.
+- Adding `pytest-cov==4.1.0` and `httpx` to backend dependencies and configuring them.
 - Installing `vitest`, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/jest-dom`, and `jsdom` to the frontend.
-- Adding a sample React component test and a backend API test.
-- Exposing npm commands (`npm run test`, `npm run test:coverage`) in frontend and python commands in backend.
+- Implementing dedicated unit tests for all backend endpoints in `backend/app/main.py` (`test_main.py`).
+- Implementing unit tests for the APScheduler daemon and job functions in `backend/app/scheduler.py` (`test_scheduler.py`).
+- Adding component unit tests in the frontend for `button.tsx`, `card.tsx`, `input.tsx`, `loader.tsx`, and `progress.tsx` under their respective local `__tests__` folders.
+- Ensuring backend coverage reaches >80% and frontend coverage reaches >50%.
 
 **v1 — Explicitly Out of Scope**:
 - Full end-to-end testing with Playwright or Cypress (will be addressed in a future QA phase).
@@ -90,3 +92,4 @@ As the platform expands with KoboToolbox ingestion, indigenous knowledge fuzzy l
 
 - Next.js project is fully compatible with Vitest runner.
 - Docker execution is the preferred method for running both backend and frontend tests.
+

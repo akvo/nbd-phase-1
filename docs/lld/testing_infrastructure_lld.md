@@ -66,28 +66,44 @@ export default defineConfig({
 
 ---
 
+### 2.3 Proposed Test Coverage Target Expansion
+1. **Backend Endpoint Tests (`backend/tests/test_main.py`)**:
+   - We will utilize `fastapi.testclient.TestClient` to perform HTTP assertions against `/api`, `/api/healthz`, and `/api/v1/test/email`.
+   - For `/api/v1/test/email`, we will mock the `EmailService.send_email_async` method to verify that `BackgroundTasks` successfully processes and schedules the email send execution.
+2. **Backend Scheduler Tests (`backend/tests/test_scheduler.py`)**:
+   - Test execution of `hourly_kobotoolbox_pull` and `monthly_gee_ingest` with mock timing (e.g. mocking `time.sleep`) to prevent tests from hanging.
+   - Mock `BlockingScheduler` class to assert jobs are registered correctly with correct intervals (cron schedules) and verify the exception-handling path when starting the scheduler.
+3. **Frontend UI Component Tests**:
+   - For `button.tsx`, `card.tsx`, `input.tsx`, `loader.tsx`, and `progress.tsx`, write unit tests under `frontend/src/components/ui/__tests__/` asserting rendering states, default properties, interaction behaviors, and disabled states.
+
+---
+
 ## 3. Implementation Checklist & Files
 
-#### [NEW] [pyproject.toml](file:///Users/galihpratama/Sites/nbd-phase-1/backend/pyproject.toml)
-- Configuration file for pytest to automatically enable coverage reports.
-
 #### [MODIFY] [requirements.txt](file:///Users/galihpratama/Sites/nbd-phase-1/backend/requirements.txt)
-- Add `pytest-cov==4.1.0`.
+- Add `pytest-cov==4.1.0` and `httpx==0.27.0`.
 
-#### [NEW] [vitest.config.ts](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/vitest.config.ts)
-- Configure Vitest properties, jsdom environment, aliases, and coverage.
+#### [NEW] [test_main.py](file:///Users/galihpratama/Sites/nbd-phase-1/backend/tests/test_main.py)
+- Unit tests verifying FastAPI routing endpoints and payload validation.
 
-#### [NEW] [vitest.setup.ts](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/vitest.setup.ts)
-- Custom matchers import for `@testing-library/jest-dom`.
+#### [NEW] [test_scheduler.py](file:///Users/galihpratama/Sites/nbd-phase-1/backend/tests/test_scheduler.py)
+- Unit tests verifying scheduler job scheduling, cron configs, and helper functions.
 
-#### [MODIFY] [package.json](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/package.json)
-- Add test script aliases:
-  - `"test": "vitest run"`
-  - `"test:watch": "vitest"`
-  - `"test:coverage": "vitest run --coverage"`
+#### [NEW] [button.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/button.test.tsx)
+- Unit test for UI button component.
 
-#### [NEW] [badge.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/badge.test.tsx)
-- A simple unit test validating React component rendering using TSX placed under the component's local `__tests__` directory.
+#### [NEW] [card.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/card.test.tsx)
+- Unit test for UI card sub-components.
+
+#### [NEW] [input.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/input.test.tsx)
+- Unit test for UI input text input.
+
+#### [NEW] [loader.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/loader.test.tsx)
+- Unit test for UI spinning loader component.
+
+#### [NEW] [progress.test.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/components/ui/__tests__/progress.test.tsx)
+- Unit test for progress bar rendering and percentage completion.
+
 
 
 
