@@ -31,6 +31,13 @@ services:
     environment:
       - APP_ENV=${APP_ENV}
       - DATABASE_URL=${DATABASE_URL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USE_TLS=${SMTP_USE_TLS}
+      - SMTP_USE_SSL=${SMTP_USE_SSL}
+      - MAIL_FROM=${MAIL_FROM}
     command: ./start.sh
     depends_on:
       - db
@@ -43,6 +50,13 @@ services:
     environment:
       - APP_ENV=${APP_ENV}
       - DATABASE_URL=${DATABASE_URL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USE_TLS=${SMTP_USE_TLS}
+      - SMTP_USE_SSL=${SMTP_USE_SSL}
+      - MAIL_FROM=${MAIL_FROM}
     command: ./start.sh python -m app.scheduler
     depends_on:
       - db
@@ -59,6 +73,10 @@ services:
     tty: true
     depends_on:
       - backend
+    network_mode: service:mainnetwork
+
+  mailpit:
+    image: axllent/mailpit:latest
     network_mode: service:mainnetwork
 
 volumes:

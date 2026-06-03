@@ -6,6 +6,9 @@ services:
     ports:
       - "3000:80"    # Nginx Proxy
       - "5050:5050"  # PGAdmin 4
+      - "1025:1025"  # Mailpit SMTP
+      - "8025:8025"  # Mailpit Web UI
+
 
   pgadmin:
     network_mode: service:mainnetwork

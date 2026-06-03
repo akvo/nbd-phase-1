@@ -1,6 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
+from pydantic import BaseModel, EmailStr
+from app.mail import EmailService
+
 
 app = FastAPI(title="Nbd Pilot API", version="1.0.0")
+
+
+class TestEmailRequest(BaseModel):
+    to: EmailStr
+    subject: str
+    body: str
 
 
 @app.get("/api")
@@ -11,3 +20,17 @@ def read_root():
 @app.get("/api/healthz")
 def healthz():
     return {"status": "ok"}
+
+
+@app.post("/api/v1/test/email", status_code=202)
+async def send_test_email(
+    payload: TestEmailRequest, background_tasks: BackgroundTasks
+):
+    service = EmailService()
+    background_tasks.add_task(
+        service.send_email_async,
+        to=payload.to,
+        subject=payload.subject,
+        html_body=payload.body,
+    )
+    return {"message": "Test email has been queued", "recipient": payload.to}
