@@ -1,4 +1,5 @@
 from typing import Dict, Any
+import uuid
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from shapely.geometry import shape
 
@@ -116,4 +117,43 @@ class SiteCreate(SiteBase):
 
 
 class Site(SiteBase):
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SpatialBoundaryBase(BaseModel):
+    name: str = Field(..., max_length=100)
+    basin_id: str = Field(..., max_length=50)
+    centroid_geom: Dict[str, Any]
+
+    @field_validator("centroid_geom", mode="before")
+    @classmethod
+    def preprocess_geom(cls, v: Any) -> Any:
+        if isinstance(v, dict):
+            return v
+        try:
+            from geoalchemy2.shape import to_shape
+            from shapely.geometry import mapping
+
+            return mapping(to_shape(v))
+        except Exception:
+            return v
+
+    @field_validator("centroid_geom")
+    @classmethod
+    def validate_geom(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            s = shape(v)
+            if s.geom_type != "Point":
+                raise ValueError("Geometry must be a Point")
+        except Exception as e:
+            raise ValueError(f"Invalid geometry: {str(e)}")
+        return v
+
+
+class SpatialBoundaryCreate(SpatialBoundaryBase):
+    pass
+
+
+class SpatialBoundary(SpatialBoundaryBase):
+    id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)

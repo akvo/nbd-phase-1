@@ -4,7 +4,7 @@ from geoalchemy2.shape import from_shape
 from shapely.geometry import shape
 
 from app.database import get_db
-from app.models.spatial import Basin, Wetland, Site
+from app.models.spatial import Basin, Wetland, Site, SpatialBoundary
 from app.schemas import spatial as schemas
 
 router = APIRouter(prefix="/api/v1", tags=["spatial"])
@@ -155,3 +155,43 @@ def get_site(site_id: str, db: Session = Depends(get_db)):
             status_code=404, detail=f"Site '{site_id}' not found."
         )
     return db_site
+
+
+@router.post(
+    "/reference/sub-counties",
+    response_model=schemas.SpatialBoundary,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_sub_county(
+    sb: schemas.SpatialBoundaryCreate, db: Session = Depends(get_db)
+):
+    # Check if parent basin exists
+    parent_basin = (
+        db.query(Basin).filter(Basin.basin_id == sb.basin_id).first()
+    )
+    if not parent_basin:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Parent Basin '{sb.basin_id}' does not exist.",
+        )
+
+    try:
+        db_sb = SpatialBoundary(
+            name=sb.name,
+            basin_id=sb.basin_id,
+            centroid_geom=from_shape(shape(sb.centroid_geom), srid=4326),
+        )
+        db.add(db_sb)
+        db.commit()
+        db.refresh(db_sb)
+        return db_sb
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get(
+    "/reference/sub-counties", response_model=list[schemas.SpatialBoundary]
+)
+def list_sub_counties(db: Session = Depends(get_db)):
+    return db.query(SpatialBoundary).all()
