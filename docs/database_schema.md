@@ -661,6 +661,31 @@ CREATE TABLE health_scores (
     calculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_health_scores_site ON health_scores(site_id, calculated_at DESC);
+
+#### `dead_letters`
+Stores unprocessable submissions and failed webhook payloads for quarantine and triage.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `source_system` | `VARCHAR(50)` | `NOT NULL` | Source system (e.g. `'KoboToolbox'`). |
+| `raw_payload` | `JSONB` | `NOT NULL` | The raw JSON payload that failed processing. |
+| `error_reason` | `TEXT` | `NOT NULL` | The validation error reason or exception message. |
+| `status` | `VARCHAR(20)` | `NOT NULL`, `DEFAULT 'Pending Triage'` | Quarantine status: `'Pending Triage'`, `'Resolved'`, `'Discarded'`. |
+| `created_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT now()` | Ingestion timestamp. |
+
+```sql
+CREATE TABLE dead_letters (
+    id UUID PRIMARY KEY,
+    source_system VARCHAR(50) NOT NULL,
+    raw_payload JSONB NOT NULL,
+    error_reason TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending Triage',
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_dead_letters_status_source ON dead_letters (status, source_system);
+```
+
 ```
 
 ---
