@@ -1,0 +1,137 @@
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+
+def test_create_form():
+    form_data = {
+        "name": "Physico-Chemical Sampling Form",
+        "type": 1,
+        "status": 1,
+    }
+    response = client.post("/api/v1/forms", json=form_data)
+    assert response.status_code == 201
+    res_data = response.json()
+    assert res_data["name"] == "Physico-Chemical Sampling Form"
+    assert res_data["version"] == 1
+    assert "uuid" in res_data
+    form_id = res_data["id"]
+
+    # Get form
+    response = client.get(f"/api/v1/forms/{form_id}")
+    assert response.status_code == 200
+    assert response.json()["name"] == "Physico-Chemical Sampling Form"
+
+
+def test_create_full_blueprint_hierarchy():
+    # 1. Create a form
+    form_data = {"name": "Wetland Survey", "type": 1, "status": 1}
+    form_res = client.post("/api/v1/forms", json=form_data)
+    assert form_res.status_code == 201
+    form_id = form_res.json()["id"]
+
+    # 2. Create a Question Group under this form
+    group_data = {
+        "form_id": form_id,
+        "name": "water_quality",
+        "label": "Water Quality Parameters",
+        "order": 1,
+        "repeatable": False,
+    }
+    group_res = client.post("/api/v1/question-groups", json=group_data)
+    assert group_res.status_code == 201
+    group_id = group_res.json()["id"]
+
+    # 3. Create a Question under the group
+    question_data = {
+        "form_id": form_id,
+        "question_group_id": group_id,
+        "name": "ph_level",
+        "label": "pH Level",
+        "order": 1,
+        "type": 2,  # e.g., number type
+        "required": True,
+        "validation_min": 2.0,
+        "validation_max": 10.0,
+    }
+    q_res = client.post("/api/v1/questions", json=question_data)
+    assert q_res.status_code == 201
+    q_id = q_res.json()["id"]
+
+    # 4. Create an Option under the question (choices type)
+    option_data = {
+        "question_id": q_id,
+        "order": 1,
+        "label": "Neutral pH",
+        "value": "neutral",
+    }
+    opt_res = client.post("/api/v1/options", json=option_data)
+    assert opt_res.status_code == 201
+
+
+def test_soft_deletion_and_conditional_uniqueness():
+    # Create Form
+    form_res = client.post(
+        "/api/v1/forms", json={"name": "Constraint Form", "type": 1}
+    )
+    form_id = form_res.json()["id"]
+
+    # Create Group 1
+    g1_res = client.post(
+        "/api/v1/question-groups",
+        json={"form_id": form_id, "name": "bio_indicators"},
+    )
+    assert g1_res.status_code == 201
+    g1_id = g1_res.json()["id"]
+
+    # Try creating duplicate active Group with same name under same Form -> Fail
+    g2_res = client.post(
+        "/api/v1/question-groups",
+        json={"form_id": form_id, "name": "bio_indicators"},
+    )
+    assert g2_res.status_code == 400
+
+    # Soft delete Group 1
+    del_res = client.delete(f"/api/v1/question-groups/{g1_id}")
+    assert del_res.status_code == 200
+
+    # Try recreating Group with same name now that Group 1 is deleted -> Succeed
+    g3_res = client.post(
+        "/api/v1/question-groups",
+        json={"form_id": form_id, "name": "bio_indicators"},
+    )
+    assert g3_res.status_code == 201
+
+
+def test_publish_form_snapshot():
+    # Create form, group, question
+    form_res = client.post(
+        "/api/v1/forms", json={"name": "Publish Form", "type": 1}
+    )
+    form_id = form_res.json()["id"]
+
+    g_res = client.post(
+        "/api/v1/question-groups", json={"form_id": form_id, "name": "grp"}
+    )
+    g_id = g_res.json()["id"]
+
+    client.post(
+        "/api/v1/questions",
+        json={
+            "form_id": form_id,
+            "question_group_id": g_id,
+            "name": "q1",
+            "label": "Question 1",
+            "type": 1,
+        },
+    )
+
+    # Publish Form
+    pub_res = client.post(f"/api/v1/forms/{form_id}/publish")
+    assert pub_res.status_code == 200
+    res_data = pub_res.json()
+    assert res_data["version"] == 1
+    assert "schema" in res_data
+    # The snapshot contains the dynamic layout
+    assert len(res_data["schema"]["question_groups"]) == 1
