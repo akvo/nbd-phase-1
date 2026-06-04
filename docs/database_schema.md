@@ -43,11 +43,13 @@ erDiagram
     }
 
     %% Layer C: Dynamic Form Engine
-    FORMS ||--o{ QUESTION_GROUPS : "defines"
-    QUESTION_GROUPS ||--o{ QUESTIONS : "contains"
-    FORMS ||--o{ DATAPOINTS : "instantiates"
+    FORM ||--o{ QUESTION_GROUP : "defines"
+    QUESTION_GROUP ||--o{ QUESTION : "contains"
+    QUESTION ||--o{ OPTION : "has choices"
+    FORM ||--o{ FORM_PUBLISHED_VERSION : "versions"
+    FORM ||--o{ DATAPOINTS : "instantiates"
     DATAPOINTS ||--o{ ANSWERS : "contains"
-    QUESTIONS ||--o{ ANSWERS : "answered by"
+    QUESTION ||--o{ ANSWERS : "answered by"
 
     %% Layer D: Ingestion, Triage & Outputs
     SITES ||--o{ SAMPLING_RECORDS : "monitored at"
@@ -82,28 +84,70 @@ erDiagram
         text description_text
     }
 
-    FORMS {
-        integer form_id PK
+    FORM {
+        integer id PK
         varchar name
-        jsonb languages "ISO 639-1 list"
+        integer version
+        uuid uuid
+        integer parent_id FK
+        integer type
+        integer status
+        timestamp published_at
+        integer previous_version_id FK
+        integer active_version_id FK
     }
 
-    QUESTION_GROUPS {
-        integer group_id PK
+    QUESTION_GROUP {
+        integer id PK
         integer form_id FK
         varchar name
+        varchar label
+        bigint order
         boolean repeatable
+        varchar repeat_text
+        timestamp deleted_at
     }
 
-    QUESTIONS {
-        varchar question_id PK
-        integer group_id FK
-        varchar type "input | number | cascade | geo | etc"
+    QUESTION {
+        integer id PK
+        integer form_id FK
+        integer question_group_id FK
+        bigint order
+        varchar label
+        varchar short_label
+        varchar name
+        integer type
+        boolean meta
         boolean required
-        numeric validation_min
-        numeric validation_max
-        jsonb dependency "skip logic rules"
-        text autofield_fn "JS formula"
+        jsonb rule
+        jsonb dependency
+        varchar dependency_rule
+        jsonb api
+        jsonb extra
+        jsonb tooltip
+        jsonb fn
+        jsonb pre
+        boolean display_only
+        timestamp deleted_at
+    }
+
+    OPTION {
+        integer id PK
+        integer question_id FK
+        bigint order
+        varchar label
+        varchar value
+        boolean other
+        varchar color
+    }
+
+    FORM_PUBLISHED_VERSION {
+        integer id PK
+        integer form_id FK
+        integer version
+        jsonb schema
+        timestamp published_at
+        uuid published_by_id FK
     }
 
     DATAPOINTS {
@@ -287,67 +331,165 @@ CREATE TABLE citizens (
 
 ### Layer C: Dynamic Form Engine (`akvo-react-form`)
 
-#### `forms`
-Dynamic survey definitions.
+#### `form`
+Dynamic survey definitions and version references.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `form_id` | `INTEGER` | `PRIMARY KEY` | Unique ID from Form Builder. |
-| `name` | `VARCHAR(255)` | `NOT NULL` | Form display title. |
-| `languages` | `JSONB` | `NOT NULL` | Array of ISO 639-1 language codes. |
+| `id` | `INTEGER` | `PRIMARY KEY` | Serial database identifier. |
+| `name` | `TEXT` | `NOT NULL` | Form display title. |
+| `version` | `INTEGER` | `DEFAULT 1` | Incremental form layout version. |
+| `uuid` | `UUID` | `UNIQUE`, `NOT NULL` | Globally unique identifier. |
+| `parent_id` | `INTEGER` | `REFERENCES form(id) ON DELETE CASCADE` | Parent form ID (for recursive inheritance). |
+| `type` | `INTEGER` | `DEFAULT 1` | Form type classifier. |
+| `status` | `INTEGER` | `DEFAULT 1` | Draft / published status indicator. |
+| `published_at` | `TIMESTAMP` | `NULL` | Timestamp when the version was published. |
+| `previous_version_id` | `INTEGER` | `REFERENCES form(id) ON DELETE SET NULL` | Pointer to the previous layout version. |
+| `active_version_id` | `INTEGER` | `REFERENCES form_published_version(id) ON DELETE SET NULL` | Pointer to current published snapshot. |
 
 ```sql
-CREATE TABLE forms (
-    form_id INTEGER PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    languages jsonb NOT NULL -- e.g., '["en", "sw"]'
+CREATE TABLE form (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    uuid UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    parent_id INTEGER REFERENCES form(id) ON DELETE CASCADE,
+    type INTEGER NOT NULL DEFAULT 1,
+    status INTEGER NOT NULL DEFAULT 1,
+    published_at TIMESTAMP,
+    previous_version_id INTEGER REFERENCES form(id) ON DELETE SET NULL,
+    active_version_id INTEGER -- Added via ALTER TABLE after form_published_version exists
 );
 ```
 
-#### `question_groups`
-Structural question sections within a dynamic form.
+#### `question_group`
+Structural question sections/categories within a dynamic form.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `group_id` | `INTEGER` | `PRIMARY KEY` | Section identifier. |
-| `form_id` | `INTEGER` | `REFERENCES forms(form_id)` | Form this group belongs to. |
-| `name` | `VARCHAR(255)` | `NOT NULL` | Section title. |
+| `id` | `INTEGER` | `PRIMARY KEY` | Section database identifier. |
+| `form_id` | `INTEGER` | `REFERENCES form(id) ON DELETE CASCADE` | Parent form container. |
+| `name` | `VARCHAR(255)` | `NOT NULL` | Dynamic section slug/name. |
+| `label` | `TEXT` | `NULL` | Category display title. |
+| `order` | `BIGINT` | `NULL` | Display sequence order. |
 | `repeatable` | `BOOLEAN` | `DEFAULT FALSE` | Denotes if the section supports loop structures. |
+| `repeat_text` | `VARCHAR(255)` | `NULL` | Text to display on repeat button. |
+| `deleted_at` | `TIMESTAMP` | `NULL` | Soft-delete timestamp indicator. |
 
 ```sql
-CREATE TABLE question_groups (
-    group_id INTEGER PRIMARY KEY,
-    form_id INTEGER NOT NULL REFERENCES forms(form_id) ON DELETE CASCADE,
+CREATE TABLE question_group (
+    id SERIAL PRIMARY KEY,
+    form_id INTEGER NOT NULL REFERENCES form(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    repeatable BOOLEAN NOT NULL DEFAULT FALSE
+    label TEXT,
+    "order" BIGINT,
+    repeatable BOOLEAN NOT NULL DEFAULT FALSE,
+    repeat_text VARCHAR(255),
+    deleted_at TIMESTAMP
 );
+CREATE UNIQUE INDEX unique_active_form_question_group ON question_group (form_id, name) WHERE deleted_at IS NULL;
 ```
 
-#### `questions`
-Individual fields defined within a question group.
+#### `question`
+Individual input fields and metadata defined within a question group.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `question_id` | `VARCHAR(100)` | `PRIMARY KEY` | Globally unique question identifier. |
-| `group_id` | `INTEGER` | `REFERENCES question_groups(group_id)` | Section containing this question. |
-| `type` | `VARCHAR(50)` | `NOT NULL` | Element input type (e.g. `'input'`, `'number'`). |
-| `required` | `BOOLEAN` | `DEFAULT FALSE` | Validation requirement. |
-| `validation_min`| `NUMERIC` | `NULL` | Lowest boundary (for number inputs). |
-| `validation_max`| `NUMERIC` | `NULL` | Highest boundary (for number inputs). |
-| `dependency` | `JSONB` | `NULL` | Conditional rules (Skip logic JSON). |
-| `autofield_fn` | `TEXT` | `NULL` | Formula logic compiled as Javascript. |
+| `id` | `INTEGER` | `PRIMARY KEY` | Question database identifier. |
+| `form_id` | `INTEGER` | `REFERENCES form(id) ON DELETE CASCADE` | Parent form container. |
+| `question_group_id` | `INTEGER` | `REFERENCES question_group(id) ON DELETE CASCADE` | Category section container. |
+| `order` | `BIGINT` | `NULL` | Display sequence order. |
+| `label` | `TEXT` | `NOT NULL` | Display question string. |
+| `short_label` | `TEXT` | `NULL` | Abridged question text. |
+| `name` | `VARCHAR(255)` | `NULL` | Unique data lookup key. |
+| `type` | `INTEGER` | `NOT NULL` | Field data type enum classifier. |
+| `meta` | `BOOLEAN` | `DEFAULT FALSE` | Metadata field flag. |
+| `required` | `BOOLEAN` | `DEFAULT TRUE` | Validation requirement. |
+| `rule` | `JSONB` | `NULL` | Nested limits and min/max validation rules. |
+| `dependency` | `JSONB` | `NULL` | Skip logic dependencies configuration. |
+| `dependency_rule` | `VARCHAR(3)` | `NULL` | Conditional evaluation rule context. |
+| `api` | `JSONB` | `NULL` | Endpoint configurations. |
+| `extra` | `JSONB` | `NULL` | Layout customizations. |
+| `tooltip` | `JSONB` | `NULL` | Helper hover context. |
+| `fn` | `JSONB` | `NULL` | Calculation logic definitions. |
+| `pre` | `JSONB` | `NULL` | Prefill configurations. |
+| `display_only` | `BOOLEAN` | `DEFAULT FALSE` | Read-only input element flag. |
+| `deleted_at` | `TIMESTAMP` | `NULL` | Soft-delete timestamp indicator. |
 
 ```sql
-CREATE TABLE questions (
-    question_id VARCHAR(100) PRIMARY KEY,
-    group_id INTEGER NOT NULL REFERENCES question_groups(group_id) ON DELETE CASCADE,
-    type VARCHAR(50) NOT NULL,
-    required BOOLEAN NOT NULL DEFAULT FALSE,
-    validation_min NUMERIC,
-    validation_max NUMERIC,
-    dependency jsonb,
-    autofield_fn TEXT
+CREATE TABLE question (
+    id SERIAL PRIMARY KEY,
+    form_id INTEGER NOT NULL REFERENCES form(id) ON DELETE CASCADE,
+    question_group_id INTEGER NOT NULL REFERENCES question_group(id) ON DELETE CASCADE,
+    "order" BIGINT,
+    label TEXT NOT NULL,
+    short_label TEXT,
+    name VARCHAR(255),
+    type INTEGER NOT NULL,
+    meta BOOLEAN NOT NULL DEFAULT FALSE,
+    required BOOLEAN NOT NULL DEFAULT TRUE,
+    rule JSONB,
+    dependency JSONB,
+    dependency_rule VARCHAR(3),
+    api JSONB,
+    extra JSONB,
+    tooltip JSONB,
+    fn JSONB,
+    pre JSONB,
+    display_only BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP
 );
+CREATE UNIQUE INDEX unique_active_form_question ON question (form_id, name) WHERE deleted_at IS NULL;
+```
+
+#### `option`
+Multiple-choice answers options mapping selection list items to questions.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `INTEGER` | `PRIMARY KEY` | Option database identifier. |
+| `question_id` | `INTEGER` | `REFERENCES question(id) ON DELETE CASCADE` | Target question container. |
+| `order` | `BIGINT` | `NULL` | Selection list index order. |
+| `label` | `TEXT` | `NULL` | Visual selection label. |
+| `value` | `VARCHAR(255)` | `NULL` | Ingested value database key. |
+| `other` | `BOOLEAN` | `DEFAULT FALSE` | Open-text placeholder flag. |
+| `color` | `TEXT` | `NULL` | Visual highlight metadata. |
+
+```sql
+CREATE TABLE option (
+    id SERIAL PRIMARY KEY,
+    question_id INTEGER NOT NULL REFERENCES question(id) ON DELETE CASCADE,
+    "order" BIGINT,
+    label TEXT,
+    value VARCHAR(255),
+    other BOOLEAN NOT NULL DEFAULT FALSE,
+    color TEXT
+);
+CREATE UNIQUE INDEX unique_question_option ON option (question_id, value);
+```
+
+#### `form_published_version`
+Frozen layout snapshots captured when a form version gets published.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `INTEGER` | `PRIMARY KEY` | Version snapshot key. |
+| `form_id` | `INTEGER` | `REFERENCES form(id) ON DELETE CASCADE` | Target form. |
+| `version` | `INTEGER` | `NOT NULL` | Form version sequential counter. |
+| `schema` | `JSONB` | `NOT NULL` | Complete compiled form snapshot. |
+| `published_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | Time layout got frozen. |
+| `published_by_id` | `UUID` | `REFERENCES users(user_id) ON DELETE SET NULL` | Publisher profile. |
+
+```sql
+CREATE TABLE form_published_version (
+    id SERIAL PRIMARY KEY,
+    form_id INTEGER NOT NULL REFERENCES form(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL,
+    schema JSONB NOT NULL,
+    published_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_by_id UUID REFERENCES users(user_id) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX unique_form_published_version ON form_published_version (form_id, version);
 ```
 
 #### `datapoints`
@@ -356,14 +498,14 @@ Individual instances of a submitted form.
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `datapoint_id` | `UUID` | `PRIMARY KEY` | Generated transaction UUID. |
-| `form_id` | `INTEGER` | `REFERENCES forms(form_id)` | Form being answered. |
+| `form_id` | `INTEGER` | `REFERENCES form(id)` | Form being answered. |
 | `status` | `VARCHAR(20)` | `CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))` | Workflow state. |
 | `created_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | Timestamp of submission. |
 
 ```sql
 CREATE TABLE datapoints (
     datapoint_id UUID PRIMARY KEY,
-    form_id INTEGER NOT NULL REFERENCES forms(form_id) ON DELETE RESTRICT,
+    form_id INTEGER NOT NULL REFERENCES form(id) ON DELETE RESTRICT,
     status VARCHAR(20) NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -377,14 +519,14 @@ The actual response values submitted for a given question.
 | :--- | :--- | :--- | :--- |
 | `answer_id` | `SERIAL` | `PRIMARY KEY` | Incrementing record ID. |
 | `datapoint_id` | `UUID` | `REFERENCES datapoints(datapoint_id)` | Core submission envelope. |
-| `question_id` | `VARCHAR(100)` | `REFERENCES questions(question_id)` | Question answered. |
+| `question_id` | `INTEGER` | `REFERENCES question(id)` | Question answered. |
 | `value` | `JSONB` | `NOT NULL` | Response payload (structured text, numbers, geo objects). |
 
 ```sql
 CREATE TABLE answers (
     answer_id SERIAL PRIMARY KEY,
     datapoint_id UUID NOT NULL REFERENCES datapoints(datapoint_id) ON DELETE CASCADE,
-    question_id VARCHAR(100) NOT NULL REFERENCES questions(question_id) ON DELETE CASCADE,
+    question_id INTEGER NOT NULL REFERENCES question(id) ON DELETE CASCADE,
     value jsonb NOT NULL
 );
 CREATE UNIQUE INDEX idx_datapoint_question ON answers(datapoint_id, question_id);
