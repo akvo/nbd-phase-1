@@ -496,6 +496,65 @@ All state-mutating requests (`POST`, `PUT`, `DELETE`) are logged.
 * **Actor ID**: Must record the OIDC Subject (`sub`) claim.
 * **Response**: Successful mutations return `200 OK` or `204 No Content` including a unique `audit_id` in the response body or headers.
 
+#### 5.5.1 POST /api/v1/audit-logs
+* **Objective**: Manually create an audit log record (compliance ledger entry).
+* **Request Payload Example**:
+```json
+{
+  "actor_id": "8f4a1918-7b72-4ea1-b9d1-37472ffb575e",
+  "action": "APPROVE",
+  "entity_type": "Datapoint",
+  "entity_id": "123"
+}
+```
+* **Response Payload Example (201 Created)**:
+```json
+{
+  "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
+  "actor_id": "8f4a1918-7b72-4ea1-b9d1-37472ffb575e",
+  "action": "APPROVE",
+  "entity_type": "Datapoint",
+  "entity_id": "123",
+  "timestamp": "2026-06-04T13:51:35Z"
+}
+```
+
+#### 5.5.2 GET /api/v1/audit-logs
+* **Objective**: Query and filter the audit log entries.
+* **Query Parameters**:
+  * `actor_id` (Optional): Filter by actor UUID.
+  * `action` (Optional): Filter by action keyword.
+  * `entity_type` (Optional): Filter by entity type.
+  * `entity_id` (Optional): Filter by entity ID.
+* **Response Payload Example (200 OK)**:
+```json
+[
+  {
+    "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
+    "actor_id": "8f4a1918-7b72-4ea1-b9d1-37472ffb575e",
+    "action": "APPROVE",
+    "entity_type": "Datapoint",
+    "entity_id": "123",
+    "timestamp": "2026-06-04T13:51:35Z"
+  }
+]
+```
+
+#### 5.5.3 GET /api/v1/audit-logs/{id}
+* **Objective**: Retrieve a single audit log entry by its UUID.
+* **Path Parameters**:
+  * `id` (Required): The UUID of the audit log entry.
+* **Response Payload Example (200 OK)**:
+```json
+{
+  "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
+  "actor_id": "8f4a1918-7b72-4ea1-b9d1-37472ffb575e",
+  "action": "APPROVE",
+  "entity_type": "Datapoint",
+  "entity_id": "123",
+  "timestamp": "2026-06-04T13:51:35Z"
+}
+```
 
 ---
 
