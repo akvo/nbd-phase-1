@@ -97,6 +97,51 @@ def test_seed_forms_success(db_session: Session):
     assert gee_form is not None
     assert len(gee_form.question_groups) == 2
 
+    # Check Indigenous Knowledge Record compliance details
+    ik_form = (
+        db_session.query(Form)
+        .filter(Form.name == "Indigenous Knowledge Record")
+        .first()
+    )
+    assert ik_form is not None
+    assert len(ik_form.question_groups) == 3
+
+    # Check Contextual Metadata questions
+    meta_group = [
+        g for g in ik_form.question_groups if g.name == "Contextual Metadata"
+    ][0]
+    assert len(meta_group.questions) == 5
+    meta_q_names = [q.name for q in meta_group.questions]
+    assert "land_use" in meta_q_names
+    assert "area" in meta_q_names
+
+    # Check Fuzzy Logic Dimensions questions and option values
+    fuzzy_group = [
+        g
+        for g in ik_form.question_groups
+        if g.name == "Fuzzy Logic Dimensions"
+    ][0]
+    assert len(fuzzy_group.questions) == 7
+    bio_q = [
+        q for q in fuzzy_group.questions if q.name == "biodiversity_change"
+    ][0]
+    assert bio_q.type == "option"
+    assert len(bio_q.options) == 3
+    bio_opt_values = sorted([float(opt.value) for opt in bio_q.options])
+    assert bio_opt_values == [0.3, 0.6, 1.0]
+
+    # Check Historical and Local Practices questions
+    hist_group = [
+        g
+        for g in ik_form.question_groups
+        if g.name == "Historical and Local Practices"
+    ][0]
+    assert len(hist_group.questions) == 6
+    hist_q_names = [q.name for q in hist_group.questions]
+    assert "earlier_fish_types" in hist_q_names
+    assert "historical_prediction_methods" in hist_q_names
+    assert "soil_moisture_preservation" in hist_q_names
+
     # 3. Test Idempotency (run seeder again)
     seed_forms(db_session)
 

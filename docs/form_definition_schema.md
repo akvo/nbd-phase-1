@@ -331,7 +331,9 @@ Captured during Monthly Barazas, this schema integrates qualitative biodiversity
           ]
         },
         { "id": "wetland_uses", "type": "text", "name": "Different uses of the wetland" },
-        { "id": "major_threats", "type": "text", "name": "Major anthropogenic/natural threats" }
+        { "id": "major_threats", "type": "text", "name": "Major anthropogenic/natural threats" },
+        { "id": "land_use", "type": "text", "name": "Primary land use in the area" },
+        { "id": "area", "type": "text", "name": "Approximate area of the wetland" }
       ]
     },
     {
@@ -344,10 +346,10 @@ Captured during Monthly Barazas, this schema integrates qualitative biodiversity
           "type": "option",
           "name": "Fish Abundance Trend",
           "option": [
-            {"name": "Same or increased", "value": 0.0},
-            {"name": "Slightly declined", "value": 0.3},
-            {"name": "Moderately declined", "value": 0.6},
-            {"name": "Severely declined", "value": 1.0}
+            { "name": "Same or increased", "value": 0.0 },
+            { "name": "Slightly declined", "value": 0.3 },
+            { "name": "Moderately declined", "value": 0.6 },
+            { "name": "Severely declined", "value": 1.0 }
           ]
         },
         {
@@ -355,9 +357,9 @@ Captured during Monthly Barazas, this schema integrates qualitative biodiversity
           "type": "option",
           "name": "Water Clarity Trend",
           "option": [
-            {"name": "Same or clearer", "value": 0.0},
-            {"name": "Somewhat worse", "value": 0.5},
-            {"name": "Much worse", "value": 1.0}
+            { "name": "Same or clearer", "value": 0.0 },
+            { "name": "Somewhat worse", "value": 0.5 },
+            { "name": "Much worse", "value": 1.0 }
           ]
         },
         {
@@ -365,10 +367,60 @@ Captured during Monthly Barazas, this schema integrates qualitative biodiversity
           "type": "option",
           "name": "Vegetation Cover Trend",
           "option": [
-            {"name": "Same or more", "value": 0.0},
-            {"name": "Partially lost", "value": 0.4},
-            {"name": "Severely lost", "value": 1.0}
+            { "name": "Same or more", "value": 0.0 },
+            { "name": "Partially lost", "value": 0.4 },
+            { "name": "Severely lost", "value": 1.0 }
           ]
+        },
+        {
+          "id": "biodiversity_change",
+          "type": "option",
+          "name": "Biodiversity Change Trend",
+          "option": [
+            { "name": "Declined a little bit", "value": 0.3 },
+            { "name": "Moderate decline", "value": 0.6 },
+            { "name": "Rapid decline", "value": 1.0 }
+          ]
+        },
+        { "id": "floods_regularity_change", "type": "text", "name": "Has floods in and around the wetland become more regular over the last 10 years?" },
+        { "id": "spawning_period_change", "type": "text", "name": "Have the fish-spawning periods in the wetland changed over the last 10 years?" },
+        { "id": "papyrus_growth_change", "type": "text", "name": "Have the Papyrus growth cycles of the wetland changed over the last 10 years?" }
+      ]
+    },
+    {
+      "id": 3,
+      "order": 3,
+      "name": "Historical and Local Practices",
+      "question": [
+        {
+          "id": "earlier_fish_types",
+          "type": "text",
+          "name": "Earlier how many types of fishes did you capture/observe? Please name the prominent ones."
+        },
+        {
+          "id": "earlier_bird_varieties",
+          "type": "text",
+          "name": "How many bird varieties did you observe? Please name the prominent ones."
+        },
+        {
+          "id": "earlier_plant_types",
+          "type": "text",
+          "name": "How many types of plants did you observe? Please name the prominent ones."
+        },
+        {
+          "id": "historical_prediction_methods",
+          "type": "text",
+          "name": "How did you predict floods or droughts in the olden days?"
+        },
+        {
+          "id": "riverbank_erosion_prevention",
+          "type": "text",
+          "name": "How did you prevent riverbank erosion earlier?"
+        },
+        {
+          "id": "soil_moisture_preservation",
+          "type": "text",
+          "name": "How did you preserve moisture and/or organic matter in the soil in the olden days?"
         }
       ]
     }
@@ -517,6 +569,7 @@ erDiagram
 ### 9.2 Standard Error Responses
 
 #### 400 Bad Request (Validation Failure)
+
 ```json
 {
   "error": "VALIDATION_ERROR",
@@ -528,6 +581,7 @@ erDiagram
 ```
 
 #### 429 Too Many Requests (Rate Limiting)
+
 ```json
 {
   "error": "RATE_LIMIT_EXCEEDED",
