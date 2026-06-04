@@ -36,9 +36,9 @@ erDiagram
     }
 
     citizens {
-        uuid citizen_id PK
+        uuid id PK
         varchar phone_number "PII (Restricted)"
-        uuid home_site_id FK
+        uuid site_id FK
         varchar role "WATCHER | SCIENTIST"
     }
 
@@ -80,7 +80,7 @@ erDiagram
     }
 
     management_actions {
-        uuid action_id PK
+        uuid id PK
         uuid site_id FK
         varchar status_color "GREEN | YELLOW | RED"
         varchar short_label "3-word max"
@@ -173,7 +173,7 @@ erDiagram
     }
 
     sampling_records {
-        uuid record_id PK
+        uuid id PK
         uuid site_id FK
         numeric ph_value "CHECK (2.0 - 10.0)"
         numeric temp_value "CHECK (5.0 - 50.0)"
@@ -185,7 +185,7 @@ erDiagram
     }
 
     fgd_records {
-        uuid fgd_id PK
+        uuid id PK
         uuid wetland_id FK
         varchar fish_abundance "0.0 | 0.3 | 0.6 | 1.0"
         varchar water_clarity "0.0 | 0.5 | 1.0"
@@ -194,7 +194,7 @@ erDiagram
     }
 
     health_scores {
-        uuid score_id PK
+        uuid id PK
         uuid site_id FK
         numeric wqi_score "0.0 - 1.0"
         numeric composite_score "0.0 - 1.0"
@@ -303,7 +303,7 @@ Editorial recommendations displayed on the public portal based on a site's healt
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `action_id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique primary key. |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique primary key. |
 | `site_id` | `UUID` | `REFERENCES sites(id)` | Associated monitoring site UUID. |
 | `status_color` | `VARCHAR(10)` | `CHECK (status_color IN ('GREEN', 'YELLOW', 'RED'))` | Health status context triggering the action. |
 | `short_label` | `VARCHAR(50)` | `NOT NULL` | 3-word primary display label (e.g., `'Establish Silt Traps'`). |
@@ -311,7 +311,7 @@ Editorial recommendations displayed on the public portal based on a site's healt
 
 ```sql
 CREATE TABLE management_actions (
-    action_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     status_color VARCHAR(10) NOT NULL CHECK (status_color IN ('GREEN', 'YELLOW', 'RED')),
     short_label VARCHAR(50) NOT NULL,
@@ -353,16 +353,16 @@ Registered community recorders. Restricts direct access to PII.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `citizen_id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique identifier. |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique identifier. |
 | `phone_number` | `VARCHAR(50)` | `NOT NULL` | PII (Restricted to Admin trust zones). |
-| `home_site_id` | `UUID` | `REFERENCES sites(id)` | Associated default monitoring point UUID. |
+| `site_id` | `UUID` | `REFERENCES sites(id)` | Associated default monitoring point UUID. |
 | `role` | `VARCHAR(20)` | `CHECK (role IN ('WATCHER', 'SCIENTIST'))` | Citizen role. |
 
 ```sql
 CREATE TABLE citizens (
-    citizen_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     phone_number VARCHAR(50) NOT NULL,
-    home_site_id UUID NOT NULL REFERENCES sites(id) ON DELETE RESTRICT,
+    site_id UUID NOT NULL REFERENCES sites(id) ON DELETE RESTRICT,
     role VARCHAR(20) NOT NULL CHECK (role IN ('WATCHER', 'SCIENTIST'))
 );
 ```
@@ -621,7 +621,7 @@ Holds validated, structured physical and chemical sampling datasets. Enforces st
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `record_id` | `UUID` | `PRIMARY KEY` | Linked transaction record ID. |
+| `id` | `UUID` | `PRIMARY KEY` | Linked transaction record ID. |
 | `site_id` | `UUID` | `REFERENCES sites(id)` | Location monitored UUID. |
 | `ph_value` | `NUMERIC(4,2)` | `CHECK (ph_value BETWEEN 2.0 AND 10.0)` | Potential of hydrogen (2.0 - 10.0). |
 | `temp_value` | `NUMERIC(4,1)` | `CHECK (temp_value BETWEEN 5.0 AND 50.0)` | Temperature in °C (5.0 - 50.0). |
@@ -633,7 +633,7 @@ Holds validated, structured physical and chemical sampling datasets. Enforces st
 
 ```sql
 CREATE TABLE sampling_records (
-    record_id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY,
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE RESTRICT,
     ph_value NUMERIC(4,2) NOT NULL CHECK (ph_value BETWEEN 2.0 AND 10.0),
     temp_value NUMERIC(4,1) NOT NULL CHECK (temp_value BETWEEN 5.0 AND 50.0),
@@ -651,7 +651,7 @@ Focus Group Discussion records capturing qualitative indicators to compile Indig
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `fgd_id` | `UUID` | `PRIMARY KEY` | FGD log identifier. |
+| `id` | `UUID` | `PRIMARY KEY` | FGD log identifier. |
 | `wetland_id` | `UUID` | `REFERENCES wetlands(id)` | Target wetland region UUID. |
 | `fish_abundance` | `VARCHAR(15)` | `CHECK (fish_abundance IN ('Same', 'Slight', 'Moderate', 'Severe'))` | Decline status. Encoded to `(Same: 0.0, Slight: 0.3, Moderate: 0.6, Severe: 1.0)`. |
 | `water_clarity` | `VARCHAR(15)` | `CHECK (water_clarity IN ('Same', 'Somewhat Worse', 'Much Worse'))` | Decline status. Encoded to `(Same: 0.0, Somewhat Worse: 0.5, Much Worse: 1.0)`. |
@@ -660,7 +660,7 @@ Focus Group Discussion records capturing qualitative indicators to compile Indig
 
 ```sql
 CREATE TABLE fgd_records (
-    fgd_id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY,
     wetland_id UUID NOT NULL REFERENCES wetlands(id) ON DELETE RESTRICT,
     fish_abundance VARCHAR(15) NOT NULL CHECK (fish_abundance IN ('Same', 'Slight', 'Moderate', 'Severe')),
     water_clarity VARCHAR(15) NOT NULL CHECK (water_clarity IN ('Same', 'Somewhat Worse', 'Much Worse')),
@@ -675,7 +675,7 @@ The ultimate output generated by the fuzzy scoring logic engine.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `score_id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Scoring transaction key. |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Scoring transaction key. |
 | `site_id` | `UUID` | `REFERENCES sites(id)` | Monitored location context UUID. |
 | `wqi_score` | `NUMERIC(3,2)` | `CHECK (wqi_score BETWEEN 0.00 AND 1.00)` | Computed Water Quality Index. |
 | `composite_score` | `NUMERIC(3,2)` | `CHECK (composite_score BETWEEN 0.00 AND 1.00)` | Mean of Physico-chemical, Catchment, Ecological. |
@@ -686,7 +686,7 @@ The ultimate output generated by the fuzzy scoring logic engine.
 
 ```sql
 CREATE TABLE health_scores (
-    score_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     wqi_score NUMERIC(3,2) NOT NULL CHECK (wqi_score BETWEEN 0.00 AND 1.00),
     composite_score NUMERIC(3,2) NOT NULL CHECK (composite_score BETWEEN 0.00 AND 1.00),
