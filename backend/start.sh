@@ -13,6 +13,9 @@ if [ $# -gt 0 ]; then
   exec "$@"
 fi
 
+echo "Running database migrations..."
+alembic upgrade head
+
 if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
   echo "Starting FastAPI backend in PRODUCTION mode..."
   exec uvicorn app.main:app --host 0.0.0.0 --port 8000
