@@ -28,11 +28,11 @@ The database must support this polymorphic anchoring cleanly, while enforcing st
 1. **Citizen Reporter (USSD/WhatsApp)**:
    - Enters pollution incident data.
    - Selects "Mara Basin".
-   - System successfully creates a `datapoint` linked to `basin_id = "MARA"` (with `wetland_id` and `site_id` as NULL).
+   - System successfully creates a `datapoint` linked to a `basin_id` pointing to the Mara Basin UUID (with `wetland_id` and `site_id` as NULL).
 2. **Citizen Scientist (Kobo Ingestion)**:
    - System receives a KoboCollect survey payload.
-   - If `site_id` is missing or null, the system rejects the submission with a validation error.
-   - If valid, the system inserts the `datapoint` with `site_id = "NBD-MARA-001"` (with `basin_id` and `wetland_id` as NULL).
+   - If the site UUID is missing or null, the system rejects the submission with a validation error.
+   - If valid, the system inserts the `datapoint` with `site_id` set to the site's UUID (with `basin_id` and `wetland_id` as NULL).
 
 ---
 

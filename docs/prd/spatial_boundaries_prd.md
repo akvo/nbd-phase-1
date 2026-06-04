@@ -52,7 +52,7 @@ USSD reporting is text-based and cannot access device GPS. We must have a pre-se
 
 | ID | Requirement | User Story | Priority |
 |----|-------------|------------|----------|
-| FR-001 | The system MUST support storing sub-counties with UUID keys, names, parent `basin_id` associations, and PostGIS `GEOMETRY(Point, 4326)` centroids. | US-001 | Must Have |
+| FR-001 | The system MUST support storing sub-counties with UUID keys, names, parent basin UUID associations (`basin_id`), and PostGIS `GEOMETRY(Point, 4326)` centroids. | US-001 | Must Have |
 | FR-002 | The system MUST pre-populate the `spatial_boundaries` table with the official sub-counties for the Mara and Sio-Siteko basins during deployment. | US-002 | Must Have |
 | FR-003 | The system MUST expose a GET `/api/v1/reference/sub-counties` endpoint returning the hierarchical list of sub-counties to populate forms. | US-001 | Must Have |
 
@@ -75,7 +75,7 @@ flowchart TD
     A([User dials shortcode *123#]) --> B[Select Incident Type]
     B --> C[Select Sub-County from Menu]
     C --> D[Backend queries spatial_boundaries table]
-    D --> E[Retrieve Centroid Point & basin_id]
+    D --> E[Retrieve Centroid Point & basin UUID]
     E --> F[Persist Datapoint with geocoded spatial info]
 ```
 

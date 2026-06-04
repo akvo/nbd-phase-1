@@ -478,33 +478,37 @@ The technical "glue" of the platform is a structured hierarchy of identifiers th
 
 | Key | Technical Format | Pipeline Association |
 | :--- | :--- | :--- |
-| **`site_id`** | `NBD-MARA-NNN` | Monthly Sampling, Lab QA, Health Scores |
-| **`wetland_id`** | `MARA` / `SIO` | FGD/IK Records, Sentinel NDVI/Extent |
-| **`basin_id`** | `MARA` / `SIO` | Pollution Reports, CHIRPS Precipitation |
+| **`id` (Site)** | `UUID` | Monthly Sampling, Lab QA, Health Scores |
+| **`id` (Wetland)** | `UUID` | FGD/IK Records, Sentinel NDVI/Extent |
+| **`id` (Basin)** | `UUID` | Pollution Reports, CHIRPS Precipitation |
+| **`code` (Slug)** | `VARCHAR(50)` (e.g. `MARA`, `NBD-MARA-001`) | Natural string keys used in URLs, USSD, and forms |
 
 ### 8.2 Interoperability Mapping
 
 ```mermaid
 erDiagram
     BASIN {
-        string basin_id PK "e.g., MARA, SIO"
+        uuid id PK
+        string code UK "e.g., MARA, SIO"
         string name
     }
     WETLAND {
-        string wetland_id PK "e.g., MARA-LWR, SIO-UPR"
-        string basin_id FK
+        uuid id PK
+        string code UK "e.g., MARA-LWR, SIO-UPR"
+        uuid basin_id FK
         string name
     }
     SITE {
-        string site_id PK "e.g., NBD-MARA-001"
-        string wetland_id FK
+        uuid id PK
+        string code UK "e.g., NBD-MARA-001"
+        uuid wetland_id FK
         string name
         float latitude
         float longitude
     }
     POLLUTION_REPORT {
         int id PK
-        string basin_id FK
+        uuid basin_id FK
         string channel "USSD | WhatsApp"
         string reporter_id
         int incident_type
@@ -512,8 +516,8 @@ erDiagram
         timestamp created_at
     }
     SAMPLING_RECORD {
-        string sampling_id PK
-        string site_id FK
+        uuid record_id PK
+        uuid site_id FK
         float ph
         float temp
         float do
@@ -521,15 +525,15 @@ erDiagram
     }
     LAB_QA_RECORD {
         int id PK
-        string site_id FK
+        uuid site_id FK
         float bod
         float nitrate
         float orthophosphate
         timestamp analysed_at
     }
     FGD_RECORD {
-        int id PK
-        string wetland_id FK
+        uuid fgd_id PK
+        uuid wetland_id FK
         float fish_abundance_change
         float water_clarity_change
         float vegetation_cover_change
@@ -537,7 +541,7 @@ erDiagram
     }
     SATELLITE_MEASUREMENT {
         int id PK
-        string wetland_id FK
+        uuid wetland_id FK
         float ndvi
         float water_extent_km2
         date collection_date
