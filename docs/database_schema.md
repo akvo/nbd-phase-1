@@ -263,6 +263,27 @@ CREATE INDEX idx_sites_geom ON sites USING GIST (geom);
 CREATE INDEX idx_sites_wetland_id ON sites(wetland_id);
 ```
 
+#### `spatial_boundaries`
+Stores the administrative sub-counties and their geographic centroid coordinates for USSD reference mapping.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `name` | `VARCHAR(100)` | `NOT NULL` | Sub-county or district name (e.g., `'Tarime'`). |
+| `basin_id` | `VARCHAR(50)` | `REFERENCES basins(basin_id)` | Parent basin identifier. |
+| `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL` | Spatial point coordinates of the sub-county centroid. |
+
+```sql
+CREATE TABLE spatial_boundaries (
+    id UUID PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    basin_id VARCHAR(50) NOT NULL REFERENCES basins(basin_id) ON DELETE CASCADE,
+    centroid_geom geometry(Point, 4326) NOT NULL
+);
+CREATE INDEX idx_spatial_boundaries_geom ON spatial_boundaries USING GIST (centroid_geom);
+CREATE INDEX idx_spatial_boundaries_basin_id ON spatial_boundaries(basin_id);
+```
+
 #### `management_actions`
 Editorial recommendations displayed on the public portal based on a site's health level.
 

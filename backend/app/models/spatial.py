@@ -1,4 +1,6 @@
+import uuid
 from sqlalchemy import Column, String, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from app.database import Base
@@ -47,3 +49,16 @@ class Site(Base):
     geom = Column(Geometry("POINT", srid=4326), nullable=False)
 
     wetland = relationship("Wetland", back_populates="sites")
+
+
+class SpatialBoundary(Base):
+    __tablename__ = "spatial_boundaries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False)
+    basin_id = Column(
+        String(50),
+        ForeignKey("basins.basin_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    centroid_geom = Column(Geometry("POINT", srid=4326), nullable=False)
