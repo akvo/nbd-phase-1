@@ -2,11 +2,12 @@ from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel, EmailStr
 from app.mail import EmailService
 from app.routers.storage_router import router as storage_router
-
+from app.routers.spatial_router import router as spatial_router
 
 
 app = FastAPI(title="Nbd Pilot API", version="1.0.0")
 app.include_router(storage_router)
+app.include_router(spatial_router)
 
 
 class TestEmailRequest(BaseModel):
