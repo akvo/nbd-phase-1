@@ -69,7 +69,8 @@ def upgrade() -> None:
         unique=True,
     )
 
-    # Add cyclic foreign key constraint to form after form_published_version table exists
+    # Add cyclic foreign key constraint to form after
+    # form_published_version table exists
     op.create_foreign_key(
         "form_active_version_id_fkey",
         "form",
@@ -110,7 +111,30 @@ def upgrade() -> None:
         sa.Column("label", sa.Text(), nullable=False),
         sa.Column("short_label", sa.Text(), nullable=True),
         sa.Column("name", sa.String(length=255), nullable=True),
-        sa.Column("type", sa.Integer(), nullable=False),
+        sa.Column(
+            "type",
+            sa.Enum(
+                "input",
+                "number",
+                "cascade",
+                "text",
+                "date",
+                "option",
+                "multiple_option",
+                "tree",
+                "table",
+                "autofield",
+                "image",
+                "geo",
+                "geotrace",
+                "geoshape",
+                "entity",
+                "signature",
+                "attachment",
+                name="question_type",
+            ),
+            nullable=False,
+        ),
         sa.Column("meta", sa.Boolean(), nullable=False),
         sa.Column("required", sa.Boolean(), nullable=False),
         sa.Column(
@@ -209,4 +233,4 @@ def downgrade() -> None:
     op.drop_table("form_published_version")
     op.drop_index(op.f("ix_form_id"), table_name="form")
     op.drop_table("form")
-    # ### end Alembic commands ###
+    sa.Enum(name="question_type").drop(op.get_bind(), checkfirst=True)

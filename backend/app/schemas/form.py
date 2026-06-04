@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
+from app.models.form import QuestionType
 
 
 class OptionBase(BaseModel):
@@ -27,7 +28,7 @@ class QuestionBase(BaseModel):
     name: Optional[str] = None
     label: str
     short_label: Optional[str] = None
-    type: int
+    type: QuestionType
     required: bool = True
     order: Optional[int] = None
     meta: bool = False

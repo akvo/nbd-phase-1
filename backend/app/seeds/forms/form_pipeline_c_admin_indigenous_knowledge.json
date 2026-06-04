@@ -1,0 +1,70 @@
+{
+  "name": "Indigenous Knowledge Record",
+  "question_group": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "Contextual Metadata",
+      "question": [
+        {
+          "id": "dependent_population",
+          "type": "option",
+          "name": "Dependant Population",
+          "option": [
+            { "name": "500-1000", "value": 1 },
+            { "name": "1000-2000", "value": 2 },
+            { "name": ">2000", "value": 3 }
+          ]
+        },
+        {
+          "id": "wetland_uses",
+          "type": "text",
+          "name": "Different uses of the wetland"
+        },
+        {
+          "id": "major_threats",
+          "type": "text",
+          "name": "Major anthropogenic/natural threats"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "order": 2,
+      "name": "Fuzzy Logic Dimensions",
+      "question": [
+        {
+          "id": "fish_abundance_change",
+          "type": "option",
+          "name": "Fish Abundance Trend",
+          "option": [
+            { "name": "Same or increased", "value": 0.0 },
+            { "name": "Slightly declined", "value": 0.3 },
+            { "name": "Moderately declined", "value": 0.6 },
+            { "name": "Severely declined", "value": 1.0 }
+          ]
+        },
+        {
+          "id": "water_clarity_change",
+          "type": "option",
+          "name": "Water Clarity Trend",
+          "option": [
+            { "name": "Same or clearer", "value": 0.0 },
+            { "name": "Somewhat worse", "value": 0.5 },
+            { "name": "Much worse", "value": 1.0 }
+          ]
+        },
+        {
+          "id": "vegetation_cover_change",
+          "type": "option",
+          "name": "Vegetation Cover Trend",
+          "option": [
+            { "name": "Same or more", "value": 0.0 },
+            { "name": "Partially lost", "value": 0.4 },
+            { "name": "Severely lost", "value": 1.0 }
+          ]
+        }
+      ]
+    }
+  ]
+}

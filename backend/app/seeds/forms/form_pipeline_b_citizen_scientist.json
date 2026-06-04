@@ -1,0 +1,128 @@
+{
+  "name": "Monthly Wetland Sampling",
+  "question_group": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "Site Details",
+      "question": [
+        {
+          "id": "sampling_id",
+          "order": 1,
+          "type": "input",
+          "name": "Sampling ID",
+          "required": true
+        },
+        {
+          "id": "site_photo",
+          "order": 2,
+          "type": "image",
+          "name": "Site Photo"
+        },
+        {
+          "id": "location",
+          "order": 3,
+          "type": "geo",
+          "name": "GPS Reading",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "order": 2,
+      "name": "Water Quality",
+      "question": [
+        {
+          "id": "ph",
+          "order": 1,
+          "type": "number",
+          "name": "pH Level",
+          "rule": { "min": 2, "max": 10, "allowDecimal": true }
+        },
+        {
+          "id": "temp",
+          "order": 2,
+          "type": "number",
+          "name": "Water Temperature (°C)",
+          "rule": { "min": 5, "max": 50, "allowDecimal": true }
+        },
+        {
+          "id": "do",
+          "order": 3,
+          "type": "number",
+          "name": "Dissolved Oxygen (mg/L)",
+          "rule": { "min": 0.5, "max": 35, "allowDecimal": true }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "order": 3,
+      "name": "Catchment",
+      "question": [
+        {
+          "id": "crops",
+          "order": 1,
+          "type": "text",
+          "name": "Crops grown in catchment"
+        },
+        {
+          "id": "plants",
+          "order": 2,
+          "type": "text",
+          "name": "Plant species in catchment"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "order": 4,
+      "name": "Ecological",
+      "question": [
+        {
+          "id": "invasive_percent",
+          "order": 1,
+          "type": "number",
+          "name": "% Invasive Macrophytes"
+        },
+        {
+          "id": "target_species",
+          "order": 2,
+          "type": "input",
+          "name": "Main fish species (X)"
+        },
+        {
+          "id": "total_catch",
+          "order": 3,
+          "type": "number",
+          "name": "Total species caught (Y)"
+        },
+        {
+          "id": "fishing_effort",
+          "order": 4,
+          "type": "number",
+          "name": "Active fishing hours"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "order": 5,
+      "name": "Hydrological",
+      "question": [
+        {
+          "id": "water_level",
+          "order": 1,
+          "type": "option",
+          "name": "Water Level",
+          "option": [
+            { "name": "High", "value": "high" },
+            { "name": "Medium", "value": "medium" },
+            { "name": "Low", "value": "low" }
+          ]
+        }
+      ]
+    }
+  ]
+}

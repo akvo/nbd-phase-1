@@ -1,0 +1,40 @@
+{
+  "name": "External Satellite & Climate Data",
+  "question_group": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "Sentinel-2 NDVI",
+      "question": [
+        {
+          "id": "ndvi",
+          "order": 1,
+          "type": "number",
+          "name": "NDVI",
+          "rule": { "min": -1, "max": 1, "allowDecimal": true }
+        },
+        {
+          "id": "water_extent_km2",
+          "order": 2,
+          "type": "number",
+          "name": "Water Extent (km2)",
+          "rule": { "min": 0, "allowDecimal": true }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "order": 2,
+      "name": "CHIRPS Precipitation",
+      "question": [
+        {
+          "id": "precipitation_mm",
+          "order": 1,
+          "type": "number",
+          "name": "Precipitation (mm)",
+          "rule": { "min": 0, "allowDecimal": true }
+        }
+      ]
+    }
+  ]
+}

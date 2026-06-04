@@ -56,7 +56,7 @@ def test_create_submission_success():
             "question_group_id": group_id,
             "name": "ph",
             "label": "pH Level",
-            "type": 2,
+            "type": "number",
         },
     )
     assert q1_resp.status_code == 201
@@ -69,7 +69,7 @@ def test_create_submission_success():
             "question_group_id": group_id,
             "name": "notes",
             "label": "Notes",
-            "type": 1,
+            "type": "text",
         },
     )
     assert q2_resp.status_code == 201

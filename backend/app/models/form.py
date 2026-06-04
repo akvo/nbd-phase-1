@@ -1,4 +1,5 @@
 import uuid
+import enum
 from datetime import datetime
 from sqlalchemy import (
     Column,
@@ -10,10 +11,31 @@ from sqlalchemy import (
     BigInteger,
     Text,
     Index,
+    Enum as SQLEnum,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
+
+
+class QuestionType(str, enum.Enum):
+    input = "input"
+    number = "number"
+    cascade = "cascade"
+    text = "text"
+    date = "date"
+    option = "option"
+    multiple_option = "multiple_option"
+    tree = "tree"
+    table = "table"
+    autofield = "autofield"
+    image = "image"
+    geo = "geo"
+    geotrace = "geotrace"
+    geoshape = "geoshape"
+    entity = "entity"
+    signature = "signature"
+    attachment = "attachment"
 
 
 class Form(Base):
@@ -128,7 +150,7 @@ class Question(Base):
     label = Column(Text, nullable=False)
     short_label = Column(Text, nullable=True)
     name = Column(String(255), nullable=True)
-    type = Column(Integer, nullable=False)
+    type = Column(SQLEnum(QuestionType, name="question_type"), nullable=False)
     meta = Column(Boolean, default=False, nullable=False)
     required = Column(Boolean, default=True, nullable=False)
     rule = Column(JSONB, nullable=True)

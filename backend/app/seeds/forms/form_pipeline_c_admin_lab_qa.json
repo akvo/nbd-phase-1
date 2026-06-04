@@ -1,0 +1,53 @@
+{
+  "name": "Lab QA Report",
+  "question_group": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "Chemical & Nutrient Analysis",
+      "question": [
+        {
+          "id": "bod",
+          "type": "number",
+          "name": "Biochemical Oxygen Demand (BOD)",
+          "rule": { "allowDecimal": true }
+        },
+        {
+          "id": "orthophosphate",
+          "type": "number",
+          "name": "Orthophosphate",
+          "rule": { "allowDecimal": true }
+        },
+        {
+          "id": "nitrate",
+          "type": "number",
+          "name": "Nitrate",
+          "rule": { "allowDecimal": true }
+        },
+        {
+          "id": "mercury",
+          "type": "number",
+          "name": "Mercury",
+          "rule": { "allowDecimal": true }
+        },
+        {
+          "id": "heavy_metals",
+          "type": "text",
+          "name": "Heavy Metals (Description/PPM)"
+        },
+        {
+          "id": "total_nitrogen",
+          "type": "number",
+          "name": "Total Nitrogen (N)",
+          "rule": { "allowDecimal": true }
+        },
+        {
+          "id": "total_phosphorus",
+          "type": "number",
+          "name": "Total Phosphorus (P)",
+          "rule": { "allowDecimal": true }
+        }
+      ]
+    }
+  ]
+}

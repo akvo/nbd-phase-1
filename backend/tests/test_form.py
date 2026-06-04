@@ -50,7 +50,7 @@ def test_create_full_blueprint_hierarchy():
         "name": "ph_level",
         "label": "pH Level",
         "order": 1,
-        "type": 2,  # e.g., number type
+        "type": "number",  # e.g., number type
         "required": True,
         "validation_min": 2.0,
         "validation_max": 10.0,
@@ -85,7 +85,7 @@ def test_soft_deletion_and_conditional_uniqueness():
     assert g1_res.status_code == 201
     g1_id = g1_res.json()["id"]
 
-    # Try creating duplicate active Group with same name under same Form -> Fail
+    # Try creating duplicate active Group with same name under Form -> Fail
     g2_res = client.post(
         "/api/v1/question-groups",
         json={"form_id": form_id, "name": "bio_indicators"},
@@ -96,7 +96,7 @@ def test_soft_deletion_and_conditional_uniqueness():
     del_res = client.delete(f"/api/v1/question-groups/{g1_id}")
     assert del_res.status_code == 200
 
-    # Try recreating Group with same name now that Group 1 is deleted -> Succeed
+    # Try recreating Group now that Group 1 is deleted -> Succeed
     g3_res = client.post(
         "/api/v1/question-groups",
         json={"form_id": form_id, "name": "bio_indicators"},
@@ -123,7 +123,7 @@ def test_publish_form_snapshot():
             "question_group_id": g_id,
             "name": "q1",
             "label": "Question 1",
-            "type": 1,
+            "type": "text",
         },
     )
 
