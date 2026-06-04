@@ -91,6 +91,41 @@ Personally Identifiable Information (PII), specifically reporter phone numbers, 
 }
 ```
 
+### 3.2.1 GET /api/v1/basins/{basin_id}
+* **Objective**: Returns the name and MultiPolygon geometry of a specific basin.
+* **Path Parameters**:
+  * `basin_id` (Required): String identifier (e.g., `MARA`).
+
+#### Response Payload Example
+```json
+{
+  "basin_id": "MARA",
+  "name": "Mara Basin",
+  "geom": {
+    "type": "MultiPolygon",
+    "coordinates": [[[[34.5, -1.5], [34.6, -1.5], [34.6, -1.4], [34.5, -1.4], [34.5, -1.5]]]]
+  }
+}
+```
+
+### 3.2.2 GET /api/v1/wetlands/{wetland_id}
+* **Objective**: Returns the name, parent basin_id, and Polygon geometry of a specific wetland.
+* **Path Parameters**:
+  * `wetland_id` (Required): String identifier (e.g., `MARA-WETLAND-01`).
+
+#### Response Payload Example
+```json
+{
+  "wetland_id": "MARA-WETLAND-01",
+  "basin_id": "MARA",
+  "name": "Mara Floodplain",
+  "geom": {
+    "type": "Polygon",
+    "coordinates": [[[34.5, -1.5], [34.6, -1.5], [34.6, -1.4], [34.5, -1.4], [34.5, -1.5]]]
+  }
+}
+```
+
 ### 3.3 GET /api/v1/sites/{site_id}/scores
 * **Objective**: Returns historical health scores, group means, and specific Water Quality Index (WQI) sub-metrics for ECharts trend visualisation.
 * **Query Parameters**:
@@ -315,6 +350,35 @@ All citizen submissions enter as `Pending`. Approving a record triggers the auto
       "metadata": {
         "description": "Rocky gorge area.",
         "active": true
+      }
+    }
+    ```
+* **POST /api/v1/basins**
+  - Create new hydrological basins with GeoJSON MultiPolygon coordinates.
+  - **Role Requirement**: `Admin`.
+  - **Payload Schema**:
+    ```json
+    {
+      "basin_id": "MARA",
+      "name": "Mara Basin",
+      "geom": {
+        "type": "MultiPolygon",
+        "coordinates": [[[[34.5, -1.5], [34.6, -1.5], [34.6, -1.4], [34.5, -1.4], [34.5, -1.5]]]]
+      }
+    }
+    ```
+* **POST /api/v1/wetlands**
+  - Create new wetlands linked to a parent basin with GeoJSON Polygon coordinates.
+  - **Role Requirement**: `Admin`.
+  - **Payload Schema**:
+    ```json
+    {
+      "wetland_id": "MARA-WETLAND-01",
+      "basin_id": "MARA",
+      "name": "Mara Floodplain",
+      "geom": {
+        "type": "Polygon",
+        "coordinates": [[[34.5, -1.5], [34.6, -1.5], [34.6, -1.4], [34.5, -1.4], [34.5, -1.5]]]
       }
     }
     ```
