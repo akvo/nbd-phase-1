@@ -431,11 +431,130 @@ Provides temporary access credentials for reading and uploading file assets to t
   }
   ```
 
-### 5.4 Audit Logging Mandate
+### 5.4 Dead-Letter Queue Endpoints
+Enables administrators and background sync tasks to log, retrieve, and update the status of failed or unprocessable submissions.
+* **Role Requirement**: `Reviewer` or `Admin`.
+
+#### POST /api/v1/dead-letters
+* **Objective**: Logs an unprocessable webhook or sync payload into the quarantine queue.
+* **Payload Schema**:
+  ```json
+  {
+    "source_system": "KoboToolbox",
+    "raw_payload": { "form_id": 123, "data": "bad" },
+    "error_reason": "Missing required field: pH",
+    "status": "Pending Triage"
+  }
+  ```
+* **Response Payload Example (201 Created)**:
+  ```json
+  {
+    "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
+    "source_system": "KoboToolbox",
+    "raw_payload": { "form_id": 123, "data": "bad" },
+    "error_reason": "Missing required field: pH",
+    "status": "Pending Triage",
+    "created_at": "2026-06-04T05:39:38Z"
+  }
+  ```
+
+#### GET /api/v1/dead-letters
+* **Objective**: Lists all dead letters. Supports filtering by status or source system.
+* **Query Parameters**:
+  * `status` (Optional): Filter by status (`Pending Triage`, `Resolved`, `Discarded`).
+  * `source_system` (Optional): Filter by source system (e.g. `KoboToolbox`).
+* **Response Payload Example (200 OK)**:
+  ```json
+  [
+    {
+      "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
+      "source_system": "KoboToolbox",
+      "raw_payload": { "form_id": 123, "data": "bad" },
+      "error_reason": "Missing required field: pH",
+      "status": "Pending Triage",
+      "created_at": "2026-06-04T05:39:38Z"
+    }
+  ]
+  ```
+
+#### GET /api/v1/dead-letters/{id}
+* **Objective**: Retrieves details for a specific dead letter by ID.
+* **Response Payload Example (200 OK)**
+
+#### PUT /api/v1/dead-letters/{id}
+* **Objective**: Updates the triage status of a dead letter.
+* **Payload Schema**:
+  ```json
+  {
+    "status": "Resolved"
+  }
+  ```
+* **Response Payload Example (200 OK)**
+
+### 5.5 Audit Logging Mandate
 All state-mutating requests (`POST`, `PUT`, `DELETE`) are logged.
 * **Actor ID**: Must record the OIDC Subject (`sub`) claim.
 * **Response**: Successful mutations return `200 OK` or `204 No Content` including a unique `audit_id` in the response body or headers.
 
+#### 5.5.1 POST /api/v1/audit-logs
+* **Objective**: Manually create an audit log record (compliance ledger entry).
+* **Request Payload Example**:
+```json
+{
+  "actor_id": "8f4a1918-7b72-4ea1-b9d1-37472ffb575e",
+  "action": "APPROVE",
+  "entity_type": "Datapoint",
+  "entity_id": "123"
+}
+```
+* **Response Payload Example (201 Created)**:
+```json
+{
+  "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
+  "actor_id": "8f4a1918-7b72-4ea1-b9d1-37472ffb575e",
+  "action": "APPROVE",
+  "entity_type": "Datapoint",
+  "entity_id": "123",
+  "timestamp": "2026-06-04T13:51:35Z"
+}
+```
+
+#### 5.5.2 GET /api/v1/audit-logs
+* **Objective**: Query and filter the audit log entries.
+* **Query Parameters**:
+  * `actor_id` (Optional): Filter by actor UUID.
+  * `action` (Optional): Filter by action keyword.
+  * `entity_type` (Optional): Filter by entity type.
+  * `entity_id` (Optional): Filter by entity ID.
+* **Response Payload Example (200 OK)**:
+```json
+[
+  {
+    "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
+    "actor_id": "8f4a1918-7b72-4ea1-b9d1-37472ffb575e",
+    "action": "APPROVE",
+    "entity_type": "Datapoint",
+    "entity_id": "123",
+    "timestamp": "2026-06-04T13:51:35Z"
+  }
+]
+```
+
+#### 5.5.3 GET /api/v1/audit-logs/{id}
+* **Objective**: Retrieve a single audit log entry by its UUID.
+* **Path Parameters**:
+  * `id` (Required): The UUID of the audit log entry.
+* **Response Payload Example (200 OK)**:
+```json
+{
+  "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
+  "actor_id": "8f4a1918-7b72-4ea1-b9d1-37472ffb575e",
+  "action": "APPROVE",
+  "entity_type": "Datapoint",
+  "entity_id": "123",
+  "timestamp": "2026-06-04T13:51:35Z"
+}
+```
 
 ---
 

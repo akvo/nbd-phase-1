@@ -6,6 +6,8 @@ from app.routers.spatial_router import router as spatial_router
 from app.routers.form_router import router as form_router
 from app.routers.user_router import router as user_router
 from app.routers.submission_router import router as submission_router
+from app.routers.dead_letter_router import router as dead_letter_router
+from app.routers.audit_log_router import router as audit_log_router
 
 
 app = FastAPI(title="Nbd Pilot API", version="1.0.0")
@@ -14,6 +16,8 @@ app.include_router(spatial_router)
 app.include_router(form_router)
 app.include_router(user_router)
 app.include_router(submission_router)
+app.include_router(dead_letter_router)
+app.include_router(audit_log_router)
 
 
 class TestEmailRequest(BaseModel):

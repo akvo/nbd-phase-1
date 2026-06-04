@@ -661,6 +661,68 @@ CREATE TABLE health_scores (
     calculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_health_scores_site ON health_scores(site_id, calculated_at DESC);
+
+#### `dead_letters`
+Stores unprocessable submissions and failed webhook payloads for quarantine and triage.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `source_system` | `VARCHAR(50)` | `NOT NULL` | Source system (e.g. `'KoboToolbox'`). |
+| `raw_payload` | `JSONB` | `NOT NULL` | The raw JSON payload that failed processing. |
+| `error_reason` | `TEXT` | `NOT NULL` | The validation error reason or exception message. |
+| `status` | `VARCHAR(20)` | `NOT NULL`, `DEFAULT 'Pending Triage'` | Quarantine status: `'Pending Triage'`, `'Resolved'`, `'Discarded'`. |
+| `created_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT now()` | Ingestion timestamp. |
+
+```sql
+CREATE TABLE dead_letters (
+    id UUID PRIMARY KEY,
+    source_system VARCHAR(50) NOT NULL,
+    raw_payload JSONB NOT NULL,
+    error_reason TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending Triage',
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_dead_letters_status_source ON dead_letters (status, source_system);
+```
+
+#### `audit_logs`
+Records compliance ledger events tracking administrative and data-moderation actions taken by NBD staff.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY` | Unique transaction ID. |
+| `actor_id` | `UUID` | `NOT NULL`, `FOREIGN KEY` references `users(id)` ON DELETE RESTRICT | The administrator or reviewer account who triggered the change. |
+| `action` | `VARCHAR(30)` | `NOT NULL` | Action type (e.g. `'APPROVE'`, `'REJECT'`, `'EDIT'`, `'DELETE'`, `'INVITE_USER'`). |
+| `entity_type` | `VARCHAR(50)` | `NOT NULL` | Target resource type (e.g. `'Site'`, `'Datapoint'`). |
+| `entity_id` | `VARCHAR(100)` | `NOT NULL` | The unique ID of the target resource. |
+| `timestamp` | `TIMESTAMP` | `NOT NULL`, `DEFAULT now()` | Automated timestamp when the event was recorded. |
+
+```sql
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY,
+    actor_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    action VARCHAR(30) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id VARCHAR(100) NOT NULL,
+    timestamp TIMESTAMP NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_audit_logs_entity ON audit_logs (entity_type, entity_id);
+```
+
+To enforce the append-only guarantee, a custom database trigger function blocks any `UPDATE` or `DELETE` statements on this table:
+
+```sql
+CREATE OR REPLACE FUNCTION block_audit_log_mutation()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'Audit logs are immutable and cannot be updated or deleted.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER audit_logs_immutable_trigger
+BEFORE UPDATE OR DELETE ON audit_logs
+FOR EACH ROW EXECUTE FUNCTION block_audit_log_mutation();
 ```
 
 ---
