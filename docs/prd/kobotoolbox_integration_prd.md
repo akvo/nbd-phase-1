@@ -2,7 +2,7 @@
 
 > **Stage 2 of 3 — Documentation Hierarchy**
 > Owner: PM + DevOps Lead | Target Location: `docs/prd/kobotoolbox_integration_prd.md` | References: `docs/product_brief.md`
-> Status: `Draft`
+> Status: `Approved`
 > Sign-off: Engineering Lead: _[Name, Date]_ | Design Lead: _[Name, Date]_
 
 ---
