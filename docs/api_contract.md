@@ -335,10 +335,43 @@ All citizen submissions enter as `Pending`. Approving a record triggers the auto
     }
     ```
 
-### 5.3 Audit Logging Mandate
+### 5.3 Cloud Storage Endpoints
+Provides temporary access credentials for reading and uploading file assets to the secure cloud storage bucket.
+* **Role Requirement**: `Reviewer` or `Admin`.
+
+#### POST /api/v1/storage/presigned-upload
+* **Objective**: Generate a signed GCS upload URL so that client-side uploads can be performed directly to the bucket.
+* **Payload Schema**:
+  ```json
+  {
+    "file_name": "survey_photo_123.jpg",
+    "content_type": "image/jpeg"
+  }
+  ```
+* **Response Payload Example (200 OK)**:
+  ```json
+  {
+    "upload_url": "https://storage.googleapis.com/nbd-storage/survey_photo_123.jpg?GoogleAccessId=...",
+    "blob_name": "survey_photo_123.jpg"
+  }
+  ```
+
+#### GET /api/v1/storage/presigned-read
+* **Objective**: Generate a temporary signed read URL to view or download a private file.
+* **Query Parameters**:
+  * `blob_name` (Required): String identifier of the target file.
+* **Response Payload Example (200 OK)**:
+  ```json
+  {
+    "read_url": "https://storage.googleapis.com/nbd-storage/survey_photo_123.jpg?GoogleAccessId=..."
+  }
+  ```
+
+### 5.4 Audit Logging Mandate
 All state-mutating requests (`POST`, `PUT`, `DELETE`) are logged.
 * **Actor ID**: Must record the OIDC Subject (`sub`) claim.
 * **Response**: Successful mutations return `200 OK` or `204 No Content` including a unique `audit_id` in the response body or headers.
+
 
 ---
 

@@ -61,6 +61,8 @@ If integration with Google Cloud Storage is required for local development:
 1. Create a `credentials/` folder in the root directory: `mkdir -p credentials` (this folder is ignored by git).
 2. Place your GCP Service Account JSON key inside it (e.g. `credentials/nbd-service-account.json`).
 3. Set the `GOOGLE_APPLICATION_CREDENTIALS` path in `.env` to point to `/credentials/your-key-name.json`.
+4. Set the `GCS_BUCKET_NAME` variable in `.env` to your GCS bucket name (e.g. `nbd-storage`).
+
 
 ### 🏃 Running Locally
 
