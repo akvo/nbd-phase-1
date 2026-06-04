@@ -119,3 +119,45 @@ def test_api_presigned_read(mock_service_class):
     assert response.status_code == 200
     assert response.json() == {"read_url": "https://signed-read-url"}
 
+
+@patch("app.routers.storage_router.StorageService")
+def test_api_upload_service_value_error(mock_service_class):
+    mock_service_class.side_effect = ValueError("GCS_BUCKET_NAME is not set")
+    payload = {"file_name": "photo.jpg", "content_type": "image/jpeg"}
+    response = client.post("/api/v1/storage/presigned-upload", json=payload)
+    assert response.status_code == 500
+    assert "GCS_BUCKET_NAME" in response.json()["detail"]
+
+
+@patch("app.routers.storage_router.StorageService")
+def test_api_upload_service_general_error(mock_service_class):
+    mock_service_class.side_effect = Exception("Initialization failed")
+    payload = {"file_name": "photo.jpg", "content_type": "image/jpeg"}
+    response = client.post("/api/v1/storage/presigned-upload", json=payload)
+    assert response.status_code == 500
+    assert "Storage configuration error" in response.json()["detail"]
+
+
+@patch("app.routers.storage_router.StorageService")
+def test_api_upload_generation_error(mock_service_class):
+    mock_service = MagicMock()
+    mock_service_class.return_value = mock_service
+    mock_service.generate_upload_signed_url.side_effect = Exception(
+        "Upload signing failed"
+    )
+    payload = {"file_name": "photo.jpg", "content_type": "image/jpeg"}
+    response = client.post("/api/v1/storage/presigned-upload", json=payload)
+    assert response.status_code == 500
+    assert "Failed to generate upload URL" in response.json()["detail"]
+
+
+@patch("app.routers.storage_router.StorageService")
+def test_api_read_generation_error(mock_service_class):
+    mock_service = MagicMock()
+    mock_service_class.return_value = mock_service
+    mock_service.generate_read_signed_url.side_effect = Exception(
+        "Read signing failed"
+    )
+    response = client.get("/api/v1/storage/presigned-read?blob_name=photo.jpg")
+    assert response.status_code == 500
+    assert "Failed to generate read URL" in response.json()["detail"]

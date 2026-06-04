@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -49,3 +48,16 @@ def test_send_test_email_invalid_email():
     }
     response = client.post("/api/v1/test/email", json=payload)
     assert response.status_code == 422
+
+
+def test_get_db_directly():
+    from app.database import get_db
+
+    generator = get_db()
+    db = next(generator)
+    assert db is not None
+    # Clean closure
+    try:
+        next(generator)
+    except StopIteration:
+        pass
