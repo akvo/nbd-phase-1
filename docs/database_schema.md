@@ -537,9 +537,9 @@ Individual instances of a submitted form, anchored to exactly one level of the g
 | `form_id` | `INTEGER` | `REFERENCES form(id) ON DELETE RESTRICT` | Form being answered. |
 | `published_version_id` | `INTEGER` | `REFERENCES form_published_version(id) ON DELETE SET NULL` | Layout snapshot used. |
 | `name` | `TEXT` | `NULL` | Optional name of observation. |
-| `basin_id` | `VARCHAR(50)` | `REFERENCES basins(basin_id) ON DELETE SET NULL` | Geographically anchored basin. |
-| `wetland_id` | `VARCHAR(50)` | `REFERENCES wetlands(wetland_id) ON DELETE SET NULL` | Geographically anchored wetland. |
-| `site_id` | `VARCHAR(50)` | `REFERENCES sites(site_id) ON DELETE SET NULL` | Geographically anchored monitoring site. |
+| `basin_id` | `UUID` | `REFERENCES basins(id) ON DELETE SET NULL` | Geographically anchored basin. |
+| `wetland_id` | `UUID` | `REFERENCES wetlands(id) ON DELETE SET NULL` | Geographically anchored wetland. |
+| `site_id` | `UUID` | `REFERENCES sites(id) ON DELETE SET NULL` | Geographically anchored monitoring site. |
 | `geo` | `JSONB` | `NULL` | Optional direct coordinate JSON. |
 | `created_by_id` | `UUID` | `REFERENCES users(id) ON DELETE SET NULL` | Submitter user profile. |
 | `created_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | Timestamp of submission. |
@@ -555,9 +555,9 @@ CREATE TABLE datapoint (
     form_id INTEGER NOT NULL REFERENCES form(id) ON DELETE RESTRICT,
     published_version_id INTEGER REFERENCES form_published_version(id) ON DELETE SET NULL,
     name TEXT,
-    basin_id VARCHAR(50) REFERENCES basins(basin_id) ON DELETE SET NULL,
-    wetland_id VARCHAR(50) REFERENCES wetlands(wetland_id) ON DELETE SET NULL,
-    site_id VARCHAR(50) REFERENCES sites(site_id) ON DELETE SET NULL,
+    basin_id UUID REFERENCES basins(id) ON DELETE SET NULL,
+    wetland_id UUID REFERENCES wetlands(id) ON DELETE SET NULL,
+    site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
     geo JSONB,
     created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
