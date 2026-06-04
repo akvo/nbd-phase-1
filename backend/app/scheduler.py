@@ -1,6 +1,7 @@
 import logging
 import time
 from apscheduler.schedulers.blocking import BlockingScheduler
+from app.services.kobo import KoboService
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -10,9 +11,17 @@ logger = logging.getLogger(__name__)
 
 def hourly_kobotoolbox_pull():
     logger.info("Executing hourly KoboToolbox data pull...")
-    # Placeholder logic for pulling KoboToolbox records
-    time.sleep(2)
-    logger.info("KoboToolbox pull completed successfully.")
+    service = KoboService()
+    try:
+        forms = service.get_forms()
+        logger.info(f"Retrieved {len(forms)} active forms from KoboToolbox.")
+        for form in forms:
+            uid = form.get("uid")
+            name = form.get("name")
+            logger.info(f"Asset ID: {uid} - Name: {name}")
+    except Exception as e:
+        logger.error(f"Error pulling data from KoboToolbox: {str(e)}")
+    logger.info("KoboToolbox pull completed.")
 
 
 def monthly_gee_ingest():
