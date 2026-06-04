@@ -22,20 +22,20 @@ The database is built on **PostgreSQL 15+** with the **PostGIS 3.x** extension. 
 ```mermaid
 erDiagram
     %% Layer A: Spatial & Domain Reference
-    BASINS ||--o{ WETLANDS : "contains"
-    WETLANDS ||--o{ SITES : "contains"
-    SITES ||--o{ MANAGEMENT_ACTIONS : "triggers"
+    basins ||--o{ wetlands : "contains"
+    wetlands ||--o{ sites : "contains"
+    sites ||--o{ management_actions : "triggers"
 
     %% Layer B: Identity, Access & Privacy
-    SITES ||--o{ CITIZENS : "home location for"
-    USERS {
-        uuid user_id PK
+    sites ||--o{ citizens : "home location for"
+    users {
+        uuid id PK
         varchar email UK
         varchar role "ADMIN | REVIEWER"
-        varchar organisation
+        varchar organization
     }
 
-    CITIZENS {
+    citizens {
         uuid citizen_id PK
         varchar phone_number "PII (Restricted)"
         uuid home_site_id FK
@@ -43,27 +43,27 @@ erDiagram
     }
 
     %% Layer C: Dynamic Form Engine
-    FORM ||--o{ QUESTION_GROUP : "defines"
-    QUESTION_GROUP ||--o{ QUESTION : "contains"
-    QUESTION ||--o{ OPTION : "has choices"
-    FORM ||--o{ FORM_PUBLISHED_VERSION : "versions"
-    FORM ||--o{ DATAPOINTS : "instantiates"
-    DATAPOINTS ||--o{ ANSWERS : "contains"
-    QUESTION ||--o{ ANSWERS : "answered by"
+    form ||--o{ question_group : "defines"
+    question_group ||--o{ question : "contains"
+    question ||--o{ option : "has choices"
+    form ||--o{ form_published_version : "versions"
+    form ||--o{ datapoint : "instantiates"
+    datapoint ||--o{ answer : "contains"
+    question ||--o{ answer : "answered by"
 
     %% Layer D: Ingestion, Triage & Outputs
-    SITES ||--o{ SAMPLING_RECORDS : "monitored at"
-    WETLANDS ||--o{ FGD_RECORDS : "assessed at"
-    SITES ||--o{ HEALTH_SCORES : "evaluated at"
+    sites ||--o{ sampling_records : "monitored at"
+    wetlands ||--o{ fgd_records : "assessed at"
+    sites ||--o{ health_scores : "evaluated at"
 
-    BASINS {
+    basins {
         uuid id PK
         varchar code "Unique Slug, e.g., 'MARA'"
         geometry geom "Polygon/Multipolygon (PostGIS)"
         varchar name "Basin Name"
     }
 
-    WETLANDS {
+    wetlands {
         uuid id PK
         varchar code "Unique Slug, e.g., 'MARA-WETLAND-01'"
         uuid basin_id FK
@@ -71,7 +71,7 @@ erDiagram
         varchar name "Wetland Name"
     }
 
-    SITES {
+    sites {
         uuid id PK
         varchar code "Unique Slug, e.g., 'NBD-MARA-001'"
         uuid wetland_id FK
@@ -79,7 +79,7 @@ erDiagram
         varchar name "Site Name"
     }
 
-    MANAGEMENT_ACTIONS {
+    management_actions {
         uuid action_id PK
         uuid site_id FK
         varchar status_color "GREEN | YELLOW | RED"
@@ -87,7 +87,7 @@ erDiagram
         text description_text
     }
 
-    FORM {
+    form {
         integer id PK
         varchar name
         integer version
@@ -100,7 +100,7 @@ erDiagram
         integer active_version_id FK
     }
 
-    QUESTION_GROUP {
+    question_group {
         integer id PK
         integer form_id FK
         varchar name
@@ -111,7 +111,7 @@ erDiagram
         timestamp deleted_at
     }
 
-    QUESTION {
+    question {
         integer id PK
         integer form_id FK
         integer question_group_id FK
@@ -134,7 +134,7 @@ erDiagram
         timestamp deleted_at
     }
 
-    OPTION {
+    option {
         integer id PK
         integer question_id FK
         bigint order
@@ -144,7 +144,7 @@ erDiagram
         varchar color
     }
 
-    FORM_PUBLISHED_VERSION {
+    form_published_version {
         integer id PK
         integer form_id FK
         integer version
@@ -153,21 +153,26 @@ erDiagram
         uuid published_by_id FK
     }
 
-    DATAPOINTS {
-        uuid datapoint_id PK
+    datapoint {
+        integer id PK
+        uuid uuid UK
         integer form_id FK
+        integer published_version_id FK
         varchar status "PENDING | APPROVED | REJECTED"
         timestamp created_at
     }
 
-    ANSWERS {
-        serial answer_id PK
-        uuid datapoint_id FK
-        varchar question_id FK
-        jsonb value "Typed response"
+    answer {
+        integer id PK
+        integer datapoint_id FK
+        integer question_id FK
+        text name
+        double_precision value
+        jsonb options
+        integer index
     }
 
-    SAMPLING_RECORDS {
+    sampling_records {
         uuid record_id PK
         uuid site_id FK
         numeric ph_value "CHECK (2.0 - 10.0)"
@@ -179,7 +184,7 @@ erDiagram
         timestamp sampled_at
     }
 
-    FGD_RECORDS {
+    fgd_records {
         uuid fgd_id PK
         uuid wetland_id FK
         varchar fish_abundance "0.0 | 0.3 | 0.6 | 1.0"
@@ -188,7 +193,7 @@ erDiagram
         timestamp conducted_at
     }
 
-    HEALTH_SCORES {
+    health_scores {
         uuid score_id PK
         uuid site_id FK
         numeric wqi_score "0.0 - 1.0"
