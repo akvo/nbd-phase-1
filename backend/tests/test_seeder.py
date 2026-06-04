@@ -167,21 +167,21 @@ def test_seed_spatial_success(db_session: Session):
     # 2. Assert Basins created
     basins = db_session.query(Basin).all()
     assert len(basins) == 2
-    basin_ids = [b.basin_id for b in basins]
+    basin_ids = [b.code for b in basins]
     assert "MARA" in basin_ids
     assert "SIO_SITEKO" in basin_ids
 
     # 3. Assert Wetlands created
     wetlands = db_session.query(Wetland).all()
     assert len(wetlands) == 2
-    wetland_ids = [w.wetland_id for w in wetlands]
+    wetland_ids = [w.code for w in wetlands]
     assert "LOWER_MARA_WETLAND" in wetland_ids
     assert "SIO_ESTUARY_WETLAND" in wetland_ids
 
     # 4. Assert Sites created
     sites = db_session.query(Site).all()
     assert len(sites) == 4
-    site_ids = [s.site_id for s in sites]
+    site_ids = [s.code for s in sites]
     assert "NBD-MARA-001" in site_ids
     assert "NBD-SIO-001" in site_ids
 
@@ -189,9 +189,11 @@ def test_seed_spatial_success(db_session: Session):
     sub_counties = db_session.query(SpatialBoundary).all()
     assert len(sub_counties) == 9
 
-    mara_sub_counties = [s.name for s in sub_counties if s.basin_id == "MARA"]
+    mara_sub_counties = [
+        s.name for s in sub_counties if s.basin.code == "MARA"
+    ]
     sio_sub_counties = [
-        s.name for s in sub_counties if s.basin_id == "SIO_SITEKO"
+        s.name for s in sub_counties if s.basin.code == "SIO_SITEKO"
     ]
 
     assert sorted(mara_sub_counties) == sorted(

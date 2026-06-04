@@ -57,28 +57,31 @@ erDiagram
     SITES ||--o{ HEALTH_SCORES : "evaluated at"
 
     BASINS {
-        varchar basin_id PK "e.g., 'MARA'"
+        uuid id PK
+        varchar basin_id "Unique Slug, e.g., 'MARA'"
         geometry geom "Polygon/Multipolygon (PostGIS)"
         varchar name "Basin Name"
     }
 
     WETLANDS {
-        varchar wetland_id PK "e.g., 'MARA-WETLAND-01'"
-        varchar basin_id FK
+        uuid id PK
+        varchar wetland_id "Unique Slug, e.g., 'MARA-WETLAND-01'"
+        uuid basin_id FK
         geometry geom "Polygon/Multipolygon (PostGIS)"
         varchar name "Wetland Name"
     }
 
     SITES {
-        varchar site_id PK "e.g., 'NBD-MARA-001'"
-        varchar wetland_id FK
+        uuid id PK
+        varchar site_id "Unique Slug, e.g., 'NBD-MARA-001'"
+        uuid wetland_id FK
         geometry geom "Point (PostGIS)"
         varchar name "Site Name"
     }
 
     MANAGEMENT_ACTIONS {
         uuid action_id PK
-        varchar site_id FK
+        uuid site_id FK
         varchar status_color "GREEN | YELLOW | RED"
         varchar short_label "3-word max"
         text description_text
@@ -208,13 +211,15 @@ Stores the high-level hydrological basins acting as primary administrative and g
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `basin_id` | `VARCHAR(50)` | `PRIMARY KEY` | Unique basin slug/code (e.g., `'MARA'`, `'SIO-SITEKO'`). |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `code` | `VARCHAR(50)` | `UNIQUE`, `NOT NULL` | Unique basin slug/code (e.g., `'MARA'`, `'SIO-SITEKO'`). |
 | `name` | `VARCHAR(100)` | `NOT NULL` | Full name of the basin. |
 | `geom` | `geometry(MultiPolygon, 4326)` | `NOT NULL` | Spatial boundary of the basin. |
 
 ```sql
 CREATE TABLE basins (
-    basin_id VARCHAR(50) PRIMARY KEY,
+    id UUID PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
     geom geometry(MultiPolygon, 4326) NOT NULL
 );
@@ -226,15 +231,17 @@ Stores polygon-based boundary layers for wetlands mapped within a basin.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `wetland_id` | `VARCHAR(50)` | `PRIMARY KEY` | Unique wetland code. |
-| `basin_id` | `VARCHAR(50)` | `REFERENCES basins(basin_id)` | Parent basin identifier. |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `code` | `VARCHAR(50)` | `UNIQUE`, `NOT NULL` | Unique wetland code. |
+| `basin_id` | `UUID` | `REFERENCES basins(id)` | Parent basin identifier. |
 | `name` | `VARCHAR(150)` | `NOT NULL` | Wetland name (e.g., `'Mara Floodplain'`). |
 | `geom` | `geometry(Polygon, 4326)` | `NOT NULL` | Spatial boundary polygon. |
 
 ```sql
 CREATE TABLE wetlands (
-    wetland_id VARCHAR(50) PRIMARY KEY,
-    basin_id VARCHAR(50) NOT NULL REFERENCES basins(basin_id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    basin_id UUID NOT NULL REFERENCES basins(id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
     geom geometry(Polygon, 4326) NOT NULL
 );
@@ -247,15 +254,17 @@ Stores fixed sampling point locations where citizen scientists gather physical, 
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `site_id` | `VARCHAR(50)` | `PRIMARY KEY` | Persistent structured identifier (e.g., `'NBD-MARA-001'`). |
-| `wetland_id` | `VARCHAR(50)` | `REFERENCES wetlands(wetland_id)` | Parent wetland container. |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `code` | `VARCHAR(50)` | `UNIQUE`, `NOT NULL` | Persistent structured identifier (e.g., `'NBD-MARA-001'`). |
+| `wetland_id` | `UUID` | `REFERENCES wetlands(id)` | Parent wetland container. |
 | `name` | `VARCHAR(150)` | `NOT NULL` | Description of the point location. |
 | `geom` | `geometry(Point, 4326)` | `NOT NULL` | Latitude/Longitude coordinates of the point. |
 
 ```sql
 CREATE TABLE sites (
-    site_id VARCHAR(50) PRIMARY KEY,
-    wetland_id VARCHAR(50) NOT NULL REFERENCES wetlands(wetland_id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    wetland_id UUID NOT NULL REFERENCES wetlands(id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
     geom geometry(Point, 4326) NOT NULL
 );
@@ -270,14 +279,14 @@ Stores the administrative sub-counties and their geographic centroid coordinates
 | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
 | `name` | `VARCHAR(100)` | `NOT NULL` | Sub-county or district name (e.g., `'Tarime'`). |
-| `basin_id` | `VARCHAR(50)` | `REFERENCES basins(basin_id)` | Parent basin identifier. |
+| `basin_id` | `UUID` | `REFERENCES basins(id)` | Parent basin identifier. |
 | `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL` | Spatial point coordinates of the sub-county centroid. |
 
 ```sql
 CREATE TABLE spatial_boundaries (
     id UUID PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    basin_id VARCHAR(50) NOT NULL REFERENCES basins(basin_id) ON DELETE CASCADE,
+    basin_id UUID NOT NULL REFERENCES basins(id) ON DELETE CASCADE,
     centroid_geom geometry(Point, 4326) NOT NULL
 );
 CREATE INDEX idx_spatial_boundaries_geom ON spatial_boundaries USING GIST (centroid_geom);

@@ -25,10 +25,10 @@ def seed_spatial(db: Session):
     # 1. Seed Basins
     for b_data in data.get("basins", []):
         basin_id = b_data["basin_id"]
-        basin = db.query(Basin).filter(Basin.basin_id == basin_id).first()
+        basin = db.query(Basin).filter(Basin.code == basin_id).first()
         if not basin:
             basin = Basin(
-                basin_id=basin_id,
+                code=basin_id,
                 name=b_data["name"],
                 geom=from_shape(shape(b_data["geom"]), srid=4326),
             )
@@ -41,13 +41,24 @@ def seed_spatial(db: Session):
     # 2. Seed Wetlands
     for w_data in data.get("wetlands", []):
         wetland_id = w_data["wetland_id"]
-        wetland = (
-            db.query(Wetland).filter(Wetland.wetland_id == wetland_id).first()
+
+        # Resolve parent basin string ID to UUID
+        parent_basin = (
+            db.query(Basin).filter(Basin.code == w_data["basin_id"]).first()
         )
+        if not parent_basin:
+            logger.error(
+                "Parent Basin %s not found for Wetland %s",
+                w_data["basin_id"],
+                wetland_id,
+            )
+            continue
+
+        wetland = db.query(Wetland).filter(Wetland.code == wetland_id).first()
         if not wetland:
             wetland = Wetland(
-                wetland_id=wetland_id,
-                basin_id=w_data["basin_id"],
+                code=wetland_id,
+                basin_id=parent_basin.id,
                 name=w_data["name"],
                 geom=from_shape(shape(w_data["geom"]), srid=4326),
             )
@@ -60,11 +71,26 @@ def seed_spatial(db: Session):
     # 3. Seed Sites
     for s_data in data.get("sites", []):
         site_id = s_data["site_id"]
-        site = db.query(Site).filter(Site.site_id == site_id).first()
+
+        # Resolve parent wetland string ID to UUID
+        parent_wetland = (
+            db.query(Wetland)
+            .filter(Wetland.code == s_data["wetland_id"])
+            .first()
+        )
+        if not parent_wetland:
+            logger.error(
+                "Parent Wetland %s not found for Site %s",
+                s_data["wetland_id"],
+                site_id,
+            )
+            continue
+
+        site = db.query(Site).filter(Site.code == site_id).first()
         if not site:
             site = Site(
-                site_id=site_id,
-                wetland_id=s_data["wetland_id"],
+                code=site_id,
+                wetland_id=parent_wetland.id,
                 name=s_data["name"],
                 geom=from_shape(shape(s_data["geom"]), srid=4326),
             )
@@ -77,13 +103,25 @@ def seed_spatial(db: Session):
     # 4. Seed Spatial Boundaries (Sub-Counties)
     for sb_data in data.get("sub_counties", []):
         sb_name = sb_data["name"]
-        basin_id = sb_data["basin_id"]
+        basin_id_str = sb_data["basin_id"]
+
+        # Resolve parent basin string ID to UUID
+        parent_basin = (
+            db.query(Basin).filter(Basin.code == basin_id_str).first()
+        )
+        if not parent_basin:
+            logger.error(
+                "Parent Basin %s not found for Sub-County %s",
+                basin_id_str,
+                sb_name,
+            )
+            continue
 
         sb = (
             db.query(SpatialBoundary)
             .filter(
                 SpatialBoundary.name == sb_name,
-                SpatialBoundary.basin_id == basin_id,
+                SpatialBoundary.basin_id == parent_basin.id,
             )
             .first()
         )
@@ -93,19 +131,19 @@ def seed_spatial(db: Session):
         if not sb:
             sb = SpatialBoundary(
                 name=sb_name,
-                basin_id=basin_id,
+                basin_id=parent_basin.id,
                 centroid_geom=from_shape(sh_geom, srid=4326),
             )
             db.add(sb)
             logger.info(
-                "Created Sub-County: %s in Basin %s", sb_name, basin_id
+                "Created Sub-County: %s in Basin %s", sb_name, basin_id_str
             )
         else:
             sb.centroid_geom = from_shape(sh_geom, srid=4326)
             logger.info(
                 "Updated/Verified Sub-County: %s in Basin %s",
                 sb_name,
-                basin_id,
+                basin_id_str,
             )
 
     db.commit()

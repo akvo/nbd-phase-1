@@ -16,14 +16,14 @@ We will define a new reference table `spatial_boundaries` that stores sub-counti
 | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | `PRIMARY KEY` | Unique UUID. |
 | `name` | `VARCHAR(100)` | `NOT NULL` | Name of the sub-county / district. |
-| `basin_id` | `VARCHAR(50)` | `REFERENCES basins(basin_id) ON DELETE CASCADE` | Foreign Key pointing to the parent basin. |
+| `basin_id` | `UUID` | `REFERENCES basins(id) ON DELETE CASCADE` | Foreign Key pointing to the parent basin UUID. |
 | `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL` | Spatial point coordinates of the sub-county centroid. |
 
 ```sql
 CREATE TABLE spatial_boundaries (
     id UUID PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    basin_id VARCHAR(50) NOT NULL REFERENCES basins(basin_id) ON DELETE CASCADE,
+    basin_id UUID NOT NULL REFERENCES basins(id) ON DELETE CASCADE,
     centroid_geom geometry(Point, 4326) NOT NULL
 );
 CREATE INDEX idx_spatial_boundaries_geom ON spatial_boundaries USING GIST (centroid_geom);
@@ -59,7 +59,7 @@ For API requests and responses, the GeoJSON structure is validated using Pydanti
     {
       "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
       "name": "Tarime",
-      "basin_id": "MARA",
+      "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
       "centroid_geom": {
         "type": "Point",
         "coordinates": [34.47, -1.24]
@@ -75,7 +75,7 @@ For API requests and responses, the GeoJSON structure is validated using Pydanti
   ```json
   {
     "name": "Butiama",
-    "basin_id": "MARA",
+    "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
     "centroid_geom": {
       "type": "Point",
       "coordinates": [34.05, -1.78]

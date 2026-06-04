@@ -5,7 +5,7 @@ from shapely.geometry import shape
 
 
 class BasinBase(BaseModel):
-    basin_id: str = Field(..., max_length=50)
+    code: str = Field(..., max_length=50)
     name: str = Field(..., max_length=100)
     geom: Dict[str, Any]
 
@@ -39,12 +39,13 @@ class BasinCreate(BasinBase):
 
 
 class Basin(BasinBase):
+    id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
 
 
 class WetlandBase(BaseModel):
-    wetland_id: str = Field(..., max_length=50)
-    basin_id: str = Field(..., max_length=50)
+    code: str = Field(..., max_length=50)
+    basin_id: uuid.UUID
     name: str = Field(..., max_length=150)
     geom: Dict[str, Any]
 
@@ -78,12 +79,13 @@ class WetlandCreate(WetlandBase):
 
 
 class Wetland(WetlandBase):
+    id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
 
 
 class SiteBase(BaseModel):
-    site_id: str = Field(..., max_length=50)
-    wetland_id: str = Field(..., max_length=50)
+    code: str = Field(..., max_length=50)
+    wetland_id: uuid.UUID
     name: str = Field(..., max_length=150)
     geom: Dict[str, Any]
 
@@ -117,12 +119,13 @@ class SiteCreate(SiteBase):
 
 
 class Site(SiteBase):
+    id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
 
 
 class SpatialBoundaryBase(BaseModel):
     name: str = Field(..., max_length=100)
-    basin_id: str = Field(..., max_length=50)
+    basin_id: uuid.UUID
     centroid_geom: Dict[str, Any]
 
     @field_validator("centroid_geom", mode="before")

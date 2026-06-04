@@ -26,7 +26,7 @@ def upgrade() -> None:
         "spatial_boundaries",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("name", sa.String(length=100), nullable=False),
-        sa.Column("basin_id", sa.String(length=50), nullable=False),
+        sa.Column("basin_id", sa.UUID(), nullable=False),
         sa.Column(
             "centroid_geom",
             geoalchemy2.types.Geometry(
@@ -39,7 +39,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(
-            ["basin_id"], ["basins.basin_id"], ondelete="CASCADE"
+            ["basin_id"], ["basins.id"], ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("id"),
     )

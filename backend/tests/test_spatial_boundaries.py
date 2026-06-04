@@ -7,7 +7,7 @@ client = TestClient(app)
 def test_create_and_get_spatial_boundary():
     # 1. Create parent basin first
     basin_data = {
-        "basin_id": "TEST-MARA-SB",
+        "code": "TEST-MARA-SB",
         "name": "Test Mara Basin",
         "geom": {
             "type": "MultiPolygon",
@@ -24,12 +24,14 @@ def test_create_and_get_spatial_boundary():
             ],
         },
     }
-    client.post("/api/v1/basins", json=basin_data)
+    res_basin = client.post("/api/v1/basins", json=basin_data)
+    assert res_basin.status_code == 201
+    basin_uuid = res_basin.json()["id"]
 
     # 2. Create spatial boundary (sub-county)
     sb_data = {
         "name": "Tarime District",
-        "basin_id": "TEST-MARA-SB",
+        "basin_id": basin_uuid,
         "centroid_geom": {
             "type": "Point",
             "coordinates": [34.47, -1.24],
@@ -39,7 +41,7 @@ def test_create_and_get_spatial_boundary():
     assert response.status_code == 201
     res_data = response.json()
     assert res_data["name"] == "Tarime District"
-    assert res_data["basin_id"] == "TEST-MARA-SB"
+    assert res_data["basin_id"] == basin_uuid
     assert res_data["centroid_geom"]["type"] == "Point"
     assert "id" in res_data
 

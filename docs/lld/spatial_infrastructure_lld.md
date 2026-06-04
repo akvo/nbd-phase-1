@@ -28,19 +28,22 @@ We will implement:
 ```mermaid
 classDiagram
     class Basin {
+        +UUID id
         +String basin_id
         +String name
         +Geometry geom
     }
     class Wetland {
+        +UUID id
         +String wetland_id
-        +String basin_id
+        +UUID basin_id
         +String name
         +Geometry geom
     }
     class Site {
+        +UUID id
         +String site_id
-        +String wetland_id
+        +UUID wetland_id
         +String name
         +Geometry geom
     }
