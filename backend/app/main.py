@@ -10,7 +10,13 @@ from app.routers.dead_letter_router import router as dead_letter_router
 from app.routers.audit_log_router import router as audit_log_router
 
 
-app = FastAPI(title="Nbd Pilot API", version="1.0.0")
+app = FastAPI(
+    title="Nbd Pilot API",
+    version="1.0.0",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
+)
+
 app.include_router(storage_router)
 app.include_router(spatial_router)
 app.include_router(form_router)
