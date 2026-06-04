@@ -290,22 +290,27 @@ CREATE INDEX idx_management_actions_site_color ON management_actions(site_id, st
 ### Layer B: Identity, Access & Privacy
 
 #### `users`
-SSO-linked account profiles. No local passwords are stored.
+Profiles for internal staff (Admins/Reviewers using SSO) and external partners (with optional password hashes).
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `user_id` | `UUID` | `PRIMARY KEY` | Single Sign-On subject ID (e.g. from Keycloak/Google/Microsoft). |
-| `email` | `VARCHAR(255)` | `UNIQUE`, `NOT NULL` | User email. |
-| `role` | `VARCHAR(20)` | `CHECK (role IN ('ADMIN', 'REVIEWER'))` | System role for access control. |
-| `organisation` | `VARCHAR(150)` | `NOT NULL` | Corporate/organizational entity. |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `email` | `VARCHAR(255)` | `UNIQUE`, `NOT NULL`, `INDEX` | User email. |
+| `role` | `VARCHAR(50)` | `NOT NULL` | Role: 'Admin', 'Reviewer', 'Partner'. |
+| `organization` | `VARCHAR(255)` | `NULL` | Organization name. |
+| `password_hash` | `VARCHAR(255)` | `NULL` | Password hash for external Partners. |
+| `is_active` | `BOOLEAN` | `NOT NULL`, `DEFAULT True` | Account active state. |
 
 ```sql
 CREATE TABLE users (
-    user_id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('ADMIN', 'REVIEWER')),
-    organisation VARCHAR(150) NOT NULL
+    role VARCHAR(50) NOT NULL,
+    organization VARCHAR(255),
+    password_hash VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT True
 );
+CREATE INDEX ix_users_email ON users (email);
 ```
 
 #### `citizens`
@@ -478,7 +483,7 @@ Frozen layout snapshots captured when a form version gets published.
 | `version` | `INTEGER` | `NOT NULL` | Form version sequential counter. |
 | `schema` | `JSONB` | `NOT NULL` | Complete compiled form snapshot. |
 | `published_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | Time layout got frozen. |
-| `published_by_id` | `UUID` | `REFERENCES users(user_id) ON DELETE SET NULL` | Publisher profile. |
+| `published_by_id` | `UUID` | `REFERENCES users(id) ON DELETE SET NULL` | Publisher profile. |
 
 ```sql
 CREATE TABLE form_published_version (
@@ -487,49 +492,89 @@ CREATE TABLE form_published_version (
     version INTEGER NOT NULL,
     schema JSONB NOT NULL,
     published_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    published_by_id UUID REFERENCES users(user_id) ON DELETE SET NULL
+    published_by_id UUID REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE UNIQUE INDEX unique_form_published_version ON form_published_version (form_id, version);
 ```
 
-#### `datapoints`
-Individual instances of a submitted form.
+#### `datapoint`
+Individual instances of a submitted form, anchored to exactly one level of the geographic hierarchy.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `datapoint_id` | `UUID` | `PRIMARY KEY` | Generated transaction UUID. |
-| `form_id` | `INTEGER` | `REFERENCES form(id)` | Form being answered. |
-| `status` | `VARCHAR(20)` | `CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))` | Workflow state. |
+| `id` | `SERIAL` | `PRIMARY KEY` | Incrementing record ID. |
+| `uuid` | `UUID` | `UNIQUE`, `NOT NULL` | Unique public UUID. |
+| `form_id` | `INTEGER` | `REFERENCES form(id) ON DELETE RESTRICT` | Form being answered. |
+| `published_version_id` | `INTEGER` | `REFERENCES form_published_version(id) ON DELETE SET NULL` | Layout snapshot used. |
+| `name` | `TEXT` | `NULL` | Optional name of observation. |
+| `basin_id` | `VARCHAR(50)` | `REFERENCES basins(basin_id) ON DELETE SET NULL` | Geographically anchored basin. |
+| `wetland_id` | `VARCHAR(50)` | `REFERENCES wetlands(wetland_id) ON DELETE SET NULL` | Geographically anchored wetland. |
+| `site_id` | `VARCHAR(50)` | `REFERENCES sites(site_id) ON DELETE SET NULL` | Geographically anchored monitoring site. |
+| `geo` | `JSONB` | `NULL` | Optional direct coordinate JSON. |
+| `created_by_id` | `UUID` | `REFERENCES users(id) ON DELETE SET NULL` | Submitter user profile. |
 | `created_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | Timestamp of submission. |
+| `updated_at` | `TIMESTAMP` | `NULL` | Timestamp of last update. |
+| `duration` | `INTEGER` | `DEFAULT 0` | Ingestion duration. |
+| `submitter` | `VARCHAR(255)` | `NULL` | Raw submitter name/agent. |
+| `status` | `VARCHAR(20)` | `DEFAULT 'PENDING'` | Submission workflow state. |
 
 ```sql
-CREATE TABLE datapoints (
-    datapoint_id UUID PRIMARY KEY,
+CREATE TABLE datapoint (
+    id SERIAL PRIMARY KEY,
+    uuid UUID UNIQUE NOT NULL,
     form_id INTEGER NOT NULL REFERENCES form(id) ON DELETE RESTRICT,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    published_version_id INTEGER REFERENCES form_published_version(id) ON DELETE SET NULL,
+    name TEXT,
+    basin_id VARCHAR(50) REFERENCES basins(basin_id) ON DELETE SET NULL,
+    wetland_id VARCHAR(50) REFERENCES wetlands(wetland_id) ON DELETE SET NULL,
+    site_id VARCHAR(50) REFERENCES sites(site_id) ON DELETE SET NULL,
+    geo JSONB,
+    created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP,
+    duration INTEGER NOT NULL DEFAULT 0,
+    submitter VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    CONSTRAINT chk_polymorphic_anchor CHECK (
+        (basin_id IS NOT NULL)::int +
+        (wetland_id IS NOT NULL)::int +
+        (site_id IS NOT NULL)::int = 1
+    )
 );
-CREATE INDEX idx_datapoints_status ON datapoints(status);
+CREATE INDEX ix_datapoint_id ON datapoint(id);
 ```
 
-#### `answers`
+#### `answer`
 The actual response values submitted for a given question.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `answer_id` | `SERIAL` | `PRIMARY KEY` | Incrementing record ID. |
-| `datapoint_id` | `UUID` | `REFERENCES datapoints(datapoint_id)` | Core submission envelope. |
-| `question_id` | `INTEGER` | `REFERENCES question(id)` | Question answered. |
-| `value` | `JSONB` | `NOT NULL` | Response payload (structured text, numbers, geo objects). |
+| `id` | `SERIAL` | `PRIMARY KEY` | Incrementing record ID. |
+| `datapoint_id` | `INTEGER` | `REFERENCES datapoint(id) ON DELETE CASCADE` | Submitter datapoint envelope. |
+| `question_id` | `INTEGER` | `REFERENCES question(id) ON DELETE CASCADE` | Question answered. |
+| `name` | `TEXT` | `NULL` | Response text/qualitative value. |
+| `value` | `DOUBLE PRECISION` | `NULL` | Response numeric/float value. |
+| `options` | `JSONB` | `NULL` | Response selected choice values. |
+| `created_by_id` | `UUID` | `REFERENCES users(id) ON DELETE SET NULL` | Submitter user profile. |
+| `created_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | Timestamp of submission. |
+| `updated_at` | `TIMESTAMP` | `NULL` | Timestamp of last update. |
+| `index` | `INTEGER` | `DEFAULT 0` | Repeatable index counter. |
 
 ```sql
-CREATE TABLE answers (
-    answer_id SERIAL PRIMARY KEY,
-    datapoint_id UUID NOT NULL REFERENCES datapoints(datapoint_id) ON DELETE CASCADE,
+CREATE TABLE answer (
+    id SERIAL PRIMARY KEY,
+    datapoint_id INTEGER NOT NULL REFERENCES datapoint(id) ON DELETE CASCADE,
     question_id INTEGER NOT NULL REFERENCES question(id) ON DELETE CASCADE,
-    value jsonb NOT NULL
+    name TEXT,
+    value DOUBLE PRECISION,
+    options JSONB,
+    created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP,
+    index INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT unique_datapoint_question_index UNIQUE (datapoint_id, question_id, index)
 );
-CREATE UNIQUE INDEX idx_datapoint_question ON answers(datapoint_id, question_id);
+CREATE INDEX ix_answer_id ON answer(id);
 ```
 
 ---
