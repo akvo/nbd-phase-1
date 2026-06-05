@@ -6,9 +6,10 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.spatial import SpatialBoundary, Basin
+from app.models.spatial import SpatialBoundary, Basin, Site
 from app.models.form import Form, Question, Option, FormNames
 from app.models.submission import Datapoint, Answer
+from app.models.citizen import Citizen
 
 router = APIRouter(prefix="/api/v1/ussd", tags=["ussd"])
 
@@ -175,6 +176,11 @@ def handle_ussd(
         .first()
     )
 
+    # Check if phoneNumber belongs to a registered citizen
+    citizen = (
+        db.query(Citizen).filter(Citizen.phone_number == phoneNumber).first()
+    )
+
     # Create Datapoint
     dp = Datapoint(
         uuid=uuid.uuid4(),
@@ -182,15 +188,29 @@ def handle_ussd(
         published_version_id=form.active_version_id,
         submitter="USSD",
         status="PENDING",
-        basin_id=selected_sc.basin_id,
         name=sessionId,  # Store sessionId for reference
     )
-    # Get centroid coordinates from spatial boundary
+
     from geoalchemy2.shape import to_shape
 
-    centroid_geom = selected_sc.centroid_geom
-    point = to_shape(centroid_geom)
-    dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+    if citizen:
+        site = db.query(Site).filter(Site.id == citizen.site_id).first()
+        if site:
+            dp.site_id = citizen.site_id
+            point = to_shape(site.geom)
+            dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+        else:
+            # Fallback if site not found in database
+            dp.basin_id = selected_sc.basin_id
+            centroid_geom = selected_sc.centroid_geom
+            point = to_shape(centroid_geom)
+            dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+    else:
+        # Fallback to selected sub-county centroid
+        dp.basin_id = selected_sc.basin_id
+        centroid_geom = selected_sc.centroid_geom
+        point = to_shape(centroid_geom)
+        dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
 
     db.add(dp)
     db.flush()

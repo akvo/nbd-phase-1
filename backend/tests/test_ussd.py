@@ -177,3 +177,50 @@ def test_ussd_idempotency():
     response2 = client.post("/api/v1/ussd", data=payload)
     assert response2.status_code == 200
     assert response2.text == text1
+
+
+def test_ussd_terminal_submission_registered_citizen(db_session: Session):
+    from app.models.citizen import Citizen
+    from app.models.spatial import Site
+    from geoalchemy2.shape import to_shape
+
+    # 1. Query a seeded site
+    site = db_session.query(Site).first()
+    assert site is not None
+
+    # 2. Register a citizen with a specific phone number linked to this site
+    registered_phone = "+254799999999"
+    citizen = Citizen(
+        phone_number=registered_phone, site_id=site.id, role="WATCHER"
+    )
+    db_session.add(citizen)
+    db_session.commit()
+
+    # 3. Perform a USSD submission with the registered phone number
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_registered",
+            "phoneNumber": registered_phone,
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*2*1",  # Consent -> Incident (Smell) -> Sub-county
+        },
+    )
+    assert response.status_code == 200
+    assert response.text.startswith("END")
+
+    # 4. Verify database state
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.name == "test_sess_registered")
+        .first()
+    )
+    assert dp is not None
+    # Must be linked to the site_id and NOT the basin_id
+    assert dp.site_id == site.id
+    assert dp.basin_id is None
+
+    # Verify geometry matches the site's coordinates
+    site_point = to_shape(site.geom)
+    assert dp.geo["coordinates"] == [site_point.x, site_point.y]

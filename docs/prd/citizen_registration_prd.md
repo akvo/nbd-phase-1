@@ -14,6 +14,13 @@ A secure backend service and API endpoint interface allowing administrators to i
 **Brief / Problem Reference**:
 Refers to Section 8 (Data Governance and Security) and Section 4.1 (Actor Matrix) of `docs/product_brief.md`.
 
+**What is a Citizen Record?**:
+A **Citizen Record** represents a trusted field contributor (either a `WATCHER` or a `SCIENTIST`) whose identity and default monitoring location (`site_id`) have been pre-registered in the system by an Administrator.
+
+- **Registered vs. Unregistered Ingestion Flow**:
+  - **Registered Citizen**: If the incoming phone number (hashed MSISDN) matches a registered Citizen Record, the submission (e.g., via USSD or WhatsApp) is linked to their profile and automatically associated with their default `site_id`.
+  - **Unregistered Citizen**: If the phone number is not found in the Citizen Records database, the USSD/WhatsApp flow is **not** blocked. The submission is successfully ingested and saved as an anonymous/public report geocoded to the selected sub-county's centroid.
+
 **What we are building** (What):
 We are building the registration endpoints (`POST /api/v1/citizens`) and lookup matching features. When admins invite citizens, we store their phone numbers and link them to their default sampling sites (`site_id`) and roles. Ingestion pipelines (like USSD/WhatsApp) check this table to verify reporter registration status.
 

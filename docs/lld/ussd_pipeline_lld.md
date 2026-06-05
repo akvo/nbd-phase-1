@@ -93,8 +93,20 @@ sequenceDiagram
 
 ## 5. Database Schema & Query Logic
 
-### PostGIS Centroid Resolution
-When the user completes selection at Step 2 (e.g. `text = "1*2*1"`), the selected option index maps to a sub-county name (e.g. `Rorya District`). The centroid and parent basin are resolved using:
+### Citizen Registry Lookup
+Upon final session ingestion (Step 3), the system queries the `citizens` table using the reporter's phone number (`phoneNumber` / MSISDN):
+
+```sql
+SELECT id, phone_number, site_id, role
+FROM citizens
+WHERE phone_number = :phone_number;
+```
+
+* **If Registered**: The submission is linked to the citizen's assigned monitoring site (`site_id`). The datapoint uses the coordinates of the corresponding `sites` record and sets `basin_id = NULL` to satisfy the polymorphic anchor constraint.
+* **If Unregistered (Fallback)**: The system geocodes the report to the selected sub-county's centroid geometry.
+
+### PostGIS Centroid Resolution (Fallback Flow)
+When the user is unregistered and completes selection at Step 2, the selected option index maps to a sub-county name (e.g. `Rorya District`). The centroid and parent basin are resolved using:
 
 ```sql
 SELECT id, name, basin_id, ST_AsGeoJSON(centroid_geom) as geom
