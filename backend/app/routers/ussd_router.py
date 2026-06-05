@@ -220,7 +220,7 @@ def handle_ussd(
         datapoint_id=dp.id,
         question_id=q_incident.id if q_incident else 0,
         name="incident_type",
-        value=incident_val,
+        options=[selected_option.label],
     )
     db.add(ans_incident)
 

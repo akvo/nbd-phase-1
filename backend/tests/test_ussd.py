@@ -154,7 +154,7 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     )
     assert len(answers) == 2
     ans_incident = [a for a in answers if a.name == "incident_type"][0]
-    assert ans_incident.value == 2.0  # Option 2 (Smell)
+    assert ans_incident.options == ["Smell (bad odour)"]
 
     ans_location = [a for a in answers if a.name == "sub_county"][0]
     assert ans_location.name == "sub_county"
