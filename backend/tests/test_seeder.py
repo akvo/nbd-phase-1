@@ -70,8 +70,8 @@ def test_seed_forms_success(db_session: Session):
         .filter(Option.question_id == incident_type_q.id)
         .all()
     )
-    assert len(options) == 5
-    assert options[0].label == "Water colour suddenly became darker/murkier"
+    assert len(options) == 6
+    assert options[0].label == "Water colour (darker/murkier)"
     assert options[0].value == "1"
 
     # Check Cascade question api endpoint configuration

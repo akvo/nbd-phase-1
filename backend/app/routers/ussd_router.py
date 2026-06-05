@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.spatial import SpatialBoundary, Basin
-from app.models.form import Form, Question
+from app.models.form import Form, Question, Option, FormNames
 from app.models.submission import Datapoint, Answer
 
 router = APIRouter(prefix="/api/v1/ussd", tags=["ussd"])
@@ -44,9 +44,39 @@ def handle_ussd(
         parts = input_str.split("*")
         depth = len(parts)
 
-    # Step 0: Consent Notice
+    # Fetch form and incident_type options dynamically
+    form = (
+        db.query(Form)
+        .filter(Form.name == FormNames.POLLUTION_REPORTING)
+        .first()
+    )
+    options = []
+    q_incident = None
+    if form:
+        q_incident = (
+            db.query(Question)
+            .filter(
+                Question.form_id == form.id, Question.name == "incident_type"
+            )
+            .first()
+        )
+        if q_incident:
+            options = (
+                db.query(Option)
+                .filter(Option.question_id == q_incident.id)
+                .order_by(Option.order.asc())
+                .all()
+            )
+
+    # Step 0: Consent Gate
     if depth == 0:
-        response_text = "CON Welcome to NBD Wetland Watch. Press 1 to accept data terms and report a change."
+        response_text = (
+            "CON Welcome to NBD Wetland Watch. This platform collects "
+            "environmental incident reports. Your report is saved "
+            "anonymously. Data usage is restricted to monitoring programs.\n"
+            "Press 1 to accept and start reporting.\n"
+            "Press 2 to decline terms."
+        )
         return PlainTextResponse(clean_ussd_response(response_text))
 
     # Parse consent choice
@@ -60,15 +90,16 @@ def handle_ussd(
 
     # Step 1: Incident Selection
     if depth == 1:
-        response_text = (
-            "CON Report a change in:\n"
-            "1: Water colour (darker/murkier)\n"
-            "2: Smell (bad odour)\n"
-            "3: Fish or animal kills\n"
-            "4: Storm event\n"
-            "5: High water level\n"
-            "6: Low water level"
-        )
+        if not options:
+            response_text = (
+                "END Internal system error. Form options not configured."
+            )
+            processed_sessions[sessionId] = response_text
+            return PlainTextResponse(clean_ussd_response(response_text))
+        menu_items = [
+            f"{idx}: {opt.label}" for idx, opt in enumerate(options, 1)
+        ]
+        response_text = "CON Report a change in:\n" + "\n".join(menu_items)
         return PlainTextResponse(clean_ussd_response(response_text))
 
     # Step 2: Location Selection (dynamic list based on country networkCode)
@@ -118,21 +149,26 @@ def handle_ussd(
     selected_sc = subcounties[location_idx]
 
     # Geocode and save report
-    # Find form
-    form = (
-        db.query(Form).filter(Form.name == "Pollution Reporting Form").first()
-    )
     if not form:
         response_text = "END Internal system error. Form not configured."
         processed_sessions[sessionId] = response_text
         return PlainTextResponse(clean_ussd_response(response_text))
 
-    # Find questions
-    q_incident = (
-        db.query(Question)
-        .filter(Question.form_id == form.id, Question.name == "incident_type")
-        .first()
-    )
+    # Validate incident selection
+    try:
+        incident_idx = int(incident_type) - 1
+        if incident_idx < 0 or incident_idx >= len(options):
+            raise ValueError()
+        selected_option = options[incident_idx]
+        incident_val = (
+            float(selected_option.value) if selected_option.value else 0.0
+        )
+    except (ValueError, IndexError):
+        response_text = "END Invalid incident selection. Session closed."
+        processed_sessions[sessionId] = response_text
+        return PlainTextResponse(clean_ussd_response(response_text))
+
+    # Find location_id question
     q_location = (
         db.query(Question)
         .filter(Question.form_id == form.id, Question.name == "location_id")
@@ -160,11 +196,6 @@ def handle_ussd(
     db.flush()
 
     # Create answers
-    try:
-        incident_val = float(incident_type)
-    except ValueError:
-        incident_val = 0.0
-
     ans_incident = Answer(
         datapoint_id=dp.id,
         question_id=q_incident.id if q_incident else 0,
@@ -182,6 +213,9 @@ def handle_ussd(
     db.add(ans_location)
     db.commit()
 
-    response_text = "END Thank you for your report. NBD Wetland Watch has received your update."
+    response_text = (
+        "END Thank you for your report. NBD Wetland Watch has "
+        "received your update."
+    )
     processed_sessions[sessionId] = response_text
     return PlainTextResponse(clean_ussd_response(response_text))

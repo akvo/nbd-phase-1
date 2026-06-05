@@ -149,18 +149,11 @@ def clean_ussd_response(text: str) -> str:
 
 ---
 
-## 10. Future Roadmap & Limitations
+## 10. Dynamic USSD Menu Options Implementation
 
-### Static Menu Options Limitation
-The initial version of the USSD menu utilizes a static, hardcoded list of options for the incident types (`incident_type`) instead of loading options dynamically from the database.
-- **Reasoning**: Standard option labels stored in the database (e.g., from `form_pipeline_a_citizen_reporter.json`) are optimized for web/app forms and can be long. Because the USSD protocol has a strict limit of 160 characters per response, using full labels would exceed this budget.
-- **Maintenance**: Changes to option labels in the database require manually updating the text returned in `ussd_router.py`.
+The USSD incident menu dynamically loads options directly from the seeded database `Form` config:
+- **Option Length Adaptation**: Option labels seeded in `form_pipeline_a_citizen_reporter.json` have been shortened to USSD-friendly lengths to strictly respect the USSD 160-character network limit.
+- **Dynamic Retrieval**: Inside `ussd_router.py`, the active options for the `"incident_type"` question are queried dynamically.
+- **Validation**: Choice indices are validated dynamically based on the count of retrieved database options.
 
-### Roadmap: Dynamic USSD Menus
-To enable fully dynamic, administrator-modifiable USSD forms in a future iteration:
-1. **Schema Extension**: Extend the database `Option` model to support an optional `short_label` or `ussd_label` column (limit of 25–30 characters).
-2. **Form Loader Refactoring**: Update `ussd_router.py` to:
-   - Query the active version of `Form` by name (`"Pollution Reporting Form"`).
-   - Retrieve options for the `"incident_type"` question.
-   - Dynamically build the menu string using the options' `ussd_label` (falling back to standard `label` truncated if not present).
 
