@@ -18,6 +18,14 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
+class FormNames:
+    POLLUTION_REPORTING = "Pollution Reporting Form"
+    WETLAND_SAMPLING = "Monthly Wetland Sampling"
+    INDIGENOUS_KNOWLEDGE = "Indigenous Knowledge Record"
+    LAB_QA = "Lab QA Report"
+    SATELLITE_CLIMATE = "External Satellite & Climate Data"
+
+
 class QuestionType(str, enum.Enum):
     input = "input"
     number = "number"
@@ -179,7 +187,7 @@ class Question(Base):
         return self.rule.get("max") if self.rule else None
 
 
-# Conditional unique constraint: active questions must have unique name per form
+# Conditional unique constraint: active questions unique per form
 Index(
     "unique_active_form_question",
     Question.form_id,

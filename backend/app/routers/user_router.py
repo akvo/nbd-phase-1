@@ -8,8 +8,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.schemas import user as schemas
+from app.dependencies.auth import RoleChecker
 
-router = APIRouter(prefix="/api/v1/users", tags=["users"])
+router = APIRouter(
+    prefix="/api/v1/users",
+    tags=["users"],
+    dependencies=[Depends(RoleChecker(["Admin"]))],
+)
 
 
 def hash_password(password: str) -> str:

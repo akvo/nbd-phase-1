@@ -13,3 +13,5 @@ GeoAlchemy2==0.14.7
 Shapely==2.0.2
 alembic==1.13.1
 numpy<2
+python-multipart==0.0.9
+PyJWT==2.8.0

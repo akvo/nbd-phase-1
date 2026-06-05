@@ -14,13 +14,14 @@
           "required": true,
           "option": [
             {
-              "name": "Water colour suddenly became darker/murkier",
+              "name": "Water colour (darker/murkier)",
               "value": 1
             },
-            { "name": "Water is smelling bad", "value": 2 },
-            { "name": "Many dead fishes or animals in the river", "value": 3 },
-            { "name": "Water level is too high (storm event)", "value": 4 },
-            { "name": "Water level is too low after low flows", "value": 5 }
+            { "name": "Smell (bad odour)", "value": 2 },
+            { "name": "Fish or animal kills", "value": 3 },
+            { "name": "Storm event", "value": 4 },
+            { "name": "High water level", "value": 5 },
+            { "name": "Low water level", "value": 6 }
           ]
         },
         {

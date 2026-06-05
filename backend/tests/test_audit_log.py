@@ -1,13 +1,28 @@
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
-from app.database import SessionLocal
+from app.models.user import User
 from sqlalchemy import text
 
 client = TestClient(app)
+TEST_SECRET = "test_secret"
 
 
-def test_create_and_query_audit_log():
+def get_auth_headers(
+    db_session, email="admin_audit_test@nbd.org", role="Admin"
+):
+    user = db_session.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(email=email, role=role, is_active=True)
+        db_session.add(user)
+        db_session.commit()
+    token = jwt.encode({"email": email}, TEST_SECRET, algorithm="HS256")
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_create_and_query_audit_log(db_session):
+    headers = get_auth_headers(db_session)
     # Attempt to create an audit log via API
     payload = {
         "actor_id": "00000000-0000-0000-0000-000000000000",
@@ -20,7 +35,9 @@ def test_create_and_query_audit_log():
         "email": "auditor@nbd.org",
         "role": "Admin",
     }
-    user_resp = client.post("/api/v1/users", json=user_payload)
+    user_resp = client.post(
+        "/api/v1/users", json=user_payload, headers=headers
+    )
     assert user_resp.status_code == 201
     actor_id = user_resp.json()["id"]
 
@@ -46,12 +63,15 @@ def test_create_and_query_audit_log():
 
 
 def test_audit_log_immutability_update(db_session):
+    headers = get_auth_headers(db_session)
     # Create user and log
     user_payload = {
         "email": "auditor2@nbd.org",
         "role": "Admin",
     }
-    user_resp = client.post("/api/v1/users", json=user_payload)
+    user_resp = client.post(
+        "/api/v1/users", json=user_payload, headers=headers
+    )
     assert user_resp.status_code == 201
     actor_id = user_resp.json()["id"]
 
@@ -76,12 +96,15 @@ def test_audit_log_immutability_update(db_session):
 
 
 def test_audit_log_immutability_delete(db_session):
+    headers = get_auth_headers(db_session)
     # Create user and log
     user_payload = {
         "email": "auditor3@nbd.org",
         "role": "Admin",
     }
-    user_resp = client.post("/api/v1/users", json=user_payload)
+    user_resp = client.post(
+        "/api/v1/users", json=user_payload, headers=headers
+    )
     assert user_resp.status_code == 201
     actor_id = user_resp.json()["id"]
 
@@ -105,13 +128,16 @@ def test_audit_log_immutability_delete(db_session):
     assert "immutable" in str(exc_info.value).lower()
 
 
-def test_get_and_filter_audit_logs():
+def test_get_and_filter_audit_logs(db_session):
+    headers = get_auth_headers(db_session)
     # Create user and logs
     user_payload = {
         "email": "filter@nbd.org",
         "role": "Admin",
     }
-    user_resp = client.post("/api/v1/users", json=user_payload)
+    user_resp = client.post(
+        "/api/v1/users", json=user_payload, headers=headers
+    )
     assert user_resp.status_code == 201
     actor_id = user_resp.json()["id"]
 

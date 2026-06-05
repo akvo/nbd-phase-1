@@ -1,16 +1,32 @@
+import jwt
 from fastapi.testclient import TestClient
 from app.main import app
+from app.models.user import User
 
 client = TestClient(app)
+TEST_SECRET = "test_secret"
 
 
-def test_create_form():
+def get_auth_headers(
+    db_session, email="admin_form_test@nbd.org", role="Admin"
+):
+    user = db_session.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(email=email, role=role, is_active=True)
+        db_session.add(user)
+        db_session.commit()
+    token = jwt.encode({"email": email}, TEST_SECRET, algorithm="HS256")
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_create_form(db_session):
+    headers = get_auth_headers(db_session)
     form_data = {
         "name": "Physico-Chemical Sampling Form",
         "type": 1,
         "status": 1,
     }
-    response = client.post("/api/v1/forms", json=form_data)
+    response = client.post("/api/v1/forms", json=form_data, headers=headers)
     assert response.status_code == 201
     res_data = response.json()
     assert res_data["name"] == "Physico-Chemical Sampling Form"
@@ -24,10 +40,11 @@ def test_create_form():
     assert response.json()["name"] == "Physico-Chemical Sampling Form"
 
 
-def test_create_full_blueprint_hierarchy():
+def test_create_full_blueprint_hierarchy(db_session):
+    headers = get_auth_headers(db_session)
     # 1. Create a form
     form_data = {"name": "Wetland Survey", "type": 1, "status": 1}
-    form_res = client.post("/api/v1/forms", json=form_data)
+    form_res = client.post("/api/v1/forms", json=form_data, headers=headers)
     assert form_res.status_code == 201
     form_id = form_res.json()["id"]
 
@@ -39,7 +56,9 @@ def test_create_full_blueprint_hierarchy():
         "order": 1,
         "repeatable": False,
     }
-    group_res = client.post("/api/v1/question-groups", json=group_data)
+    group_res = client.post(
+        "/api/v1/question-groups", json=group_data, headers=headers
+    )
     assert group_res.status_code == 201
     group_id = group_res.json()["id"]
 
@@ -50,12 +69,14 @@ def test_create_full_blueprint_hierarchy():
         "name": "ph_level",
         "label": "pH Level",
         "order": 1,
-        "type": "number",  # e.g., number type
+        "type": "number",
         "required": True,
         "validation_min": 2.0,
         "validation_max": 10.0,
     }
-    q_res = client.post("/api/v1/questions", json=question_data)
+    q_res = client.post(
+        "/api/v1/questions", json=question_data, headers=headers
+    )
     assert q_res.status_code == 201
     q_id = q_res.json()["id"]
 
@@ -66,14 +87,17 @@ def test_create_full_blueprint_hierarchy():
         "label": "Neutral pH",
         "value": "neutral",
     }
-    opt_res = client.post("/api/v1/options", json=option_data)
+    opt_res = client.post("/api/v1/options", json=option_data, headers=headers)
     assert opt_res.status_code == 201
 
 
-def test_soft_deletion_and_conditional_uniqueness():
+def test_soft_deletion_and_conditional_uniqueness(db_session):
+    headers = get_auth_headers(db_session)
     # Create Form
     form_res = client.post(
-        "/api/v1/forms", json={"name": "Constraint Form", "type": 1}
+        "/api/v1/forms",
+        json={"name": "Constraint Form", "type": 1},
+        headers=headers,
     )
     form_id = form_res.json()["id"]
 
@@ -81,6 +105,7 @@ def test_soft_deletion_and_conditional_uniqueness():
     g1_res = client.post(
         "/api/v1/question-groups",
         json={"form_id": form_id, "name": "bio_indicators"},
+        headers=headers,
     )
     assert g1_res.status_code == 201
     g1_id = g1_res.json()["id"]
@@ -89,30 +114,39 @@ def test_soft_deletion_and_conditional_uniqueness():
     g2_res = client.post(
         "/api/v1/question-groups",
         json={"form_id": form_id, "name": "bio_indicators"},
+        headers=headers,
     )
     assert g2_res.status_code == 400
 
     # Soft delete Group 1
-    del_res = client.delete(f"/api/v1/question-groups/{g1_id}")
+    del_res = client.delete(
+        f"/api/v1/question-groups/{g1_id}", headers=headers
+    )
     assert del_res.status_code == 200
 
     # Try recreating Group now that Group 1 is deleted -> Succeed
     g3_res = client.post(
         "/api/v1/question-groups",
         json={"form_id": form_id, "name": "bio_indicators"},
+        headers=headers,
     )
     assert g3_res.status_code == 201
 
 
-def test_publish_form_snapshot():
+def test_publish_form_snapshot(db_session):
+    headers = get_auth_headers(db_session)
     # Create form, group, question
     form_res = client.post(
-        "/api/v1/forms", json={"name": "Publish Form", "type": 1}
+        "/api/v1/forms",
+        json={"name": "Publish Form", "type": 1},
+        headers=headers,
     )
     form_id = form_res.json()["id"]
 
     g_res = client.post(
-        "/api/v1/question-groups", json={"form_id": form_id, "name": "grp"}
+        "/api/v1/question-groups",
+        json={"form_id": form_id, "name": "grp"},
+        headers=headers,
     )
     g_id = g_res.json()["id"]
 
@@ -125,10 +159,11 @@ def test_publish_form_snapshot():
             "label": "Question 1",
             "type": "text",
         },
+        headers=headers,
     )
 
     # Publish Form
-    pub_res = client.post(f"/api/v1/forms/{form_id}/publish")
+    pub_res = client.post(f"/api/v1/forms/{form_id}/publish", headers=headers)
     assert pub_res.status_code == 200
     res_data = pub_res.json()
     assert res_data["version"] == 1
