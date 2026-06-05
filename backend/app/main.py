@@ -8,6 +8,7 @@ from app.routers.user_router import router as user_router
 from app.routers.submission_router import router as submission_router
 from app.routers.dead_letter_router import router as dead_letter_router
 from app.routers.audit_log_router import router as audit_log_router
+from app.routers.ussd_router import router as ussd_router
 
 
 app = FastAPI(
@@ -24,6 +25,7 @@ app.include_router(user_router)
 app.include_router(submission_router)
 app.include_router(dead_letter_router)
 app.include_router(audit_log_router)
+app.include_router(ussd_router)
 
 
 class TestEmailRequest(BaseModel):
