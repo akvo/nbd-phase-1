@@ -1,12 +1,14 @@
-from typing import Optional, Literal
-from uuid import UUID
-from pydantic import BaseModel, ConfigDict, Field
+import uuid
+from typing import Optional
+from pydantic import BaseModel, Field
 
 
 class CitizenBase(BaseModel):
-    phone_number: str = Field(..., max_length=50)
-    site_id: UUID
-    role: Literal["WATCHER", "SCIENTIST"]
+    phone_number: str = Field(
+        ..., description="E.164 phone number of reporter"
+    )
+    site_id: uuid.UUID = Field(..., description="Home site UUID")
+    role: str = Field(..., description="WATCHER or SCIENTIST")
 
 
 class CitizenCreate(CitizenBase):
@@ -14,12 +16,13 @@ class CitizenCreate(CitizenBase):
 
 
 class CitizenUpdate(BaseModel):
-    phone_number: Optional[str] = Field(None, max_length=50)
-    site_id: Optional[UUID] = None
-    role: Optional[Literal["WATCHER", "SCIENTIST"]] = None
+    phone_number: Optional[str] = None
+    site_id: Optional[uuid.UUID] = None
+    role: Optional[str] = None
 
 
 class CitizenResponse(CitizenBase):
-    id: UUID
+    id: uuid.UUID
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
