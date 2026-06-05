@@ -1,0 +1,188 @@
+{
+  "basins": [
+    {
+      "basin_id": "MARA",
+      "name": "Mara Basin",
+      "geom": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [33.5, -2.0],
+              [35.5, -2.0],
+              [35.5, -1.0],
+              [33.5, -1.0],
+              [33.5, -2.0]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "basin_id": "SIO_SITEKO",
+      "name": "Sio-Siteko Basin",
+      "geom": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [33.5, 0.0],
+              [34.5, 0.0],
+              [34.5, 1.0],
+              [33.5, 1.0],
+              [33.5, 0.0]
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "wetlands": [
+    {
+      "wetland_id": "LOWER_MARA_WETLAND",
+      "basin_id": "MARA",
+      "name": "Lower Mara Wetland",
+      "geom": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [34.5, -1.3],
+            [34.7, -1.3],
+            [34.7, -1.1],
+            [34.5, -1.1],
+            [34.5, -1.3]
+          ]
+        ]
+      }
+    },
+    {
+      "wetland_id": "SIO_ESTUARY_WETLAND",
+      "basin_id": "SIO_SITEKO",
+      "name": "Sio Estuary Wetland",
+      "geom": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [34.1, 0.1],
+            [34.3, 0.1],
+            [34.3, 0.3],
+            [34.1, 0.3],
+            [34.1, 0.1]
+          ]
+        ]
+      }
+    }
+  ],
+  "sites": [
+    {
+      "site_id": "NBD-MARA-001",
+      "wetland_id": "LOWER_MARA_WETLAND",
+      "name": "Lower Mara Wetland Site 1",
+      "geom": {
+        "type": "Point",
+        "coordinates": [34.5678, -1.2345]
+      }
+    },
+    {
+      "site_id": "NBD-MARA-002",
+      "wetland_id": "LOWER_MARA_WETLAND",
+      "name": "Mara River - delta Site 2",
+      "geom": {
+        "type": "Point",
+        "coordinates": [34.571, -1.241]
+      }
+    },
+    {
+      "site_id": "NBD-MARA-003",
+      "wetland_id": "LOWER_MARA_WETLAND",
+      "name": "Upper Mara Tributary Site 3",
+      "geom": {
+        "type": "Point",
+        "coordinates": [34.58, -1.22]
+      }
+    },
+    {
+      "site_id": "NBD-SIO-001",
+      "wetland_id": "SIO_ESTUARY_WETLAND",
+      "name": "Sio Estuary Site 1",
+      "geom": {
+        "type": "Point",
+        "coordinates": [34.2, 0.22]
+      }
+    }
+  ],
+  "sub_counties": [
+    {
+      "name": "Rorya",
+      "basin_id": "MARA",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [34.2, -1.22]
+      }
+    },
+    {
+      "name": "Tarime",
+      "basin_id": "MARA",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [34.47, -1.24]
+      }
+    },
+    {
+      "name": "Butiama",
+      "basin_id": "MARA",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [34.05, -1.78]
+      }
+    },
+    {
+      "name": "Serengeti",
+      "basin_id": "MARA",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [34.83, -1.83]
+      }
+    },
+    {
+      "name": "Musoma",
+      "basin_id": "MARA",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [33.8, -1.5]
+      }
+    },
+    {
+      "name": "Busia",
+      "basin_id": "SIO_SITEKO",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [34.15, 0.46]
+      }
+    },
+    {
+      "name": "Namayingo",
+      "basin_id": "SIO_SITEKO",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [33.98, 0.17]
+      }
+    },
+    {
+      "name": "Tororo",
+      "basin_id": "SIO_SITEKO",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [34.18, 0.69]
+      }
+    },
+    {
+      "name": "Bugiri",
+      "basin_id": "SIO_SITEKO",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [33.74, 0.57]
+      }
+    }
+  ]
+}

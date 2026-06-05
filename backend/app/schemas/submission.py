@@ -27,9 +27,9 @@ class DatapointBase(BaseModel):
     form_id: int
     published_version_id: Optional[int] = None
     name: Optional[str] = None
-    basin_id: Optional[str] = None
-    wetland_id: Optional[str] = None
-    site_id: Optional[str] = None
+    basin_id: Optional[UUID] = None
+    wetland_id: Optional[UUID] = None
+    site_id: Optional[UUID] = None
     geo: Optional[Dict[str, Any]] = None
     duration: int = 0
     submitter: Optional[str] = None
@@ -45,7 +45,8 @@ class DatapointCreate(DatapointBase):
         provided = sum(1 for a in anchors if a is not None)
         if provided != 1:
             raise ValueError(
-                "Exactly one geographic anchor (basin_id, wetland_id, or site_id) must be specified."
+                "Exactly one geographic anchor (basin_id, wetland_id, "
+                "or site_id) must be specified."
             )
         return self
 

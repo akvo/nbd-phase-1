@@ -155,3 +155,57 @@ def test_seed_forms_success(db_session: Session):
         .first()
     )
     assert pollution_form_after.version == 2  # New published snapshot version
+
+
+def test_seed_spatial_success(db_session: Session):
+    from app.seeds.spatial_seeder_helper import seed_spatial
+    from app.models.spatial import Basin, Wetland, Site, SpatialBoundary
+
+    # 1. Run spatial seeder
+    seed_spatial(db_session)
+
+    # 2. Assert Basins created
+    basins = db_session.query(Basin).all()
+    assert len(basins) == 2
+    basin_ids = [b.code for b in basins]
+    assert "MARA" in basin_ids
+    assert "SIO_SITEKO" in basin_ids
+
+    # 3. Assert Wetlands created
+    wetlands = db_session.query(Wetland).all()
+    assert len(wetlands) == 2
+    wetland_ids = [w.code for w in wetlands]
+    assert "LOWER_MARA_WETLAND" in wetland_ids
+    assert "SIO_ESTUARY_WETLAND" in wetland_ids
+
+    # 4. Assert Sites created
+    sites = db_session.query(Site).all()
+    assert len(sites) == 4
+    site_ids = [s.code for s in sites]
+    assert "NBD-MARA-001" in site_ids
+    assert "NBD-SIO-001" in site_ids
+
+    # 5. Assert Sub-counties created
+    sub_counties = db_session.query(SpatialBoundary).all()
+    assert len(sub_counties) == 9
+
+    mara_sub_counties = [
+        s.name for s in sub_counties if s.basin.code == "MARA"
+    ]
+    sio_sub_counties = [
+        s.name for s in sub_counties if s.basin.code == "SIO_SITEKO"
+    ]
+
+    assert sorted(mara_sub_counties) == sorted(
+        ["Rorya", "Tarime", "Butiama", "Serengeti", "Musoma"]
+    )
+    assert sorted(sio_sub_counties) == sorted(
+        ["Busia", "Namayingo", "Tororo", "Bugiri"]
+    )
+
+    # 6. Test Idempotency
+    seed_spatial(db_session)
+    assert len(db_session.query(Basin).all()) == 2
+    assert len(db_session.query(Wetland).all()) == 2
+    assert len(db_session.query(Site).all()) == 4
+    assert len(db_session.query(SpatialBoundary).all()) == 9

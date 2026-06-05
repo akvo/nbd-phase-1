@@ -28,9 +28,9 @@ def upgrade() -> None:
         sa.Column("form_id", sa.Integer(), nullable=False),
         sa.Column("published_version_id", sa.Integer(), nullable=True),
         sa.Column("name", sa.Text(), nullable=True),
-        sa.Column("basin_id", sa.String(length=50), nullable=True),
-        sa.Column("wetland_id", sa.String(length=50), nullable=True),
-        sa.Column("site_id", sa.String(length=50), nullable=True),
+        sa.Column("basin_id", sa.UUID(), nullable=True),
+        sa.Column("wetland_id", sa.UUID(), nullable=True),
+        sa.Column("site_id", sa.UUID(), nullable=True),
         sa.Column(
             "geo", postgresql.JSONB(astext_type=sa.Text()), nullable=True
         ),
@@ -41,11 +41,13 @@ def upgrade() -> None:
         sa.Column("submitter", sa.String(length=255), nullable=True),
         sa.Column("status", sa.String(length=20), nullable=False),
         sa.CheckConstraint(
-            "(basin_id IS NOT NULL)::int + (wetland_id IS NOT NULL)::int + (site_id IS NOT NULL)::int = 1",
+            "(basin_id IS NOT NULL)::int + "
+            "(wetland_id IS NOT NULL)::int + "
+            "(site_id IS NOT NULL)::int = 1",
             name="chk_polymorphic_anchor",
         ),
         sa.ForeignKeyConstraint(
-            ["basin_id"], ["basins.basin_id"], ondelete="SET NULL"
+            ["basin_id"], ["basins.id"], ondelete="SET NULL"
         ),
         sa.ForeignKeyConstraint(
             ["created_by_id"], ["users.id"], ondelete="SET NULL"
@@ -57,10 +59,10 @@ def upgrade() -> None:
             ondelete="SET NULL",
         ),
         sa.ForeignKeyConstraint(
-            ["site_id"], ["sites.site_id"], ondelete="SET NULL"
+            ["site_id"], ["sites.id"], ondelete="SET NULL"
         ),
         sa.ForeignKeyConstraint(
-            ["wetland_id"], ["wetlands.wetland_id"], ondelete="SET NULL"
+            ["wetland_id"], ["wetlands.id"], ondelete="SET NULL"
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("uuid"),

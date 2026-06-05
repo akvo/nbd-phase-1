@@ -22,69 +22,72 @@ The database is built on **PostgreSQL 15+** with the **PostGIS 3.x** extension. 
 ```mermaid
 erDiagram
     %% Layer A: Spatial & Domain Reference
-    BASINS ||--o{ WETLANDS : "contains"
-    WETLANDS ||--o{ SITES : "contains"
-    SITES ||--o{ MANAGEMENT_ACTIONS : "triggers"
+    basins ||--o{ wetlands : "contains"
+    wetlands ||--o{ sites : "contains"
+    sites ||--o{ management_actions : "triggers"
 
     %% Layer B: Identity, Access & Privacy
-    SITES ||--o{ CITIZENS : "home location for"
-    USERS {
-        uuid user_id PK
+    sites ||--o{ citizens : "home location for"
+    users {
+        uuid id PK
         varchar email UK
         varchar role "ADMIN | REVIEWER"
-        varchar organisation
+        varchar organization
     }
 
-    CITIZENS {
-        uuid citizen_id PK
+    citizens {
+        uuid id PK
         varchar phone_number "PII (Restricted)"
-        varchar home_site_id FK
+        uuid site_id FK
         varchar role "WATCHER | SCIENTIST"
     }
 
     %% Layer C: Dynamic Form Engine
-    FORM ||--o{ QUESTION_GROUP : "defines"
-    QUESTION_GROUP ||--o{ QUESTION : "contains"
-    QUESTION ||--o{ OPTION : "has choices"
-    FORM ||--o{ FORM_PUBLISHED_VERSION : "versions"
-    FORM ||--o{ DATAPOINTS : "instantiates"
-    DATAPOINTS ||--o{ ANSWERS : "contains"
-    QUESTION ||--o{ ANSWERS : "answered by"
+    form ||--o{ question_group : "defines"
+    question_group ||--o{ question : "contains"
+    question ||--o{ option : "has choices"
+    form ||--o{ form_published_version : "versions"
+    form ||--o{ datapoint : "instantiates"
+    datapoint ||--o{ answer : "contains"
+    question ||--o{ answer : "answered by"
 
     %% Layer D: Ingestion, Triage & Outputs
-    SITES ||--o{ SAMPLING_RECORDS : "monitored at"
-    WETLANDS ||--o{ FGD_RECORDS : "assessed at"
-    SITES ||--o{ HEALTH_SCORES : "evaluated at"
+    sites ||--o{ sampling_records : "monitored at"
+    wetlands ||--o{ fgd_records : "assessed at"
+    sites ||--o{ health_scores : "evaluated at"
 
-    BASINS {
-        varchar basin_id PK "e.g., 'MARA'"
+    basins {
+        uuid id PK
+        varchar code "Unique Slug, e.g., 'MARA'"
         geometry geom "Polygon/Multipolygon (PostGIS)"
         varchar name "Basin Name"
     }
 
-    WETLANDS {
-        varchar wetland_id PK "e.g., 'MARA-WETLAND-01'"
-        varchar basin_id FK
+    wetlands {
+        uuid id PK
+        varchar code "Unique Slug, e.g., 'MARA-WETLAND-01'"
+        uuid basin_id FK
         geometry geom "Polygon/Multipolygon (PostGIS)"
         varchar name "Wetland Name"
     }
 
-    SITES {
-        varchar site_id PK "e.g., 'NBD-MARA-001'"
-        varchar wetland_id FK
+    sites {
+        uuid id PK
+        varchar code "Unique Slug, e.g., 'NBD-MARA-001'"
+        uuid wetland_id FK
         geometry geom "Point (PostGIS)"
         varchar name "Site Name"
     }
 
-    MANAGEMENT_ACTIONS {
-        uuid action_id PK
-        varchar site_id FK
+    management_actions {
+        uuid id PK
+        uuid site_id FK
         varchar status_color "GREEN | YELLOW | RED"
         varchar short_label "3-word max"
         text description_text
     }
 
-    FORM {
+    form {
         integer id PK
         varchar name
         integer version
@@ -97,7 +100,7 @@ erDiagram
         integer active_version_id FK
     }
 
-    QUESTION_GROUP {
+    question_group {
         integer id PK
         integer form_id FK
         varchar name
@@ -108,7 +111,7 @@ erDiagram
         timestamp deleted_at
     }
 
-    QUESTION {
+    question {
         integer id PK
         integer form_id FK
         integer question_group_id FK
@@ -131,7 +134,7 @@ erDiagram
         timestamp deleted_at
     }
 
-    OPTION {
+    option {
         integer id PK
         integer question_id FK
         bigint order
@@ -141,7 +144,7 @@ erDiagram
         varchar color
     }
 
-    FORM_PUBLISHED_VERSION {
+    form_published_version {
         integer id PK
         integer form_id FK
         integer version
@@ -150,23 +153,28 @@ erDiagram
         uuid published_by_id FK
     }
 
-    DATAPOINTS {
-        uuid datapoint_id PK
+    datapoint {
+        integer id PK
+        uuid uuid UK
         integer form_id FK
+        integer published_version_id FK
         varchar status "PENDING | APPROVED | REJECTED"
         timestamp created_at
     }
 
-    ANSWERS {
-        serial answer_id PK
-        uuid datapoint_id FK
-        varchar question_id FK
-        jsonb value "Typed response"
+    answer {
+        integer id PK
+        integer datapoint_id FK
+        integer question_id FK
+        text name
+        double_precision value
+        jsonb options
+        integer index
     }
 
-    SAMPLING_RECORDS {
-        uuid record_id PK
-        varchar site_id FK
+    sampling_records {
+        uuid id PK
+        uuid site_id FK
         numeric ph_value "CHECK (2.0 - 10.0)"
         numeric temp_value "CHECK (5.0 - 50.0)"
         numeric do_value "CHECK (0.5 - 35.0)"
@@ -176,18 +184,18 @@ erDiagram
         timestamp sampled_at
     }
 
-    FGD_RECORDS {
-        uuid fgd_id PK
-        varchar wetland_id FK
+    fgd_records {
+        uuid id PK
+        uuid wetland_id FK
         varchar fish_abundance "0.0 | 0.3 | 0.6 | 1.0"
         varchar water_clarity "0.0 | 0.5 | 1.0"
         varchar vegetation_cover "0.0 | 0.5 | 1.0"
         timestamp conducted_at
     }
 
-    HEALTH_SCORES {
-        uuid score_id PK
-        varchar site_id FK
+    health_scores {
+        uuid id PK
+        uuid site_id FK
         numeric wqi_score "0.0 - 1.0"
         numeric composite_score "0.0 - 1.0"
         numeric ik_signal_value "0.0 - 1.0"
@@ -208,13 +216,15 @@ Stores the high-level hydrological basins acting as primary administrative and g
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `basin_id` | `VARCHAR(50)` | `PRIMARY KEY` | Unique basin slug/code (e.g., `'MARA'`, `'SIO-SITEKO'`). |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `code` | `VARCHAR(50)` | `UNIQUE`, `NOT NULL` | Unique basin slug/code (e.g., `'MARA'`, `'SIO-SITEKO'`). |
 | `name` | `VARCHAR(100)` | `NOT NULL` | Full name of the basin. |
 | `geom` | `geometry(MultiPolygon, 4326)` | `NOT NULL` | Spatial boundary of the basin. |
 
 ```sql
 CREATE TABLE basins (
-    basin_id VARCHAR(50) PRIMARY KEY,
+    id UUID PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
     geom geometry(MultiPolygon, 4326) NOT NULL
 );
@@ -226,15 +236,17 @@ Stores polygon-based boundary layers for wetlands mapped within a basin.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `wetland_id` | `VARCHAR(50)` | `PRIMARY KEY` | Unique wetland code. |
-| `basin_id` | `VARCHAR(50)` | `REFERENCES basins(basin_id)` | Parent basin identifier. |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `code` | `VARCHAR(50)` | `UNIQUE`, `NOT NULL` | Unique wetland code. |
+| `basin_id` | `UUID` | `REFERENCES basins(id)` | Parent basin identifier. |
 | `name` | `VARCHAR(150)` | `NOT NULL` | Wetland name (e.g., `'Mara Floodplain'`). |
 | `geom` | `geometry(Polygon, 4326)` | `NOT NULL` | Spatial boundary polygon. |
 
 ```sql
 CREATE TABLE wetlands (
-    wetland_id VARCHAR(50) PRIMARY KEY,
-    basin_id VARCHAR(50) NOT NULL REFERENCES basins(basin_id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    basin_id UUID NOT NULL REFERENCES basins(id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
     geom geometry(Polygon, 4326) NOT NULL
 );
@@ -247,15 +259,17 @@ Stores fixed sampling point locations where citizen scientists gather physical, 
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `site_id` | `VARCHAR(50)` | `PRIMARY KEY` | Persistent structured identifier (e.g., `'NBD-MARA-001'`). |
-| `wetland_id` | `VARCHAR(50)` | `REFERENCES wetlands(wetland_id)` | Parent wetland container. |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `code` | `VARCHAR(50)` | `UNIQUE`, `NOT NULL` | Persistent structured identifier (e.g., `'NBD-MARA-001'`). |
+| `wetland_id` | `UUID` | `REFERENCES wetlands(id)` | Parent wetland container. |
 | `name` | `VARCHAR(150)` | `NOT NULL` | Description of the point location. |
 | `geom` | `geometry(Point, 4326)` | `NOT NULL` | Latitude/Longitude coordinates of the point. |
 
 ```sql
 CREATE TABLE sites (
-    site_id VARCHAR(50) PRIMARY KEY,
-    wetland_id VARCHAR(50) NOT NULL REFERENCES wetlands(wetland_id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    wetland_id UUID NOT NULL REFERENCES wetlands(id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
     geom geometry(Point, 4326) NOT NULL
 );
@@ -263,21 +277,42 @@ CREATE INDEX idx_sites_geom ON sites USING GIST (geom);
 CREATE INDEX idx_sites_wetland_id ON sites(wetland_id);
 ```
 
+#### `spatial_boundaries`
+Stores the administrative sub-counties and their geographic centroid coordinates for USSD reference mapping.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
+| `name` | `VARCHAR(100)` | `NOT NULL` | Sub-county or district name (e.g., `'Tarime'`). |
+| `basin_id` | `UUID` | `REFERENCES basins(id)` | Parent basin identifier. |
+| `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL` | Spatial point coordinates of the sub-county centroid. |
+
+```sql
+CREATE TABLE spatial_boundaries (
+    id UUID PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    basin_id UUID NOT NULL REFERENCES basins(id) ON DELETE CASCADE,
+    centroid_geom geometry(Point, 4326) NOT NULL
+);
+CREATE INDEX idx_spatial_boundaries_geom ON spatial_boundaries USING GIST (centroid_geom);
+CREATE INDEX idx_spatial_boundaries_basin_id ON spatial_boundaries(basin_id);
+```
+
 #### `management_actions`
 Editorial recommendations displayed on the public portal based on a site's health level.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `action_id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique primary key. |
-| `site_id` | `VARCHAR(50)` | `REFERENCES sites(site_id)` | Associated monitoring site. |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique primary key. |
+| `site_id` | `UUID` | `REFERENCES sites(id)` | Associated monitoring site UUID. |
 | `status_color` | `VARCHAR(10)` | `CHECK (status_color IN ('GREEN', 'YELLOW', 'RED'))` | Health status context triggering the action. |
 | `short_label` | `VARCHAR(50)` | `NOT NULL` | 3-word primary display label (e.g., `'Establish Silt Traps'`). |
 | `description_text` | `TEXT` | `NOT NULL` | Detailed instructional text. |
 
 ```sql
 CREATE TABLE management_actions (
-    action_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    site_id VARCHAR(50) NOT NULL REFERENCES sites(site_id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     status_color VARCHAR(10) NOT NULL CHECK (status_color IN ('GREEN', 'YELLOW', 'RED')),
     short_label VARCHAR(50) NOT NULL,
     description_text TEXT NOT NULL
@@ -318,16 +353,16 @@ Registered community recorders. Restricts direct access to PII.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `citizen_id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique identifier. |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique identifier. |
 | `phone_number` | `VARCHAR(50)` | `NOT NULL` | PII (Restricted to Admin trust zones). |
-| `home_site_id` | `VARCHAR(50)` | `REFERENCES sites(site_id)` | Associated default monitoring point. |
+| `site_id` | `UUID` | `REFERENCES sites(id)` | Associated default monitoring point UUID. |
 | `role` | `VARCHAR(20)` | `CHECK (role IN ('WATCHER', 'SCIENTIST'))` | Citizen role. |
 
 ```sql
 CREATE TABLE citizens (
-    citizen_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     phone_number VARCHAR(50) NOT NULL,
-    home_site_id VARCHAR(50) NOT NULL REFERENCES sites(site_id) ON DELETE RESTRICT,
+    site_id UUID NOT NULL REFERENCES sites(id) ON DELETE RESTRICT,
     role VARCHAR(20) NOT NULL CHECK (role IN ('WATCHER', 'SCIENTIST'))
 );
 ```
@@ -507,9 +542,9 @@ Individual instances of a submitted form, anchored to exactly one level of the g
 | `form_id` | `INTEGER` | `REFERENCES form(id) ON DELETE RESTRICT` | Form being answered. |
 | `published_version_id` | `INTEGER` | `REFERENCES form_published_version(id) ON DELETE SET NULL` | Layout snapshot used. |
 | `name` | `TEXT` | `NULL` | Optional name of observation. |
-| `basin_id` | `VARCHAR(50)` | `REFERENCES basins(basin_id) ON DELETE SET NULL` | Geographically anchored basin. |
-| `wetland_id` | `VARCHAR(50)` | `REFERENCES wetlands(wetland_id) ON DELETE SET NULL` | Geographically anchored wetland. |
-| `site_id` | `VARCHAR(50)` | `REFERENCES sites(site_id) ON DELETE SET NULL` | Geographically anchored monitoring site. |
+| `basin_id` | `UUID` | `REFERENCES basins(id) ON DELETE SET NULL` | Geographically anchored basin. |
+| `wetland_id` | `UUID` | `REFERENCES wetlands(id) ON DELETE SET NULL` | Geographically anchored wetland. |
+| `site_id` | `UUID` | `REFERENCES sites(id) ON DELETE SET NULL` | Geographically anchored monitoring site. |
 | `geo` | `JSONB` | `NULL` | Optional direct coordinate JSON. |
 | `created_by_id` | `UUID` | `REFERENCES users(id) ON DELETE SET NULL` | Submitter user profile. |
 | `created_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | Timestamp of submission. |
@@ -525,9 +560,9 @@ CREATE TABLE datapoint (
     form_id INTEGER NOT NULL REFERENCES form(id) ON DELETE RESTRICT,
     published_version_id INTEGER REFERENCES form_published_version(id) ON DELETE SET NULL,
     name TEXT,
-    basin_id VARCHAR(50) REFERENCES basins(basin_id) ON DELETE SET NULL,
-    wetland_id VARCHAR(50) REFERENCES wetlands(wetland_id) ON DELETE SET NULL,
-    site_id VARCHAR(50) REFERENCES sites(site_id) ON DELETE SET NULL,
+    basin_id UUID REFERENCES basins(id) ON DELETE SET NULL,
+    wetland_id UUID REFERENCES wetlands(id) ON DELETE SET NULL,
+    site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
     geo JSONB,
     created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -586,8 +621,8 @@ Holds validated, structured physical and chemical sampling datasets. Enforces st
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `record_id` | `UUID` | `PRIMARY KEY` | Linked transaction record ID. |
-| `site_id` | `VARCHAR(50)` | `REFERENCES sites(site_id)` | Location monitored. |
+| `id` | `UUID` | `PRIMARY KEY` | Linked transaction record ID. |
+| `site_id` | `UUID` | `REFERENCES sites(id)` | Location monitored UUID. |
 | `ph_value` | `NUMERIC(4,2)` | `CHECK (ph_value BETWEEN 2.0 AND 10.0)` | Potential of hydrogen (2.0 - 10.0). |
 | `temp_value` | `NUMERIC(4,1)` | `CHECK (temp_value BETWEEN 5.0 AND 50.0)` | Temperature in °C (5.0 - 50.0). |
 | `do_value` | `NUMERIC(4,1)` | `CHECK (do_value BETWEEN 0.5 AND 35.0)` | Dissolved Oxygen in mg/L (0.5 - 35.0). |
@@ -598,8 +633,8 @@ Holds validated, structured physical and chemical sampling datasets. Enforces st
 
 ```sql
 CREATE TABLE sampling_records (
-    record_id UUID PRIMARY KEY,
-    site_id VARCHAR(50) NOT NULL REFERENCES sites(site_id) ON DELETE RESTRICT,
+    id UUID PRIMARY KEY,
+    site_id UUID NOT NULL REFERENCES sites(id) ON DELETE RESTRICT,
     ph_value NUMERIC(4,2) NOT NULL CHECK (ph_value BETWEEN 2.0 AND 10.0),
     temp_value NUMERIC(4,1) NOT NULL CHECK (temp_value BETWEEN 5.0 AND 50.0),
     do_value NUMERIC(4,1) NOT NULL CHECK (do_value BETWEEN 0.5 AND 35.0),
@@ -616,8 +651,8 @@ Focus Group Discussion records capturing qualitative indicators to compile Indig
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `fgd_id` | `UUID` | `PRIMARY KEY` | FGD log identifier. |
-| `wetland_id` | `VARCHAR(50)` | `REFERENCES wetlands(wetland_id)` | Target wetland region. |
+| `id` | `UUID` | `PRIMARY KEY` | FGD log identifier. |
+| `wetland_id` | `UUID` | `REFERENCES wetlands(id)` | Target wetland region UUID. |
 | `fish_abundance` | `VARCHAR(15)` | `CHECK (fish_abundance IN ('Same', 'Slight', 'Moderate', 'Severe'))` | Decline status. Encoded to `(Same: 0.0, Slight: 0.3, Moderate: 0.6, Severe: 1.0)`. |
 | `water_clarity` | `VARCHAR(15)` | `CHECK (water_clarity IN ('Same', 'Somewhat Worse', 'Much Worse'))` | Decline status. Encoded to `(Same: 0.0, Somewhat Worse: 0.5, Much Worse: 1.0)`. |
 | `vegetation_cover` | `VARCHAR(15)` | `CHECK (vegetation_cover IN ('Same', 'Partial Loss', 'Severe Loss'))` | Decline status. Encoded to `(Same: 0.0, Partial Loss: 0.5, Severe Loss: 1.0)`. |
@@ -625,8 +660,8 @@ Focus Group Discussion records capturing qualitative indicators to compile Indig
 
 ```sql
 CREATE TABLE fgd_records (
-    fgd_id UUID PRIMARY KEY,
-    wetland_id VARCHAR(50) NOT NULL REFERENCES wetlands(wetland_id) ON DELETE RESTRICT,
+    id UUID PRIMARY KEY,
+    wetland_id UUID NOT NULL REFERENCES wetlands(id) ON DELETE RESTRICT,
     fish_abundance VARCHAR(15) NOT NULL CHECK (fish_abundance IN ('Same', 'Slight', 'Moderate', 'Severe')),
     water_clarity VARCHAR(15) NOT NULL CHECK (water_clarity IN ('Same', 'Somewhat Worse', 'Much Worse')),
     vegetation_cover VARCHAR(15) NOT NULL CHECK (vegetation_cover IN ('Same', 'Partial Loss', 'Severe Loss')),
@@ -640,8 +675,8 @@ The ultimate output generated by the fuzzy scoring logic engine.
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `score_id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Scoring transaction key. |
-| `site_id` | `VARCHAR(50)` | `REFERENCES sites(site_id)` | Monitored location context. |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Scoring transaction key. |
+| `site_id` | `UUID` | `REFERENCES sites(id)` | Monitored location context UUID. |
 | `wqi_score` | `NUMERIC(3,2)` | `CHECK (wqi_score BETWEEN 0.00 AND 1.00)` | Computed Water Quality Index. |
 | `composite_score` | `NUMERIC(3,2)` | `CHECK (composite_score BETWEEN 0.00 AND 1.00)` | Mean of Physico-chemical, Catchment, Ecological. |
 | `ik_signal_value` | `NUMERIC(3,2)` | `CHECK (ik_signal_value BETWEEN 0.00 AND 1.00)` | Computed mean of FGD decline vectors. |
@@ -651,8 +686,8 @@ The ultimate output generated by the fuzzy scoring logic engine.
 
 ```sql
 CREATE TABLE health_scores (
-    score_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    site_id VARCHAR(50) NOT NULL REFERENCES sites(site_id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     wqi_score NUMERIC(3,2) NOT NULL CHECK (wqi_score BETWEEN 0.00 AND 1.00),
     composite_score NUMERIC(3,2) NOT NULL CHECK (composite_score BETWEEN 0.00 AND 1.00),
     ik_signal_value NUMERIC(3,2) NOT NULL CHECK (ik_signal_value BETWEEN 0.00 AND 1.00),

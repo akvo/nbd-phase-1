@@ -28,19 +28,22 @@ We will implement:
 ```mermaid
 classDiagram
     class Basin {
-        +String basin_id
+        +UUID id
+        +String code
         +String name
         +Geometry geom
     }
     class Wetland {
-        +String wetland_id
-        +String basin_id
+        +UUID id
+        +String code
+        +UUID basin_id
         +String name
         +Geometry geom
     }
     class Site {
-        +String site_id
-        +String wetland_id
+        +UUID id
+        +String code
+        +UUID wetland_id
         +String name
         +Geometry geom
     }
@@ -79,7 +82,7 @@ Pydantic schemas will validate these formats and convert them to WKT (Well-Known
 * **Request Payload**:
   ```json
   {
-    "basin_id": "MARA",
+    "code": "MARA",
     "name": "Mara Basin",
     "geom": {
       "type": "MultiPolygon",
@@ -94,8 +97,8 @@ Pydantic schemas will validate these formats and convert them to WKT (Well-Known
 * **Request Payload**:
   ```json
   {
-    "wetland_id": "MARA-WETLAND-01",
-    "basin_id": "MARA",
+    "code": "MARA-WETLAND-01",
+    "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
     "name": "Mara Floodplain",
     "geom": {
       "type": "Polygon",
@@ -110,8 +113,8 @@ Pydantic schemas will validate these formats and convert them to WKT (Well-Known
 * **Request Payload**:
   ```json
   {
-    "site_id": "NBD-MARA-001",
-    "wetland_id": "MARA-WETLAND-01",
+    "code": "NBD-MARA-001",
+    "wetland_id": "76ec2a00-1c3b-489e-9d22-1d54be2e0ffd",
     "name": "Lower Mara Bridge",
     "geom": {
       "type": "Point",

@@ -1,10 +1,11 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import from_shape
 from shapely.geometry import shape
 
 from app.database import get_db
-from app.models.spatial import Basin, Wetland, Site
+from app.models.spatial import Basin, Wetland, Site, SpatialBoundary
 from app.schemas import spatial as schemas
 
 router = APIRouter(prefix="/api/v1", tags=["spatial"])
@@ -16,17 +17,17 @@ router = APIRouter(prefix="/api/v1", tags=["spatial"])
     status_code=status.HTTP_201_CREATED,
 )
 def create_basin(basin: schemas.BasinCreate, db: Session = Depends(get_db)):
-    # Check if already exists
-    existing = db.query(Basin).filter(Basin.basin_id == basin.basin_id).first()
+    # Check if already exists by slug
+    existing = db.query(Basin).filter(Basin.code == basin.code).first()
     if existing:
         raise HTTPException(
             status_code=400,
-            detail=f"Basin with ID '{basin.basin_id}' already exists.",
+            detail=f"Basin with ID '{basin.code}' already exists.",
         )
 
     try:
         db_basin = Basin(
-            basin_id=basin.basin_id,
+            code=basin.code,
             name=basin.name,
             geom=from_shape(shape(basin.geom), srid=4326),
         )
@@ -41,7 +42,12 @@ def create_basin(basin: schemas.BasinCreate, db: Session = Depends(get_db)):
 
 @router.get("/basins/{basin_id}", response_model=schemas.Basin)
 def get_basin(basin_id: str, db: Session = Depends(get_db)):
-    db_basin = db.query(Basin).filter(Basin.basin_id == basin_id).first()
+    try:
+        val = uuid.UUID(basin_id)
+        db_basin = db.query(Basin).filter(Basin.id == val).first()
+    except ValueError:
+        db_basin = db.query(Basin).filter(Basin.code == basin_id).first()
+
     if not db_basin:
         raise HTTPException(
             status_code=404, detail=f"Basin '{basin_id}' not found."
@@ -58,30 +64,24 @@ def create_wetland(
     wetland: schemas.WetlandCreate, db: Session = Depends(get_db)
 ):
     # Check if parent basin exists
-    parent_basin = (
-        db.query(Basin).filter(Basin.basin_id == wetland.basin_id).first()
-    )
+    parent_basin = db.query(Basin).filter(Basin.id == wetland.basin_id).first()
     if not parent_basin:
         raise HTTPException(
             status_code=400,
             detail=f"Parent Basin '{wetland.basin_id}' does not exist.",
         )
 
-    # Check if already exists
-    existing = (
-        db.query(Wetland)
-        .filter(Wetland.wetland_id == wetland.wetland_id)
-        .first()
-    )
+    # Check if already exists by slug
+    existing = db.query(Wetland).filter(Wetland.code == wetland.code).first()
     if existing:
         raise HTTPException(
             status_code=400,
-            detail=f"Wetland with ID '{wetland.wetland_id}' already exists.",
+            detail=f"Wetland with ID '{wetland.code}' already exists.",
         )
 
     try:
         db_wetland = Wetland(
-            wetland_id=wetland.wetland_id,
+            code=wetland.code,
             basin_id=wetland.basin_id,
             name=wetland.name,
             geom=from_shape(shape(wetland.geom), srid=4326),
@@ -97,9 +97,14 @@ def create_wetland(
 
 @router.get("/wetlands/{wetland_id}", response_model=schemas.Wetland)
 def get_wetland(wetland_id: str, db: Session = Depends(get_db)):
-    db_wetland = (
-        db.query(Wetland).filter(Wetland.wetland_id == wetland_id).first()
-    )
+    try:
+        val = uuid.UUID(wetland_id)
+        db_wetland = db.query(Wetland).filter(Wetland.id == val).first()
+    except ValueError:
+        db_wetland = (
+            db.query(Wetland).filter(Wetland.code == wetland_id).first()
+        )
+
     if not db_wetland:
         raise HTTPException(
             status_code=404, detail=f"Wetland '{wetland_id}' not found."
@@ -115,7 +120,7 @@ def get_wetland(wetland_id: str, db: Session = Depends(get_db)):
 def create_site(site: schemas.SiteCreate, db: Session = Depends(get_db)):
     # Check if parent wetland exists
     parent_wetland = (
-        db.query(Wetland).filter(Wetland.wetland_id == site.wetland_id).first()
+        db.query(Wetland).filter(Wetland.id == site.wetland_id).first()
     )
     if not parent_wetland:
         raise HTTPException(
@@ -124,16 +129,16 @@ def create_site(site: schemas.SiteCreate, db: Session = Depends(get_db)):
         )
 
     # Check if already exists
-    existing = db.query(Site).filter(Site.site_id == site.site_id).first()
+    existing = db.query(Site).filter(Site.code == site.code).first()
     if existing:
         raise HTTPException(
             status_code=400,
-            detail=f"Site with ID '{site.site_id}' already exists.",
+            detail=f"Site with ID '{site.code}' already exists.",
         )
 
     try:
         db_site = Site(
-            site_id=site.site_id,
+            code=site.code,
             wetland_id=site.wetland_id,
             name=site.name,
             geom=from_shape(shape(site.geom), srid=4326),
@@ -149,9 +154,52 @@ def create_site(site: schemas.SiteCreate, db: Session = Depends(get_db)):
 
 @router.get("/sites/{site_id}", response_model=schemas.Site)
 def get_site(site_id: str, db: Session = Depends(get_db)):
-    db_site = db.query(Site).filter(Site.site_id == site_id).first()
+    try:
+        val = uuid.UUID(site_id)
+        db_site = db.query(Site).filter(Site.id == val).first()
+    except ValueError:
+        db_site = db.query(Site).filter(Site.code == site_id).first()
+
     if not db_site:
         raise HTTPException(
             status_code=404, detail=f"Site '{site_id}' not found."
         )
     return db_site
+
+
+@router.post(
+    "/reference/sub-counties",
+    response_model=schemas.SpatialBoundary,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_sub_county(
+    sb: schemas.SpatialBoundaryCreate, db: Session = Depends(get_db)
+):
+    # Check if parent basin exists
+    parent_basin = db.query(Basin).filter(Basin.id == sb.basin_id).first()
+    if not parent_basin:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Parent Basin '{sb.basin_id}' does not exist.",
+        )
+
+    try:
+        db_sb = SpatialBoundary(
+            name=sb.name,
+            basin_id=sb.basin_id,
+            centroid_geom=from_shape(shape(sb.centroid_geom), srid=4326),
+        )
+        db.add(db_sb)
+        db.commit()
+        db.refresh(db_sb)
+        return db_sb
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get(
+    "/reference/sub-counties", response_model=list[schemas.SpatialBoundary]
+)
+def list_sub_counties(db: Session = Depends(get_db)):
+    return db.query(SpatialBoundary).all()

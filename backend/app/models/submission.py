@@ -5,7 +5,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    Boolean,
     DateTime,
     ForeignKey,
     CheckConstraint,
@@ -35,18 +34,18 @@ class Datapoint(Base):
     name = Column(Text, nullable=True)
 
     basin_id = Column(
-        String(50),
-        ForeignKey("basins.basin_id", ondelete="SET NULL"),
+        UUID(as_uuid=True),
+        ForeignKey("basins.id", ondelete="SET NULL"),
         nullable=True,
     )
     wetland_id = Column(
-        String(50),
-        ForeignKey("wetlands.wetland_id", ondelete="SET NULL"),
+        UUID(as_uuid=True),
+        ForeignKey("wetlands.id", ondelete="SET NULL"),
         nullable=True,
     )
     site_id = Column(
-        String(50),
-        ForeignKey("sites.site_id", ondelete="SET NULL"),
+        UUID(as_uuid=True),
+        ForeignKey("sites.id", ondelete="SET NULL"),
         nullable=True,
     )
 
@@ -79,7 +78,9 @@ class Datapoint(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "(basin_id IS NOT NULL)::int + (wetland_id IS NOT NULL)::int + (site_id IS NOT NULL)::int = 1",
+            "(basin_id IS NOT NULL)::int + "
+            "(wetland_id IS NOT NULL)::int + "
+            "(site_id IS NOT NULL)::int = 1",
             name="chk_polymorphic_anchor",
         ),
     )

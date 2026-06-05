@@ -94,12 +94,13 @@ Personally Identifiable Information (PII), specifically reporter phone numbers, 
 ### 3.2.1 GET /api/v1/basins/{basin_id}
 * **Objective**: Returns the name and MultiPolygon geometry of a specific basin.
 * **Path Parameters**:
-  * `basin_id` (Required): String identifier (e.g., `MARA`).
+  * `basin_id` (Required): String identifier (UUID or code slug, e.g., `9bd4883b-ba50-42a7-8277-0fc5e44e0ffe` or `MARA`).
 
 #### Response Payload Example
 ```json
 {
-  "basin_id": "MARA",
+  "id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
+  "code": "MARA",
   "name": "Mara Basin",
   "geom": {
     "type": "MultiPolygon",
@@ -111,13 +112,14 @@ Personally Identifiable Information (PII), specifically reporter phone numbers, 
 ### 3.2.2 GET /api/v1/wetlands/{wetland_id}
 * **Objective**: Returns the name, parent basin_id, and Polygon geometry of a specific wetland.
 * **Path Parameters**:
-  * `wetland_id` (Required): String identifier (e.g., `MARA-WETLAND-01`).
+  * `wetland_id` (Required): String identifier (UUID or code slug, e.g., `76ec2a00-1c3b-489e-9d22-1d54be2e0ffd` or `MARA-WETLAND-01`).
 
 #### Response Payload Example
 ```json
 {
-  "wetland_id": "MARA-WETLAND-01",
-  "basin_id": "MARA",
+  "id": "76ec2a00-1c3b-489e-9d22-1d54be2e0ffd",
+  "code": "MARA-WETLAND-01",
+  "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
   "name": "Mara Floodplain",
   "geom": {
     "type": "Polygon",
@@ -359,7 +361,7 @@ All citizen submissions enter as `Pending`. Approving a record triggers the auto
   - **Payload Schema**:
     ```json
     {
-      "basin_id": "MARA",
+      "code": "MARA",
       "name": "Mara Basin",
       "geom": {
         "type": "MultiPolygon",
@@ -373,8 +375,8 @@ All citizen submissions enter as `Pending`. Approving a record triggers the auto
   - **Payload Schema**:
     ```json
     {
-      "wetland_id": "MARA-WETLAND-01",
-      "basin_id": "MARA",
+      "code": "MARA-WETLAND-01",
+      "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
       "name": "Mara Floodplain",
       "geom": {
         "type": "Polygon",

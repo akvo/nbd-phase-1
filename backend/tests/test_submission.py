@@ -16,7 +16,7 @@ def test_create_submission_success():
     basin_resp = client.post(
         "/api/v1/basins",
         json={
-            "basin_id": "test_basin",
+            "code": "test_basin",
             "name": "Test Basin",
             "geom": {
                 "type": "MultiPolygon",
@@ -76,9 +76,10 @@ def test_create_submission_success():
     q2_id = q2_resp.json()["id"]
 
     # Create submission
+    basin_uuid = basin_resp.json()["id"]
     payload = {
         "form_id": form_id,
-        "basin_id": "test_basin",
+        "basin_id": basin_uuid,
         "answers": [
             {"question_id": q1_id, "name": "pH Level", "value": 7.2},
             {"question_id": q2_id, "name": "Observer Notes"},
@@ -88,15 +89,17 @@ def test_create_submission_success():
     assert response.status_code == 201
     data = response.json()
     assert data["form_id"] == form_id
-    assert data["basin_id"] == "test_basin"
+    assert data["basin_id"] == basin_uuid
     assert len(data["answers"]) == 2
 
 
 def test_create_submission_multiple_anchors_rejected():
+    import uuid
+
     payload = {
         "form_id": 1,
-        "basin_id": "test_basin",
-        "site_id": "test_site",
+        "basin_id": str(uuid.uuid4()),
+        "site_id": str(uuid.uuid4()),
         "answers": [],
     }
     response = client.post("/api/v1/submissions", json=payload)
@@ -111,13 +114,14 @@ def test_create_submission_no_anchors_rejected():
 
 def test_db_check_constraint_multiple_anchors(db_session):
     import pytest
+    import uuid
     from sqlalchemy.exc import IntegrityError
     from app.models.submission import Datapoint
 
     dp = Datapoint(
         form_id=1,
-        basin_id="test_basin",
-        site_id="test_site",
+        basin_id=uuid.uuid4(),
+        site_id=uuid.uuid4(),
     )
     db_session.add(dp)
     with pytest.raises(IntegrityError):

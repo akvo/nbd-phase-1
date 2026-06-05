@@ -1,3 +1,4 @@
+import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -67,9 +68,9 @@ def create_submission(
 @router.get("", response_model=List[schemas.DatapointResponse])
 def list_submissions(
     form_id: Optional[int] = None,
-    basin_id: Optional[str] = None,
-    wetland_id: Optional[str] = None,
-    site_id: Optional[str] = None,
+    basin_id: Optional[uuid.UUID] = None,
+    wetland_id: Optional[uuid.UUID] = None,
+    site_id: Optional[uuid.UUID] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
 ):

@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from app.main import app
@@ -8,7 +9,7 @@ client = TestClient(app)
 def test_create_and_get_basin():
     # Create
     basin_data = {
-        "basin_id": "TEST-MARA",
+        "code": "TEST-MARA",
         "name": "Test Mara Basin",
         "geom": {
             "type": "MultiPolygon",
@@ -28,19 +29,25 @@ def test_create_and_get_basin():
     response = client.post("/api/v1/basins", json=basin_data)
     assert response.status_code == 201
     res_data = response.json()
-    assert res_data["basin_id"] == "TEST-MARA"
+    assert res_data["code"] == "TEST-MARA"
     assert res_data["name"] == "Test Mara Basin"
     assert res_data["geom"]["type"] == "MultiPolygon"
+    assert "id" in res_data
 
-    # Get
+    # Get by slug
     response = client.get("/api/v1/basins/TEST-MARA")
+    assert response.status_code == 200
+    assert response.json()["name"] == "Test Mara Basin"
+
+    # Get by UUID
+    response = client.get(f"/api/v1/basins/{res_data['id']}")
     assert response.status_code == 200
     assert response.json()["name"] == "Test Mara Basin"
 
 
 def test_create_basin_invalid_geom():
     basin_data = {
-        "basin_id": "TEST-INVALID",
+        "code": "TEST-INVALID",
         "name": "Invalid Basin",
         "geom": {
             "type": "MultiPolygon",
@@ -64,7 +71,7 @@ def test_create_basin_invalid_geom():
 def test_create_wetland_success():
     # 1. Create parent basin first
     basin_data = {
-        "basin_id": "TEST-BASIN-2",
+        "code": "TEST-BASIN-2",
         "name": "Test Basin 2",
         "geom": {
             "type": "MultiPolygon",
@@ -81,12 +88,14 @@ def test_create_wetland_success():
             ],
         },
     }
-    client.post("/api/v1/basins", json=basin_data)
+    res_basin = client.post("/api/v1/basins", json=basin_data)
+    assert res_basin.status_code == 201
+    basin_uuid = res_basin.json()["id"]
 
     # 2. Create Wetland
     wetland_data = {
-        "wetland_id": "TEST-WETLAND-1",
-        "basin_id": "TEST-BASIN-2",
+        "code": "TEST-WETLAND-1",
+        "basin_id": basin_uuid,
         "name": "Test Wetland 1",
         "geom": {
             "type": "Polygon",
@@ -103,13 +112,15 @@ def test_create_wetland_success():
     }
     response = client.post("/api/v1/wetlands", json=wetland_data)
     assert response.status_code == 201
-    assert response.json()["wetland_id"] == "TEST-WETLAND-1"
+    assert response.json()["code"] == "TEST-WETLAND-1"
+    assert response.json()["basin_id"] == basin_uuid
 
 
 def test_create_wetland_missing_basin():
+    fake_uuid = str(uuid.uuid4())
     wetland_data = {
-        "wetland_id": "TEST-WETLAND-ERR",
-        "basin_id": "NON-EXISTENT-BASIN",
+        "code": "TEST-WETLAND-ERR",
+        "basin_id": fake_uuid,
         "name": "Test Wetland Err",
         "geom": {
             "type": "Polygon",
@@ -132,7 +143,7 @@ def test_create_wetland_missing_basin():
 def test_create_site_success_and_fail():
     # 1. Create parent basin & wetland
     basin_data = {
-        "basin_id": "TEST-BASIN-3",
+        "code": "TEST-BASIN-3",
         "name": "Test Basin 3",
         "geom": {
             "type": "MultiPolygon",
@@ -149,11 +160,12 @@ def test_create_site_success_and_fail():
             ],
         },
     }
-    client.post("/api/v1/basins", json=basin_data)
+    res_basin = client.post("/api/v1/basins", json=basin_data)
+    basin_uuid = res_basin.json()["id"]
 
     wetland_data = {
-        "wetland_id": "TEST-WETLAND-3",
-        "basin_id": "TEST-BASIN-3",
+        "code": "TEST-WETLAND-3",
+        "basin_id": basin_uuid,
         "name": "Test Wetland 3",
         "geom": {
             "type": "Polygon",
@@ -168,23 +180,26 @@ def test_create_site_success_and_fail():
             ],
         },
     }
-    client.post("/api/v1/wetlands", json=wetland_data)
+    res_wetland = client.post("/api/v1/wetlands", json=wetland_data)
+    wetland_uuid = res_wetland.json()["id"]
 
     # 2. Create Site (Success)
     site_data = {
-        "site_id": "TEST-SITE-1",
-        "wetland_id": "TEST-WETLAND-3",
+        "code": "TEST-SITE-1",
+        "wetland_id": wetland_uuid,
         "name": "Test Site 1",
         "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
     }
     response = client.post("/api/v1/sites", json=site_data)
     assert response.status_code == 201
-    assert response.json()["site_id"] == "TEST-SITE-1"
+    assert response.json()["code"] == "TEST-SITE-1"
+    assert response.json()["wetland_id"] == wetland_uuid
 
     # 3. Create Site with invalid parent wetland (Failure)
+    fake_uuid = str(uuid.uuid4())
     site_data_invalid = {
-        "site_id": "TEST-SITE-2",
-        "wetland_id": "NON-EXISTENT-WETLAND",
+        "code": "TEST-SITE-2",
+        "wetland_id": fake_uuid,
         "name": "Test Site 2",
         "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
     }
@@ -196,7 +211,7 @@ def test_create_site_success_and_fail():
 def test_spatial_duplicates_and_404s():
     # 1. Duplicate Basin Check
     basin_data = {
-        "basin_id": "DUP-BASIN",
+        "code": "DUP-BASIN",
         "name": "Basin",
         "geom": {
             "type": "MultiPolygon",
@@ -215,18 +230,19 @@ def test_spatial_duplicates_and_404s():
     }
     res1 = client.post("/api/v1/basins", json=basin_data)
     assert res1.status_code == 201
+    basin_uuid = res1.json()["id"]
     res2 = client.post("/api/v1/basins", json=basin_data)
     assert res2.status_code == 400
     assert "already exists" in res2.json()["detail"]
 
     # 404 Basin
-    res_404 = client.get("/api/v1/basins/NON-EXISTENT")
+    res_404 = client.get(f"/api/v1/basins/{uuid.uuid4()}")
     assert res_404.status_code == 404
 
     # 2. Duplicate Wetland Check
     wetland_data = {
-        "wetland_id": "DUP-WETLAND",
-        "basin_id": "DUP-BASIN",
+        "code": "DUP-WETLAND",
+        "basin_id": basin_uuid,
         "name": "Wetland",
         "geom": {
             "type": "Polygon",
@@ -243,18 +259,19 @@ def test_spatial_duplicates_and_404s():
     }
     res_w1 = client.post("/api/v1/wetlands", json=wetland_data)
     assert res_w1.status_code == 201
+    wetland_uuid = res_w1.json()["id"]
     res_w2 = client.post("/api/v1/wetlands", json=wetland_data)
     assert res_w2.status_code == 400
     assert "already exists" in res_w2.json()["detail"]
 
     # 404 Wetland
-    res_w_404 = client.get("/api/v1/wetlands/NON-EXISTENT")
+    res_w_404 = client.get(f"/api/v1/wetlands/{uuid.uuid4()}")
     assert res_w_404.status_code == 404
 
     # 3. Duplicate Site Check
     site_data = {
-        "site_id": "DUP-SITE",
-        "wetland_id": "DUP-WETLAND",
+        "code": "DUP-SITE",
+        "wetland_id": wetland_uuid,
         "name": "Site",
         "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
     }
@@ -265,17 +282,19 @@ def test_spatial_duplicates_and_404s():
     assert "already exists" in res_s2.json()["detail"]
 
     # 404 Site
-    res_s_404 = client.get("/api/v1/sites/NON-EXISTENT")
+    res_s_404 = client.get(f"/api/v1/sites/{uuid.uuid4()}")
     assert res_s_404.status_code == 404
 
 
 @patch("app.routers.spatial_router.from_shape")
 def test_router_exceptions(mock_from_shape):
+    from geoalchemy2.shape import from_shape as real_from_shape
+
     mock_from_shape.side_effect = Exception("DB error mock")
 
     # Basin Create exception
     basin_data = {
-        "basin_id": "EXC-BASIN",
+        "code": "EXC-BASIN",
         "name": "Basin",
         "geom": {
             "type": "MultiPolygon",
@@ -296,14 +315,15 @@ def test_router_exceptions(mock_from_shape):
     assert res.status_code == 400
 
     # Create dummy parent for wetland exception test
-    mock_from_shape.side_effect = None
-    client.post("/api/v1/basins", json=basin_data)
+    mock_from_shape.side_effect = real_from_shape
+    res_b = client.post("/api/v1/basins", json=basin_data)
+    basin_uuid = res_b.json()["id"]
 
     # Wetland Create exception
     mock_from_shape.side_effect = Exception("DB error mock")
     wetland_data = {
-        "wetland_id": "EXC-WETLAND",
-        "basin_id": "EXC-BASIN",
+        "code": "EXC-WETLAND",
+        "basin_id": basin_uuid,
         "name": "Wetland",
         "geom": {
             "type": "Polygon",
@@ -322,14 +342,15 @@ def test_router_exceptions(mock_from_shape):
     assert res.status_code == 400
 
     # Create dummy parent for site exception test
-    mock_from_shape.side_effect = None
-    client.post("/api/v1/wetlands", json=wetland_data)
+    mock_from_shape.side_effect = real_from_shape
+    res_w = client.post("/api/v1/wetlands", json=wetland_data)
+    wetland_uuid = res_w.json()["id"]
 
     # Site Create exception
     mock_from_shape.side_effect = Exception("DB error mock")
     site_data = {
-        "site_id": "EXC-SITE",
-        "wetland_id": "EXC-WETLAND",
+        "code": "EXC-SITE",
+        "wetland_id": wetland_uuid,
         "name": "Site",
         "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
     }
