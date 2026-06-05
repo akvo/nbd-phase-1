@@ -13,6 +13,8 @@ from app.models.form import (
 )
 from app.schemas import form as schemas
 
+from app.dependencies.auth import RoleChecker
+
 router = APIRouter(prefix="/api/v1", tags=["form"])
 
 
@@ -23,6 +25,7 @@ router = APIRouter(prefix="/api/v1", tags=["form"])
     "/forms",
     response_model=schemas.FormResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(RoleChecker(["Admin"]))],
 )
 def create_form(form: schemas.FormCreate, db: Session = Depends(get_db)):
     try:
@@ -65,6 +68,7 @@ def get_form(form_id: int, db: Session = Depends(get_db)):
 @router.post(
     "/forms/{form_id}/publish",
     response_model=schemas.FormPublishedVersionResponse,
+    dependencies=[Depends(RoleChecker(["Admin"]))],
 )
 def publish_form(form_id: int, db: Session = Depends(get_db)):
     db_form = db.query(Form).filter(Form.id == form_id).first()
@@ -189,6 +193,7 @@ def publish_form(form_id: int, db: Session = Depends(get_db)):
     "/question-groups",
     response_model=schemas.QuestionGroupResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(RoleChecker(["Admin"]))],
 )
 def create_question_group(
     group: schemas.QuestionGroupCreate, db: Session = Depends(get_db)
@@ -237,7 +242,10 @@ def create_question_group(
         )
 
 
-@router.delete("/question-groups/{group_id}")
+@router.delete(
+    "/question-groups/{group_id}",
+    dependencies=[Depends(RoleChecker(["Admin"]))],
+)
 def delete_question_group(group_id: int, db: Session = Depends(get_db)):
     db_group = (
         db.query(QuestionGroup).filter(QuestionGroup.id == group_id).first()
@@ -273,6 +281,7 @@ def delete_question_group(group_id: int, db: Session = Depends(get_db)):
     "/questions",
     response_model=schemas.QuestionResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(RoleChecker(["Admin"]))],
 )
 def create_question(
     question: schemas.QuestionCreate, db: Session = Depends(get_db)
@@ -351,7 +360,10 @@ def create_question(
         )
 
 
-@router.delete("/questions/{question_id}")
+@router.delete(
+    "/questions/{question_id}",
+    dependencies=[Depends(RoleChecker(["Admin"]))],
+)
 def delete_question(question_id: int, db: Session = Depends(get_db)):
     db_q = db.query(Question).filter(Question.id == question_id).first()
     if not db_q:
@@ -377,6 +389,7 @@ def delete_question(question_id: int, db: Session = Depends(get_db)):
     "/options",
     response_model=schemas.OptionResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(RoleChecker(["Admin"]))],
 )
 def create_option(option: schemas.OptionCreate, db: Session = Depends(get_db)):
     # Check if parent question exists

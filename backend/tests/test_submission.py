@@ -1,13 +1,31 @@
+import jwt
+import uuid
+import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from app.models.user import User
 
 client = TestClient(app)
+TEST_SECRET = "test_secret"
 
 
-def test_create_submission_success():
+def get_auth_headers(db_session, email="admin_sub_test@nbd.org", role="Admin"):
+    user = db_session.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(email=email, role=role, is_active=True)
+        db_session.add(user)
+        db_session.commit()
+    token = jwt.encode({"email": email}, TEST_SECRET, algorithm="HS256")
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_create_submission_success(db_session):
+    headers = get_auth_headers(db_session)
     # We need a form in the DB first. Let's create one.
     form_resp = client.post(
-        "/api/v1/forms", json={"name": "Water Ingestion Form", "type": 1}
+        "/api/v1/forms",
+        json={"name": "Water Ingestion Form", "type": 1},
+        headers=headers,
     )
     assert form_resp.status_code == 201
     form_id = form_resp.json()["id"]
@@ -44,6 +62,7 @@ def test_create_submission_success():
             "name": "water_quality",
             "label": "Water Quality",
         },
+        headers=headers,
     )
     assert group_resp.status_code == 201
     group_id = group_resp.json()["id"]
@@ -58,6 +77,7 @@ def test_create_submission_success():
             "label": "pH Level",
             "type": "number",
         },
+        headers=headers,
     )
     assert q1_resp.status_code == 201
     q1_id = q1_resp.json()["id"]
@@ -71,6 +91,7 @@ def test_create_submission_success():
             "label": "Notes",
             "type": "text",
         },
+        headers=headers,
     )
     assert q2_resp.status_code == 201
     q2_id = q2_resp.json()["id"]
@@ -94,8 +115,6 @@ def test_create_submission_success():
 
 
 def test_create_submission_multiple_anchors_rejected():
-    import uuid
-
     payload = {
         "form_id": 1,
         "basin_id": str(uuid.uuid4()),
@@ -112,9 +131,27 @@ def test_create_submission_no_anchors_rejected():
     assert response.status_code == 422
 
 
+def test_list_submissions_rbac_protection(db_session):
+    # Missing credentials
+    response = client.get("/api/v1/submissions")
+    assert response.status_code == 401
+
+    # Valid reviewer credentials
+    rev_headers = get_auth_headers(
+        db_session, email="reviewer_sub@nbd.org", role="Reviewer"
+    )
+    response_rev = client.get("/api/v1/submissions", headers=rev_headers)
+    assert response_rev.status_code == 200
+
+    # Valid admin credentials
+    admin_headers = get_auth_headers(
+        db_session, email="admin_sub@nbd.org", role="Admin"
+    )
+    response_admin = client.get("/api/v1/submissions", headers=admin_headers)
+    assert response_admin.status_code == 200
+
+
 def test_db_check_constraint_multiple_anchors(db_session):
-    import pytest
-    import uuid
     from sqlalchemy.exc import IntegrityError
     from app.models.submission import Datapoint
 
@@ -129,7 +166,6 @@ def test_db_check_constraint_multiple_anchors(db_session):
 
 
 def test_db_check_constraint_no_anchors(db_session):
-    import pytest
     from sqlalchemy.exc import IntegrityError
     from app.models.submission import Datapoint
 
