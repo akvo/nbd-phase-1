@@ -56,4 +56,5 @@ def test_kobo_service_get_submissions(mock_client_class):
     mock_client.get.assert_called_once_with(
         "https://eu.kobotoolbox.org/api/v2/assets/form1/data.json",
         headers={"Authorization": "Token test_token_xyz"},
+        params={},
     )
