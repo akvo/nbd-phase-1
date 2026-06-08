@@ -62,6 +62,12 @@ If integration with Google Cloud Storage is required for local development:
 2. Place your GCP Service Account JSON key inside it (e.g. `credentials/nbd-service-account.json`).
 3. Set the `GOOGLE_APPLICATION_CREDENTIALS` path in `.env` to point to `/credentials/your-key-name.json`.
 4. Set the `GCS_BUCKET_NAME` variable in `.env` to your GCS bucket name (e.g. `nbd-storage`).
+5. Uploaded media is streamed asynchronously and saved under `{APP_ENV}/{pipeline}/{uuid}.{ext}` (e.g., `development/whatsapp/f47ac10b-58cc-4372-a567-0e02b2c3d479.jpg`).
+
+### 📱 Ingestion Pipelines
+
+*   **USSD Ingestion**: Stateless endpoint `/api/v1/ussd` handling Africa's Talking session menus.
+*   **WhatsApp Ingestion**: Endpoint `/api/v1/whatsapp/webhook` running a stateful chatbot with asynchronous, non-blocking media streaming to GCS.
 
 
 ### 🏃 Running Locally

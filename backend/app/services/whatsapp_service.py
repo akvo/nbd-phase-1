@@ -9,11 +9,11 @@ persists completed reports as Datapoint/Answer records, mirroring the
 USSD router logic.
 """
 
-import uuid
+import uuid  # noqa: F401
 import logging
 import os
 import httpx
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -23,7 +23,7 @@ from app.models.form import Form, Question, Option, FormNames
 from app.models.submission import Datapoint, Answer
 from app.models.spatial import SpatialBoundary, Basin
 from app.models.citizen import Citizen
-from app.services.storage import StorageService
+from app.services.storage import StorageService, build_blob_path
 
 logger = logging.getLogger(__name__)
 
@@ -64,22 +64,32 @@ async def _send_message(phone: str, text: str) -> None:
         resp.raise_for_status()
 
 
-async def _download_media(media_id: str) -> bytes:
-    """Two-step Meta media download: get URL then fetch binary."""
+async def _get_media_url(media_id: str) -> str:
+    """Step 1: resolve a Meta media_id to its short-lived download URL."""
     headers = {"Authorization": f"Bearer {_get_access_token()}"}
-    async with httpx.AsyncClient(timeout=30) as client:
-        # Step 1: retrieve media URL
-        meta_resp = await client.get(
-            f"{GRAPH_BASE}/{media_id}", headers=headers
-        )
-        meta_resp.raise_for_status()
-        media_url = meta_resp.json().get("url")
-        if not media_url:
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(f"{GRAPH_BASE}/{media_id}", headers=headers)
+        resp.raise_for_status()
+        url = resp.json().get("url")
+        if not url:
             raise ValueError(f"No URL returned for media_id={media_id}")
-        # Step 2: download binary (URL expires ~5 min; do this immediately)
-        bin_resp = await client.get(media_url, headers=headers)
-        bin_resp.raise_for_status()
-        return bin_resp.content
+        return url
+
+
+async def _iter_media_chunks(
+    media_url: str, chunk_size: int = 1024 * 1024
+) -> AsyncIterator[bytes]:
+    """Step 2: stream binary chunks from Meta's media URL.
+
+    Uses httpx streaming to avoid loading the full file into RAM.
+    WhatsApp caps media at 16 MB so peak memory ≤ 16 MB.
+    """
+    headers = {"Authorization": f"Bearer {_get_access_token()}"}
+    async with httpx.AsyncClient(timeout=120) as client:
+        async with client.stream("GET", media_url, headers=headers) as resp:
+            resp.raise_for_status()
+            async for chunk in resp.aiter_bytes(chunk_size):
+                yield chunk
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +194,14 @@ def _save_report(
         .filter(Question.form_id == form.id, Question.name == "location_id")
         .first()
     )
+    q_media = (
+        db.query(Question)
+        .filter(
+            Question.form_id == form.id,
+            Question.name == "media_attachment",
+        )
+        .first()
+    )
 
     citizen = db.query(Citizen).filter(Citizen.phone_number == phone).first()
 
@@ -235,15 +253,30 @@ def _save_report(
     db.add(ans_location)
 
     # Answer: media attachment path (if any)
-    if media_gcs_path:
-        ans_media = Answer(
-            datapoint_id=dp.id,
-            question_id=0,
-            name="media_attachment",
-            options=[media_gcs_path],
-            index=1,
+    # Only persist when: a matching Question row exists AND upload succeeded.
+    if media_gcs_path and media_gcs_path != "UPLOAD_FAILED":
+        if q_media:
+            ans_media = Answer(
+                datapoint_id=dp.id,
+                question_id=q_media.id,
+                name="media_attachment",
+                options=[media_gcs_path],
+                index=1,
+            )
+            db.add(ans_media)
+        else:
+            logger.warning(
+                "No 'media_attachment' question found for form_id=%s; "
+                "skipping media answer (blob=%s)",
+                form.id,
+                media_gcs_path,
+            )
+    elif media_gcs_path == "UPLOAD_FAILED":
+        logger.warning(
+            "Media upload had previously failed for phone=%s; "
+            "omitting media answer row.",
+            phone,
         )
-        db.add(ans_media)
 
     db.commit()
 
@@ -360,18 +393,35 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     "mime_type", "application/octet-stream"
                 )
                 if media_id:
+                    ext = mime_type.split("/")[-1].split(";")[0]
+                    blob_name = build_blob_path("whatsapp", ext)
                     try:
-                        content = await _download_media(media_id)
-                        ext = mime_type.split("/")[-1].split(";")[0]
-                        blob_name = f"whatsapp/{phone}/{uuid.uuid4()}.{ext}"
+                        # Step 1: resolve Meta media URL
+                        media_url = await _get_media_url(media_id)
+                        # Step 2: stream chunks to GCS (memory-safe, FR-002)
                         storage = StorageService()
-                        storage.upload_file(content, blob_name, mime_type)
-                        media_gcs_path = blob_name
-                        session.media_url = blob_name
-                    except Exception as exc:
-                        logger.error(
-                            "Media upload failed for %s: %s", phone, exc
+                        await storage.stream_upload_async(
+                            blob_name=blob_name,
+                            chunks=_iter_media_chunks(media_url),
+                            content_type=mime_type,
                         )
+                        session.media_url = blob_name
+                        logger.info(
+                            "Media uploaded to GCS: %s (phone=%s)",
+                            blob_name,
+                            phone,
+                        )
+                    except Exception as exc:
+                        # FR-006: log full traceback so GCS auth/network
+                        # errors are visible in the container logs.
+                        logger.error(
+                            "Media upload failed for %s (blob=%s): %s",
+                            phone,
+                            blob_name,
+                            exc,
+                            exc_info=True,
+                        )
+                        session.media_url = "UPLOAD_FAILED"
             elif msg_type == "text":
                 skip_text = (msg.get("text") or {}).get("body", "").strip()
                 if skip_text.lower() != "skip":

@@ -32,6 +32,14 @@
           "required": true,
           "endpoint": "/api/v1/reference/sub-counties",
           "comment": "External API dependency for hierarchical sub-county list"
+        },
+        {
+          "id": "media_attachment",
+          "order": 3,
+          "type": "image",
+          "name": "Photo Evidence",
+          "required": false,
+          "comment": "Optional GPS-stamped photo of the pollution event, streamed to GCS via WhatsApp pipeline"
         }
       ]
     }
