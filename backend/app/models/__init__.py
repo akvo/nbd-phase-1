@@ -15,6 +15,7 @@ from app.models.citizen import Citizen
 from app.models.sampling_record import SamplingRecord
 from app.models.fgd_record import FgdRecord
 from app.models.health_score import HealthScore
+from app.models.whatsapp_session import WhatsAppSession
 
 __all__ = [
     "Basin",
@@ -35,4 +36,5 @@ __all__ = [
     "SamplingRecord",
     "FgdRecord",
     "HealthScore",
+    "WhatsAppSession",
 ]
