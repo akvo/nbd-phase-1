@@ -48,7 +48,7 @@ def test_seed_forms_success(db_session: Session):
         .filter(Question.form_id == pollution_form.id)
         .all()
     )
-    assert len(questions) == 2
+    assert len(questions) == 3
     q_names = [q.name for q in questions]
     assert "incident_type" in q_names
     assert "location_id" in q_names
