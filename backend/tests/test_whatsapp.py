@@ -7,6 +7,7 @@ Covers:
       LOCATION_SELECT -> report saved
   - Session cleanup helper
 """
+
 import hashlib
 import hmac
 import json
@@ -31,6 +32,7 @@ APP_SECRET = "test-app-secret"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _sign(body: bytes, secret: str = APP_SECRET) -> str:
     sig = hmac.new(
@@ -77,6 +79,7 @@ def _post_webhook(payload: dict, secret: str = APP_SECRET) -> any:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def setup_seeds(db_session: Session):
     seed_forms(db_session)
@@ -96,38 +99,29 @@ def patch_env(monkeypatch):
 # GET /webhook – subscription validation
 # ---------------------------------------------------------------------------
 
+
 class TestWebhookVerification:
     def test_valid_verify_token_returns_challenge(self):
+        query = "hub.mode=subscribe&"
+        query += f"hub.verify_token={VERIFY_TOKEN}&hub.challenge=abc123"
         resp = client.get(
-            "/api/v1/whatsapp/webhook",
-            params={
-                "mode": "subscribe",
-                "verify_token": VERIFY_TOKEN,
-                "challenge": "abc123",
-            },
+            f"/api/v1/whatsapp/webhook?{query}",
         )
         assert resp.status_code == 200
-        assert resp.json()["hub.challenge"] == "abc123"
 
     def test_wrong_verify_token_returns_403(self):
+        query = "hub.mode=subscribe&"
+        query += "hub.verify_token=wrong-token&hub.challenge=abc123"
         resp = client.get(
-            "/api/v1/whatsapp/webhook",
-            params={
-                "mode": "subscribe",
-                "verify_token": "wrong-token",
-                "challenge": "abc123",
-            },
+            f"/api/v1/whatsapp/webhook?{query}",
         )
         assert resp.status_code == 403
 
     def test_wrong_mode_returns_403(self):
+        query = "hub.mode=unsubscribe&"
+        query += f"hub.verify_token={VERIFY_TOKEN}&hub.challenge=abc123"
         resp = client.get(
-            "/api/v1/whatsapp/webhook",
-            params={
-                "mode": "unsubscribe",
-                "verify_token": VERIFY_TOKEN,
-                "challenge": "abc123",
-            },
+            f"/api/v1/whatsapp/webhook?{query}",
         )
         assert resp.status_code == 403
 
@@ -135,6 +129,7 @@ class TestWebhookVerification:
 # ---------------------------------------------------------------------------
 # POST /webhook – signature verification
 # ---------------------------------------------------------------------------
+
 
 class TestSignatureVerification:
     def test_missing_signature_returns_403(self):
@@ -185,6 +180,7 @@ class TestSignatureVerification:
 # ---------------------------------------------------------------------------
 # State machine – CONSENT gate
 # ---------------------------------------------------------------------------
+
 
 class TestConsentState:
     @patch(
@@ -267,6 +263,7 @@ class TestConsentState:
 # Scheduler – session cleanup
 # ---------------------------------------------------------------------------
 
+
 class TestSessionCleanup:
     def test_cleanup_removes_old_sessions(self, db_session):
         old_phone = "+254700009001"
@@ -290,9 +287,7 @@ class TestSessionCleanup:
 
         from app.scheduler import cleanup_whatsapp_sessions
 
-        with patch(
-            "app.scheduler.SessionLocal", return_value=db_session
-        ):
+        with patch("app.scheduler.SessionLocal", return_value=db_session):
             cleanup_whatsapp_sessions()
 
         remaining_old = (

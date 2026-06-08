@@ -1,13 +1,14 @@
 """WhatsApp conversation state machine service.
 
 State flow:
-  CONSENT -> INCIDENT_SELECT -> MEDIA_UPLOAD -> LOCATION_SELECT -> DONE
+    CONSENT -> INCIDENT_SELECT -> MEDIA_UPLOAD -> LOCATION_SELECT -> DONE
 
 Each incoming message is dispatched here after signature verification.
 The service manages session state via the whatsapp_sessions table and
 persists completed reports as Datapoint/Answer records, mirroring the
 USSD router logic.
 """
+
 import uuid
 import logging
 import os
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 # Meta Graph API helpers
 # ---------------------------------------------------------------------------
 
-GRAPH_API_VERSION = "v19.0"
+GRAPH_API_VERSION = "v25.0"
 GRAPH_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 
 
@@ -54,7 +55,10 @@ async def _send_message(phone: str, text: str) -> None:
         "type": "text",
         "text": {"body": text},
     }
-    headers = {"Authorization": f"Bearer {_get_access_token()}"}
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {_get_access_token()}",
+    }
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(url, json=payload, headers=headers)
         resp.raise_for_status()
@@ -82,21 +86,20 @@ async def _download_media(media_id: str) -> bytes:
 # Payload parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _extract_message(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Return the first message dict from a Meta webhook payload, or None."""
     try:
-        return (
-            payload["entry"][0]["changes"][0]["value"]["messages"][0]
-        )
+        return payload["entry"][0]["changes"][0]["value"]["messages"][0]
     except (KeyError, IndexError):
         return None
 
 
 def _sender_phone(payload: Dict[str, Any]) -> Optional[str]:
     try:
-        return (
-            payload["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
-        )
+        return payload["entry"][0]["changes"][0]["value"]["messages"][0][
+            "from"
+        ]
     except (KeyError, IndexError):
         return None
 
@@ -105,9 +108,8 @@ def _sender_phone(payload: Dict[str, Any]) -> Optional[str]:
 # DB helpers
 # ---------------------------------------------------------------------------
 
-def _get_or_create_session(
-    db: Session, phone: str
-) -> WhatsAppSession:
+
+def _get_or_create_session(db: Session, phone: str) -> WhatsAppSession:
     session = (
         db.query(WhatsAppSession)
         .filter(WhatsAppSession.phone_number == phone)
@@ -130,9 +132,7 @@ def _fetch_incident_options(db: Session) -> List[Option]:
         return []
     q = (
         db.query(Question)
-        .filter(
-            Question.form_id == form.id, Question.name == "incident_type"
-        )
+        .filter(Question.form_id == form.id, Question.name == "incident_type")
         .first()
     )
     if not q:
@@ -176,22 +176,16 @@ def _save_report(
 
     q_incident = (
         db.query(Question)
-        .filter(
-            Question.form_id == form.id, Question.name == "incident_type"
-        )
+        .filter(Question.form_id == form.id, Question.name == "incident_type")
         .first()
     )
     q_location = (
         db.query(Question)
-        .filter(
-            Question.form_id == form.id, Question.name == "location_id"
-        )
+        .filter(Question.form_id == form.id, Question.name == "location_id")
         .first()
     )
 
-    citizen = (
-        db.query(Citizen).filter(Citizen.phone_number == phone).first()
-    )
+    citizen = db.query(Citizen).filter(Citizen.phone_number == phone).first()
 
     dp = Datapoint(
         uuid=uuid.uuid4(),
@@ -204,9 +198,8 @@ def _save_report(
 
     if citizen:
         from app.models.spatial import Site
-        site = (
-            db.query(Site).filter(Site.id == citizen.site_id).first()
-        )
+
+        site = db.query(Site).filter(Site.id == citizen.site_id).first()
         if site:
             dp.site_id = citizen.site_id
             pt = to_shape(site.geom)
@@ -259,9 +252,8 @@ def _save_report(
 # State machine
 # ---------------------------------------------------------------------------
 
-async def process_whatsapp_message(
-    payload: Dict[str, Any]
-) -> None:
+
+async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
     """Route an inbound Meta webhook payload through the state machine."""
     msg = _extract_message(payload)
     phone = _sender_phone(payload)
@@ -371,9 +363,7 @@ async def process_whatsapp_message(
                     try:
                         content = await _download_media(media_id)
                         ext = mime_type.split("/")[-1].split(";")[0]
-                        blob_name = (
-                            f"whatsapp/{phone}/{uuid.uuid4()}.{ext}"
-                        )
+                        blob_name = f"whatsapp/{phone}/{uuid.uuid4()}.{ext}"
                         storage = StorageService()
                         storage.upload_file(content, blob_name, mime_type)
                         media_gcs_path = blob_name
@@ -394,14 +384,11 @@ async def process_whatsapp_message(
             # Move to location
             subcounties = _fetch_subcounties(db)
             menu = "\n".join(
-                f"{i}: {sc.name}"
-                for i, sc in enumerate(subcounties, 1)
+                f"{i}: {sc.name}" for i, sc in enumerate(subcounties, 1)
             )
             session.state = "LOCATION_SELECT"
             db.commit()
-            await _send_message(
-                phone, f"Choose your location:\n\n{menu}"
-            )
+            await _send_message(phone, f"Choose your location:\n\n{menu}")
             return
 
         # ------------------------------------------------------------------
@@ -417,8 +404,7 @@ async def process_whatsapp_message(
                 selected_sc = subcounties[idx]
             except (ValueError, TypeError):
                 menu = "\n".join(
-                    f"{i}: {sc.name}"
-                    for i, sc in enumerate(subcounties, 1)
+                    f"{i}: {sc.name}" for i, sc in enumerate(subcounties, 1)
                 )
                 await _send_message(
                     phone,

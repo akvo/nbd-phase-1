@@ -1,4 +1,12 @@
-from fastapi import APIRouter, Request, HTTPException, Depends, status
+from fastapi import (
+    APIRouter,
+    Request,
+    HTTPException,
+    Depends,
+    status,
+    Query,
+    Response,
+)
 from app.dependencies.whatsapp_config import (
     get_whatsapp_config,
     WhatsAppConfig,
@@ -13,9 +21,9 @@ router = APIRouter(prefix="/api/v1/whatsapp", tags=["WhatsApp"])
 
 @router.get("/webhook")
 async def verify_webhook(
-    mode: str,
-    verify_token: str,
-    challenge: str,
+    mode: str = Query(..., alias="hub.mode"),
+    verify_token: str = Query(..., alias="hub.verify_token"),
+    challenge: str = Query(..., alias="hub.challenge"),
     config: WhatsAppConfig = Depends(get_whatsapp_config),
 ):
     """Meta subscription validation endpoint.
@@ -26,7 +34,9 @@ async def verify_webhook(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Verification token mismatch",
         )
-    return {"hub.challenge": challenge}
+    return Response(
+        content=challenge, media_type="text/plain", status_code=200
+    )
 
 
 def _verify_signature(request: Request, config: WhatsAppConfig) -> bool:
