@@ -1,5 +1,6 @@
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Request,
     HTTPException,
     Depends,
@@ -60,10 +61,15 @@ def _verify_signature(request: Request, config: WhatsAppConfig) -> bool:
 
 @router.post("/webhook")
 async def receive_webhook(
-    request: Request, config: WhatsAppConfig = Depends(get_whatsapp_config)
+    request: Request,
+    background_tasks: BackgroundTasks,
+    config: WhatsAppConfig = Depends(get_whatsapp_config),
 ):
     """Entry point for Meta webhook POSTs.
-    Verifies the HMAC signature and delegates payload processing.
+
+    Verifies the HMAC signature, then enqueues the payload for
+    asynchronous processing so Meta receives a 200 OK in < 300 ms
+    (FR-004).
     """
     # Read raw body for signature verification
     raw_body = await request.body()
@@ -79,8 +85,8 @@ async def receive_webhook(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed payload"
         )
-    # Dispatch to service layer (to be implemented)
+    # Dispatch asynchronously — Meta gets the response before processing begins
     from app.services.whatsapp_service import process_whatsapp_message
 
-    await process_whatsapp_message(payload)
+    background_tasks.add_task(process_whatsapp_message, payload)
     return {"status": "accepted"}
