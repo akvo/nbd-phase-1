@@ -16,6 +16,7 @@ from app.models.sampling_record import SamplingRecord
 from app.models.fgd_record import FgdRecord
 from app.models.health_score import HealthScore
 from app.models.whatsapp_session import WhatsAppSession
+from app.models.sync_watermark import SyncWatermark
 
 __all__ = [
     "Basin",
@@ -37,4 +38,5 @@ __all__ = [
     "FgdRecord",
     "HealthScore",
     "WhatsAppSession",
+    "SyncWatermark",
 ]

@@ -55,6 +55,7 @@ class Form(Base):
     uuid = Column(
         PG_UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False
     )
+    kobo_asset_id = Column(String(255), nullable=True, unique=True, index=True)
     parent_id = Column(
         Integer, ForeignKey("form.id", ondelete="CASCADE"), nullable=True
     )
