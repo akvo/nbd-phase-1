@@ -784,6 +784,36 @@ CREATE TABLE sync_watermarks (
 );
 ```
 
+#### `whatsapp_sessions`
+Stores transient state machine context for interactive WhatsApp reporting flows.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `INTEGER` | `PRIMARY KEY` | Serial database identifier. |
+| `phone_number` | `VARCHAR(20)` | `NOT NULL`, `INDEX` | E.164 formatted telephone number of the reporter. |
+| `state` | `VARCHAR(30)` | `NOT NULL`, `DEFAULT 'CONSENT'` | Current stage in the reporting state machine (e.g. `'CONSENT'`, `'INCIDENT'`). |
+| `incident_type` | `VARCHAR(50)` | `NULL` | Selected incident category code. |
+| `option_text` | `TEXT` | `NULL` | Raw selection label or answer value. |
+| `media_url` | `VARCHAR(255)` | `NULL` | Temporary Meta CDN media URL for attachment download. |
+| `location` | `VARCHAR(255)` | `NULL` | Location name or coordinates entered by the user. |
+| `created_at` | `TIMESTAMP WITH TIME ZONE` | `NOT NULL`, `DEFAULT now()` | Session initialization timestamp. |
+| `updated_at` | `TIMESTAMP WITH TIME ZONE` | `NULL` | Timestamp of the last state transition. |
+
+```sql
+CREATE TABLE whatsapp_sessions (
+    id SERIAL PRIMARY KEY,
+    phone_number VARCHAR(20) NOT NULL,
+    state VARCHAR(30) NOT NULL DEFAULT 'CONSENT',
+    incident_type VARCHAR(50),
+    option_text TEXT,
+    media_url VARCHAR(255),
+    location VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+CREATE INDEX idx_whatsapp_sessions_phone ON whatsapp_sessions (phone_number);
+```
+
 ---
 
 ## 4. Architectural Decisions & Rationale
