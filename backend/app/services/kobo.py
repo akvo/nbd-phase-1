@@ -257,7 +257,7 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                                     (
                                         a
                                         for a in attachments
-                                        if a.get("filename") == val
+                                        if val == a.get("media_file_basename")
                                     ),
                                     None,
                                 )

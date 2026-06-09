@@ -430,6 +430,7 @@ def test_sync_kobo_image_attachment_uploaded_to_gcs(
             "_attachments": [
                 {
                     "filename": "site_photo.jpg",
+                    "media_file_basename": "site_photo.jpg",
                     "download_url": (
                         "https://eu.kobotoolbox.org/api/v2/attachments/42/"
                     ),
@@ -578,6 +579,7 @@ def test_sync_kobo_image_download_failure_routes_to_dlq(
             "_attachments": [
                 {
                     "filename": "broken_photo.jpg",
+                    "media_file_basename": "broken_photo.jpg",
                     "download_url": (
                         "https://eu.kobotoolbox.org/api/v2/attachments/99/"
                     ),
