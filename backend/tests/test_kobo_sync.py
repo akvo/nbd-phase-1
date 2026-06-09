@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.mock import patch
 from sqlalchemy.orm import Session
 from app.models.form import Form, Question, QuestionGroup
-from app.models.spatial import Basin
+from app.models.spatial import Basin, Wetland, Site
 from app.models.submission import Datapoint, Answer
 from app.models.sync_watermark import SyncWatermark
 from app.services.kobo import (
@@ -616,3 +616,142 @@ def test_sync_kobo_image_download_failure_routes_to_dlq(
         .first()
     )
     assert dp is None
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_kobo_spatial_resolution_explicit_site(
+    mock_get_submissions,
+    mock_get_forms,
+    db_session: Session,
+):
+    # Setup Basin, Wetland, and Site
+    basin = Basin(
+        code="MARA_SPAT_EXPLICIT",
+        name="Mara Basin Explicit",
+        geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    wetland = Wetland(
+        code="MARA_WET_EXPLICIT",
+        basin_id=basin.id,
+        name="Mara Wetland Explicit",
+        geom="SRID=4326;POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))",
+    )
+    db_session.add(wetland)
+    db_session.commit()
+
+    site = Site(
+        code="MARA_SITE_002",
+        wetland_id=wetland.id,
+        name="Mara Site 002",
+        geom="SRID=4326;POINT(30 20)",
+    )
+    db_session.add(site)
+    db_session.commit()
+
+    form = Form(
+        name="Spatial Explicit Form",
+        version=1,
+        kobo_asset_id="kobo_spat_exp_001",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    q_group = QuestionGroup(form_id=form.id, name="Spatial Group")
+    db_session.add(q_group)
+    db_session.commit()
+
+    question_site = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="site_id",
+        label="Select Site",
+        type="input",
+        order=1,
+    )
+    db_session.add(question_site)
+    db_session.commit()
+
+    mock_get_forms.return_value = [
+        {"uid": "kobo_spat_exp_001", "name": "Spatial Explicit Form"}
+    ]
+
+    sub_uuid = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid,
+            "_id": 5001,
+            "_submission_time": "2026-06-09T11:00:00Z",
+            "_submitted_by": "surveyor_tom",
+            "site_id": "MARA_SITE_002",
+        }
+    ]
+
+    res = sync_kobo_submissions(db_session)
+    assert res["ingested_records"] == 1
+
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.uuid == uuid.UUID(sub_uuid))
+        .first()
+    )
+    assert dp is not None
+    assert dp.site_id == site.id
+    assert dp.basin_id is None
+    assert dp.wetland_id is None
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_kobo_spatial_resolution_by_geolocation(
+    mock_get_submissions,
+    mock_get_forms,
+    db_session: Session,
+):
+    # Setup Basin
+    basin = Basin(
+        code="SIO_SPAT_GEOLOC",
+        name="Sio Spatial Geolocation",
+        geom="SRID=4326;MULTIPOLYGON(((34.0 0.0, 35.0 0.0, 35.0 1.0, 34.0 1.0, 34.0 0.0)))",
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    form = Form(
+        name="Spatial Geolocation Form",
+        version=1,
+        kobo_asset_id="kobo_spat_geo_002",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    mock_get_forms.return_value = [
+        {"uid": "kobo_spat_geo_002", "name": "Spatial Geolocation Form"}
+    ]
+
+    sub_uuid = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid,
+            "_id": 5002,
+            "_submission_time": "2026-06-09T11:30:00Z",
+            "_submitted_by": "surveyor_ann",
+            "_geolocation": [0.5, 34.5],  # [lat, lon]
+        }
+    ]
+
+    res = sync_kobo_submissions(db_session)
+    assert res["ingested_records"] == 1
+
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.uuid == uuid.UUID(sub_uuid))
+        .first()
+    )
+    assert dp is not None
+    assert dp.basin_id == basin.id
+    assert dp.site_id is None
+    assert dp.geo == {"type": "Point", "coordinates": [34.5, 0.5]}
