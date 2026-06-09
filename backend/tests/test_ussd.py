@@ -5,6 +5,7 @@ from app.main import app
 from app.seeds.seeder import seed_forms
 from app.seeds.spatial_seeder_helper import seed_spatial
 from app.models.submission import Datapoint, Answer
+from app.models.form import Question
 
 client = TestClient(app)
 
@@ -84,8 +85,10 @@ def test_ussd_step_2_location_selection_tanzania():
     )
     assert response.status_code == 200
     assert response.text.startswith("CON")
-    # Sub-counties for Mara (alphabetical): Butiama, Musoma, Rorya, Serengeti, Tarime
-    # Let's check that Rorya, Serengeti, Tarime, Butiama, Musoma are present in response text
+    # Sub-counties for Mara (alphabetical):
+    # Butiama, Musoma, Rorya, Serengeti, Tarime
+    # Let's check that Rorya, Serengeti, Tarime, Butiama, Musoma
+    # are present in response text
     assert "Butiama" in response.text
     assert "Musoma" in response.text
     assert "Rorya" in response.text
@@ -110,7 +113,8 @@ def test_ussd_step_2_location_selection_uganda():
     )
     assert response.status_code == 200
     assert response.text.startswith("CON")
-    # Sub-counties for Sio-Siteko (alphabetical): Bugiri, Busia, Namayingo, Tororo
+    # Sub-counties for Sio-Siteko (alphabetical):
+    # Bugiri, Busia, Namayingo, Tororo
     assert "Bugiri" in response.text
     assert "Busia" in response.text
     assert "Namayingo" in response.text
@@ -122,7 +126,8 @@ def test_ussd_step_2_location_selection_uganda():
 
 def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     # Tanzania network: 64004. Incident selection: 2 (Smell).
-    # Sub-counties alphabetical: 1: Butiama, 2: Musoma, 3: Rorya, 4: Serengeti, 5: Tarime
+    # Sub-counties alphabetical:
+    # 1: Butiama, 2: Musoma, 3: Rorya, 4: Serengeti, 5: Tarime
     # Let's choose 3: Rorya
     response = client.post(
         "/api/v1/ussd",
@@ -153,11 +158,22 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
         db_session.query(Answer).filter(Answer.datapoint_id == dp.id).all()
     )
     assert len(answers) == 2
-    ans_incident = [a for a in answers if a.name == "incident_type"][0]
+    q_incident = (
+        db_session.query(Question)
+        .filter(Question.name == "incident_type")
+        .first()
+    )
+    q_location = (
+        db_session.query(Question)
+        .filter(Question.name == "location_id")
+        .first()
+    )
+
+    ans_incident = [a for a in answers if a.question_id == q_incident.id][0]
     assert ans_incident.options == ["Smell (bad odour)"]
 
-    ans_location = [a for a in answers if a.name == "sub_county"][0]
-    assert ans_location.name == "sub_county"
+    ans_location = [a for a in answers if a.question_id == q_location.id][0]
+    assert ans_location.options == ["Rorya"]
 
 
 def test_ussd_idempotency():

@@ -219,7 +219,7 @@ def handle_ussd(
     ans_incident = Answer(
         datapoint_id=dp.id,
         question_id=q_incident.id if q_incident else 0,
-        name="incident_type",
+        name=None,
         options=[selected_option.label],
     )
     db.add(ans_incident)
@@ -227,7 +227,7 @@ def handle_ussd(
     ans_location = Answer(
         datapoint_id=dp.id,
         question_id=q_location.id if q_location else 0,
-        name="sub_county",
+        name=None,
         options=[selected_sc.name],
     )
     db.add(ans_location)

@@ -238,7 +238,7 @@ def _save_report(
     ans_incident = Answer(
         datapoint_id=dp.id,
         question_id=q_incident.id if q_incident else 0,
-        name="incident_type",
+        name=None,
         options=[selected_option.label],
     )
     db.add(ans_incident)
@@ -247,7 +247,7 @@ def _save_report(
     ans_location = Answer(
         datapoint_id=dp.id,
         question_id=q_location.id if q_location else 0,
-        name="sub_county",
+        name=None,
         options=[selected_sc.name],
     )
     db.add(ans_location)
@@ -259,7 +259,7 @@ def _save_report(
             ans_media = Answer(
                 datapoint_id=dp.id,
                 question_id=q_media.id,
-                name="media_attachment",
+                name=None,
                 options=[media_gcs_path],
                 index=1,
             )
