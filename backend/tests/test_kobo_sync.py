@@ -84,7 +84,7 @@ def test_sync_kobo_submissions_flow(
         }
     ]
 
-    # 1. Run sync (First Time - Fallback 60 min query)
+    # 1. Run sync (First Time - Fetch all historical submissions)
     res = sync_kobo_submissions(db_session)
     assert res["processed_forms"] == 1
     assert res["ingested_records"] == 1
@@ -95,6 +95,7 @@ def test_sync_kobo_submissions_flow(
         db_session.query(Datapoint).filter(Datapoint.uuid == sub_uuid).first()
     )
     assert datapoint is not None
+    assert datapoint.name == "kobotoolbox_999"
     assert datapoint.submitter == "surveyor_john"
     assert datapoint.created_at == datetime(2026, 6, 9, 7, 0, 0)
     assert datapoint.form_id == form.id
@@ -144,7 +145,11 @@ def test_sync_kobo_submissions_name_mismatch(
         basin = Basin(
             code="MARA",
             name="Mara Basin",
-            geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",
+            geom=(
+                "SRID=4326;MULTIPOLYGON("
+                "((30 10, 40 40, 20 40, 10 20, 30 10))"
+                ")"
+            ),
         )
         db_session.add(basin)
         db_session.commit()
@@ -158,7 +163,8 @@ def test_sync_kobo_submissions_name_mismatch(
     db_session.add(form_mismatch)
     db_session.commit()
 
-    # Configure mock responses: Kobo returns name "Kobo Remote Name" but UID "kobo_form_mismatch_456"
+    # Configure mock responses: Kobo returns name "Kobo Remote Name"
+    # but UID "kobo_form_mismatch_456"
     mock_get_forms.return_value = [
         {"uid": "kobo_form_mismatch_456", "name": "Kobo Remote Name"}
     ]
@@ -174,7 +180,7 @@ def test_sync_kobo_submissions_name_mismatch(
     db_session.commit()
 
     mock_get_forms.return_value = [
-        {"uid": "kobo_form_autolink_789", "name": "Auto Link Form"}
+        {"uid": "kobo_form_autolink_789", "name": "  aUtO lInK fOrM  "}
     ]
     mock_get_submissions.return_value = []
 

@@ -4,8 +4,9 @@ import logging
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 import httpx
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from app.models.form import Form, Question
+from app.models.form import Form
 from app.models.spatial import Basin
 from app.models.submission import Datapoint, Answer
 from app.models.sync_watermark import SyncWatermark
@@ -32,16 +33,17 @@ class KoboService:
             return data.get("results", [])
 
     def get_submissions(
-        self, form_id: str, since_timestamp: str | None = None
+        self, form_id: str, since_timestamp: str | datetime | None = None
     ) -> List[Dict[str, Any]]:
         url = f"{self.api_url}/api/v2/assets/{form_id}/data.json"
         params = {}
         if since_timestamp:
-            import json
-
-            params["query"] = json.dumps(
-                {"_submission_time": {"$gt": since_timestamp}}
-            )
+            if isinstance(since_timestamp, str):
+                dt = parse_kobo_timestamp(since_timestamp)
+            else:
+                dt = since_timestamp
+            since_str = dt.strftime("%Y-%m-%dT%H:%M:%S+0000")
+            params["query"] = f'{{"_submission_time":{{"$gt":"{since_str}"}}}}'
         with httpx.Client() as client:
             response = client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
@@ -90,9 +92,14 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
             continue
 
         # Match by kobo_asset_id first, then fallback to form name
+        # (lowercase & stripped)
+        normalized_name = form_name.strip().lower()
         db_form = (
             db.query(Form)
-            .filter((Form.kobo_asset_id == uid) | (Form.name == form_name))
+            .filter(
+                (Form.kobo_asset_id == uid)
+                | (func.lower(func.trim(Form.name)) == normalized_name)
+            )
             .first()
         )
         if not db_form:
@@ -119,12 +126,10 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
         )
 
         if watermark:
-            since_ts = watermark.last_sync_time.isoformat() + "Z"
+            since_ts = watermark.last_sync_time
         else:
-            # Fallback: last 60 minutes
-            since_ts = (
-                datetime.utcnow() - timedelta(minutes=60)
-            ).isoformat() + "Z"
+            # Initial sync: fetch all submissions
+            since_ts = None
 
         try:
             submissions = service.get_submissions(
@@ -172,6 +177,7 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                 uuid=sub_uuid,
                 form_id=db_form.id,
                 published_version_id=db_form.active_version_id,
+                name=f"kobotoolbox_{sub.get('_id')}",
                 submitter=sub.get("_submitted_by", "KoboToolbox"),
                 created_at=sub_time,
                 basin_id=default_basin.id,
