@@ -12,6 +12,7 @@ from app.models.submission import Datapoint, Answer
 from app.models.sync_watermark import SyncWatermark
 from app.models.dead_letter import DeadLetter
 from app.mail import EmailService
+from app.services.storage import StorageService, build_blob_path
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +251,39 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                                     options_val = val
                                 else:
                                     options_val = [str(val)]
+                            elif question.type in ("image", "attachment"):
+                                attachments = sub.get("_attachments", [])
+                                attachment = next(
+                                    (
+                                        a
+                                        for a in attachments
+                                        if a.get("filename") == val
+                                    ),
+                                    None,
+                                )
+                                if attachment:
+                                    download_url = attachment.get(
+                                        "download_url", ""
+                                    )
+                                    mimetype = attachment.get(
+                                        "mimetype", "application/octet-stream"
+                                    )
+                                    ext = (
+                                        val.rsplit(".", 1)[-1]
+                                        if "." in val
+                                        else "bin"
+                                    )
+                                    blob_path = build_blob_path("kobo", ext)
+                                    response = httpx.get(
+                                        download_url, headers=service.headers
+                                    )
+                                    response.raise_for_status()
+                                    StorageService().upload_file(
+                                        response.content, blob_path, mimetype
+                                    )
+                                    name_val = blob_path
+                                else:
+                                    name_val = str(val)
                             else:
                                 name_val = str(val)
 

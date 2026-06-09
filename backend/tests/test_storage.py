@@ -106,7 +106,22 @@ def test_api_presigned_upload(mock_service_class):
 
 
 @patch("app.routers.storage_router.StorageService")
-def test_api_presigned_read(mock_service_class):
+def test_api_presigned_read(mock_service_class, db_session):
+    import jwt
+    from app.models.user import User
+
+    admin = User(
+        email="admin_storage_legacy@nbd.org", role="Admin", is_active=True
+    )
+    db_session.add(admin)
+    db_session.commit()
+
+    token = jwt.encode(
+        {"email": "admin_storage_legacy@nbd.org"},
+        "test_secret",
+        algorithm="HS256",
+    )
+
     mock_service = MagicMock()
     mock_service_class.return_value = mock_service
     mock_service.generate_read_signed_url.return_value = (
@@ -114,7 +129,8 @@ def test_api_presigned_read(mock_service_class):
     )
 
     response = client.get(
-        "/api/v1/storage/presigned-read?blob_name=survey_photo_123.jpg"
+        "/api/v1/storage/presigned-read?blob_name=survey_photo_123.jpg",
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
     assert response.json() == {"read_url": "https://signed-read-url"}
@@ -152,13 +168,31 @@ def test_api_upload_generation_error(mock_service_class):
 
 
 @patch("app.routers.storage_router.StorageService")
-def test_api_read_generation_error(mock_service_class):
+def test_api_read_generation_error(mock_service_class, db_session):
+    import jwt
+    from app.models.user import User
+
+    admin = User(
+        email="admin_storage_error@nbd.org", role="Admin", is_active=True
+    )
+    db_session.add(admin)
+    db_session.commit()
+
+    token = jwt.encode(
+        {"email": "admin_storage_error@nbd.org"},
+        "test_secret",
+        algorithm="HS256",
+    )
+
     mock_service = MagicMock()
     mock_service_class.return_value = mock_service
     mock_service.generate_read_signed_url.side_effect = Exception(
         "Read signing failed"
     )
-    response = client.get("/api/v1/storage/presigned-read?blob_name=photo.jpg")
+    response = client.get(
+        "/api/v1/storage/presigned-read?blob_name=photo.jpg",
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert response.status_code == 500
     assert "Failed to generate read URL" in response.json()["detail"]
 
@@ -291,3 +325,68 @@ async def test_stream_upload_async_gcs_error_raises(
             chunks=fake_stream(),
             content_type="image/jpeg",
         )
+
+
+# ---------------------------------------------------------------------------
+# RBAC: presigned-read endpoint must require Admin authentication (FR-006)
+# ---------------------------------------------------------------------------
+
+
+def test_api_presigned_read_unauthenticated_returns_401():
+    """Unauthenticated requests to presigned-read must be rejected with 401."""
+    response = client.get(
+        "/api/v1/storage/presigned-read?blob_name=development/kobo/test.jpg"
+    )
+    assert response.status_code == 401
+
+
+def test_api_presigned_read_non_admin_returns_403(db_session):
+    """Reviewer-role tokens must be rejected with 403 on presigned-read."""
+    import jwt
+    from app.models.user import User
+
+    reviewer = User(
+        email="reviewer_storage@nbd.org", role="Reviewer", is_active=True
+    )
+    db_session.add(reviewer)
+    db_session.commit()
+
+    token = jwt.encode(
+        {"email": "reviewer_storage@nbd.org"},
+        "test_secret",
+        algorithm="HS256",
+    )
+    response = client.get(
+        "/api/v1/storage/presigned-read?blob_name=development/kobo/test.jpg",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+@patch("app.routers.storage_router.StorageService")
+def test_api_presigned_read_admin_returns_signed_url(
+    mock_service_class, db_session
+):
+    """Authenticated Admin must receive a valid 15-minute signed read URL."""
+    import jwt
+    from app.models.user import User
+
+    admin = User(email="admin_storage@nbd.org", role="Admin", is_active=True)
+    db_session.add(admin)
+    db_session.commit()
+
+    mock_service = MagicMock()
+    mock_service_class.return_value = mock_service
+    mock_service.generate_read_signed_url.return_value = (
+        "https://signed-read-url-admin"
+    )
+
+    token = jwt.encode(
+        {"email": "admin_storage@nbd.org"}, "test_secret", algorithm="HS256"
+    )
+    response = client.get(
+        "/api/v1/storage/presigned-read?blob_name=development/kobo/test.jpg",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"read_url": "https://signed-read-url-admin"}
