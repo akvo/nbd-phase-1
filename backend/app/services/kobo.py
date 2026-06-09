@@ -2,7 +2,7 @@ import os
 import uuid
 import logging
 from typing import List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime
 import httpx
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -10,6 +10,8 @@ from app.models.form import Form
 from app.models.spatial import Basin
 from app.models.submission import Datapoint, Answer
 from app.models.sync_watermark import SyncWatermark
+from app.models.dead_letter import DeadLetter
+from app.mail import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,6 @@ class KoboService:
             response = client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()
-            print(data, "SUBMISSION")
             return data.get("results", [])
 
 
@@ -145,6 +146,8 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
 
         latest_submission_time = None
 
+        sync_failures = []
+
         for sub in submissions:
             sub_uuid_str = sub.get("_uuid")
             sub_time_str = sub.get("_submission_time")
@@ -173,83 +176,200 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
             ):
                 latest_submission_time = sub_time
 
-            # Create Datapoint
-            datapoint = Datapoint(
-                uuid=sub_uuid,
-                form_id=db_form.id,
-                published_version_id=db_form.active_version_id,
-                name=f"kobotoolbox_{sub.get('_id')}",
-                submitter=sub.get("_submitted_by", "KoboToolbox"),
-                created_at=sub_time,
-                basin_id=default_basin.id,
-                status="PENDING",
-                geo=sub.get("_geolocation"),
-            )
-            db.add(datapoint)
-            db.flush()
-
-            # Map answers dynamically
-            for question in db_form.questions:
-                # Direct lookup first
-                val = sub.get(question.name)
-                # Suffix lookup for nested group keys
-                # (e.g., 'group/question_name')
-                if val is None and question.name:
-                    suffix = f"/{question.name}"
-                    for key, k_val in sub.items():
-                        if key.endswith(suffix):
-                            val = k_val
-                            break
-                # Fallback to ID lookup
-                if val is None:
-                    val = sub.get(str(question.id))
-
-                if val is not None:
-                    name_val = None
-                    float_val = None
-                    options_val = None
-
-                    if question.type == "number":
-                        try:
-                            float_val = float(val)
-                        except ValueError:
-                            name_val = str(val)
-                    elif question.type in ("option", "multiple_option"):
-                        if isinstance(val, list):
-                            options_val = val
-                        else:
-                            options_val = [str(val)]
-                    else:
-                        name_val = str(val)
-
-                    answer = Answer(
-                        datapoint_id=datapoint.id,
-                        question_id=question.id,
-                        name=name_val,
-                        value=float_val,
-                        options=options_val,
+            try:
+                with db.begin_nested():
+                    # Create Datapoint
+                    datapoint = Datapoint(
+                        uuid=sub_uuid,
+                        form_id=db_form.id,
+                        published_version_id=db_form.active_version_id,
+                        name=f"kobotoolbox_{sub.get('_id')}",
+                        submitter=sub.get("_submitted_by", "KoboToolbox"),
                         created_at=sub_time,
+                        basin_id=default_basin.id,
+                        status="PENDING",
+                        geo=sub.get("_geolocation"),
                     )
-                    db.add(answer)
+                    db.add(datapoint)
+                    db.flush()
 
-            # Update watermark per submission
-            if not watermark:
-                watermark = SyncWatermark(
-                    source_system="kobotoolbox",
-                    form_id=uid,
-                    last_sync_time=sub_time,
+                    # Map answers dynamically
+                    for question in db_form.questions:
+                        # Direct lookup first
+                        val = sub.get(question.name)
+                        # Suffix lookup for nested group keys
+                        if val is None and question.name:
+                            suffix = f"/{question.name}"
+                            for key, k_val in sub.items():
+                                if key.endswith(suffix):
+                                    val = k_val
+                                    break
+                        # Fallback to ID lookup
+                        if val is None:
+                            val = sub.get(str(question.id))
+
+                        if val is not None:
+                            name_val = None
+                            float_val = None
+                            options_val = None
+
+                            if question.type == "number":
+                                try:
+                                    float_val = float(val)
+                                except ValueError as e:
+                                    raise ValueError(
+                                        f"Value '{val}' for numeric question "
+                                        f"'{question.name}' is not a valid number: {e}"
+                                    )
+                                # Validate bounds
+                                q_name_lower = (
+                                    question.name.strip().lower()
+                                    if question.name
+                                    else ""
+                                )
+                                if q_name_lower == "ph":
+                                    if not (2.0 <= float_val <= 10.0):
+                                        raise ValueError(
+                                            f"pH value {float_val} is out of "
+                                            f"bounds (2.0-10.0)"
+                                        )
+                                elif q_name_lower in (
+                                    "water_temp",
+                                    "water_temperature",
+                                ):
+                                    if not (5.0 <= float_val <= 50.0):
+                                        raise ValueError(
+                                            f"water_temp value {float_val} "
+                                            f"is out of bounds (5.0-50.0)"
+                                        )
+                            elif question.type in (
+                                "option",
+                                "multiple_option",
+                            ):
+                                if isinstance(val, list):
+                                    options_val = val
+                                else:
+                                    options_val = [str(val)]
+                            else:
+                                name_val = str(val)
+
+                            answer = Answer(
+                                datapoint_id=datapoint.id,
+                                question_id=question.id,
+                                name=name_val,
+                                value=float_val,
+                                options=options_val,
+                                created_at=sub_time,
+                            )
+                            db.add(answer)
+
+                    # Update watermark per submission
+                    if not watermark:
+                        watermark = SyncWatermark(
+                            source_system="kobotoolbox",
+                            form_id=uid,
+                            last_sync_time=sub_time,
+                        )
+                        db.add(watermark)
+                    else:
+                        if sub_time > watermark.last_sync_time:
+                            watermark.last_sync_time = sub_time
+
+                db.commit()
+                sync_results["ingested_records"] += 1
+
+            except Exception as e:
+                logger.error(
+                    f"Ingestion failed for submission {sub_uuid_str}: {e}"
                 )
-                db.add(watermark)
-            else:
-                if sub_time > watermark.last_sync_time:
-                    watermark.last_sync_time = sub_time
 
-            db.commit()
-            sync_results["ingested_records"] += 1
+                try:
+                    dead_letter = DeadLetter(
+                        source_system="kobotoolbox",
+                        raw_payload=sub,
+                        error_reason=str(e),
+                        status="Pending Triage",
+                    )
+                    db.add(dead_letter)
+                    db.commit()
+                except Exception as dl_err:
+                    logger.error(
+                        f"Failed to write dead letter for {sub_uuid_str}: {dl_err}"
+                    )
+                    db.rollback()
+
+                sync_failures.append(
+                    {
+                        "uuid": sub_uuid_str,
+                        "error": str(e),
+                        "submitted_by": sub.get("_submitted_by", "Unknown"),
+                    }
+                )
 
         if latest_submission_time:
             logger.info(
-                f"Updated Kobo sync watermark for {form_name} to {latest_submission_time}"
+                f"Updated Kobo sync watermark for {form_name} to "
+                f"{latest_submission_time}"
+            )
+
+    # Process aggregated failure email alert
+    if sync_failures:
+        try:
+            from app.models.user import User
+            import asyncio
+
+            admins = (
+                db.query(User.email)
+                .filter(
+                    func.lower(User.role) == "admin", User.is_active == True
+                )
+                .all()
+            )
+            admin_emails = [a.email for a in admins]
+
+            if admin_emails:
+                html_body = (
+                    "<h3>Kobo Ingestion Failures Alert</h3>"
+                    "<p>The following submissions failed validation or "
+                    "mapping during the hourly sync:</p>"
+                    "<table border='1' cellpadding='5' cellspacing='0'>"
+                    "<tr><th>Submission UUID</th><th>Submitter</th>"
+                    "<th>Error Detail</th></tr>"
+                )
+                for failure in sync_failures:
+                    html_body += (
+                        f"<tr><td>{failure['uuid']}</td>"
+                        f"<td>{failure['submitted_by']}</td>"
+                        f"<td>{failure['error']}</td></tr>"
+                    )
+                html_body += "</table>"
+
+                email_service = EmailService()
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                if loop.is_running():
+                    loop.create_task(
+                        email_service.send_email_async(
+                            to=admin_emails,
+                            subject="[NBD Portal] Kobo Ingestion Failures Alert",
+                            html_body=html_body,
+                        )
+                    )
+                else:
+                    loop.run_until_complete(
+                        email_service.send_email_async(
+                            to=admin_emails,
+                            subject="[NBD Portal] Kobo Ingestion Failures Alert",
+                            html_body=html_body,
+                        )
+                    )
+        except Exception as email_err:
+            logger.error(
+                f"Failed to send aggregated failure email alert: {email_err}"
             )
 
     logger.info("KoboToolbox sync finished.")

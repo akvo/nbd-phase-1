@@ -92,7 +92,32 @@ Once running, the services will be available at:
 
 ---
 
+## 🛠️ Seeders & Maintenance Scripts
+
+You can run these scripts inside the backend container for setup and maintenance:
+
+*   **Interactive User Seeder**: Seed new local user credentials securely.
+
+    ```bash
+    ./dc.sh exec backend python app/scripts/create_user.py
+    ```
+
+*   **KoboToolbox Submissions Sync**: Manually trigger Kobo survey sync to pull latest submissions.
+
+    ```bash
+    ./dc.sh exec backend python app/scripts/sync_kobo.py
+    ```
+
+*   **Database Reference Seeder**: Seeds spatial reference basins/sub-counties and form blueprints.
+
+    ```bash
+    ./dc.sh exec backend python app/seeds/seeder.py
+    ```
+
+---
+
 ## 📘 Design and Solution Design Document (SDD)
 
 *   The canonical source of truth for the Solution Design Document is located in [design-docs/solution-design-technical.md](file:///Users/galihpratama/Sites/nbd-phase-1/design-docs/solution-design-technical.md).
 *   Visual system architecture diagrams are stored under [final-docs/diagrams/](file:///Users/galihpratama/Sites/nbd-phase-1/final-docs/diagrams/).
+
