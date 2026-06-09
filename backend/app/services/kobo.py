@@ -48,6 +48,7 @@ class KoboService:
             response = client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()
+            print(data, "SUBMISSION")
             return data.get("results", [])
 
 
@@ -189,7 +190,20 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
 
             # Map answers dynamically
             for question in db_form.questions:
-                val = sub.get(question.name) or sub.get(question.id)
+                # Direct lookup first
+                val = sub.get(question.name)
+                # Suffix lookup for nested group keys
+                # (e.g., 'group/question_name')
+                if val is None and question.name:
+                    suffix = f"/{question.name}"
+                    for key, k_val in sub.items():
+                        if key.endswith(suffix):
+                            val = k_val
+                            break
+                # Fallback to ID lookup
+                if val is None:
+                    val = sub.get(str(question.id))
+
                 if val is not None:
                     name_val = None
                     float_val = None
@@ -218,20 +232,22 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                     )
                     db.add(answer)
 
-            sync_results["ingested_records"] += 1
-
-        # Update watermark
-        if latest_submission_time:
+            # Update watermark per submission
             if not watermark:
                 watermark = SyncWatermark(
                     source_system="kobotoolbox",
                     form_id=uid,
-                    last_sync_time=latest_submission_time,
+                    last_sync_time=sub_time,
                 )
                 db.add(watermark)
             else:
-                watermark.last_sync_time = latest_submission_time
+                if sub_time > watermark.last_sync_time:
+                    watermark.last_sync_time = sub_time
+
             db.commit()
+            sync_results["ingested_records"] += 1
+
+        if latest_submission_time:
             logger.info(
                 f"Updated Kobo sync watermark for {form_name} to {latest_submission_time}"
             )

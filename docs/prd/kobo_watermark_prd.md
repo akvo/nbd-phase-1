@@ -41,7 +41,7 @@ Instead of daily imports or generic, unbounded polls, the system must perform ho
 * **FR-3A.2 (Watermark Storage)**: The system persists the last sync watermark in a dedicated `sync_watermarks` database table.
 * **FR-3A.3 (Watermark Query)**: The HTTP request to KoboToolbox specifies a JSON query filter: `{"_submission_time": {"$gt": "LAST_WATERMARK"}}`.
 * **FR-3A.4 (Idempotency)**: The sync logic guards against duplicate ingestions by using Kobo's unique `_id` or `_uuid` as an idempotency key.
-* **FR-3A.5 (API Fallback)**: If no previous watermark exists, it defaults to querying the last 60 minutes.
+* **FR-3A.5 (API Fallback)**: If no previous watermark exists, it performs an initial sync fetching all historical submissions without filtering by timestamp.
 * **FR-3A.6 (Manual Script Trigger)**: The system MUST support running the synchronization manually from the container via a dedicated python script command.
 
 ### Nice-to-Have (v2)

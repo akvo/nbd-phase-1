@@ -380,6 +380,7 @@ Dynamic survey definitions and version references.
 | `name` | `TEXT` | `NOT NULL` | Form display title. |
 | `version` | `INTEGER` | `DEFAULT 1` | Incremental form layout version. |
 | `uuid` | `UUID` | `UNIQUE`, `NOT NULL` | Globally unique identifier. |
+| `kobo_asset_id` | `VARCHAR(255)` | `UNIQUE`, `NULL` | Unique Kobo Asset UID mapping. |
 | `parent_id` | `INTEGER` | `REFERENCES form(id) ON DELETE CASCADE` | Parent form ID (for recursive inheritance). |
 | `type` | `INTEGER` | `DEFAULT 1` | Form type classifier. |
 | `status` | `INTEGER` | `DEFAULT 1` | Draft / published status indicator. |
@@ -393,6 +394,7 @@ CREATE TABLE form (
     name TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
     uuid UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    kobo_asset_id VARCHAR(255) UNIQUE,
     parent_id INTEGER REFERENCES form(id) ON DELETE CASCADE,
     type INTEGER NOT NULL DEFAULT 1,
     status INTEGER NOT NULL DEFAULT 1,
@@ -758,6 +760,28 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER audit_logs_immutable_trigger
 BEFORE UPDATE OR DELETE ON audit_logs
 FOR EACH ROW EXECUTE FUNCTION block_audit_log_mutation();
+```
+
+#### `sync_watermarks`
+Tracks incremental polling timestamps for various external data sources.
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY` | Unique watermark transaction identifier. |
+| `source_system` | `VARCHAR(50)` | `NOT NULL` | External system identifier (e.g. `'kobotoolbox'`). |
+| `form_id` | `VARCHAR(100)` | `NULL` | Unique asset/form identifier. |
+| `last_sync_time` | `TIMESTAMP` | `NOT NULL` | High-water mark timestamp for last processed record. |
+| `updated_at` | `TIMESTAMP` | `NOT NULL` | Timestamp of the last successful synchronization. |
+
+```sql
+CREATE TABLE sync_watermarks (
+    id UUID PRIMARY KEY,
+    source_system VARCHAR(50) NOT NULL,
+    form_id VARCHAR(100),
+    last_sync_time TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_sync_watermarks_source_form UNIQUE (source_system, form_id)
+);
 ```
 
 ---

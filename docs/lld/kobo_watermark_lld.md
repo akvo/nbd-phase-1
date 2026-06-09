@@ -61,6 +61,18 @@ The synchronization workflow processes each Kobo form using a multi-step matchin
    ```
 4. **Skip Unknown Forms**: If neither check matches, skip syncing submissions for the form.
 
+### 2.3 Question Mapping Resolution
+
+The mapping between KoboToolbox submission payload keys and database `Question` records is defined by the following contract:
+
+1. **Question Machine Name (`Question.name`)**:
+   - The primary identifier linking KoboToolbox questionnaire items to the database schema is the `Question.name` column (defined in `app/models/form.py`).
+   - This matches the XML/XLSForm variable name configured inside KoboToolbox (Data column name).
+
+2. **Nested Group Paths**:
+   - In KoboToolbox JSON payloads, question items nested within groups are represented with a slash prefix (e.g., `"water_quality/ph"` or `"site_details/sampling_id"`).
+   - The ingestion algorithm matches these nested keys by checking if the JSON property key ends with the database question name suffix (e.g., `key.endswith(f"/{question.name}")`), automatically stripping any group namespace prefixes.
+
 ---
 
 ## 3. Database Schema
@@ -109,4 +121,4 @@ Extends the local form blueprint with external identifiers.
 1. **Idempotency Guard**:
    Each incoming submission payload checks `_uuid`. If a record with that UUID already exists in the `datapoint` table, it is skipped.
 2. **Missing Watermark Fallback**:
-   If no sync watermark is found, the engine queries submissions from the last 60 minutes (`now() - 60 minutes`).
+   If no sync watermark is found, the engine performs an initial sync to fetch all historical submissions without filtering by timestamp.
