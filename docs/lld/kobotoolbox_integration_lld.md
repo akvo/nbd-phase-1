@@ -1,3 +1,4 @@
+<!-- DIRTY_AMENDMENT: [Added kobo_asset_id column to form table and updated name-matching logic, approved by John 2026-06-09] -->
 # Low-Level Design (LLD) — KoboToolbox API Integration
 
 > **Stage 3 of 3 — Documentation Hierarchy**

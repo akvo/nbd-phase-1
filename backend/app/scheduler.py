@@ -2,7 +2,6 @@ import logging
 import time
 from datetime import datetime, timedelta
 from apscheduler.schedulers.blocking import BlockingScheduler
-from app.services.kobo import KoboService
 from app.database import SessionLocal
 from app.models.whatsapp_session import WhatsAppSession
 
@@ -14,21 +13,28 @@ logger = logging.getLogger(__name__)
 
 def hourly_kobotoolbox_pull():
     logger.info("Executing hourly KoboToolbox data pull...")
-    service = KoboService()
+    from app.services.kobo import sync_kobo_submissions
+
+    db = SessionLocal()
     try:
-        forms = service.get_forms()
-        logger.info(f"Retrieved {len(forms)} active forms from KoboToolbox.")
-        for form in forms:
-            uid = form.get("uid")
-            name = form.get("name")
-            logger.info(f"Asset ID: {uid} - Name: {name}")
+        results = sync_kobo_submissions(db)
+        logger.info(
+            "KoboToolbox sync: Processed %d forms, Ingested %d records.",
+            results.get("processed_forms", 0),
+            results.get("ingested_records", 0),
+        )
+        if results.get("errors"):
+            logger.warning("KoboToolbox sync errors: %s", results["errors"])
     except Exception as e:
-        logger.error(f"Error pulling data from KoboToolbox: {str(e)}")
+        logger.error("Error pulling data from KoboToolbox: %s", e)
+    finally:
+        db.close()
     logger.info("KoboToolbox pull completed.")
 
 
 def monthly_gee_ingest():
     logger.info("Executing monthly GEE batch ingestion...")
+
     # Placeholder logic for GEE batch ingestions
     time.sleep(5)
     logger.info("GEE batch ingestion completed successfully.")
