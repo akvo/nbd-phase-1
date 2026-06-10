@@ -213,8 +213,10 @@ class TestConsentState:
     )
     def test_decline_consent_deletes_session(self, mock_send, db_session):
         phone = "+254700001002"
-        # Create existing CONSENT session
-        sess = WhatsAppSession(phone_number=phone, state="CONSENT")
+        # Create existing DATA_TERMS session
+        sess = WhatsAppSession(
+            phone_number=phone, state="DATA_TERMS", language="en"
+        )
         db_session.add(sess)
         db_session.commit()
 
@@ -239,7 +241,9 @@ class TestConsentState:
         self, mock_send, db_session
     ):
         phone = "+254700001003"
-        sess = WhatsAppSession(phone_number=phone, state="CONSENT")
+        sess = WhatsAppSession(
+            phone_number=phone, state="DATA_TERMS", language="en"
+        )
         db_session.add(sess)
         db_session.commit()
 
@@ -260,6 +264,7 @@ class TestConsentState:
 
 
 # ---------------------------------------------------------------------------
+
 # Scheduler – session cleanup
 # ---------------------------------------------------------------------------
 

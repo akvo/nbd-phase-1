@@ -306,48 +306,102 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
         # ------------------------------------------------------------------
         if state == "CONSENT":
             text_body = (msg.get("text") or {}).get("body", "").strip()
-            consent_msg = (
-                "Welcome to NBD Wetland Watch \U0001f30a\n\n"
-                "This platform collects environmental incident reports. "
-                "Your report is saved anonymously and data usage is "
-                "restricted to monitoring programs.\n\n"
-                "Reply *1* to accept terms and start reporting.\n"
-                "Reply *2* to decline."
+            welcome_msg = (
+                "Welcome to NBD Wetland Watch \U0001f30a / Chagua lugha yako:\n\n"
+                "Reply *1* for English\n"
+                "Reply *2* kwa Kiswahili"
             )
             if not text_body:
-                await _send_message(phone, consent_msg)
+                await _send_message(phone, welcome_msg)
                 return
+            if text_body in ("1", "2"):
+                # Save language preference
+                session.language = "sw" if text_body == "2" else "en"
+                session.state = "DATA_TERMS"
+                db.commit()
+
+                if session.language == "sw":
+                    terms_msg = (
+                        "Karibu kwenye NBD Wetland Watch \U0001f30a\n\n"
+                        "Jukwaa hili linakusanya taarifa za matukio ya mazingira. "
+                        "Ripoti yako inahifadhiwa bila jina na matumizi ya data yamezuiliwa "
+                        "kwa mipango ya ufuatiliaji.\n\n"
+                        "Jibu *1* kukubali masharti na kuanza kuripoti.\n"
+                        "Jibu *2* kukataa."
+                    )
+                else:
+                    terms_msg = (
+                        "Welcome to NBD Wetland Watch \U0001f30a\n\n"
+                        "This platform collects environmental incident reports. "
+                        "Your report is saved anonymously and data usage is "
+                        "restricted to monitoring programs.\n\n"
+                        "Reply *1* to accept terms and start reporting.\n"
+                        "Reply *2* to decline."
+                    )
+                await _send_message(phone, terms_msg)
+            else:
+                await _send_message(phone, welcome_msg)
+            return
+
+        # ------------------------------------------------------------------
+        # STATE: DATA_TERMS
+        # ------------------------------------------------------------------
+        if state == "DATA_TERMS":
+            text_body = (msg.get("text") or {}).get("body", "").strip()
+            lang = session.language
             if text_body == "1":
                 # Accepted — move to incident selection
                 options = _fetch_incident_options(db)
                 if not options:
-                    await _send_message(
-                        phone,
-                        "Sorry, the reporting system is not yet configured. "
-                        "Please try again later.",
-                    )
+                    if lang == "sw":
+                        err_msg = "Samahani, mfumo haujaundwa bado. Tafadhali jaribu tena baadaye."
+                    else:
+                        err_msg = "Sorry, the reporting system is not yet configured. Please try again later."
+                    await _send_message(phone, err_msg)
                     return
+
+                from app.services.translation import get_translation
+
                 menu = "\n".join(
-                    f"{i}: {o.label}" for i, o in enumerate(options, 1)
+                    f"{i}: {get_translation(o.translations, lang, o.label)}"
+                    for i, o in enumerate(options, 1)
                 )
                 session.state = "INCIDENT_SELECT"
                 db.commit()
-                await _send_message(
-                    phone, f"What would you like to report?\n\n{menu}"
-                )
+                if lang == "sw":
+                    prompt = f"Je, ungependa kuripoti nini?\n\n{menu}"
+                else:
+                    prompt = f"What would you like to report?\n\n{menu}"
+                await _send_message(phone, prompt)
             elif text_body == "2":
-                session.state = "CONSENT"
-                db.commit()
-                await _send_message(
-                    phone,
-                    "You must accept the data terms to submit a report. "
-                    "Send any message to start again.",
-                )
+                if lang == "sw":
+                    decline_msg = "Ni lazima ukubali masharti ya data ili kuwasilisha ripoti. Tuma ujumbe wowote ili kuanza tena."
+                else:
+                    decline_msg = "You must accept the data terms to submit a report. Send any message to start again."
+                await _send_message(phone, decline_msg)
                 # Reset so they start fresh next time
                 db.delete(session)
                 db.commit()
             else:
-                await _send_message(phone, consent_msg)
+                if lang == "sw":
+                    terms_msg = (
+                        "Karibu kwenye NBD Wetland Watch \U0001f30a\n\n"
+                        "Jukwaa hili linakusanya taarifa za matukio ya mazingira. "
+                        "Ripoti yako inahifadhiwa bila jina na matumizi ya data yamezuiliwa "
+                        "kwa mipango ya ufuatiliaji.\n\n"
+                        "Jibu *1* kukubali masharti na kuanza kuripoti.\n"
+                        "Jibu *2* kukataa."
+                    )
+                else:
+                    terms_msg = (
+                        "Welcome to NBD Wetland Watch \U0001f30a\n\n"
+                        "This platform collects environmental incident reports. "
+                        "Your report is saved anonymously and data usage is "
+                        "restricted to monitoring programs.\n\n"
+                        "Reply *1* to accept terms and start reporting.\n"
+                        "Reply *2* to decline."
+                    )
+                await _send_message(phone, terms_msg)
             return
 
         # ------------------------------------------------------------------
@@ -356,6 +410,9 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
         if state == "INCIDENT_SELECT":
             text_body = (msg.get("text") or {}).get("body", "").strip()
             options = _fetch_incident_options(db)
+            lang = session.language
+            from app.services.translation import get_translation
+
             try:
                 idx = int(text_body) - 1
                 if idx < 0 or idx >= len(options):
@@ -363,23 +420,36 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 selected = options[idx]
             except (ValueError, TypeError):
                 menu = "\n".join(
-                    f"{i}: {o.label}" for i, o in enumerate(options, 1)
+                    f"{i}: {get_translation(o.translations, lang, o.label)}"
+                    for i, o in enumerate(options, 1)
                 )
-                await _send_message(
-                    phone,
-                    f"Please reply with a valid number.\n\n{menu}",
-                )
+                if lang == "sw":
+                    prompt = f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
+                else:
+                    prompt = f"Please reply with a valid number.\n\n{menu}"
+                await _send_message(phone, prompt)
                 return
             session.incident_type = selected.value
             session.option_text = selected.label
             session.state = "MEDIA_UPLOAD"
             db.commit()
-            await _send_message(
-                phone,
-                f"You selected: *{selected.label}*\n\n"
-                "Please send a photo or video of the incident "
-                "(or reply *skip* to continue without media).",
+
+            selected_label = get_translation(
+                selected.translations, lang, selected.label
             )
+            if lang == "sw":
+                prompt = (
+                    f"Ulichagua: *{selected_label}*\n\n"
+                    "Tafadhali tuma picha au video ya tukio "
+                    "(au jibu *skip* kuendelea bila picha/video)."
+                )
+            else:
+                prompt = (
+                    f"You selected: *{selected_label}*\n\n"
+                    "Please send a photo or video of the incident "
+                    "(or reply *skip* to continue without media)."
+                )
+            await _send_message(phone, prompt)
             return
 
         # ------------------------------------------------------------------
@@ -387,6 +457,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
         # ------------------------------------------------------------------
         if state == "MEDIA_UPLOAD":
             media_gcs_path = None
+            lang = session.language
             if msg_type in ("image", "video", "document"):
                 media_id = (msg.get(msg_type) or {}).get("id")
                 mime_type = (msg.get(msg_type) or {}).get(
@@ -425,10 +496,11 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             elif msg_type == "text":
                 skip_text = (msg.get("text") or {}).get("body", "").strip()
                 if skip_text.lower() != "skip":
-                    await _send_message(
-                        phone,
-                        "Please send a photo/video or reply *skip*.",
-                    )
+                    if lang == "sw":
+                        prompt = "Tafadhali tuma picha/video au jibu *skip*."
+                    else:
+                        prompt = "Please send a photo/video or reply *skip*."
+                    await _send_message(phone, prompt)
                     return
 
             # Move to location
@@ -438,7 +510,11 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             )
             session.state = "LOCATION_SELECT"
             db.commit()
-            await _send_message(phone, f"Choose your location:\n\n{menu}")
+            if lang == "sw":
+                prompt = f"Chagua eneo lako:\n\n{menu}"
+            else:
+                prompt = f"Choose your location:\n\n{menu}"
+            await _send_message(phone, prompt)
             return
 
         # ------------------------------------------------------------------
@@ -447,6 +523,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
         if state == "LOCATION_SELECT":
             text_body = (msg.get("text") or {}).get("body", "").strip()
             subcounties = _fetch_subcounties(db)
+            lang = session.language
             try:
                 idx = int(text_body) - 1
                 if idx < 0 or idx >= len(subcounties):
@@ -456,10 +533,11 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 menu = "\n".join(
                     f"{i}: {sc.name}" for i, sc in enumerate(subcounties, 1)
                 )
-                await _send_message(
-                    phone,
-                    f"Please reply with a valid number.\n\n{menu}",
-                )
+                if lang == "sw":
+                    prompt = f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
+                else:
+                    prompt = f"Please reply with a valid number.\n\n{menu}"
+                await _send_message(phone, prompt)
                 return
 
             # Fetch the selected option from session
@@ -473,10 +551,13 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     "Cannot find option for incident_type=%s",
                     session.incident_type,
                 )
-                await _send_message(
-                    phone,
-                    "Sorry, something went wrong. Please start again.",
-                )
+                if lang == "sw":
+                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."
+                else:
+                    err_msg = (
+                        "Sorry, something went wrong. Please start again."
+                    )
+                await _send_message(phone, err_msg)
                 db.delete(session)
                 db.commit()
                 return
@@ -492,11 +573,11 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             # Delete session after successful submission
             db.delete(session)
             db.commit()
-            await _send_message(
-                phone,
-                "\u2705 Thank you! Your report has been received by "
-                "NBD Wetland Watch.",
-            )
+            if lang == "sw":
+                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+            else:
+                thank_msg = "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
+            await _send_message(phone, thank_msg)
             return
 
     except Exception as exc:

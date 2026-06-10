@@ -37,6 +37,12 @@ class WhatsAppSession(Base):
         nullable=True,
         comment="User provided location identifier or coordinates",
     )
+    language = Column(
+        String(5),
+        nullable=False,
+        default="en",
+        comment="Selected locale code (e.g. en, sw)",
+    )
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -42,17 +42,27 @@ def create_form(form: schemas.FormCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/forms", response_model=List[schemas.FormResponse])
-def list_forms(db: Session = Depends(get_db)):
-    return db.query(Form).all()
+def list_forms(lang: Optional[str] = None, db: Session = Depends(get_db)):
+    db_forms = db.query(Form).all()
+    if lang:
+        return [
+            schemas.FormResponse.from_orm_localized(f, lang) for f in db_forms
+        ]
+    return db_forms
 
 
 @router.get("/forms/{form_id}", response_model=schemas.FormDetailResponse)
-def get_form(form_id: int, db: Session = Depends(get_db)):
+def get_form(
+    form_id: int, lang: Optional[str] = None, db: Session = Depends(get_db)
+):
     db_form = db.query(Form).filter(Form.id == form_id).first()
     if not db_form:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Form not found"
         )
+
+    if lang:
+        return schemas.FormDetailResponse.from_orm_localized(db_form, lang)
 
     # Filter active (non-deleted) groups and questions
     active_groups = [

@@ -1,27 +1,79 @@
 {
   "name": "Pollution Reporting Form",
+  "translations": [
+    { "name": "Pollution Reporting Form", "language": "en" },
+    { "name": "Fomu ya Kuripoti Uchafuzi", "language": "sw" }
+  ],
+  "languages": ["en", "sw"],
   "question_group": [
     {
       "id": 1,
       "order": 1,
       "name": "Incident Details",
+      "translations": [
+        { "name": "Incident Details", "language": "en" },
+        { "name": "Maelezo ya Tukio", "language": "sw" }
+      ],
       "question": [
         {
           "id": "incident_type",
           "order": 1,
           "type": "option",
           "name": "Report a change in water",
+          "translations": [
+            { "name": "Report a change in water", "language": "en" },
+            { "name": "Ripoti mabadiliko katika maji", "language": "sw" }
+          ],
           "required": true,
           "option": [
             {
               "name": "Water colour (darker/murkier)",
-              "value": 1
+              "value": 1,
+              "translations": [
+                { "name": "Water colour (darker/murkier)", "language": "en" },
+                { "name": "Rangi ya maji (nyeusi/chafu)", "language": "sw" }
+              ]
             },
-            { "name": "Smell (bad odour)", "value": 2 },
-            { "name": "Fish or animal kills", "value": 3 },
-            { "name": "Storm event", "value": 4 },
-            { "name": "High water level", "value": 5 },
-            { "name": "Low water level", "value": 6 }
+            {
+              "name": "Smell (bad odour)",
+              "value": 2,
+              "translations": [
+                { "name": "Smell (bad odour)", "language": "en" },
+                { "name": "Harufu (harufu mbaya)", "language": "sw" }
+              ]
+            },
+            {
+              "name": "Fish or animal kills",
+              "value": 3,
+              "translations": [
+                { "name": "Fish or animal kills", "language": "en" },
+                { "name": "Vifo vya samaki au wanyama", "language": "sw" }
+              ]
+            },
+            {
+              "name": "Storm event",
+              "value": 4,
+              "translations": [
+                { "name": "Storm event", "language": "en" },
+                { "name": "Tukio la dhoruba", "language": "sw" }
+              ]
+            },
+            {
+              "name": "High water level",
+              "value": 5,
+              "translations": [
+                { "name": "High water level", "language": "en" },
+                { "name": "Kiwango cha juu cha maji", "language": "sw" }
+              ]
+            },
+            {
+              "name": "Low water level",
+              "value": 6,
+              "translations": [
+                { "name": "Low water level", "language": "en" },
+                { "name": "Kiwango cha chini cha maji", "language": "sw" }
+              ]
+            }
           ]
         },
         {
@@ -29,6 +81,10 @@
           "order": 2,
           "type": "cascade",
           "name": "Select Sub-County",
+          "translations": [
+            { "name": "Select Sub-County", "language": "en" },
+            { "name": "Chagua Kaunti Ndogo", "language": "sw" }
+          ],
           "required": true,
           "endpoint": "/api/v1/reference/sub-counties",
           "comment": "External API dependency for hierarchical sub-county list"
@@ -38,6 +94,10 @@
           "order": 3,
           "type": "image",
           "name": "Photo Evidence",
+          "translations": [
+            { "name": "Photo Evidence", "language": "en" },
+            { "name": "Uthibitisho wa Picha", "language": "sw" }
+          ],
           "required": false,
           "comment": "Optional GPS-stamped photo of the pollution event, streamed to GCS via WhatsApp pipeline"
         }
