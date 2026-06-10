@@ -125,6 +125,19 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
         },
     )
     assert response.status_code == 200
+    assert response.text.startswith("CON Choose SubCounty")
+
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_complete",
+            "phoneNumber": "+255700000000",
+            "networkCode": "64004",
+            "serviceCode": "*123#",
+            "text": "1*1*2*3*1",  # Lang (1) -> Accept (1) -> Incident (2) -> Sub-county (3)
+        },
+    )
+    assert response.status_code == 200
     assert response.text.startswith("END")
     assert "received" in response.text
 
@@ -158,7 +171,7 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     assert "Smell" in ans_incident.options[0]
 
     ans_location = [a for a in answers if a.question_id == q_location.id][0]
-    assert ans_location.options == ["Narok"]
+    assert ans_location.options == ["Emurua Dikirr"]
 
 
 def test_ussd_idempotency():
@@ -205,7 +218,20 @@ def test_ussd_terminal_submission_registered_citizen(db_session: Session):
             "phoneNumber": registered_phone,
             "networkCode": "63902",
             "serviceCode": "*123#",
-            "text": "1*1*2*1",  # Lang (1) -> Consent (1) -> Incident (2) -> Sub-county (1)
+            "text": "1*1*2*1",
+        },
+    )
+    assert response.status_code == 200
+    assert response.text.startswith("CON Choose SubCounty")
+
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_registered",
+            "phoneNumber": registered_phone,
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*1*2*1*2",
         },
     )
     assert response.status_code == 200

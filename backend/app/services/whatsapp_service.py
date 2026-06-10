@@ -575,6 +575,124 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 await _send_message(phone, prompt)
                 return
 
+            # Check if there are Level 3 sub-counties below the selected county
+            sub_counties = (
+                db.query(SpatialBoundary)
+                .filter(
+                    SpatialBoundary.level == 3,
+                    SpatialBoundary.parent_id == selected_sc.id,
+                )
+                .order_by(SpatialBoundary.name)
+                .all()
+            )
+
+            if sub_counties:
+                session.state = "SUB_COUNTY_SELECT"
+                session.location = str(selected_sc.id)
+                db.commit()
+
+                menu_lines = [
+                    f"  {i}: {sc.name}" for i, sc in enumerate(sub_counties, 1)
+                ]
+                menu = "\n".join(menu_lines)
+                if lang == "sw":
+                    prompt = (
+                        f"Chagua wilaya ndogo ya {selected_sc.name}:\n\n{menu}"
+                    )
+                else:
+                    prompt = (
+                        f"Choose sub-county of {selected_sc.name}:\n\n{menu}"
+                    )
+                await _send_message(phone, prompt)
+                return
+
+            # Fetch the selected option from session
+            options = _fetch_incident_options(db)
+            selected_option = next(
+                (o for o in options if o.value == session.incident_type),
+                None,
+            )
+            if not selected_option:
+                logger.error(
+                    "Cannot find option for incident_type=%s",
+                    session.incident_type,
+                )
+                if lang == "sw":
+                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."
+                else:
+                    err_msg = (
+                        "Sorry, something went wrong. Please start again."
+                    )
+                await _send_message(phone, err_msg)
+                db.delete(session)
+                db.commit()
+                return
+
+            _save_report(
+                db,
+                phone,
+                session,
+                selected_option,
+                selected_sc,
+                session.media_url,
+            )
+            # Delete session after successful submission
+            db.delete(session)
+            db.commit()
+            if lang == "sw":
+                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+            else:
+                thank_msg = "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
+            await _send_message(phone, thank_msg)
+            return
+
+        # ------------------------------------------------------------------
+        # STATE: SUB_COUNTY_SELECT
+        # ------------------------------------------------------------------
+        if state == "SUB_COUNTY_SELECT":
+            text_body = (msg.get("text") or {}).get("body", "").strip()
+            lang = session.language
+
+            # Retrieve the selected county
+            county_id = session.location
+            selected_county = (
+                db.query(SpatialBoundary)
+                .filter(SpatialBoundary.id == county_id)
+                .first()
+            )
+            if not selected_county:
+                logger.error("County not found for ID %s", county_id)
+                db.delete(session)
+                db.commit()
+                return
+
+            sub_counties = (
+                db.query(SpatialBoundary)
+                .filter(
+                    SpatialBoundary.level == 3,
+                    SpatialBoundary.parent_id == selected_county.id,
+                )
+                .order_by(SpatialBoundary.name)
+                .all()
+            )
+
+            try:
+                idx = int(text_body) - 1
+                if idx < 0 or idx >= len(sub_counties):
+                    raise ValueError()
+                selected_sc = sub_counties[idx]
+            except (ValueError, TypeError):
+                menu_lines = [
+                    f"  {i}: {sc.name}" for i, sc in enumerate(sub_counties, 1)
+                ]
+                menu = "\n".join(menu_lines)
+                if lang == "sw":
+                    prompt = f"Tafadhali jibu kwa nambari sahihi.\n\nChagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"
+                else:
+                    prompt = f"Please reply with a valid number.\n\nChoose sub-county of {selected_county.name}:\n\n{menu}"
+                await _send_message(phone, prompt)
+                return
+
             # Fetch the selected option from session
             options = _fetch_incident_options(db)
             selected_option = next(
