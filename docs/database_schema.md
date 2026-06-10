@@ -380,6 +380,8 @@ Dynamic survey definitions and version references.
 | `name` | `TEXT` | `NOT NULL` | Form display title. |
 | `version` | `INTEGER` | `DEFAULT 1` | Incremental form layout version. |
 | `uuid` | `UUID` | `UNIQUE`, `NOT NULL` | Globally unique identifier. |
+| `translations` | `JSONB` | `NULL` | JSONB translations array. |
+| `languages` | `JSONB` | `NULL` | JSONB supported languages array. |
 | `kobo_asset_id` | `VARCHAR(255)` | `UNIQUE`, `NULL` | Unique Kobo Asset UID mapping. |
 | `parent_id` | `INTEGER` | `REFERENCES form(id) ON DELETE CASCADE` | Parent form ID (for recursive inheritance). |
 | `type` | `INTEGER` | `DEFAULT 1` | Form type classifier. |
@@ -394,6 +396,8 @@ CREATE TABLE form (
     name TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
     uuid UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    translations JSONB,
+    languages JSONB,
     kobo_asset_id VARCHAR(255) UNIQUE,
     parent_id INTEGER REFERENCES form(id) ON DELETE CASCADE,
     type INTEGER NOT NULL DEFAULT 1,
@@ -413,6 +417,7 @@ Structural question sections/categories within a dynamic form.
 | `form_id` | `INTEGER` | `REFERENCES form(id) ON DELETE CASCADE` | Parent form container. |
 | `name` | `VARCHAR(255)` | `NOT NULL` | Dynamic section slug/name. |
 | `label` | `TEXT` | `NULL` | Category display title. |
+| `translations` | `JSONB` | `NULL` | JSONB translations array. |
 | `order` | `BIGINT` | `NULL` | Display sequence order. |
 | `repeatable` | `BOOLEAN` | `DEFAULT FALSE` | Denotes if the section supports loop structures. |
 | `repeat_text` | `VARCHAR(255)` | `NULL` | Text to display on repeat button. |
@@ -424,6 +429,7 @@ CREATE TABLE question_group (
     form_id INTEGER NOT NULL REFERENCES form(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     label TEXT,
+    translations JSONB,
     "order" BIGINT,
     repeatable BOOLEAN NOT NULL DEFAULT FALSE,
     repeat_text VARCHAR(255),
@@ -443,6 +449,7 @@ Individual input fields and metadata defined within a question group.
 | `order` | `BIGINT` | `NULL` | Display sequence order. |
 | `label` | `TEXT` | `NOT NULL` | Display question string. |
 | `short_label` | `TEXT` | `NULL` | Abridged question text. |
+| `translations` | `JSONB` | `NULL` | JSONB translations array. |
 | `name` | `VARCHAR(255)` | `NULL` | Unique data lookup key. |
 | `type` | `INTEGER` | `NOT NULL` | Field data type enum classifier. |
 | `meta` | `BOOLEAN` | `DEFAULT FALSE` | Metadata field flag. |
@@ -466,6 +473,7 @@ CREATE TABLE question (
     "order" BIGINT,
     label TEXT NOT NULL,
     short_label TEXT,
+    translations JSONB,
     name VARCHAR(255),
     type INTEGER NOT NULL,
     meta BOOLEAN NOT NULL DEFAULT FALSE,
@@ -493,6 +501,7 @@ Multiple-choice answers options mapping selection list items to questions.
 | `question_id` | `INTEGER` | `REFERENCES question(id) ON DELETE CASCADE` | Target question container. |
 | `order` | `BIGINT` | `NULL` | Selection list index order. |
 | `label` | `TEXT` | `NULL` | Visual selection label. |
+| `translations` | `JSONB` | `NULL` | JSONB translations array. |
 | `value` | `VARCHAR(255)` | `NULL` | Ingested value database key. |
 | `other` | `BOOLEAN` | `DEFAULT FALSE` | Open-text placeholder flag. |
 | `color` | `TEXT` | `NULL` | Visual highlight metadata. |
@@ -503,6 +512,7 @@ CREATE TABLE option (
     question_id INTEGER NOT NULL REFERENCES question(id) ON DELETE CASCADE,
     "order" BIGINT,
     label TEXT,
+    translations JSONB,
     value VARCHAR(255),
     other BOOLEAN NOT NULL DEFAULT FALSE,
     color TEXT
@@ -792,6 +802,7 @@ Stores transient state machine context for interactive WhatsApp reporting flows.
 | `id` | `INTEGER` | `PRIMARY KEY` | Serial database identifier. |
 | `phone_number` | `VARCHAR(20)` | `NOT NULL`, `INDEX` | E.164 formatted telephone number of the reporter. |
 | `state` | `VARCHAR(30)` | `NOT NULL`, `DEFAULT 'CONSENT'` | Current stage in the reporting state machine (e.g. `'CONSENT'`, `'INCIDENT'`). |
+| `language` | `VARCHAR(10)` | `NULL` | Selected language code (e.g. `'en'`, `'sw'`). |
 | `incident_type` | `VARCHAR(50)` | `NULL` | Selected incident category code. |
 | `option_text` | `TEXT` | `NULL` | Raw selection label or answer value. |
 | `media_url` | `VARCHAR(255)` | `NULL` | Temporary Meta CDN media URL for attachment download. |
@@ -804,6 +815,7 @@ CREATE TABLE whatsapp_sessions (
     id SERIAL PRIMARY KEY,
     phone_number VARCHAR(20) NOT NULL,
     state VARCHAR(30) NOT NULL DEFAULT 'CONSENT',
+    language VARCHAR(10),
     incident_type VARCHAR(50),
     option_text TEXT,
     media_url VARCHAR(255),

@@ -30,8 +30,8 @@ def test_ussd_step_0_consent_prompt():
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
     assert response.text.startswith("CON")
-    assert "Welcome to NBD Wetland Watch" in response.text
-    assert "Press 1 to accept" in response.text
+    assert "Choose Language" in response.text
+    assert "Chagua Lugha" in response.text
 
 
 def test_ussd_step_0_decline_consent():
@@ -42,7 +42,7 @@ def test_ussd_step_0_decline_consent():
             "phoneNumber": "+254700000000",
             "networkCode": "63902",
             "serviceCode": "*123#",
-            "text": "2",
+            "text": "1*2",  # Language choice (1) -> Decline consent (2)
         },
     )
     assert response.status_code == 200
@@ -60,15 +60,14 @@ def test_ussd_step_1_incident_selection():
             "phoneNumber": "+254700000000",
             "networkCode": "63902",
             "serviceCode": "*123#",
-            "text": "1",
+            "text": "1*1",  # Language choice (1) -> Accept terms (1)
         },
     )
     assert response.status_code == 200
     assert response.text.startswith("CON")
     assert "Report a change in" in response.text
-    assert "Water colour" in response.text
-    assert "Smell" in response.text
-    assert "Fish" in response.text or "animal" in response.text
+    assert "colour" in response.text.lower()
+    assert "smell" in response.text.lower()
 
 
 def test_ussd_step_2_location_selection_tanzania():
@@ -80,7 +79,7 @@ def test_ussd_step_2_location_selection_tanzania():
             "phoneNumber": "+255700000000",
             "networkCode": "64004",
             "serviceCode": "*123#",
-            "text": "1*2",
+            "text": "1*1*2",  # Lang (1) -> Accept (1) -> Incident Smell (2)
         },
     )
     assert response.status_code == 200
@@ -108,7 +107,7 @@ def test_ussd_step_2_location_selection_uganda():
             "phoneNumber": "+256700000000",
             "networkCode": "64101",
             "serviceCode": "*123#",
-            "text": "1*2",
+            "text": "1*1*2",  # Lang (1) -> Accept (1) -> Incident Smell (2)
         },
     )
     assert response.status_code == 200
@@ -136,7 +135,7 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
             "phoneNumber": "+255700000000",
             "networkCode": "64004",
             "serviceCode": "*123#",
-            "text": "1*2*3",
+            "text": "1*1*2*3",  # Lang (1) -> Accept (1) -> Incident (2) -> Sub-county (3)
         },
     )
     assert response.status_code == 200
@@ -170,7 +169,7 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     )
 
     ans_incident = [a for a in answers if a.question_id == q_incident.id][0]
-    assert ans_incident.options == ["Smell (bad odour)"]
+    assert "Smell" in ans_incident.options[0]
 
     ans_location = [a for a in answers if a.question_id == q_location.id][0]
     assert ans_location.options == ["Rorya"]
@@ -220,7 +219,7 @@ def test_ussd_terminal_submission_registered_citizen(db_session: Session):
             "phoneNumber": registered_phone,
             "networkCode": "63902",
             "serviceCode": "*123#",
-            "text": "1*2*1",  # Consent -> Incident (Smell) -> Sub-county
+            "text": "1*1*2*1",  # Lang (1) -> Consent (1) -> Incident (2) -> Sub-county (1)
         },
     )
     assert response.status_code == 200

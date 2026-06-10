@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from app.services.storage import StorageService
+from app.dependencies.auth import RoleChecker
+from app.models.user import User
 
 router = APIRouter(prefix="/api/v1/storage", tags=["storage"])
 
@@ -53,6 +55,7 @@ def get_read_url(
     blob_name: str = Query(
         ..., description="The name of the blob file in the bucket"
     ),
+    current_user: User = Depends(RoleChecker(["Admin"])),
     service: StorageService = Depends(get_storage_service),
 ):
     try:

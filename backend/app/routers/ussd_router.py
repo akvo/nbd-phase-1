@@ -69,42 +69,84 @@ def handle_ussd(
                 .all()
             )
 
-    # Step 0: Consent Gate
+    # Step 0: Language Selection Menu
     if depth == 0:
         response_text = (
-            "CON Welcome to NBD Wetland Watch. This platform collects "
-            "environmental incident reports. Your report is saved "
-            "anonymously. Data usage is restricted to monitoring programs.\n"
-            "Press 1 to accept and start reporting.\n"
-            "Press 2 to decline terms."
+            "CON Choose Language / Chagua Lugha:\n"
+            "1. English\n"
+            "2. Kiswahili"
         )
+        return PlainTextResponse(clean_ussd_response(response_text))
+
+    # Parse language choice
+    lang_choice = parts[0]
+    if lang_choice == "2":
+        lang = "sw"
+    else:
+        lang = "en"
+
+    # Step 1: Consent Gate (translated)
+    if depth == 1:
+        if lang == "sw":
+            response_text = (
+                "CON Karibu kwenye NBD Wetland Watch. Jukwaa hili linakusanya "
+                "taarifa za matukio ya mazingira. Ripoti yako inahifadhiwa "
+                "bila jina. Matumizi ya data yamezuiliwa kwa mipango ya ufuatiliaji.\n"
+                "Bonyeza 1 kukubali na kuanza kuripoti.\n"
+                "Bonyeza 2 kukataa masharti."
+            )
+        else:
+            response_text = (
+                "CON Welcome to NBD Wetland Watch. This platform collects "
+                "environmental incident reports. Your report is saved "
+                "anonymously. Data usage is restricted to monitoring programs.\n"
+                "Press 1 to accept and start reporting.\n"
+                "Press 2 to decline terms."
+            )
         return PlainTextResponse(clean_ussd_response(response_text))
 
     # Parse consent choice
-    consent = parts[0]
+    consent = parts[1]
     if consent != "1":
-        response_text = (
-            "END Data terms must be accepted to report. Session closed."
-        )
+        if lang == "sw":
+            response_text = "END Masharti ya data lazima yakubalike ili kuripoti. Kikao kimefungwa."
+        else:
+            response_text = (
+                "END Data terms must be accepted to report. Session closed."
+            )
         processed_sessions[sessionId] = response_text
         return PlainTextResponse(clean_ussd_response(response_text))
 
-    # Step 1: Incident Selection
-    if depth == 1:
+    from app.services.translation import get_translation
+
+    # Step 2: Incident Selection
+    if depth == 2:
         if not options:
-            response_text = (
-                "END Internal system error. Form options not configured."
-            )
+            if lang == "sw":
+                response_text = (
+                    "END Hitilafu ya mfumo wa ndani. Chaguzi hazijaundwa."
+                )
+            else:
+                response_text = (
+                    "END Internal system error. Form options not configured."
+                )
             processed_sessions[sessionId] = response_text
             return PlainTextResponse(clean_ussd_response(response_text))
+
         menu_items = [
-            f"{idx}: {opt.label}" for idx, opt in enumerate(options, 1)
+            f"{idx}: {get_translation(opt.translations, lang, opt.label)}"
+            for idx, opt in enumerate(options, 1)
         ]
-        response_text = "CON Report a change in:\n" + "\n".join(menu_items)
+        if lang == "sw":
+            response_text = "CON Ripoti mabadiliko katika:\n" + "\n".join(
+                menu_items
+            )
+        else:
+            response_text = "CON Report a change in:\n" + "\n".join(menu_items)
         return PlainTextResponse(clean_ussd_response(response_text))
 
-    # Step 2: Location Selection (dynamic list based on country networkCode)
-    incident_type = parts[1]
+    # Step 3: Location Selection (dynamic list based on country networkCode)
+    incident_type = parts[2]
     # Map network code to participating basins
     # Kenya: 63902, 63903 (Mara & Sio-Siteko)
     # Uganda: 64101, 64110 (Sio-Siteko)
@@ -129,21 +171,29 @@ def handle_ussd(
         .all()
     )
 
-    if depth == 2:
+    if depth == 3:
         menu_items = []
         for idx, sc in enumerate(subcounties, 1):
             menu_items.append(f"{idx}: {sc.name}")
-        response_text = "CON Choose Location:\n" + "\n".join(menu_items)
+        if lang == "sw":
+            response_text = "CON Chagua Mahali:\n" + "\n".join(menu_items)
+        else:
+            response_text = "CON Choose Location:\n" + "\n".join(menu_items)
         return PlainTextResponse(clean_ussd_response(response_text))
 
-    # Step 3: Terminal processing and saving
-    location_index_str = parts[2]
+    # Step 4: Terminal processing and saving
+    location_index_str = parts[3]
     try:
         location_idx = int(location_index_str) - 1
         if location_idx < 0 or location_idx >= len(subcounties):
             raise ValueError()
     except ValueError:
-        response_text = "END Invalid location selection. Session closed."
+        if lang == "sw":
+            response_text = (
+                "END Uteuzi wa mahali sio sahihi. Kikao kimefungwa."
+            )
+        else:
+            response_text = "END Invalid location selection. Session closed."
         processed_sessions[sessionId] = response_text
         return PlainTextResponse(clean_ussd_response(response_text))
 
@@ -151,7 +201,10 @@ def handle_ussd(
 
     # Geocode and save report
     if not form:
-        response_text = "END Internal system error. Form not configured."
+        if lang == "sw":
+            response_text = "END Hitilafu ya mfumo wa ndani. Fomu haijaundwa."
+        else:
+            response_text = "END Internal system error. Form not configured."
         processed_sessions[sessionId] = response_text
         return PlainTextResponse(clean_ussd_response(response_text))
 
@@ -161,11 +214,11 @@ def handle_ussd(
         if incident_idx < 0 or incident_idx >= len(options):
             raise ValueError()
         selected_option = options[incident_idx]
-        incident_val = (
-            float(selected_option.value) if selected_option.value else 0.0
-        )
     except (ValueError, IndexError):
-        response_text = "END Invalid incident selection. Session closed."
+        if lang == "sw":
+            response_text = "END Uteuzi wa tukio sio sahihi. Kikao kimefungwa."
+        else:
+            response_text = "END Invalid incident selection. Session closed."
         processed_sessions[sessionId] = response_text
         return PlainTextResponse(clean_ussd_response(response_text))
 
@@ -220,7 +273,11 @@ def handle_ussd(
         datapoint_id=dp.id,
         question_id=q_incident.id if q_incident else 0,
         name=None,
-        options=[selected_option.label],
+        options=[
+            get_translation(
+                selected_option.translations, lang, selected_option.label
+            )
+        ],
     )
     db.add(ans_incident)
 
@@ -233,9 +290,12 @@ def handle_ussd(
     db.add(ans_location)
     db.commit()
 
-    response_text = (
-        "END Thank you for your report. NBD Wetland Watch has "
-        "received your update."
-    )
+    if lang == "sw":
+        response_text = "END Asante kwa ripoti yako. NBD Wetland Watch imepokea taarifa yako."
+    else:
+        response_text = (
+            "END Thank you for your report. NBD Wetland Watch has "
+            "received your update."
+        )
     processed_sessions[sessionId] = response_text
     return PlainTextResponse(clean_ussd_response(response_text))

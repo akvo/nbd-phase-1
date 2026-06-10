@@ -7,11 +7,12 @@ import httpx
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.form import Form
-from app.models.spatial import Basin
+from app.models.spatial import Basin, Site
 from app.models.submission import Datapoint, Answer
 from app.models.sync_watermark import SyncWatermark
 from app.models.dead_letter import DeadLetter
 from app.mail import EmailService
+from app.services.storage import StorageService, build_blob_path
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +179,82 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
 
             try:
                 with db.begin_nested():
+                    # Determine spatial anchor
+                    # (site_id, basin_id, or wetland_id)
+                    selected_site_id = None
+                    selected_basin_id = None
+                    geo_json = None
+
+                    # 1. Look for explicit site question
+                    for question in db_form.questions:
+                        if question.name in (
+                            "site",
+                            "site_id",
+                            "site_code",
+                            "location_id",
+                        ):
+                            val = sub.get(question.name)
+                            if val is None:
+                                suffix = f"/{question.name}"
+                                for key, k_val in sub.items():
+                                    if key.endswith(suffix):
+                                        val = k_val
+                                        break
+                            if val is None:
+                                val = sub.get(str(question.id))
+
+                            if val is not None:
+                                site_obj = (
+                                    db.query(Site)
+                                    .filter(
+                                        (Site.code == str(val))
+                                        | (Site.name == str(val))
+                                    )
+                                    .first()
+                                )
+                                if site_obj:
+                                    selected_site_id = site_obj.id
+                                    break
+
+                    # 2. If no site is explicitly matched,
+                    # check _geolocation for containing basin
+                    geolocation = sub.get("_geolocation")
+                    if (
+                        not selected_site_id
+                        and isinstance(geolocation, list)
+                        and len(geolocation) >= 2
+                    ):
+                        lat, lon = geolocation[0], geolocation[1]
+                        point = func.ST_SetSRID(
+                            func.ST_MakePoint(lon, lat), 4326
+                        )
+                        containing_basin = (
+                            db.query(Basin)
+                            .filter(func.ST_Contains(Basin.geom, point))
+                            .first()
+                        )
+                        if containing_basin:
+                            selected_basin_id = containing_basin.id
+                            geo_json = {
+                                "type": "Point",
+                                "coordinates": [lon, lat],
+                            }
+
+                    # 3. Fallback to default basin
+                    if not selected_site_id and not selected_basin_id:
+                        selected_basin_id = default_basin.id
+                        if (
+                            isinstance(geolocation, list)
+                            and len(geolocation) >= 2
+                        ):
+                            geo_json = {
+                                "type": "Point",
+                                "coordinates": [
+                                    geolocation[1],
+                                    geolocation[0],
+                                ],
+                            }
+
                     # Create Datapoint
                     datapoint = Datapoint(
                         uuid=sub_uuid,
@@ -186,9 +263,10 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                         name=f"kobotoolbox_{sub.get('_id')}",
                         submitter=sub.get("_submitted_by", "KoboToolbox"),
                         created_at=sub_time,
-                        basin_id=default_basin.id,
+                        site_id=selected_site_id,
+                        basin_id=selected_basin_id,
                         status="PENDING",
-                        geo=sub.get("_geolocation"),
+                        geo=geo_json,
                     )
                     db.add(datapoint)
                     db.flush()
@@ -250,6 +328,39 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                                     options_val = val
                                 else:
                                     options_val = [str(val)]
+                            elif question.type in ("image", "attachment"):
+                                attachments = sub.get("_attachments", [])
+                                attachment = next(
+                                    (
+                                        a
+                                        for a in attachments
+                                        if val == a.get("media_file_basename")
+                                    ),
+                                    None,
+                                )
+                                if attachment:
+                                    download_url = attachment.get(
+                                        "download_url", ""
+                                    )
+                                    mimetype = attachment.get(
+                                        "mimetype", "application/octet-stream"
+                                    )
+                                    ext = (
+                                        val.rsplit(".", 1)[-1]
+                                        if "." in val
+                                        else "bin"
+                                    )
+                                    blob_path = build_blob_path("kobo", ext)
+                                    response = httpx.get(
+                                        download_url, headers=service.headers
+                                    )
+                                    response.raise_for_status()
+                                    StorageService().upload_file(
+                                        response.content, blob_path, mimetype
+                                    )
+                                    name_val = blob_path
+                                else:
+                                    name_val = str(val)
                             else:
                                 name_val = str(val)
 
@@ -321,7 +432,7 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
             admins = (
                 db.query(User.email)
                 .filter(
-                    func.lower(User.role) == "admin", User.is_active == True
+                    func.lower(User.role) == "admin", User.is_active.is_(True)
                 )
                 .all()
             )

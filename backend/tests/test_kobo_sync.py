@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.mock import patch
 from sqlalchemy.orm import Session
 from app.models.form import Form, Question, QuestionGroup
-from app.models.spatial import Basin
+from app.models.spatial import Basin, Wetland, Site
 from app.models.submission import Datapoint, Answer
 from app.models.sync_watermark import SyncWatermark
 from app.services.kobo import (
@@ -347,3 +347,411 @@ def test_sync_kobo_bounds_and_dlq_flows(
     html_body = call_args[1].get("html_body") or call_args[0][2]
     assert sub1_uuid in html_body
     assert sub2_uuid in html_body
+
+
+# ---------------------------------------------------------------------------
+# Subtask 3C: Media Extraction & Cloud Offloading (FR-001 to FR-007)
+# ---------------------------------------------------------------------------
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+@patch("app.services.kobo.StorageService")
+def test_sync_kobo_image_attachment_uploaded_to_gcs(
+    mock_storage_class,
+    mock_get_submissions,
+    mock_get_forms,
+    db_session: Session,
+):
+    """UAC 3C.1 — Image attachment is downloaded from Kobo and uploaded to GCS.
+
+    Verifies:
+    - FR-001: image/attachment question type is detected.
+    - FR-002: _attachments array is searched for matching filename.
+    - FR-003: download_url is fetched with Kobo auth headers.
+    - FR-004: bytes are uploaded to GCS under {APP_ENV}/kobo/{uuid}.{ext}.
+    - FR-005: Answer.name holds the GCS blob path reference.
+    """
+    import os
+
+    os.environ["APP_ENV"] = "development"
+    os.environ["KOBOTOOLBOX_API_TOKEN"] = "test_token_xyz"
+    os.environ["GCS_BUCKET_NAME"] = "test-bucket"
+
+    # --- Database setup ---
+    basin = Basin(
+        code="MARA_IMG",
+        name="Mara Basin IMG",
+        geom=(
+            "SRID=4326;MULTIPOLYGON("
+            "((30 10, 40 40, 20 40, 10 20, 30 10))"
+            ")"
+        ),
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    form = Form(
+        name="Image Upload Form",
+        version=1,
+        kobo_asset_id="kobo_img_form_001",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    q_group = QuestionGroup(form_id=form.id, name="Photo Group")
+    db_session.add(q_group)
+    db_session.commit()
+
+    question_img = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="site_photo",
+        label="Site Photo",
+        type="image",
+        order=1,
+    )
+    db_session.add(question_img)
+    db_session.commit()
+
+    # --- Mock Kobo API responses ---
+    mock_get_forms.return_value = [
+        {"uid": "kobo_img_form_001", "name": "Image Upload Form"}
+    ]
+
+    sub_uuid = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid,
+            "_id": 2001,
+            "_submission_time": "2026-06-09T09:00:00Z",
+            "_submitted_by": "photographer_alice",
+            "site_photo": "site_photo.jpg",
+            "_attachments": [
+                {
+                    "filename": "site_photo.jpg",
+                    "media_file_basename": "site_photo.jpg",
+                    "download_url": (
+                        "https://eu.kobotoolbox.org/api/v2/attachments/42/"
+                    ),
+                    "mimetype": "image/jpeg",
+                }
+            ],
+        }
+    ]
+
+    # --- Mock StorageService ---
+    mock_storage_instance = mock_storage_class.return_value
+    captured_uploads = []
+
+    def fake_upload_file(content, blob_name, content_type):
+        captured_uploads.append(
+            {
+                "blob_name": blob_name,
+                "content_type": content_type,
+                "size": len(content),
+            }
+        )
+
+    mock_storage_instance.upload_file.side_effect = fake_upload_file
+
+    # --- Mock httpx download (synchronous) ---
+    with patch("app.services.kobo.httpx.get") as mock_httpx_get:
+        mock_response = mock_httpx_get.return_value
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"fake_jpeg_bytes"
+        mock_response.headers = {"content-type": "image/jpeg"}
+
+        res = sync_kobo_submissions(db_session)
+
+    # --- Assertions ---
+    assert res["ingested_records"] == 1
+    assert len(res["errors"]) == 0
+
+    # GCS upload was called once for the image
+    assert len(captured_uploads) == 1
+    upload = captured_uploads[0]
+    assert upload["blob_name"].startswith("development/kobo/")
+    assert upload["blob_name"].endswith(".jpg")
+    assert upload["content_type"] == "image/jpeg"
+
+    # Answer.name stores the GCS blob path
+    datapoint = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.uuid == uuid.UUID(sub_uuid))
+        .first()
+    )
+    assert datapoint is not None
+
+    answers = (
+        db_session.query(Answer)
+        .filter(Answer.datapoint_id == datapoint.id)
+        .all()
+    )
+    assert len(answers) == 1
+    img_answer = answers[0]
+    assert img_answer.name is not None
+    assert img_answer.name.startswith("development/kobo/")
+    assert img_answer.name.endswith(".jpg")
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+@patch("app.services.kobo.StorageService")
+@patch("app.mail.EmailService.send_email_async")
+def test_sync_kobo_image_download_failure_routes_to_dlq(
+    mock_send_email,
+    mock_storage_class,
+    mock_get_submissions,
+    mock_get_forms,
+    db_session: Session,
+):
+    """FR-007 — A download failure during media extraction routes to DLQ.
+
+    If the httpx download of a Kobo attachment raises an exception,
+    the outer submission loop catches it, rolls back the nested
+    transaction, and creates a DeadLetter record.
+    """
+    import os
+    from app.models.dead_letter import DeadLetter
+
+    os.environ["APP_ENV"] = "development"
+    os.environ["KOBOTOOLBOX_API_TOKEN"] = "test_token_xyz"
+    os.environ["GCS_BUCKET_NAME"] = "test-bucket"
+
+    # Ensure no pre-existing dead letters from other tests bleed in
+    db_session.query(DeadLetter).filter(
+        DeadLetter.source_system == "kobotoolbox"
+    ).delete()
+    db_session.commit()
+
+    # --- Database setup ---
+    basin = db_session.query(Basin).filter(Basin.code == "MARA_IMG").first()
+    if not basin:
+        basin = Basin(
+            code="MARA_IMG2",
+            name="Mara Basin IMG DL",
+            geom=(
+                "SRID=4326;MULTIPOLYGON("
+                "((30 10, 40 40, 20 40, 10 20, 30 10))"
+                ")"
+            ),
+        )
+        db_session.add(basin)
+        db_session.commit()
+
+    form = Form(
+        name="Image DL Failure Form",
+        version=1,
+        kobo_asset_id="kobo_img_fail_002",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    q_group = QuestionGroup(form_id=form.id, name="Photo Group DL")
+    db_session.add(q_group)
+    db_session.commit()
+
+    question_img = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="site_photo_fail",
+        label="Site Photo Fail",
+        type="image",
+        order=1,
+    )
+    db_session.add(question_img)
+    db_session.commit()
+
+    # --- Mock Kobo API responses ---
+    mock_get_forms.return_value = [
+        {"uid": "kobo_img_fail_002", "name": "Image DL Failure Form"}
+    ]
+
+    sub_uuid_fail = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid_fail,
+            "_id": 3001,
+            "_submission_time": "2026-06-09T10:00:00Z",
+            "_submitted_by": "photographer_bob",
+            "site_photo_fail": "broken_photo.jpg",
+            "_attachments": [
+                {
+                    "filename": "broken_photo.jpg",
+                    "media_file_basename": "broken_photo.jpg",
+                    "download_url": (
+                        "https://eu.kobotoolbox.org/api/v2/attachments/99/"
+                    ),
+                    "mimetype": "image/jpeg",
+                }
+            ],
+        }
+    ]
+
+    # GCS should not be called since download fails
+    mock_storage_class.return_value.upload_file.return_value = None
+
+    # httpx.get raises a network error
+    with patch("app.services.kobo.httpx.get") as mock_httpx_get:
+        mock_httpx_get.side_effect = Exception("Connection timeout to Kobo")
+
+        res = sync_kobo_submissions(db_session)
+
+    # The failed submission is quarantined in the DLQ — not ingested
+    assert res["ingested_records"] == 0
+
+    dl_records = (
+        db_session.query(DeadLetter)
+        .filter(DeadLetter.source_system == "kobotoolbox")
+        .all()
+    )
+    assert len(dl_records) == 1
+    assert "Connection timeout" in dl_records[0].error_reason
+
+    # The datapoint should NOT have been committed
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.uuid == uuid.UUID(sub_uuid_fail))
+        .first()
+    )
+    assert dp is None
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_kobo_spatial_resolution_explicit_site(
+    mock_get_submissions,
+    mock_get_forms,
+    db_session: Session,
+):
+    # Setup Basin, Wetland, and Site
+    basin = Basin(
+        code="MARA_SPAT_EXPLICIT",
+        name="Mara Basin Explicit",
+        geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    wetland = Wetland(
+        code="MARA_WET_EXPLICIT",
+        basin_id=basin.id,
+        name="Mara Wetland Explicit",
+        geom="SRID=4326;POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))",
+    )
+    db_session.add(wetland)
+    db_session.commit()
+
+    site = Site(
+        code="MARA_SITE_002",
+        wetland_id=wetland.id,
+        name="Mara Site 002",
+        geom="SRID=4326;POINT(30 20)",
+    )
+    db_session.add(site)
+    db_session.commit()
+
+    form = Form(
+        name="Spatial Explicit Form",
+        version=1,
+        kobo_asset_id="kobo_spat_exp_001",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    q_group = QuestionGroup(form_id=form.id, name="Spatial Group")
+    db_session.add(q_group)
+    db_session.commit()
+
+    question_site = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="site_id",
+        label="Select Site",
+        type="input",
+        order=1,
+    )
+    db_session.add(question_site)
+    db_session.commit()
+
+    mock_get_forms.return_value = [
+        {"uid": "kobo_spat_exp_001", "name": "Spatial Explicit Form"}
+    ]
+
+    sub_uuid = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid,
+            "_id": 5001,
+            "_submission_time": "2026-06-09T11:00:00Z",
+            "_submitted_by": "surveyor_tom",
+            "site_id": "MARA_SITE_002",
+        }
+    ]
+
+    res = sync_kobo_submissions(db_session)
+    assert res["ingested_records"] == 1
+
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.uuid == uuid.UUID(sub_uuid))
+        .first()
+    )
+    assert dp is not None
+    assert dp.site_id == site.id
+    assert dp.basin_id is None
+    assert dp.wetland_id is None
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_kobo_spatial_resolution_by_geolocation(
+    mock_get_submissions,
+    mock_get_forms,
+    db_session: Session,
+):
+    # Setup Basin
+    basin = Basin(
+        code="SIO_SPAT_GEOLOC",
+        name="Sio Spatial Geolocation",
+        geom="SRID=4326;MULTIPOLYGON(((34.0 0.0, 35.0 0.0, 35.0 1.0, 34.0 1.0, 34.0 0.0)))",
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    form = Form(
+        name="Spatial Geolocation Form",
+        version=1,
+        kobo_asset_id="kobo_spat_geo_002",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    mock_get_forms.return_value = [
+        {"uid": "kobo_spat_geo_002", "name": "Spatial Geolocation Form"}
+    ]
+
+    sub_uuid = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid,
+            "_id": 5002,
+            "_submission_time": "2026-06-09T11:30:00Z",
+            "_submitted_by": "surveyor_ann",
+            "_geolocation": [0.5, 34.5],  # [lat, lon]
+        }
+    ]
+
+    res = sync_kobo_submissions(db_session)
+    assert res["ingested_records"] == 1
+
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.uuid == uuid.UUID(sub_uuid))
+        .first()
+    )
+    assert dp is not None
+    assert dp.basin_id == basin.id
+    assert dp.site_id is None
+    assert dp.geo == {"type": "Point", "coordinates": [34.5, 0.5]}

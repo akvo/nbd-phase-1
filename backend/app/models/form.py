@@ -55,6 +55,8 @@ class Form(Base):
     uuid = Column(
         PG_UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False
     )
+    translations = Column(JSONB, nullable=True)
+    languages = Column(JSONB, nullable=True)
     kobo_asset_id = Column(String(255), nullable=True, unique=True, index=True)
     parent_id = Column(
         Integer, ForeignKey("form.id", ondelete="CASCADE"), nullable=True
@@ -120,6 +122,7 @@ class QuestionGroup(Base):
     )
     name = Column(String(255), nullable=False)
     label = Column(Text, nullable=True)
+    translations = Column(JSONB, nullable=True)
     order = Column(BigInteger, nullable=True)
     repeatable = Column(Boolean, default=False, nullable=False)
     repeat_text = Column(String(255), nullable=True)
@@ -158,6 +161,7 @@ class Question(Base):
     order = Column(BigInteger, nullable=True)
     label = Column(Text, nullable=False)
     short_label = Column(Text, nullable=True)
+    translations = Column(JSONB, nullable=True)
     name = Column(String(255), nullable=True)
     type = Column(SQLEnum(QuestionType, name="question_type"), nullable=False)
     meta = Column(Boolean, default=False, nullable=False)
@@ -207,6 +211,7 @@ class Option(Base):
     )
     order = Column(BigInteger, nullable=True)
     label = Column(Text, nullable=True)
+    translations = Column(JSONB, nullable=True)
     value = Column(String(255), nullable=True)
     other = Column(Boolean, default=False, nullable=False)
     color = Column(Text, nullable=True)
