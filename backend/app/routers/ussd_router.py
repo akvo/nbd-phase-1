@@ -162,11 +162,11 @@ def handle_ussd(
         # Default fallback
         basins = ["MARA", "SIO_SITEKO"]
 
-    # Fetch sub-counties sorted alphabetically
+    # Fetch sub-counties sorted alphabetically (level 2)
     subcounties = (
         db.query(SpatialBoundary)
         .join(Basin)
-        .filter(Basin.code.in_(basins))
+        .filter(Basin.code.in_(basins), SpatialBoundary.level == 2)
         .order_by(SpatialBoundary.name)
         .all()
     )

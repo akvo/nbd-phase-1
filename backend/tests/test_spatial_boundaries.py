@@ -28,28 +28,54 @@ def test_create_and_get_spatial_boundary():
     assert res_basin.status_code == 201
     basin_uuid = res_basin.json()["id"]
 
-    # 2. Create spatial boundary (sub-county)
-    sb_data = {
-        "name": "Tarime District",
+    # 2. Create spatial boundary Region (level=1)
+    sb_region_data = {
+        "name": "Mara Region Test",
+        "level": 1,
+        "parent_id": None,
+        "basin_id": basin_uuid,
+        "centroid_geom": {
+            "type": "Point",
+            "coordinates": [34.5, -1.5],
+        },
+    }
+    response_reg = client.post(
+        "/api/v1/reference/sub-counties", json=sb_region_data
+    )
+    assert response_reg.status_code == 201
+    res_reg_data = response_reg.json()
+    assert res_reg_data["name"] == "Mara Region Test"
+    assert res_reg_data["level"] == 1
+    assert res_reg_data["parent_id"] is None
+    region_uuid = res_reg_data["id"]
+
+    # 3. Create spatial boundary District (level=2)
+    sb_district_data = {
+        "name": "Tarime District Test",
+        "level": 2,
+        "parent_id": region_uuid,
         "basin_id": basin_uuid,
         "centroid_geom": {
             "type": "Point",
             "coordinates": [34.47, -1.24],
         },
     }
-    response = client.post("/api/v1/reference/sub-counties", json=sb_data)
-    assert response.status_code == 201
-    res_data = response.json()
-    assert res_data["name"] == "Tarime District"
-    assert res_data["basin_id"] == basin_uuid
-    assert res_data["centroid_geom"]["type"] == "Point"
-    assert "id" in res_data
+    response_dist = client.post(
+        "/api/v1/reference/sub-counties", json=sb_district_data
+    )
+    assert response_dist.status_code == 201
+    res_dist_data = response_dist.json()
+    assert res_dist_data["name"] == "Tarime District Test"
+    assert res_dist_data["level"] == 2
+    assert res_dist_data["parent_id"] == region_uuid
 
-    # 3. Get all sub-counties
+    # 4. Get all sub-counties
     response = client.get("/api/v1/reference/sub-counties")
     assert response.status_code == 200
     res_list = response.json()
-    assert len(res_list) >= 1
-    found = [x for x in res_list if x["name"] == "Tarime District"]
+    assert len(res_list) >= 2
+    found = [x for x in res_list if x["name"] == "Tarime District Test"]
     assert len(found) == 1
     assert found[0]["centroid_geom"]["coordinates"] == [34.47, -1.24]
+    assert found[0]["level"] == 2
+    assert found[0]["parent_id"] == region_uuid

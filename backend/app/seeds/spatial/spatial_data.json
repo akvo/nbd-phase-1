@@ -111,9 +111,21 @@
       }
     }
   ],
-  "sub_counties": [
+  "spatial_boundaries": [
+    {
+      "name": "Mara Region",
+      "level": 1,
+      "parent_name": null,
+      "basin_id": "MARA",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [34.5, -1.5]
+      }
+    },
     {
       "name": "Rorya",
+      "level": 2,
+      "parent_name": "Mara Region",
       "basin_id": "MARA",
       "centroid_geom": {
         "type": "Point",
@@ -122,6 +134,8 @@
     },
     {
       "name": "Tarime",
+      "level": 2,
+      "parent_name": "Mara Region",
       "basin_id": "MARA",
       "centroid_geom": {
         "type": "Point",
@@ -130,6 +144,8 @@
     },
     {
       "name": "Butiama",
+      "level": 2,
+      "parent_name": "Mara Region",
       "basin_id": "MARA",
       "centroid_geom": {
         "type": "Point",
@@ -138,6 +154,8 @@
     },
     {
       "name": "Serengeti",
+      "level": 2,
+      "parent_name": "Mara Region",
       "basin_id": "MARA",
       "centroid_geom": {
         "type": "Point",
@@ -146,6 +164,8 @@
     },
     {
       "name": "Musoma",
+      "level": 2,
+      "parent_name": "Mara Region",
       "basin_id": "MARA",
       "centroid_geom": {
         "type": "Point",
@@ -153,7 +173,19 @@
       }
     },
     {
+      "name": "Sio-Siteko Region",
+      "level": 1,
+      "parent_name": null,
+      "basin_id": "SIO_SITEKO",
+      "centroid_geom": {
+        "type": "Point",
+        "coordinates": [34.15, 0.46]
+      }
+    },
+    {
       "name": "Busia",
+      "level": 2,
+      "parent_name": "Sio-Siteko Region",
       "basin_id": "SIO_SITEKO",
       "centroid_geom": {
         "type": "Point",
@@ -162,6 +194,8 @@
     },
     {
       "name": "Namayingo",
+      "level": 2,
+      "parent_name": "Sio-Siteko Region",
       "basin_id": "SIO_SITEKO",
       "centroid_geom": {
         "type": "Point",
@@ -170,6 +204,8 @@
     },
     {
       "name": "Tororo",
+      "level": 2,
+      "parent_name": "Sio-Siteko Region",
       "basin_id": "SIO_SITEKO",
       "centroid_geom": {
         "type": "Point",
@@ -178,6 +214,8 @@
     },
     {
       "name": "Bugiri",
+      "level": 2,
+      "parent_name": "Sio-Siteko Region",
       "basin_id": "SIO_SITEKO",
       "centroid_geom": {
         "type": "Point",
