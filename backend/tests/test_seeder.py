@@ -188,7 +188,7 @@ def test_seed_spatial_success(db_session: Session):
 
     # 5. Assert Sub-counties created
     sub_counties = db_session.query(SpatialBoundary).all()
-    assert len(sub_counties) == 11
+    assert len(sub_counties) == 28
 
     mara_sub_counties = [
         s.name for s in sub_counties if s.basin.code == "MARA"
@@ -198,10 +198,40 @@ def test_seed_spatial_success(db_session: Session):
     ]
 
     assert sorted(mara_sub_counties) == sorted(
-        ["Mara Region", "Rorya", "Tarime", "Butiama", "Serengeti", "Musoma"]
+        [
+            "Mara Region",
+            "Nakuru",
+            "Narok",
+            "Bomet",
+            "Kuresoi South",
+            "Kilgoris",
+            "Narok West",
+            "Narok North",
+            "Narok South",
+            "Bomet Central",
+            "Konoin",
+            "Molo",
+            "Emurua Dikirr",
+            "Chepalungu",
+            "Bomet East",
+        ]
     )
     assert sorted(sio_sub_counties) == sorted(
-        ["Sio-Siteko Region", "Busia", "Namayingo", "Tororo", "Bugiri"]
+        [
+            "Sio-Siteko Region",
+            "Kakamega",
+            "Busia",
+            "Bungoma",
+            "Matungu",
+            "Budalangi",
+            "Funyula",
+            "Teso South",
+            "Butula",
+            "Bumula",
+            "Matayos",
+            "Nambale",
+            "Kanduyi",
+        ]
     )
 
     # Verify high-fidelity GeoJSON geometries loaded
@@ -229,4 +259,4 @@ def test_seed_spatial_success(db_session: Session):
     assert len(db_session.query(Basin).all()) == 2
     assert len(db_session.query(Wetland).all()) == 2
     assert len(db_session.query(Site).all()) == 4
-    assert len(db_session.query(SpatialBoundary).all()) == 11
+    assert len(db_session.query(SpatialBoundary).all()) == 28

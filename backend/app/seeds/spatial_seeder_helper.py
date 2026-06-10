@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import csv
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import from_shape
 from shapely.geometry import shape, Polygon, MultiPolygon
@@ -228,74 +229,118 @@ def seed_spatial(db: Session):
 
         level1_map[sb_name] = sb.id
 
-    # 4.2 Seed Level 2 Boundaries (Districts / Sub-counties)
-    for sb_data in [b for b in boundaries_data if b.get("level") == 2]:
-        sb_name = sb_data["name"]
-        basin_id_str = sb_data["basin_id"]
-        parent_name = sb_data.get("parent_name")
+    # 4.2 Seed Level 2 (Counties) and Level 3 (Sub-counties) from CSV files
+    csv_mappings = [
+        {
+            "file": "Mara-sub-counties.csv",
+            "basin_code": "MARA",
+            "parent_region_name": "Mara Region",
+        },
+        {
+            "file": "Sio-sub-counties.csv",
+            "basin_code": "SIO_SITEKO",
+            "parent_region_name": "Sio-Siteko Region",
+        },
+    ]
 
-        parent_basin = (
-            db.query(Basin).filter(Basin.code == basin_id_str).first()
-        )
+    for mapping in csv_mappings:
+        csv_file = mapping["file"]
+        basin_code = mapping["basin_code"]
+        parent_region_name = mapping["parent_region_name"]
+
+        parent_basin = db.query(Basin).filter(Basin.code == basin_code).first()
         if not parent_basin:
             logger.error(
-                "Parent Basin %s not found for District %s",
-                basin_id_str,
-                sb_name,
+                "Parent Basin %s not found for CSV %s", basin_code, csv_file
             )
             continue
 
-        parent_id = None
-        if parent_name:
-            parent_id = level1_map.get(parent_name)
-            if not parent_id:
-                # Fallback to query
-                parent_obj = (
+        region_id = level1_map.get(parent_region_name)
+        if not region_id:
+            region_obj = (
+                db.query(SpatialBoundary)
+                .filter(
+                    SpatialBoundary.name == parent_region_name,
+                    SpatialBoundary.basin_id == parent_basin.id,
+                    SpatialBoundary.level == 1,
+                )
+                .first()
+            )
+            if region_obj:
+                region_id = region_obj.id
+            else:
+                logger.error("Region %s not found in DB", parent_region_name)
+                continue
+
+        csv_path = os.path.join(os.path.dirname(__file__), "spatial", csv_file)
+        if not os.path.exists(csv_path):
+            logger.error("CSV file not found at %s", csv_path)
+            continue
+
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                county_name = row.get("County", "").strip()
+                sub_county_name = row.get("Sub-County", "").strip()
+
+                if not county_name or not sub_county_name:
+                    continue
+
+                # 1. Look up or create County (Level 2)
+                county_obj = (
                     db.query(SpatialBoundary)
                     .filter(
-                        SpatialBoundary.name == parent_name,
+                        SpatialBoundary.name == county_name,
                         SpatialBoundary.basin_id == parent_basin.id,
-                        SpatialBoundary.level == 1,
+                        SpatialBoundary.level == 2,
+                        SpatialBoundary.parent_id == region_id,
                     )
                     .first()
                 )
-                if parent_obj:
-                    parent_id = parent_obj.id
 
-        sb = (
-            db.query(SpatialBoundary)
-            .filter(
-                SpatialBoundary.name == sb_name,
-                SpatialBoundary.basin_id == parent_basin.id,
-                SpatialBoundary.level == 2,
-            )
-            .first()
-        )
+                if not county_obj:
+                    county_obj = SpatialBoundary(
+                        name=county_name,
+                        basin_id=parent_basin.id,
+                        level=2,
+                        parent_id=region_id,
+                        centroid_geom=None,
+                    )
+                    db.add(county_obj)
+                    db.flush()
+                    logger.info(
+                        "Created County (Level 2): %s in Basin %s",
+                        county_name,
+                        basin_code,
+                    )
 
-        sh_geom = shape(sb_data["centroid_geom"])
+                # 2. Look up or create Sub-County (Level 3)
+                sub_county_obj = (
+                    db.query(SpatialBoundary)
+                    .filter(
+                        SpatialBoundary.name == sub_county_name,
+                        SpatialBoundary.basin_id == parent_basin.id,
+                        SpatialBoundary.level == 3,
+                        SpatialBoundary.parent_id == county_obj.id,
+                    )
+                    .first()
+                )
 
-        if not sb:
-            sb = SpatialBoundary(
-                name=sb_name,
-                basin_id=parent_basin.id,
-                level=2,
-                parent_id=parent_id,
-                centroid_geom=from_shape(sh_geom, srid=4326),
-            )
-            db.add(sb)
-            logger.info(
-                "Created District (Level 2): %s in Basin %s",
-                sb_name,
-                basin_id_str,
-            )
-        else:
-            sb.parent_id = parent_id
-            sb.centroid_geom = from_shape(sh_geom, srid=4326)
-            logger.info(
-                "Updated District (Level 2): %s in Basin %s",
-                sb_name,
-                basin_id_str,
-            )
+                if not sub_county_obj:
+                    sub_county_obj = SpatialBoundary(
+                        name=sub_county_name,
+                        basin_id=parent_basin.id,
+                        level=3,
+                        parent_id=county_obj.id,
+                        centroid_geom=None,
+                    )
+                    db.add(sub_county_obj)
+                    db.flush()
+                    logger.info(
+                        "Created Sub-County (Level 3): %s under County %s",
+                        sub_county_name,
+                        county_name,
+                    )
 
     db.commit()
     logger.info("Spatial seeding successfully completed!")

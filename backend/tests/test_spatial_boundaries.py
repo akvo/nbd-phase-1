@@ -79,3 +79,45 @@ def test_create_and_get_spatial_boundary():
     assert found[0]["centroid_geom"]["coordinates"] == [34.47, -1.24]
     assert found[0]["level"] == 2
     assert found[0]["parent_id"] == region_uuid
+
+
+def test_create_spatial_boundary_null_centroid():
+    # 1. Create parent basin first
+    basin_data = {
+        "code": "TEST-MARA-SB-NULL",
+        "name": "Test Mara Basin Null",
+        "geom": {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [34.5, -1.5],
+                        [34.6, -1.5],
+                        [34.6, -1.4],
+                        [34.5, -1.4],
+                        [34.5, -1.5],
+                    ]
+                ]
+            ],
+        },
+    }
+    res_basin = client.post("/api/v1/basins", json=basin_data)
+    assert res_basin.status_code == 201
+    basin_uuid = res_basin.json()["id"]
+
+    # 2. Create spatial boundary Region with null centroid_geom
+    sb_region_data = {
+        "name": "Mara Null Centroid Test",
+        "level": 1,
+        "parent_id": None,
+        "basin_id": basin_uuid,
+        "centroid_geom": None,
+    }
+    response_reg = client.post(
+        "/api/v1/reference/sub-counties", json=sb_region_data
+    )
+    print(response_reg.json(), "---AAA")
+    assert response_reg.status_code == 201
+    res_reg_data = response_reg.json()
+    assert res_reg_data["name"] == "Mara Null Centroid Test"
+    assert res_reg_data["centroid_geom"] is None
