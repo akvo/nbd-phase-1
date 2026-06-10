@@ -80,11 +80,17 @@ def create_wetland(
         )
 
     try:
+        geom_shape = shape(wetland.geom)
+        from shapely.geometry import Polygon, MultiPolygon
+
+        if isinstance(geom_shape, Polygon):
+            geom_shape = MultiPolygon([geom_shape])
+
         db_wetland = Wetland(
             code=wetland.code,
             basin_id=wetland.basin_id,
             name=wetland.name,
-            geom=from_shape(shape(wetland.geom), srid=4326),
+            geom=from_shape(geom_shape, srid=4326),
         )
         db.add(db_wetland)
         db.commit()

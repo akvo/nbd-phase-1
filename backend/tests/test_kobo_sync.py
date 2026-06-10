@@ -638,7 +638,11 @@ def test_sync_kobo_spatial_resolution_explicit_site(
         code="MARA_WET_EXPLICIT",
         basin_id=basin.id,
         name="Mara Wetland Explicit",
-        geom="SRID=4326;POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))",
+        geom=(
+            "SRID=4326;MULTIPOLYGON((("
+            "30 10, 40 40, 20 40, 10 20, 30 10"
+            ")))"
+        ),
     )
     db_session.add(wetland)
     db_session.commit()
@@ -715,7 +719,11 @@ def test_sync_kobo_spatial_resolution_by_geolocation(
     basin = Basin(
         code="SIO_SPAT_GEOLOC",
         name="Sio Spatial Geolocation",
-        geom="SRID=4326;MULTIPOLYGON(((34.0 0.0, 35.0 0.0, 35.0 1.0, 34.0 1.0, 34.0 0.0)))",
+        geom=(
+            "SRID=4326;MULTIPOLYGON((("
+            "34.0 0.0, 35.0 0.0, 35.0 1.0, 34.0 1.0, 34.0 0.0"
+            ")))"
+        ),
     )
     db_session.add(basin)
     db_session.commit()

@@ -67,8 +67,13 @@ class WetlandBase(BaseModel):
     def validate_geom(cls, v: Dict[str, Any]) -> Dict[str, Any]:
         try:
             s = shape(v)
-            if s.geom_type != "Polygon":
-                raise ValueError("Geometry must be a Polygon")
+            if s.geom_type not in ("Polygon", "MultiPolygon"):
+                raise ValueError("Geometry must be a Polygon or MultiPolygon")
+            if s.geom_type == "Polygon":
+                from shapely.geometry import MultiPolygon, mapping
+
+                s = MultiPolygon([s])
+                return mapping(s)
         except Exception as e:
             raise ValueError(f"Invalid geometry: {str(e)}")
         return v

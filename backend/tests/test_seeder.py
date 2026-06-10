@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from geoalchemy2.shape import to_shape
 from app.models.form import (
     Form,
     QuestionGroup,
@@ -202,6 +203,26 @@ def test_seed_spatial_success(db_session: Session):
     assert sorted(sio_sub_counties) == sorted(
         ["Sio-Siteko Region", "Busia", "Namayingo", "Tororo", "Bugiri"]
     )
+
+    # Verify high-fidelity GeoJSON geometries loaded
+    lower_mara = (
+        db_session.query(Wetland)
+        .filter(Wetland.code == "LOWER_MARA_WETLAND")
+        .first()
+    )
+    sio_estuary = (
+        db_session.query(Wetland)
+        .filter(Wetland.code == "SIO_ESTUARY_WETLAND")
+        .first()
+    )
+    assert lower_mara is not None
+    assert sio_estuary is not None
+
+    lower_mara_shp = to_shape(lower_mara.geom)
+    sio_estuary_shp = to_shape(sio_estuary.geom)
+    assert lower_mara_shp.geom_type == "MultiPolygon"
+    assert sio_estuary_shp.geom_type == "MultiPolygon"
+    assert len(lower_mara_shp.geoms[0].exterior.coords) > 5
 
     # 6. Test Idempotency
     seed_spatial(db_session)

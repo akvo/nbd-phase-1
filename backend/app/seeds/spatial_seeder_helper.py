@@ -3,14 +3,38 @@ import json
 import logging
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import from_shape
-from shapely.geometry import shape
+from shapely.geometry import shape, Polygon, MultiPolygon
 from app.models.spatial import Basin, Wetland, Site, SpatialBoundary
 
 logger = logging.getLogger(__name__)
 
 
+def load_geojson_geometry(filename: str) -> MultiPolygon:
+    geojson_path = os.path.join(os.path.dirname(__file__), "spatial", filename)
+    with open(geojson_path, "r") as file:
+        gj_data = json.load(file)
+
+    if gj_data.get("type") == "FeatureCollection":
+        geom_data = gj_data["features"][0]["geometry"]
+    elif gj_data.get("type") == "GeometryCollection":
+        geom_data = [
+            g
+            for g in gj_data["geometries"]
+            if g["type"] in ("Polygon", "MultiPolygon")
+        ][0]
+    else:
+        geom_data = gj_data
+
+    geom_shape = shape(geom_data)
+
+    if isinstance(geom_shape, Polygon):
+        geom_shape = MultiPolygon([geom_shape])
+
+    return geom_shape
+
+
 def seed_spatial(db: Session):
-    logger.info("Starting spatial seeding from JSON data...")
+    logger.info("Starting spatial seeding from JSON and GeoJSON data...")
 
     json_path = os.path.join(
         os.path.dirname(__file__), "spatial", "spatial_data.json"
@@ -22,21 +46,47 @@ def seed_spatial(db: Session):
     with open(json_path, "r") as file:
         data = json.load(file)
 
+    geojson_basins = {
+        "MARA": "mara-basin.geojson",
+        "SIO_SITEKO": "sio-basin.geojson",
+    }
+
+    geojson_wetlands = {
+        "LOWER_MARA_WETLAND": "mara-wetland.geojson",
+        "SIO_ESTUARY_WETLAND": "sio-siteko-wetland.geojson",
+    }
+
     # 1. Seed Basins
     for b_data in data.get("basins", []):
         basin_id = b_data["basin_id"]
+
+        geojson_file = geojson_basins.get(basin_id)
+        if geojson_file:
+            try:
+                geom_shape = load_geojson_geometry(geojson_file)
+                geom_val = from_shape(geom_shape, srid=4326)
+            except Exception as e:
+                logger.error(
+                    "Failed to load GeoJSON for basin %s: %s", basin_id, e
+                )
+                geom_val = from_shape(shape(b_data["geom"]), srid=4326)
+        else:
+            geom_val = from_shape(shape(b_data["geom"]), srid=4326)
+
         basin = db.query(Basin).filter(Basin.code == basin_id).first()
         if not basin:
             basin = Basin(
                 code=basin_id,
                 name=b_data["name"],
-                geom=from_shape(shape(b_data["geom"]), srid=4326),
+                geom=geom_val,
             )
             db.add(basin)
             db.flush()
             logger.info("Created Basin: %s", basin_id)
         else:
-            logger.info("Basin already exists: %s", basin_id)
+            basin.geom = geom_val
+            db.flush()
+            logger.info("Updated Basin geometry: %s", basin_id)
 
     # 2. Seed Wetlands
     for w_data in data.get("wetlands", []):
@@ -54,19 +104,39 @@ def seed_spatial(db: Session):
             )
             continue
 
+        geojson_file = geojson_wetlands.get(wetland_id)
+        if geojson_file:
+            try:
+                geom_shape = load_geojson_geometry(geojson_file)
+                geom_val = from_shape(geom_shape, srid=4326)
+            except Exception as e:
+                logger.error(
+                    "Failed to load GeoJSON for wetland %s: %s",
+                    wetland_id,
+                    e,
+                )
+                geom_val = from_shape(shape(w_data["geom"]), srid=4326)
+        else:
+            geom_shape = shape(w_data["geom"])
+            if isinstance(geom_shape, Polygon):
+                geom_shape = MultiPolygon([geom_shape])
+            geom_val = from_shape(geom_shape, srid=4326)
+
         wetland = db.query(Wetland).filter(Wetland.code == wetland_id).first()
         if not wetland:
             wetland = Wetland(
                 code=wetland_id,
                 basin_id=parent_basin.id,
                 name=w_data["name"],
-                geom=from_shape(shape(w_data["geom"]), srid=4326),
+                geom=geom_val,
             )
             db.add(wetland)
             db.flush()
             logger.info("Created Wetland: %s", wetland_id)
         else:
-            logger.info("Wetland already exists: %s", wetland_id)
+            wetland.geom = geom_val
+            db.flush()
+            logger.info("Updated Wetland geometry: %s", wetland_id)
 
     # 3. Seed Sites
     for s_data in data.get("sites", []):

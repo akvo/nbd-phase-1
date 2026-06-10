@@ -37,7 +37,7 @@ class Wetland(Base):
         nullable=False,
     )
     name = Column(String(150), nullable=False)
-    geom = Column(Geometry("POLYGON", srid=4326), nullable=False)
+    geom = Column(Geometry("MULTIPOLYGON", srid=4326), nullable=False)
 
     basin = relationship("Basin", back_populates="wetlands")
     sites = relationship(
