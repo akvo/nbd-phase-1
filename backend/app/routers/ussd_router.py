@@ -268,14 +268,30 @@ def handle_ussd(
             # Fallback if site not found in database
             dp.basin_id = selected_sc.basin_id
             centroid_geom = selected_sc.centroid_geom
-            point = to_shape(centroid_geom)
-            dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+            curr_parent = selected_sc.parent
+            while not centroid_geom and curr_parent:
+                centroid_geom = curr_parent.centroid_geom
+                curr_parent = curr_parent.parent
+
+            if centroid_geom:
+                point = to_shape(centroid_geom)
+                dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+            else:
+                dp.geo = None
     else:
         # Fallback to selected sub-county centroid
         dp.basin_id = selected_sc.basin_id
         centroid_geom = selected_sc.centroid_geom
-        point = to_shape(centroid_geom)
-        dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+        curr_parent = selected_sc.parent
+        while not centroid_geom and curr_parent:
+            centroid_geom = curr_parent.centroid_geom
+            curr_parent = curr_parent.parent
+
+        if centroid_geom:
+            point = to_shape(centroid_geom)
+            dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+        else:
+            dp.geo = None
 
     db.add(dp)
     db.flush()

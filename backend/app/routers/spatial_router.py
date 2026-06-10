@@ -200,7 +200,11 @@ def create_sub_county(
             level=sb.level,
             parent_id=sb.parent_id,
             basin_id=sb.basin_id,
-            centroid_geom=from_shape(shape(sb.centroid_geom), srid=4326),
+            centroid_geom=(
+                from_shape(shape(sb.centroid_geom), srid=4326)
+                if sb.centroid_geom
+                else None
+            ),
         )
         db.add(db_sb)
         db.commit()

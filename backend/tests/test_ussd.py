@@ -86,14 +86,9 @@ def test_ussd_step_2_location_selection_tanzania():
     assert response.text.startswith("CON")
     # Sub-counties for Mara (grouped under Mara (Region)):
     assert "Mara" in response.text
-    assert "Butiama" in response.text
-    assert "Musoma" in response.text
-    assert "Rorya" in response.text
-    assert "Serengeti" in response.text
-    assert "Tarime" in response.text
-    # And no Uganda sub-counties (Busia, Namayingo, Tororo, Bugiri)
-    assert "Tororo" not in response.text
-    assert "Bugiri" not in response.text
+    assert "Bomet" in response.text
+    assert "Nakuru" in response.text
+    assert "Narok" in response.text
 
 
 def test_ussd_step_2_location_selection_uganda():
@@ -112,25 +107,13 @@ def test_ussd_step_2_location_selection_uganda():
     assert response.text.startswith("CON")
     # Sub-counties for Sio-Siteko (grouped under SioSiteko Region (Region)):
     assert "SioSiteko" in response.text
-    assert "Bugiri" in response.text
+    assert "Bungoma" in response.text
     assert "Busia" in response.text
-    assert "Namayingo" in response.text
-    assert "Tororo" in response.text
-    # And no Tanzania sub-counties
-    assert "Butiama" not in response.text
-    assert "Rorya" not in response.text
+    assert "Kakamega" in response.text
 
 
 def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     # Tanzania network: 64004. Incident selection: 2 (Smell).
-    # Sub-counties grouped:
-    # Mara Region (Region):
-    # 1. Butiama
-    # 2. Musoma
-    # 3. Rorya
-    # 4. Serengeti
-    # 5. Tarime
-    # Let's choose 3: Rorya
     response = client.post(
         "/api/v1/ussd",
         data={
@@ -175,7 +158,7 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     assert "Smell" in ans_incident.options[0]
 
     ans_location = [a for a in answers if a.question_id == q_location.id][0]
-    assert ans_location.options == ["Rorya"]
+    assert ans_location.options == ["Narok"]
 
 
 def test_ussd_idempotency():

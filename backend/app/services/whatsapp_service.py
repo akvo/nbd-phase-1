@@ -245,12 +245,30 @@ def _save_report(
             dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
         else:
             dp.basin_id = selected_sc.basin_id
-            pt = to_shape(selected_sc.centroid_geom)
-            dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
+            centroid_geom = selected_sc.centroid_geom
+            curr_parent = selected_sc.parent
+            while not centroid_geom and curr_parent:
+                centroid_geom = curr_parent.centroid_geom
+                curr_parent = curr_parent.parent
+
+            if centroid_geom:
+                pt = to_shape(centroid_geom)
+                dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
+            else:
+                dp.geo = None
     else:
         dp.basin_id = selected_sc.basin_id
-        pt = to_shape(selected_sc.centroid_geom)
-        dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
+        centroid_geom = selected_sc.centroid_geom
+        curr_parent = selected_sc.parent
+        while not centroid_geom and curr_parent:
+            centroid_geom = curr_parent.centroid_geom
+            curr_parent = curr_parent.parent
+
+        if centroid_geom:
+            pt = to_shape(centroid_geom)
+            dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
+        else:
+            dp.geo = None
 
     db.add(dp)
     db.flush()
