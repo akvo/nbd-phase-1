@@ -162,23 +162,35 @@ def handle_ussd(
         # Default fallback
         basins = ["MARA", "SIO_SITEKO"]
 
-    # Fetch sub-counties sorted alphabetically (level 2)
+    # Fetch Level 2 (Districts) sorted by basin and name
     subcounties = (
         db.query(SpatialBoundary)
         .join(Basin)
         .filter(Basin.code.in_(basins), SpatialBoundary.level == 2)
-        .order_by(SpatialBoundary.name)
+        .order_by(SpatialBoundary.basin_id, SpatialBoundary.name)
         .all()
     )
 
+    menu_lines = []
+    current_parent_id = None
+    for idx, sc in enumerate(subcounties, 1):
+        if sc.parent_id != current_parent_id:
+            current_parent_id = sc.parent_id
+            parent = sc.parent
+            if parent:
+                if menu_lines:
+                    menu_lines.append("")
+                if lang == "sw":
+                    menu_lines.append(f"{parent.name} (Mkoa):")
+                else:
+                    menu_lines.append(f"{parent.name} (Region):")
+        menu_lines.append(f"  {idx}. {sc.name}")
+
     if depth == 3:
-        menu_items = []
-        for idx, sc in enumerate(subcounties, 1):
-            menu_items.append(f"{idx}: {sc.name}")
         if lang == "sw":
-            response_text = "CON Chagua Mahali:\n" + "\n".join(menu_items)
+            response_text = "CON Chagua Mahali:\n" + "\n".join(menu_lines)
         else:
-            response_text = "CON Choose Location:\n" + "\n".join(menu_items)
+            response_text = "CON Choose Location:\n" + "\n".join(menu_lines)
         return PlainTextResponse(clean_ussd_response(response_text))
 
     # Step 4: Terminal processing and saving

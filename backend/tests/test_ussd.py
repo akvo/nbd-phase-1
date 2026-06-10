@@ -84,10 +84,8 @@ def test_ussd_step_2_location_selection_tanzania():
     )
     assert response.status_code == 200
     assert response.text.startswith("CON")
-    # Sub-counties for Mara (alphabetical):
-    # Butiama, Musoma, Rorya, Serengeti, Tarime
-    # Let's check that Rorya, Serengeti, Tarime, Butiama, Musoma
-    # are present in response text
+    # Sub-counties for Mara (grouped under Mara (Region)):
+    assert "Mara" in response.text
     assert "Butiama" in response.text
     assert "Musoma" in response.text
     assert "Rorya" in response.text
@@ -112,8 +110,8 @@ def test_ussd_step_2_location_selection_uganda():
     )
     assert response.status_code == 200
     assert response.text.startswith("CON")
-    # Sub-counties for Sio-Siteko (alphabetical):
-    # Bugiri, Busia, Namayingo, Tororo
+    # Sub-counties for Sio-Siteko (grouped under SioSiteko Region (Region)):
+    assert "SioSiteko" in response.text
     assert "Bugiri" in response.text
     assert "Busia" in response.text
     assert "Namayingo" in response.text
@@ -125,8 +123,13 @@ def test_ussd_step_2_location_selection_uganda():
 
 def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     # Tanzania network: 64004. Incident selection: 2 (Smell).
-    # Sub-counties alphabetical:
-    # 1: Butiama, 2: Musoma, 3: Rorya, 4: Serengeti, 5: Tarime
+    # Sub-counties grouped:
+    # Mara Region (Region):
+    # 1. Butiama
+    # 2. Musoma
+    # 3. Rorya
+    # 4. Serengeti
+    # 5. Tarime
     # Let's choose 3: Rorya
     response = client.post(
         "/api/v1/ussd",

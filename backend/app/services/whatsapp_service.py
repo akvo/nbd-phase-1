@@ -159,9 +159,30 @@ def _fetch_subcounties(db: Session) -> List[SpatialBoundary]:
     return (
         db.query(SpatialBoundary)
         .join(Basin)
-        .order_by(SpatialBoundary.name)
+        .filter(SpatialBoundary.level == 2)
+        .order_by(SpatialBoundary.basin_id, SpatialBoundary.name)
         .all()
     )
+
+
+def _format_location_menu(
+    subcounties: List[SpatialBoundary], lang: str
+) -> str:
+    menu_lines = []
+    current_parent_id = None
+    for i, sc in enumerate(subcounties, 1):
+        if sc.parent_id != current_parent_id:
+            current_parent_id = sc.parent_id
+            parent = sc.parent
+            if parent:
+                if menu_lines:
+                    menu_lines.append("")
+                if lang == "sw":
+                    menu_lines.append(f"{parent.name} (Mkoa):")
+                else:
+                    menu_lines.append(f"{parent.name} (Region):")
+        menu_lines.append(f"  {i}: {sc.name}")
+    return "\n".join(menu_lines)
 
 
 def _save_report(
@@ -505,9 +526,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
 
             # Move to location
             subcounties = _fetch_subcounties(db)
-            menu = "\n".join(
-                f"{i}: {sc.name}" for i, sc in enumerate(subcounties, 1)
-            )
+            menu = _format_location_menu(subcounties, lang)
             session.state = "LOCATION_SELECT"
             db.commit()
             if lang == "sw":
@@ -530,9 +549,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     raise ValueError()
                 selected_sc = subcounties[idx]
             except (ValueError, TypeError):
-                menu = "\n".join(
-                    f"{i}: {sc.name}" for i, sc in enumerate(subcounties, 1)
-                )
+                menu = _format_location_menu(subcounties, lang)
                 if lang == "sw":
                     prompt = f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
                 else:
