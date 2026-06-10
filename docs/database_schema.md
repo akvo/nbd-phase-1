@@ -284,6 +284,8 @@ Stores the administrative sub-counties and their geographic centroid coordinates
 | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | `PRIMARY KEY` | Unique ID. |
 | `name` | `VARCHAR(100)` | `NOT NULL` | Sub-county or district name (e.g., `'Tarime'`). |
+| `level` | `INTEGER` | `NOT NULL` | Hierarchical boundary depth level (1=Region, 2=District). |
+| `parent_id` | `UUID` | `REFERENCES spatial_boundaries(id)` | Parent boundary pointer for adjacency list tree. |
 | `basin_id` | `UUID` | `REFERENCES basins(id)` | Parent basin identifier. |
 | `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL` | Spatial point coordinates of the sub-county centroid. |
 
@@ -291,11 +293,14 @@ Stores the administrative sub-counties and their geographic centroid coordinates
 CREATE TABLE spatial_boundaries (
     id UUID PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    level INTEGER NOT NULL,
+    parent_id UUID REFERENCES spatial_boundaries(id) ON DELETE CASCADE,
     basin_id UUID NOT NULL REFERENCES basins(id) ON DELETE CASCADE,
     centroid_geom geometry(Point, 4326) NOT NULL
 );
 CREATE INDEX idx_spatial_boundaries_geom ON spatial_boundaries USING GIST (centroid_geom);
-CREATE INDEX idx_spatial_boundaries_basin_id ON spatial_boundaries(basin_id);
+CREATE INDEX idx_spatial_boundaries_level ON spatial_boundaries (level);
+CREATE INDEX idx_spatial_boundaries_basin_level ON spatial_boundaries (basin_id, level);
 ```
 
 #### `management_actions`

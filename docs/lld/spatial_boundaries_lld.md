@@ -1,85 +1,85 @@
 # Low-Level Design (LLD) — Spatial Boundaries Reference Model (PostGIS)
 
-> **Stage 3 of 3 — Documentation Hierarchy**
-> Owner: Winston (Architect) | Target Location: `docs/lld/spatial_boundaries_lld.md` | References: `docs/prd/spatial_boundaries_prd.md`, `docs/database_schema.md`
-> Status: `Draft`
+## 1. Physical Schema and PostGIS Extension
 
----
-
-## 1. Physical Schema and postgis Extension
-
-We will define a new reference table `spatial_boundaries` that stores sub-counties mapping, linking them to parent basins and storing centroid coordinates.
+We will update the definition of `spatial_boundaries` to use the **Adjacency List** pattern (`parent_id`) combined with **Hierarchical Depth Levels** (`level`).
 
 ### 1.1 Table Definition: `spatial_boundaries`
 
 | Column | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY` | Unique UUID. |
-| `name` | `VARCHAR(100)` | `NOT NULL` | Name of the sub-county / district. |
-| `basin_id` | `UUID` | `REFERENCES basins(id) ON DELETE CASCADE` | Foreign Key pointing to the parent basin UUID. |
-| `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL` | Spatial point coordinates of the sub-county centroid. |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique identifier. |
+| `name` | `VARCHAR(100)` | `NOT NULL` | Name of the boundary element (e.g. "Mara Region"). |
+| `level` | `INTEGER` | `NOT NULL` | Hierarchy level (Indexed). |
+| `parent_id` | `UUID` | `REFERENCES spatial_boundaries(id) ON DELETE CASCADE` | Parent boundary pointer. |
+| `basin_id` | `UUID` | `REFERENCES basins(id) ON DELETE CASCADE`, `NOT NULL` | Associated basin pointer. |
+| `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL` | PostGIS centroid coordinate. |
+
+### 1.2 SQL Schema & Indices
 
 ```sql
 CREATE TABLE spatial_boundaries (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
+    level INTEGER NOT NULL,
+    parent_id UUID REFERENCES spatial_boundaries(id) ON DELETE CASCADE,
     basin_id UUID NOT NULL REFERENCES basins(id) ON DELETE CASCADE,
     centroid_geom geometry(Point, 4326) NOT NULL
 );
-CREATE INDEX idx_spatial_boundaries_geom ON spatial_boundaries USING GIST (centroid_geom);
-CREATE INDEX idx_spatial_boundaries_basin_id ON spatial_boundaries(basin_id);
+
+-- Optimize USSD menu queries filtering by basin and level
+CREATE INDEX idx_spatial_boundaries_basin_level ON spatial_boundaries (basin_id, level);
+
+-- Spatial index for centroid queries
+CREATE INDEX idx_spatial_boundaries_centroid_gist ON spatial_boundaries USING GIST (centroid_geom);
 ```
 
 ---
 
-## 2. Component Design & Relationships
+## 2. Component Design & Python Enum
 
-We will implement:
-- **ORM Model**: `SpatialBoundary` in `backend/app/models/spatial.py`.
-- **Pydantic Schemas**: `SpatialBoundaryBase`, `SpatialBoundaryCreate`, `SpatialBoundary` in `backend/app/schemas/spatial.py`.
-- **FastAPI Endpoints**: `GET /api/v1/reference/sub-counties` and `POST /api/v1/reference/sub-counties` in `backend/app/routers/spatial_router.py`.
+We will define a strict Python Enum for hierarchy levels to avoid magic numbers in application code.
+
+### 2.1 Enum Definition
+```python
+# backend/app/models/spatial.py
+import enum
+
+class BoundaryLevel(int, enum.Enum):
+    REGION = 1        # Province / Region
+    DISTRICT = 2      # District / County / Kabupaten
+    SUB_COUNTY = 3    # Sub-county / Parish / Kecamatan
+```
+
+### 2.2 SQLAlchemy ORM Model
+```python
+class SpatialBoundary(Base):
+    __tablename__ = "spatial_boundaries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False)
+    level = Column(Integer, nullable=False, index=True)
+    parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("spatial_boundaries.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    basin_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("basins.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    centroid_geom = Column(Geometry("POINT", srid=4326), nullable=False)
+
+    basin = relationship("Basin")
+    parent = relationship("SpatialBoundary", remote_side=[id], backref="children")
+```
 
 ---
 
-## 3. Pydantic GeoJSON Schemas & Serialization
+## 3. Data Seeding Strategy
 
-For API requests and responses, the GeoJSON structure is validated using Pydantic:
-* Request payload validation converts a GeoJSON Point object to WKT.
-* Response serialization converts WKB/WKT geometry back to GeoJSON.
-
----
-
-## 4. API Endpoints Contract
-
-### 4.1 Get Sub-Counties list
-* **Endpoint**: `GET /api/v1/reference/sub-counties`
-* **Response Payload (200 OK)**:
-  ```json
-  [
-    {
-      "id": "e22934ef-7e9b-4f1b-90f1-4df2348a7b1b",
-      "name": "Tarime",
-      "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
-      "centroid_geom": {
-        "type": "Point",
-        "coordinates": [34.47, -1.24]
-      }
-    }
-  ]
-  ```
-
-### 4.2 Create Sub-County
-* **Endpoint**: `POST /api/v1/reference/sub-counties`
-* **Role Requirement**: `Admin`.
-* **Request Payload**:
-  ```json
-  {
-    "name": "Butiama",
-    "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
-    "centroid_geom": {
-      "type": "Point",
-      "coordinates": [34.05, -1.78]
-    }
-  }
-  ```
-* **Response Payload (201 Created)**
+Upon database migration, an Alembic seed or custom migration command will execute:
+1. Lookup the `Basin` records for "Mara Basin".
+2. Seed 'Mara Region' (`level=1`, `parent_id=null`).
+3. Seed the sub-counties/districts: 'Butiama', 'Rorya', 'Tarime', 'Serengeti' (`level=2`, `parent_id` pointing to Mara Region).
