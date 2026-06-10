@@ -110,7 +110,7 @@ Personally Identifiable Information (PII), specifically reporter phone numbers, 
 ```
 
 ### 3.2.2 GET /api/v1/wetlands/{wetland_id}
-* **Objective**: Returns the name, parent basin_id, and Polygon geometry of a specific wetland.
+* **Objective**: Returns the name, parent basin_id, and MultiPolygon geometry of a specific wetland.
 * **Path Parameters**:
   * `wetland_id` (Required): String identifier (UUID or code slug, e.g., `76ec2a00-1c3b-489e-9d22-1d54be2e0ffd` or `MARA-WETLAND-01`).
 
@@ -122,8 +122,8 @@ Personally Identifiable Information (PII), specifically reporter phone numbers, 
   "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
   "name": "Mara Floodplain",
   "geom": {
-    "type": "Polygon",
-    "coordinates": [[[34.5, -1.5], [34.6, -1.5], [34.6, -1.4], [34.5, -1.4], [34.5, -1.5]]]
+    "type": "MultiPolygon",
+    "coordinates": [[[[34.5, -1.5], [34.6, -1.5], [34.6, -1.4], [34.5, -1.4], [34.5, -1.5]]]]
   }
 }
 ```
@@ -370,7 +370,7 @@ All citizen submissions enter as `Pending`. Approving a record triggers the auto
     }
     ```
 * **POST /api/v1/wetlands**
-  - Create new wetlands linked to a parent basin with GeoJSON Polygon coordinates.
+  - Create new wetlands linked to a parent basin with GeoJSON MultiPolygon coordinates.
   - **Role Requirement**: `Admin`.
   - **Payload Schema**:
     ```json
@@ -379,8 +379,8 @@ All citizen submissions enter as `Pending`. Approving a record triggers the auto
       "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
       "name": "Mara Floodplain",
       "geom": {
-        "type": "Polygon",
-        "coordinates": [[[34.5, -1.5], [34.6, -1.5], [34.6, -1.4], [34.5, -1.4], [34.5, -1.5]]]
+        "type": "MultiPolygon",
+        "coordinates": [[[[34.5, -1.5], [34.6, -1.5], [34.6, -1.4], [34.5, -1.4], [34.5, -1.5]]]]
       }
     }
     ```
