@@ -187,7 +187,7 @@ def test_seed_spatial_success(db_session: Session):
 
     # 5. Assert Sub-counties created
     sub_counties = db_session.query(SpatialBoundary).all()
-    assert len(sub_counties) == 9
+    assert len(sub_counties) == 11
 
     mara_sub_counties = [
         s.name for s in sub_counties if s.basin.code == "MARA"
@@ -197,10 +197,10 @@ def test_seed_spatial_success(db_session: Session):
     ]
 
     assert sorted(mara_sub_counties) == sorted(
-        ["Rorya", "Tarime", "Butiama", "Serengeti", "Musoma"]
+        ["Mara Region", "Rorya", "Tarime", "Butiama", "Serengeti", "Musoma"]
     )
     assert sorted(sio_sub_counties) == sorted(
-        ["Busia", "Namayingo", "Tororo", "Bugiri"]
+        ["Sio-Siteko Region", "Busia", "Namayingo", "Tororo", "Bugiri"]
     )
 
     # 6. Test Idempotency
@@ -208,4 +208,4 @@ def test_seed_spatial_success(db_session: Session):
     assert len(db_session.query(Basin).all()) == 2
     assert len(db_session.query(Wetland).all()) == 2
     assert len(db_session.query(Site).all()) == 4
-    assert len(db_session.query(SpatialBoundary).all()) == 9
+    assert len(db_session.query(SpatialBoundary).all()) == 11

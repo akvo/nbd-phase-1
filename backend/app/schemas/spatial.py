@@ -125,6 +125,10 @@ class Site(SiteBase):
 
 class SpatialBoundaryBase(BaseModel):
     name: str = Field(..., max_length=100)
+    level: int = Field(..., description="1=Region, 2=District, 3=Sub-county")
+    parent_id: uuid.UUID | None = Field(
+        default=None, description="Parent spatial boundary ID"
+    )
     basin_id: uuid.UUID
     centroid_geom: Dict[str, Any]
 

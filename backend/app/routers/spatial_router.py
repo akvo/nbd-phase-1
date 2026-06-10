@@ -186,6 +186,8 @@ def create_sub_county(
     try:
         db_sb = SpatialBoundary(
             name=sb.name,
+            level=sb.level,
+            parent_id=sb.parent_id,
             basin_id=sb.basin_id,
             centroid_geom=from_shape(shape(sb.centroid_geom), srid=4326),
         )

@@ -100,18 +100,21 @@ def seed_spatial(db: Session):
         else:
             logger.info("Site already exists: %s", site_id)
 
-    # 4. Seed Spatial Boundaries (Sub-Counties)
-    for sb_data in data.get("sub_counties", []):
+    # 4. Seed Spatial Boundaries (Hierarchical Regions and Districts)
+    boundaries_data = data.get("spatial_boundaries", [])
+
+    # 4.1 Seed Level 1 Boundaries (Regions)
+    level1_map = {}
+    for sb_data in [b for b in boundaries_data if b.get("level") == 1]:
         sb_name = sb_data["name"]
         basin_id_str = sb_data["basin_id"]
 
-        # Resolve parent basin string ID to UUID
         parent_basin = (
             db.query(Basin).filter(Basin.code == basin_id_str).first()
         )
         if not parent_basin:
             logger.error(
-                "Parent Basin %s not found for Sub-County %s",
+                "Parent Basin %s not found for Region %s",
                 basin_id_str,
                 sb_name,
             )
@@ -122,6 +125,7 @@ def seed_spatial(db: Session):
             .filter(
                 SpatialBoundary.name == sb_name,
                 SpatialBoundary.basin_id == parent_basin.id,
+                SpatialBoundary.level == 1,
             )
             .first()
         )
@@ -132,16 +136,93 @@ def seed_spatial(db: Session):
             sb = SpatialBoundary(
                 name=sb_name,
                 basin_id=parent_basin.id,
+                level=1,
+                parent_id=None,
+                centroid_geom=from_shape(sh_geom, srid=4326),
+            )
+            db.add(sb)
+            db.flush()
+            logger.info(
+                "Created Region (Level 1): %s in Basin %s",
+                sb_name,
+                basin_id_str,
+            )
+        else:
+            sb.centroid_geom = from_shape(sh_geom, srid=4326)
+            db.flush()
+            logger.info(
+                "Updated Region (Level 1): %s in Basin %s",
+                sb_name,
+                basin_id_str,
+            )
+
+        level1_map[sb_name] = sb.id
+
+    # 4.2 Seed Level 2 Boundaries (Districts / Sub-counties)
+    for sb_data in [b for b in boundaries_data if b.get("level") == 2]:
+        sb_name = sb_data["name"]
+        basin_id_str = sb_data["basin_id"]
+        parent_name = sb_data.get("parent_name")
+
+        parent_basin = (
+            db.query(Basin).filter(Basin.code == basin_id_str).first()
+        )
+        if not parent_basin:
+            logger.error(
+                "Parent Basin %s not found for District %s",
+                basin_id_str,
+                sb_name,
+            )
+            continue
+
+        parent_id = None
+        if parent_name:
+            parent_id = level1_map.get(parent_name)
+            if not parent_id:
+                # Fallback to query
+                parent_obj = (
+                    db.query(SpatialBoundary)
+                    .filter(
+                        SpatialBoundary.name == parent_name,
+                        SpatialBoundary.basin_id == parent_basin.id,
+                        SpatialBoundary.level == 1,
+                    )
+                    .first()
+                )
+                if parent_obj:
+                    parent_id = parent_obj.id
+
+        sb = (
+            db.query(SpatialBoundary)
+            .filter(
+                SpatialBoundary.name == sb_name,
+                SpatialBoundary.basin_id == parent_basin.id,
+                SpatialBoundary.level == 2,
+            )
+            .first()
+        )
+
+        sh_geom = shape(sb_data["centroid_geom"])
+
+        if not sb:
+            sb = SpatialBoundary(
+                name=sb_name,
+                basin_id=parent_basin.id,
+                level=2,
+                parent_id=parent_id,
                 centroid_geom=from_shape(sh_geom, srid=4326),
             )
             db.add(sb)
             logger.info(
-                "Created Sub-County: %s in Basin %s", sb_name, basin_id_str
+                "Created District (Level 2): %s in Basin %s",
+                sb_name,
+                basin_id_str,
             )
         else:
+            sb.parent_id = parent_id
             sb.centroid_geom = from_shape(sh_geom, srid=4326)
             logger.info(
-                "Updated/Verified Sub-County: %s in Basin %s",
+                "Updated District (Level 2): %s in Basin %s",
                 sb_name,
                 basin_id_str,
             )
