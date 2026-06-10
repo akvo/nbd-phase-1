@@ -77,7 +77,7 @@ class SpatialBoundary(Base):
         ForeignKey("basins.id", ondelete="CASCADE"),
         nullable=False,
     )
-    centroid_geom = Column(Geometry("POINT", srid=4326), nullable=False)
+    centroid_geom = Column(Geometry("POINT", srid=4326), nullable=True)
 
     basin = relationship("Basin")
     parent = relationship(
