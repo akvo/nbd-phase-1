@@ -40,6 +40,11 @@ def create_basin(basin: schemas.BasinCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/basins", response_model=list[schemas.Basin])
+def list_basins(db: Session = Depends(get_db)):
+    return db.query(Basin).all()
+
+
 @router.get("/basins/{basin_id}", response_model=schemas.Basin)
 def get_basin(basin_id: str, db: Session = Depends(get_db)):
     try:
