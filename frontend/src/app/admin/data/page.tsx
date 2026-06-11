@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 
 interface Submission {
   id: string;
@@ -12,65 +13,55 @@ interface Submission {
     name: string;
     email: string;
   };
-  status: 'Active' | 'Pending' | 'Rejected';
+  status: string;
 }
 
-const initialSubmissions: Submission[] = [
-  {
-    id: 'PE-20260508-041',
-    formType: 'Active',
-    basinSite: 'NBD-MARA-001',
-    date: '12.04.80',
-    submittedBy: { name: 'Rosemarie Ondricka-Haley', email: 'Theresa.Cormier7@hotmail.com' },
-    status: 'Active',
-  },
-  {
-    id: 'PE-20260508-042',
-    formType: 'Active',
-    basinSite: 'NBD-MARA-002',
-    date: '12.04.80',
-    submittedBy: { name: 'Arturo Kutch', email: 'Morris.Dach86@gmail.com' },
-    status: 'Pending',
-  },
-  {
-    id: 'PE-20260508-043',
-    formType: 'Active',
-    basinSite: 'NBD-MARA-003',
-    date: '12.04.80',
-    submittedBy: { name: 'Minnie Donnelly', email: 'Theresa.Cling84@gmail.com' },
-    status: 'Pending',
-  },
-  {
-    id: 'PE-20260508-044',
-    formType: 'Active',
-    basinSite: 'NBD-MARA-004',
-    date: '12.04.80',
-    submittedBy: { name: 'Doyle Johns', email: 'Jonathon.Doyle@hotmail.com' },
-    status: 'Pending',
-  },
-  {
-    id: 'PE-20260508-045',
-    formType: 'Active',
-    basinSite: 'NBD-MARA-005',
-    date: '12.04.80',
-    submittedBy: { name: 'Henrietta Stroman', email: 'Joanne1@hotmail.com' },
-    status: 'Rejected',
-  },
-  {
-    id: 'PE-20260508-046',
-    formType: 'Active',
-    basinSite: 'NBD-MARA-006',
-    date: '12.04.80',
-    submittedBy: { name: 'James Zulauf-Bode', email: 'Sam.Stiedemann@yahoo.com' },
-    status: 'Rejected',
-  },
-];
-
 export default function DataOverviewPage() {
-  const [submissions, setSubmissions] = useState<Submission[]>(initialSubmissions);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [formFilter, setFormFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [basinFilter, setBasinFilter] = useState('');
+
+  useEffect(() => {
+    apiClient.get('/submissions')
+      .then(res => {
+        if (res.data) {
+          const fetchedSubmissions = res.data.map((dp: any) => {
+            const statusMapped = dp.status
+              ? dp.status.charAt(0).toUpperCase() + dp.status.slice(1).toLowerCase()
+              : 'Pending';
+
+            const dateStr = dp.created_at
+              ? new Date(dp.created_at).toLocaleDateString('en-US', {
+                  month: 'numeric',
+                  day: 'numeric',
+                  year: '2-digit'
+                })
+              : '12.04.80';
+
+            return {
+              id: `DP-${dp.id}`,
+              formType: dp.form_name || 'Dynamic Ingest',
+              basinSite: dp.site_id
+                ? `SITE-${String(dp.site_id).slice(0, 8).toUpperCase()}`
+                : dp.wetland_id
+                ? `WETLAND-${String(dp.wetland_id).slice(0, 8).toUpperCase()}`
+                : `BASIN-${String(dp.basin_id || '').slice(0, 8).toUpperCase()}`,
+              date: dateStr,
+              submittedBy: {
+                name: dp.submitter || 'Example Submitter',
+                email: 'example_email@nbd.org'
+              },
+              status: statusMapped
+            };
+          });
+          setSubmissions(fetchedSubmissions);
+        }
+      })
+      .catch(() => {
+        // Fallback to empty if API fails
+      });
+  }, []);
 
   const handleApprove = (id: string) => {
     setSubmissions(prev =>
@@ -162,7 +153,7 @@ export default function DataOverviewPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 tracking-wider">
                 <th className="py-4 px-6">Id</th>
-                <th className="py-4 px-6">Form type</th>
+                <th className="py-4 px-6">Form</th>
                 <th className="py-4 px-6">Basin/Site</th>
                 <th className="py-4 px-6">Date</th>
                 <th className="py-4 px-6">Submitted by</th>
@@ -190,7 +181,7 @@ export default function DataOverviewPage() {
                   <td className="py-4 px-6">
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                        sub.status === 'Active'
+                        sub.status === 'Active' || sub.status === 'Approved'
                           ? 'bg-green-50 text-green-700 border-green-100'
                           : sub.status === 'Pending'
                           ? 'bg-orange-50 text-orange-700 border-orange-100'
@@ -223,7 +214,7 @@ export default function DataOverviewPage() {
               {filteredSubmissions.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-400">
-                    No submissions found matching the filters.
+                    No submissions found.
                   </td>
                 </tr>
               )}

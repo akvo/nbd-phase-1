@@ -14,6 +14,17 @@ vi.mock('next/navigation', () => {
   };
 });
 
+// Mock apiClient
+vi.mock('@/lib/api', () => {
+  return {
+    apiClient: {
+      get: vi.fn(() => Promise.resolve({ data: [] })),
+      post: vi.fn(() => Promise.resolve({ data: {} })),
+    },
+  };
+});
+
+
 describe('Admin Top-Nav Layout', () => {
   test('renders top navigation and headers', () => {
     render(
