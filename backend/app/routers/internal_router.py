@@ -8,6 +8,7 @@ from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.models.submission import Datapoint, Answer
+from pydantic import BaseModel, Field, ConfigDict
 
 router = APIRouter(prefix="/api/v1/internal", tags=["internal"])
 
@@ -31,16 +32,20 @@ class AnswerPayload(BaseModel):
 
 
 class FgdPayload(BaseModel):
-    wetland_id: UUID
+    wetland_id: Optional[UUID] = None
     form_id: int
-    answers: List[AnswerPayload]
+    answers: Optional[List[AnswerPayload]] = None
+
+    model_config = ConfigDict(extra="allow")
 
 
 class LabQaPayload(BaseModel):
-    site_id: UUID
-    sampling_period: str
+    site_id: Optional[UUID] = None
+    sampling_period: Optional[str] = None
     form_id: int
-    answers: List[AnswerPayload]
+    answers: Optional[List[AnswerPayload]] = None
+
+    model_config = ConfigDict(extra="allow")
 
 
 class GenericPayload(BaseModel):
@@ -48,7 +53,113 @@ class GenericPayload(BaseModel):
     basin_id: Optional[UUID] = None
     wetland_id: Optional[UUID] = None
     site_id: Optional[UUID] = None
-    answers: List[AnswerPayload]
+    answers: Optional[List[AnswerPayload]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+def resolve_answers_and_anchors(payload: BaseModel, db: Session):
+    # If legacy answers list is already provided in the payload, use it
+    if hasattr(payload, "answers") and getattr(payload, "answers") is not None:
+        return (
+            getattr(payload, "answers"),
+            getattr(payload, "wetland_id", None),
+            getattr(payload, "site_id", None),
+            getattr(payload, "basin_id", None),
+        )
+
+    # Otherwise, parse from extra dictionary (raw frontend key-value format)
+    raw_data = payload.model_extra or {}
+    form_id = getattr(payload, "form_id")
+
+    from app.models.form import Question
+
+    questions = db.query(Question).filter(Question.form_id == form_id).all()
+    q_map = {q.id: q for q in questions}
+
+    answers = []
+
+    # Extract anchors from both Pydantic properties and raw dictionary string keys
+    resolved_wetland_id = (
+        getattr(payload, "wetland_id", None)
+        or raw_data.get("wetland_id")
+        or raw_data.get("wetland")
+    )
+    resolved_site_id = (
+        getattr(payload, "site_id", None)
+        or raw_data.get("site_id")
+        or raw_data.get("site")
+    )
+    resolved_basin_id = (
+        getattr(payload, "basin_id", None)
+        or raw_data.get("basin_id")
+        or raw_data.get("basin")
+    )
+
+    for key, val in raw_data.items():
+        if key in (
+            "datapoint",
+            "sampling_period",
+            "wetland_id",
+            "wetland",
+            "site_id",
+            "site",
+            "basin_id",
+            "basin",
+        ):
+            continue
+        try:
+            q_id = int(key)
+        except ValueError:
+            continue
+
+        if val is None:
+            continue
+
+        # Handle list values (e.g. cascades) by extracting the last item
+        if isinstance(val, list):
+            val = val[-1] if val else None
+
+        if val is None:
+            continue
+
+        # Check question definition in database to resolve geo anchors
+        q_def = q_map.get(q_id)
+        if q_def and q_def.type.value == "cascade":
+            opt = q_def.extra.get("option") if q_def.extra else None
+            if not opt and hasattr(q_def, "option"):
+                opt = q_def.option
+
+            if opt in ("wetland", "administration"):
+                if not resolved_wetland_id:
+                    resolved_wetland_id = val
+            elif opt == "site":
+                if not resolved_site_id:
+                    resolved_site_id = val
+            elif opt == "basin":
+                if not resolved_basin_id:
+                    resolved_basin_id = val
+
+        answers.append(AnswerPayload(question_id=q_id, value=val))
+
+    # Cast to UUID if they are valid UUID strings
+    if resolved_wetland_id and isinstance(resolved_wetland_id, str):
+        try:
+            resolved_wetland_id = UUID(resolved_wetland_id)
+        except ValueError:
+            pass
+    if resolved_site_id and isinstance(resolved_site_id, str):
+        try:
+            resolved_site_id = UUID(resolved_site_id)
+        except ValueError:
+            pass
+    if resolved_basin_id and isinstance(resolved_basin_id, str):
+        try:
+            resolved_basin_id = UUID(resolved_basin_id)
+        except ValueError:
+            pass
+
+    return answers, resolved_wetland_id, resolved_site_id, resolved_basin_id
 
 
 @router.post("/fgd")
@@ -60,10 +171,16 @@ def submit_fgd(
         user = db.query(User).first()
         user_id = user.id if user else None
 
+        answers, wetland_id, site_id, basin_id = resolve_answers_and_anchors(
+            payload, db
+        )
+        if not wetland_id:
+            raise ValueError("wetland_id is required")
+
         # Create Datapoint
         dp = Datapoint(
             form_id=payload.form_id,
-            wetland_id=payload.wetland_id,
+            wetland_id=wetland_id,
             status="APPROVED",
             created_by_id=user_id,
         )
@@ -72,7 +189,7 @@ def submit_fgd(
 
         # Map answers and calculate average
         qualitative_weights = []
-        for ans in payload.answers:
+        for ans in answers:
             val_str = str(ans.value).upper().strip()
             # If answer matches a weight, collect it for average
             if val_str in IK_WEIGHTS:
@@ -91,12 +208,9 @@ def submit_fgd(
         if qualitative_weights:
             avg_weight = sum(qualitative_weights) / len(qualitative_weights)
             # Special calculated answer row in the answers table
-            # question_id=0 or custom placeholder can be used for computed values
             avg_answer = Answer(
                 datapoint_id=dp.id,
-                question_id=payload.answers[
-                    0
-                ].question_id,  # associate with FGD group
+                question_id=answers[0].question_id,  # associate with FGD group
                 name="calculated_ik_signal",
                 value=round(avg_weight, 2),
                 created_by_id=user_id,
@@ -120,11 +234,19 @@ def submit_lab_qa(
         user = db.query(User).first()
         user_id = user.id if user else None
 
+        answers, wetland_id, site_id, basin_id = resolve_answers_and_anchors(
+            payload, db
+        )
+        if not site_id:
+            raise ValueError("site_id is required")
+
+        sampling_period = payload.sampling_period or "2026-Q2"
+
         # Create Datapoint
         dp = Datapoint(
             form_id=payload.form_id,
-            site_id=payload.site_id,
-            submitter=payload.sampling_period,  # store period in submitter or meta columns
+            site_id=site_id,
+            submitter=sampling_period,  # store period in submitter or meta columns
             status="APPROVED",
             created_by_id=user_id,
         )
@@ -132,12 +254,11 @@ def submit_lab_qa(
         db.flush()
 
         # Save all academic answers
-        for ans in payload.answers:
-            val_num = (
-                float(ans.value)
-                if isinstance(ans.value, (int, float))
-                else None
-            )
+        for ans in answers:
+            try:
+                val_num = float(ans.value)
+            except ValueError:
+                val_num = None
             val_str = str(ans.value) if val_num is None else None
             answer_record = Answer(
                 datapoint_id=dp.id,
@@ -160,28 +281,38 @@ def submit_generic(
     payload: GenericPayload,
     db: Session = Depends(get_db),
 ):
-    # Enforce exactly one anchor populated
-    anchors_count = sum(
-        1
-        for v in [payload.basin_id, payload.wetland_id, payload.site_id]
-        if v is not None
-    )
-    if anchors_count != 1:
-        raise HTTPException(
-            status_code=400,
-            detail="Exactly one of basin_id, wetland_id, or site_id must be populated",
-        )
-
     try:
         user = db.query(User).first()
         user_id = user.id if user else None
 
+        answers, wetland_id, site_id, basin_id = resolve_answers_and_anchors(
+            payload, db
+        )
+
+        # Fallback to first basin if no anchor is resolved
+        if basin_id is None and wetland_id is None and site_id is None:
+            from app.models.spatial import Basin
+
+            first_basin = db.query(Basin).first()
+            if first_basin:
+                basin_id = first_basin.id
+
+        # Enforce exactly one anchor populated
+        anchors_count = sum(
+            1 for v in [basin_id, wetland_id, site_id] if v is not None
+        )
+        if anchors_count != 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Exactly one of basin_id, wetland_id, or site_id must be populated",
+            )
+
         # Create Datapoint under PENDING status
         dp = Datapoint(
             form_id=payload.form_id,
-            basin_id=payload.basin_id,
-            wetland_id=payload.wetland_id,
-            site_id=payload.site_id,
+            basin_id=basin_id,
+            wetland_id=wetland_id,
+            site_id=site_id,
             status="PENDING",
             created_by_id=user_id,
         )
@@ -189,12 +320,11 @@ def submit_generic(
         db.flush()
 
         # Save all dynamic answers
-        for ans in payload.answers:
-            val_num = (
-                float(ans.value)
-                if isinstance(ans.value, (int, float))
-                else None
-            )
+        for ans in answers:
+            try:
+                val_num = float(ans.value)
+            except ValueError:
+                val_num = None
             val_str = str(ans.value) if val_num is None else None
             answer_record = Answer(
                 datapoint_id=dp.id,
