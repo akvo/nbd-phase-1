@@ -8,8 +8,6 @@ from app.models.submission import Datapoint, Answer
 from app.models.form import Form
 from app.schemas import submission as schemas
 
-from app.dependencies.auth import RoleChecker
-
 router = APIRouter(prefix="/api/v1/submissions", tags=["submissions"])
 
 
@@ -70,7 +68,6 @@ def create_submission(
 @router.get(
     "",
     response_model=List[schemas.DatapointResponse],
-    dependencies=[Depends(RoleChecker(["Admin", "Reviewer"]))],
 )
 def list_submissions(
     form_id: Optional[int] = None,
