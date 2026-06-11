@@ -6,17 +6,34 @@ import { apiClient } from '@/lib/api';
 import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-// Dynamically import akvo-react-form to prevent SSR issues if any
+// Polyfill React secret internals for legacy package (akvo-react-form) compatibility under React 19
+if (React) {
+  const r = React as any;
+  if (!r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) {
+    r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {
+      ReactCurrentDispatcher: {
+        current: null,
+      },
+      ReactCurrentBatchConfig: {
+        transition: null,
+      },
+    };
+  }
+}
+
+// Dynamically import Webform from akvo-react-form to prevent SSR issues
 import dynamic from 'next/dynamic';
-// const AkvoReactForm = dynamic(() => import('akvo-react-form'), {
-//   ssr: false,
-//   loading: () => (
-//     <div className="flex items-center space-x-2 text-slate-500 py-4">
-//       <Loader2 className="w-5 h-5 animate-spin" />
-//       <span>Loading form builder...</span>
-//     </div>
-//   ),
-// });
+import 'akvo-react-form/dist/index.css';
+
+const Webform = dynamic<any>(() => import('akvo-react-form').then((mod) => mod.Webform), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center space-x-2 text-slate-500 py-4">
+      <Loader2 className="w-5 h-5 animate-spin" />
+      <span>Loading webform...</span>
+    </div>
+  ),
+});
 
 interface NewFormPageProps {
   params: Promise<{
@@ -64,14 +81,14 @@ export default function NewFormPage({ params }: NewFormPageProps) {
     setSubmitting(true);
     setError(null);
     try {
-      let endpoint = '/internal/submit';
-      let payload = { ...values, form_id: formId };
+      const formType = blueprint?.type;
+      const numericFormId = parseInt(formId, 10) || blueprint?.form_id || 1;
 
-      if (formId === 'fgd') {
+      let endpoint = '/internal/submit';
+      let payload = { ...values, form_id: numericFormId };
+
+      if (formId === 'fgd' || formType === 3) {
         endpoint = '/internal/fgd';
-        // Format specific payload matching FGD expectation
-        // FGD endpoint expects answers matching FgdPayload structure
-        // we'll pass the form_id, wetland_id, and mapped answers array
         const wetlandId = values.wetland_id || values.geo_anchor || values.wetland;
         const answersList = Object.keys(values)
           .filter((key) => key !== 'wetland_id' && key !== 'wetland' && key !== 'geo_anchor' && key !== 'form_id')
@@ -82,12 +99,11 @@ export default function NewFormPage({ params }: NewFormPageProps) {
 
         payload = {
           wetland_id: wetlandId,
-          form_id: parseInt(formId, 10) || 1, // Fallback to 1 if NaN
+          form_id: numericFormId,
           answers: answersList,
         };
-      } else if (formId === 'lab-qa') {
+      } else if (formId === 'lab-qa' || formType === 4) {
         endpoint = '/internal/lab-qa';
-        // Format specific payload matching LabQaPayload structure
         const siteId = values.site_id || values.geo_anchor || values.site;
         const samplingPeriod = values.sampling_period || '2026-Q2';
         const answersList = Object.keys(values)
@@ -107,11 +123,10 @@ export default function NewFormPage({ params }: NewFormPageProps) {
         payload = {
           site_id: siteId,
           sampling_period: samplingPeriod,
-          form_id: parseInt(formId, 10) || 2, // Fallback to 2 if NaN
+          form_id: numericFormId,
           answers: answersList,
         };
       } else {
-        // Generic submission
         const basinId = values.basin_id || values.basin;
         const wetlandId = values.wetland_id || values.wetland;
         const siteId = values.site_id || values.site;
@@ -132,7 +147,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
           }));
 
         payload = {
-          form_id: parseInt(formId, 10) || 3,
+          form_id: numericFormId,
           basin_id: basinId,
           wetland_id: wetlandId,
           site_id: siteId,
@@ -162,7 +177,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto my-8 px-4">
+    <div className="w-full my-8">
       {/* Back Button */}
       <Link
         href="/admin/data"
@@ -204,7 +219,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
             <div className="space-y-6">
               {blueprint ? (
                 <div className="prose prose-slate max-w-none">
-                  {/* <AkvoReactForm form={blueprint} onFinish={handleFinish} /> */}
+                  <Webform forms={blueprint} onFinish={handleFinish} />
                 </div>
               ) : (
                 <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl">

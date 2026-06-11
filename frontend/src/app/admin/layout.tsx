@@ -11,37 +11,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [forms, setForms] = useState<any[]>([
-    { id: 'fgd', name: 'Focus Group Discussion (FGD)' },
-    { id: 'lab-qa', name: 'Lab QA Analysis' }
-  ]);
+  const [forms, setForms] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     apiClient.get('/forms')
       .then(res => {
         if (res.data && res.data.length > 0) {
-          // Prepend default forms if not in results, or use results
           const fetched = res.data.map((f: any) => ({
             id: String(f.id),
             name: f.name
           }));
-          const defaults = [
-            { id: 'fgd', name: 'Focus Group Discussion (FGD)' },
-            { id: 'lab-qa', name: 'Lab QA Analysis' }
-          ];
-          // Merge avoiding duplicates
-          const merged = [...defaults];
-          fetched.forEach((f: any) => {
-            if (!merged.some(m => m.id === f.id || m.name.toLowerCase() === f.name.toLowerCase())) {
-              merged.push(f);
-            }
-          });
-          setForms(merged);
+          setForms(fetched);
         }
       })
       .catch(() => {
-        // Keep defaults
+        // Fallback placeholder in case database is empty or down
+        setForms([]);
       });
   }, []);
 
@@ -114,7 +100,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   type="button"
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="inline-flex items-center space-x-2 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors shadow-sm cursor-pointer"
-                  disabled
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add new</span>
