@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 
 interface Submission {
   id: string;
@@ -21,6 +22,8 @@ export default function DataOverviewPage() {
   const [formFilter, setFormFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [basinFilter, setBasinFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     apiClient.get('/submissions')
@@ -79,6 +82,7 @@ export default function DataOverviewPage() {
     setFormFilter('');
     setStatusFilter('');
     setBasinFilter('');
+    setCurrentPage(1);
   };
 
   const filteredSubmissions = submissions.filter(sub => {
@@ -87,6 +91,10 @@ export default function DataOverviewPage() {
     if (basinFilter && !sub.basinSite.includes(basinFilter)) return false;
     return true;
   });
+
+  const totalPages = Math.ceil(filteredSubmissions.length / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedSubmissions = filteredSubmissions.slice(startIndex, startIndex + pageSize);
 
   return (
     <div className="space-y-6">
@@ -99,7 +107,10 @@ export default function DataOverviewPage() {
           <div className="relative">
             <select
               value={formFilter}
-              onChange={(e) => setFormFilter(e.target.value)}
+              onChange={(e) => {
+                setFormFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer"
             >
               <option value="">Select a form</option>
@@ -112,7 +123,10 @@ export default function DataOverviewPage() {
           <div className="relative">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer"
             >
               <option value="">Select status</option>
@@ -127,7 +141,10 @@ export default function DataOverviewPage() {
           <div className="relative">
             <select
               value={basinFilter}
-              onChange={(e) => setBasinFilter(e.target.value)}
+              onChange={(e) => {
+                setBasinFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer"
             >
               <option value="">Select a basin</option>
@@ -148,79 +165,108 @@ export default function DataOverviewPage() {
 
       {/* Main Submissions Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 tracking-wider">
-                <th className="py-4 px-6">Id</th>
-                <th className="py-4 px-6">Form</th>
-                <th className="py-4 px-6">Basin/Site</th>
-                <th className="py-4 px-6">Date</th>
-                <th className="py-4 px-6">Submitted by</th>
-                <th className="py-4 px-6">Status</th>
-                <th className="py-4 px-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-              {filteredSubmissions.map((sub) => (
-                <tr key={sub.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-4 px-6 font-medium text-slate-900">{sub.id}</td>
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
-                      {sub.formType}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">{sub.basinSite}</td>
-                  <td className="py-4 px-6 font-semibold text-slate-900">{sub.date}</td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-900">{sub.submittedBy.name}</span>
-                      <span className="text-xs text-slate-400 mt-0.5">{sub.submittedBy.email}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                        sub.status === 'Active' || sub.status === 'Approved'
-                          ? 'bg-green-50 text-green-700 border-green-100'
-                          : sub.status === 'Pending'
-                          ? 'bg-orange-50 text-orange-700 border-orange-100'
-                          : 'bg-red-50 text-red-700 border-red-100'
-                      }`}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="py-4 px-6 text-xs font-semibold text-slate-500 tracking-wider">Id</TableHead>
+              <TableHead className="py-4 px-6 text-xs font-semibold text-slate-500 tracking-wider">Form</TableHead>
+              <TableHead className="py-4 px-6 text-xs font-semibold text-slate-500 tracking-wider">Basin/Site</TableHead>
+              <TableHead className="py-4 px-6 text-xs font-semibold text-slate-500 tracking-wider">Date</TableHead>
+              <TableHead className="py-4 px-6 text-xs font-semibold text-slate-500 tracking-wider">Submitted by</TableHead>
+              <TableHead className="py-4 px-6 text-xs font-semibold text-slate-500 tracking-wider">Status</TableHead>
+              <TableHead className="py-4 px-6 text-xs font-semibold text-slate-500 tracking-wider text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-slate-100 text-sm text-slate-700">
+            {paginatedSubmissions.map((sub) => (
+              <TableRow key={sub.id} className="hover:bg-slate-50/50 transition-colors">
+                <TableCell className="py-4 px-6 font-medium text-slate-900">{sub.id}</TableCell>
+                <TableCell className="py-4 px-6">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
+                    {sub.formType}
+                  </span>
+                </TableCell>
+                <TableCell className="py-4 px-6">{sub.basinSite}</TableCell>
+                <TableCell className="py-4 px-6 font-semibold text-slate-900">{sub.date}</TableCell>
+                <TableCell className="py-4 px-6">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-slate-900">{sub.submittedBy.name}</span>
+                    <span className="text-xs text-slate-400 mt-0.5">{sub.submittedBy.email}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="py-4 px-6">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                      sub.status === 'Active' || sub.status === 'Approved'
+                        ? 'bg-green-50 text-green-700 border-green-100'
+                        : sub.status === 'Pending'
+                        ? 'bg-orange-50 text-orange-700 border-orange-100'
+                        : 'bg-red-50 text-red-700 border-red-100'
+                    }`}
+                  >
+                    {sub.status}
+                  </span>
+                </TableCell>
+                <TableCell className="py-4 px-6 text-right">
+                  <div className="flex items-center justify-end space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => handleReject(sub.id)}
+                      className="px-3.5 py-1.5 border border-sky-400 hover:bg-sky-50 text-sky-500 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
                     >
-                      {sub.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleReject(sub.id)}
-                        className="px-3.5 py-1.5 border border-sky-400 hover:bg-sky-50 text-sky-500 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                      >
-                        Reject
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApprove(sub.id)}
-                        className="px-3.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                      >
-                        Approve
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredSubmissions.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
-                    No submissions found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApprove(sub.id)}
+                      className="px-3.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                    >
+                      Approve
+                    </button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {paginatedSubmissions.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="py-8 text-center text-slate-400">
+                  No submissions found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+
+        {/* Pagination Controls */}
+        {filteredSubmissions.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+            <div className="text-xs text-slate-500">
+              Showing <span className="font-semibold text-slate-700">{startIndex + 1}</span> to{" "}
+              <span className="font-semibold text-slate-700">
+                {Math.min(startIndex + pageSize, filteredSubmissions.length)}
+              </span>{" "}
+              of <span className="font-semibold text-slate-700">{filteredSubmissions.length}</span> submissions
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors cursor-pointer"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
