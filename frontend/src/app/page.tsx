@@ -12,6 +12,8 @@ import { SiteHeader } from "@/components/ui/site-header";
 import { Loader } from "@/components/ui/loader";
 import { MapLegend } from "@/components/ui/map-legend";
 
+import { getBasins } from "@/lib/api";
+
 // Load static mock database
 import mockData from "../../public/data/mock_map_data.json";
 
@@ -33,11 +35,7 @@ export default function Home() {
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
 
   useEffect(() => {
-    fetch("/api/v1/basins")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch basin geometries");
-        return res.json();
-      })
+    getBasins()
       .then((data) => {
         const geomMap: Record<string, any> = {};
         data.forEach((b: any) => {

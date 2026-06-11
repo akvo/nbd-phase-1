@@ -9,6 +9,12 @@ vi.mock('@/components/ui/map-viewer', () => {
   };
 });
 
+vi.mock('@/lib/api', () => {
+  return {
+    getBasins: vi.fn().mockResolvedValue([]),
+  };
+});
+
 test('renders Home page elements and handles filtering', () => {
   render(<Home />);
 
