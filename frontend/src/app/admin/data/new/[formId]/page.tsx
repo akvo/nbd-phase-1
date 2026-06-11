@@ -159,6 +159,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
       setSuccess(true);
       setTimeout(() => {
         router.push('/admin/data');
+        router.refresh();
       }, 1500);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to submit data. Please check your inputs.');
@@ -177,67 +178,59 @@ export default function NewFormPage({ params }: NewFormPageProps) {
   }
 
   return (
-    <div className="w-full my-8">
+    <div className="w-full my-6">
       {/* Back Button */}
-      <Link
-        href="/admin/data"
-        className="inline-flex items-center space-x-2 text-sm text-slate-500 hover:text-slate-800 mb-6 transition-colors group"
-      >
-        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
-        <span>Back to Data Overview</span>
-      </Link>
+      <div className="flex items-center justify-between mb-6">
+        <Link
+          href="/admin/data"
+          onClick={() => router.refresh()}
+          className="inline-flex items-center space-x-2 text-sm text-slate-500 hover:text-slate-800 transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+          <span>Back to Data Overview</span>
+        </Link>
+      </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Header Banner */}
-        <div className="bg-gradient-to-r from-sky-500 to-indigo-600 p-6 text-white">
-          <h1 className="text-2xl font-bold tracking-tight">Submit New Form Data</h1>
-          <p className="text-sky-100/90 text-sm mt-1">
-            Form Identifier: <span className="font-semibold font-mono bg-white/10 px-1.5 py-0.5 rounded text-xs">{formId}</span>
-          </p>
-        </div>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-start space-x-3 text-red-700 text-sm animate-shake">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
 
-        {/* Content Area */}
-        <div className="p-6">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start space-x-3 text-red-700 text-sm animate-shake">
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <span>{error}</span>
+        {success ? (
+          <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
+            <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 border border-emerald-100">
+              <CheckCircle2 className="w-6 h-6" />
             </div>
-          )}
-
-          {success ? (
-            <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 border border-emerald-100 animate-bounce">
-                <CheckCircle2 className="w-10 h-10" />
+            <h2 className="text-lg font-bold text-slate-800">Submission Successful!</h2>
+            <p className="text-slate-500 text-sm max-w-sm">
+              Your data has been successfully ingested. Redirecting you back to the data overview...
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {blueprint ? (
+              <div className="prose prose-slate max-w-none">
+                <Webform forms={blueprint} onFinish={handleFinish} />
               </div>
-              <h2 className="text-xl font-bold text-slate-800">Submission Successful!</h2>
-              <p className="text-slate-500 text-sm max-w-sm">
-                Your data has been successfully ingested. Redirecting you back to the data overview...
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {blueprint ? (
-                <div className="prose prose-slate max-w-none">
-                  <Webform forms={blueprint} onFinish={handleFinish} />
-                </div>
-              ) : (
-                <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl">
-                  <p className="text-slate-400 text-sm">No blueprint definition was loaded.</p>
-                </div>
-              )}
+            ) : (
+              <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl">
+                <p className="text-slate-400 text-sm">No blueprint definition was loaded.</p>
+              </div>
+            )}
 
-              {submitting && (
-                <div className="fixed inset-0 bg-slate-900/25 backdrop-blur-sm flex items-center justify-center z-50">
-                  <div className="bg-white rounded-2xl p-6 shadow-xl border border-slate-100 flex items-center space-x-4 max-w-xs">
-                    <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
-                    <span className="text-sm font-medium text-slate-700">Submitting response...</span>
-                  </div>
+            {submitting && (
+              <div className="fixed inset-0 bg-slate-900/25 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="bg-white rounded-xl p-6 shadow-lg border border-slate-100 flex items-center space-x-4 max-w-xs">
+                  <Loader2 className="w-5 h-5 text-sky-500 animate-spin" />
+                  <span className="text-sm font-medium text-slate-700">Submitting response...</span>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
