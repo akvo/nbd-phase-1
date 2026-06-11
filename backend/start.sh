@@ -2,7 +2,7 @@
 set -e
 
 # Install dependencies if in development mode
-if [ "$APP_ENV" != "production" ] && [ "$APP_ENV" != "prod" ]; then
+if [ "$APP_ENV" != "production" ] && [ "$APP_ENV" != "prod" ] && [ "$APP_ENV" != "staging" ] && [ "$APP_ENV" != "test" ]; then
   echo "Installing Python dependencies (Development mode)..."
   pip install --no-cache-dir -r requirements.txt
 fi
@@ -16,7 +16,7 @@ fi
 echo "Running database migrations..."
 alembic upgrade head
 
-if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
+if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ] || [ "$APP_ENV" = "staging" ] || [ "$APP_ENV" = "test" ]; then
   echo "Starting FastAPI backend in PRODUCTION mode..."
   exec uvicorn app.main:app --host 0.0.0.0 --port 8000
 else

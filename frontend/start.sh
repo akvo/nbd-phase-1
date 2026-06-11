@@ -2,7 +2,7 @@
 set -e
 
 # Install dependencies if in development mode
-if [ "$NODE_ENV" != "production" ] && [ "$NODE_ENV" != "prod" ]; then
+if [ "$NODE_ENV" != "production" ] && [ "$NODE_ENV" != "prod" ] && [ "$APP_ENV" != "staging" ] && [ "$APP_ENV" != "test" ]; then
   echo "Installing Node dependencies (Development mode)..."
   yarn install
 fi
@@ -13,7 +13,7 @@ if [ $# -gt 0 ]; then
   exec "$@"
 fi
 
-if [ "$NODE_ENV" = "production" ] || [ "$NODE_ENV" = "prod" ]; then
+if [ "$NODE_ENV" = "production" ] || [ "$NODE_ENV" = "prod" ] || [ "$APP_ENV" = "staging" ] || [ "$APP_ENV" = "test" ]; then
   echo "Starting Next.js frontend in PRODUCTION mode..."
   exec yarn start
 else
