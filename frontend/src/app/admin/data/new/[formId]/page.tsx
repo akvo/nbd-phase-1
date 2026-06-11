@@ -4,10 +4,70 @@ import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import L from 'leaflet';
 
-// Polyfill React secret internals for legacy package (akvo-react-form) compatibility under React 19
+// Silence the React 19 element.ref deprecation warning and patch Leaflet double-initialization
+if (typeof window !== 'undefined') {
+  const originalError = console.error;
+  console.error = function(...args: any[]) {
+    if (typeof args[0] === 'string' && args[0].includes('Accessing element.ref was removed in React 19')) {
+      return;
+    }
+    originalError.apply(console, args);
+  };
+
+  const originalWarn = console.warn;
+  console.warn = function(...args: any[]) {
+    if (typeof args[0] === 'string' && args[0].includes('Accessing element.ref was removed in React 19')) {
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+
+  // Leaflet double-initialization patch
+  if (L) {
+    const originalMap = L.map;
+    L.map = function(el: any, options: any) {
+      const container = typeof el === 'string' ? document.getElementById(el) : el;
+      if (container && container._leaflet_id) {
+        container._leaflet_id = null;
+      }
+      return originalMap.call(L, el, options);
+    };
+
+    const originalMapClass = L.Map;
+    L.Map = function(el: any, options: any) {
+      const container = typeof el === 'string' ? document.getElementById(el) : el;
+      if (container && container._leaflet_id) {
+        container._leaflet_id = null;
+      }
+      return new originalMapClass(el, options);
+    } as any;
+    L.Map.prototype = originalMapClass.prototype;
+  }
+}
+
+// Polyfill React secret internals and React 19 ref access for legacy package (akvo-react-form) compatibility under React 19
 if (React) {
+  // Silence the React 19 element.ref deprecation warning to prevent Next.js dev overlay from crashing
+  if (typeof window !== 'undefined') {
+    const originalError = console.error;
+    console.error = function(...args: any[]) {
+      if (typeof args[0] === 'string' && args[0].includes('Accessing element.ref was removed in React 19')) {
+        return;
+      }
+      originalError.apply(console, args);
+    };
+
+    const originalWarn = console.warn;
+    console.warn = function(...args: any[]) {
+      if (typeof args[0] === 'string' && args[0].includes('Accessing element.ref was removed in React 19')) {
+        return;
+      }
+      originalWarn.apply(console, args);
+    };
+  }
+
   const r = React as any;
   if (!r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) {
     r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {
@@ -18,6 +78,69 @@ if (React) {
         transition: null,
       },
     };
+  }
+
+  // React 19 ref property compatibility polyfill
+  const originalCreateElement = r.createElement;
+  if (originalCreateElement && !originalCreateElement.__refPolyfilled) {
+    const newCreateElement = function(type: any, props: any, ...children: any[]) {
+      const element = originalCreateElement.apply(React, arguments as any);
+      if (element && typeof element === 'object' && typeof type !== 'string' && props && props.ref !== undefined) {
+        // Bypass cloning for Map/Leaflet components to prevent double-initialization errors
+        const name = type && (type.name || type.displayName || '');
+        const isMapComponent = (props && (
+          props.center !== undefined ||
+          props.zoom !== undefined ||
+          props.url !== undefined ||
+          props.attribution !== undefined ||
+          props.position !== undefined
+        )) || (
+          typeof name === 'string' && (
+            name.toLowerCase().includes('map') ||
+            name.toLowerCase().includes('layer') ||
+            name.toLowerCase().includes('marker') ||
+            name.toLowerCase().includes('popup') ||
+            name.toLowerCase().includes('geojson') ||
+            name.toLowerCase().includes('leaflet')
+          )
+        );
+        if (isMapComponent) {
+          return element;
+        }
+
+        try {
+          const clonedElement = Object.create(Object.getPrototypeOf(element));
+
+          // Copy all string properties
+          Object.getOwnPropertyNames(element).forEach(key => {
+            if (key === 'ref') {
+              Object.defineProperty(clonedElement, 'ref', {
+                get() {
+                  return this.props?.ref;
+                },
+                configurable: true,
+                enumerable: true
+              });
+            } else {
+              Object.defineProperty(clonedElement, key, Object.getOwnPropertyDescriptor(element, key) as PropertyDescriptor);
+            }
+          });
+
+          // Copy all symbol properties (e.g. $$typeof)
+          Object.getOwnPropertySymbols(element).forEach(sym => {
+            Object.defineProperty(clonedElement, sym, Object.getOwnPropertyDescriptor(element, sym) as PropertyDescriptor);
+          });
+
+          return clonedElement;
+        } catch (e) {
+          // Fallback to original element if cloning fails
+          return element;
+        }
+      }
+      return element;
+    };
+    newCreateElement.__refPolyfilled = true;
+    r.createElement = newCreateElement;
   }
 }
 
@@ -85,81 +208,21 @@ export default function NewFormPage({ params }: NewFormPageProps) {
       const numericFormId = parseInt(formId, 10) || blueprint?.form_id || 1;
 
       let endpoint = '/internal/submit';
-      let payload = { ...values, form_id: numericFormId };
-
       if (formId === 'fgd' || formType === 3) {
         endpoint = '/internal/fgd';
-        const wetlandId = values.wetland_id || values.geo_anchor || values.wetland;
-        const answersList = Object.keys(values)
-          .filter((key) => key !== 'wetland_id' && key !== 'wetland' && key !== 'geo_anchor' && key !== 'form_id')
-          .map((key) => ({
-            question_id: parseInt(key, 10) || 0,
-            value: values[key],
-          }));
-
-        payload = {
-          wetland_id: wetlandId,
-          form_id: numericFormId,
-          answers: answersList,
-        };
       } else if (formId === 'lab-qa' || formType === 4) {
         endpoint = '/internal/lab-qa';
-        const siteId = values.site_id || values.geo_anchor || values.site;
-        const samplingPeriod = values.sampling_period || '2026-Q2';
-        const answersList = Object.keys(values)
-          .filter(
-            (key) =>
-              key !== 'site_id' &&
-              key !== 'site' &&
-              key !== 'sampling_period' &&
-              key !== 'geo_anchor' &&
-              key !== 'form_id'
-          )
-          .map((key) => ({
-            question_id: parseInt(key, 10) || 0,
-            value: values[key],
-          }));
-
-        payload = {
-          site_id: siteId,
-          sampling_period: samplingPeriod,
-          form_id: numericFormId,
-          answers: answersList,
-        };
-      } else {
-        const basinId = values.basin_id || values.basin;
-        const wetlandId = values.wetland_id || values.wetland;
-        const siteId = values.site_id || values.site;
-        const answersList = Object.keys(values)
-          .filter(
-            (key) =>
-              key !== 'basin_id' &&
-              key !== 'basin' &&
-              key !== 'wetland_id' &&
-              key !== 'wetland' &&
-              key !== 'site_id' &&
-              key !== 'site' &&
-              key !== 'form_id'
-          )
-          .map((key) => ({
-            question_id: parseInt(key, 10) || 0,
-            value: values[key],
-          }));
-
-        payload = {
-          form_id: numericFormId,
-          basin_id: basinId,
-          wetland_id: wetlandId,
-          site_id: siteId,
-          answers: answersList,
-        };
       }
+
+      const payload = {
+        ...values,
+        form_id: numericFormId,
+      };
 
       await apiClient.post(endpoint, payload);
       setSuccess(true);
       setTimeout(() => {
-        router.push('/admin/data');
-        router.refresh();
+        window.location.href = '/admin/data';
       }, 1500);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to submit data. Please check your inputs.');
@@ -181,14 +244,13 @@ export default function NewFormPage({ params }: NewFormPageProps) {
     <div className="w-full my-6">
       {/* Back Button */}
       <div className="flex items-center justify-between mb-6">
-        <Link
+        <a
           href="/admin/data"
-          onClick={() => router.refresh()}
           className="inline-flex items-center space-x-2 text-sm text-slate-500 hover:text-slate-800 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
           <span>Back to Data Overview</span>
-        </Link>
+        </a>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
