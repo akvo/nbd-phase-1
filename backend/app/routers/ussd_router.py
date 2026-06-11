@@ -352,11 +352,7 @@ def handle_ussd(
         datapoint_id=dp.id,
         question_id=q_incident.id if q_incident else 0,
         name=None,
-        options=[
-            get_translation(
-                selected_option.translations, lang, selected_option.label
-            )
-        ],
+        options=[selected_option.value],
     )
     db.add(ans_incident)
 
@@ -364,7 +360,7 @@ def handle_ussd(
         datapoint_id=dp.id,
         question_id=q_location.id if q_location else 0,
         name=None,
-        options=[selected_sc.name],
+        options=[str(selected_sc.id)],
     )
     db.add(ans_location)
     db.commit()

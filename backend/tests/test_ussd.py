@@ -168,10 +168,18 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     )
 
     ans_incident = [a for a in answers if a.question_id == q_incident.id][0]
-    assert "Smell" in ans_incident.options[0]
+    assert ans_incident.options == ["2"]
 
+    from app.models.spatial import SpatialBoundary
+
+    expected_sc = (
+        db_session.query(SpatialBoundary)
+        .filter(SpatialBoundary.name == "Emurua Dikirr")
+        .first()
+    )
+    assert expected_sc is not None
     ans_location = [a for a in answers if a.question_id == q_location.id][0]
-    assert ans_location.options == ["Emurua Dikirr"]
+    assert ans_location.options == [str(expected_sc.id)]
 
 
 def test_ussd_idempotency():

@@ -273,12 +273,12 @@ def _save_report(
     db.add(dp)
     db.flush()
 
-    # Answer: incident type (store option label)
+    # Answer: incident type (store option value)
     ans_incident = Answer(
         datapoint_id=dp.id,
         question_id=q_incident.id if q_incident else 0,
         name=None,
-        options=[selected_option.label],
+        options=[selected_option.value],
     )
     db.add(ans_incident)
 
@@ -287,7 +287,7 @@ def _save_report(
         datapoint_id=dp.id,
         question_id=q_location.id if q_location else 0,
         name=None,
-        options=[selected_sc.name],
+        options=[str(selected_sc.id)],
     )
     db.add(ans_location)
 
