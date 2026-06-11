@@ -40,6 +40,11 @@ def create_basin(basin: schemas.BasinCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/basins", response_model=list[schemas.Basin])
+def list_basins(db: Session = Depends(get_db)):
+    return db.query(Basin).all()
+
+
 @router.get("/basins/{basin_id}", response_model=schemas.Basin)
 def get_basin(basin_id: str, db: Session = Depends(get_db)):
     try:
@@ -80,11 +85,17 @@ def create_wetland(
         )
 
     try:
+        geom_shape = shape(wetland.geom)
+        from shapely.geometry import Polygon, MultiPolygon
+
+        if isinstance(geom_shape, Polygon):
+            geom_shape = MultiPolygon([geom_shape])
+
         db_wetland = Wetland(
             code=wetland.code,
             basin_id=wetland.basin_id,
             name=wetland.name,
-            geom=from_shape(shape(wetland.geom), srid=4326),
+            geom=from_shape(geom_shape, srid=4326),
         )
         db.add(db_wetland)
         db.commit()
@@ -189,7 +200,11 @@ def create_sub_county(
             level=sb.level,
             parent_id=sb.parent_id,
             basin_id=sb.basin_id,
-            centroid_geom=from_shape(shape(sb.centroid_geom), srid=4326),
+            centroid_geom=(
+                from_shape(shape(sb.centroid_geom), srid=4326)
+                if sb.centroid_geom
+                else None
+            ),
         )
         db.add(db_sb)
         db.commit()

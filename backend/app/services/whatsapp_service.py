@@ -159,9 +159,30 @@ def _fetch_subcounties(db: Session) -> List[SpatialBoundary]:
     return (
         db.query(SpatialBoundary)
         .join(Basin)
-        .order_by(SpatialBoundary.name)
+        .filter(SpatialBoundary.level == 2)
+        .order_by(SpatialBoundary.basin_id, SpatialBoundary.name)
         .all()
     )
+
+
+def _format_location_menu(
+    subcounties: List[SpatialBoundary], lang: str
+) -> str:
+    menu_lines = []
+    current_parent_id = None
+    for i, sc in enumerate(subcounties, 1):
+        if sc.parent_id != current_parent_id:
+            current_parent_id = sc.parent_id
+            parent = sc.parent
+            if parent:
+                if menu_lines:
+                    menu_lines.append("")
+                if lang == "sw":
+                    menu_lines.append(f"{parent.name} (Mkoa):")
+                else:
+                    menu_lines.append(f"{parent.name} (Region):")
+        menu_lines.append(f"  {i}: {sc.name}")
+    return "\n".join(menu_lines)
 
 
 def _save_report(
@@ -224,12 +245,30 @@ def _save_report(
             dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
         else:
             dp.basin_id = selected_sc.basin_id
-            pt = to_shape(selected_sc.centroid_geom)
-            dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
+            centroid_geom = selected_sc.centroid_geom
+            curr_parent = selected_sc.parent
+            while not centroid_geom and curr_parent:
+                centroid_geom = curr_parent.centroid_geom
+                curr_parent = curr_parent.parent
+
+            if centroid_geom:
+                pt = to_shape(centroid_geom)
+                dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
+            else:
+                dp.geo = None
     else:
         dp.basin_id = selected_sc.basin_id
-        pt = to_shape(selected_sc.centroid_geom)
-        dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
+        centroid_geom = selected_sc.centroid_geom
+        curr_parent = selected_sc.parent
+        while not centroid_geom and curr_parent:
+            centroid_geom = curr_parent.centroid_geom
+            curr_parent = curr_parent.parent
+
+        if centroid_geom:
+            pt = to_shape(centroid_geom)
+            dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
+        else:
+            dp.geo = None
 
     db.add(dp)
     db.flush()
@@ -505,9 +544,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
 
             # Move to location
             subcounties = _fetch_subcounties(db)
-            menu = "\n".join(
-                f"{i}: {sc.name}" for i, sc in enumerate(subcounties, 1)
-            )
+            menu = _format_location_menu(subcounties, lang)
             session.state = "LOCATION_SELECT"
             db.commit()
             if lang == "sw":
@@ -530,13 +567,129 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     raise ValueError()
                 selected_sc = subcounties[idx]
             except (ValueError, TypeError):
-                menu = "\n".join(
-                    f"{i}: {sc.name}" for i, sc in enumerate(subcounties, 1)
-                )
+                menu = _format_location_menu(subcounties, lang)
                 if lang == "sw":
                     prompt = f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
                 else:
                     prompt = f"Please reply with a valid number.\n\n{menu}"
+                await _send_message(phone, prompt)
+                return
+
+            # Check if there are Level 3 sub-counties below the selected county
+            sub_counties = (
+                db.query(SpatialBoundary)
+                .filter(
+                    SpatialBoundary.level == 3,
+                    SpatialBoundary.parent_id == selected_sc.id,
+                )
+                .order_by(SpatialBoundary.name)
+                .all()
+            )
+
+            if sub_counties:
+                session.state = "SUB_COUNTY_SELECT"
+                session.location = str(selected_sc.id)
+                db.commit()
+
+                menu_lines = [
+                    f"  {i}: {sc.name}" for i, sc in enumerate(sub_counties, 1)
+                ]
+                menu = "\n".join(menu_lines)
+                if lang == "sw":
+                    prompt = (
+                        f"Chagua wilaya ndogo ya {selected_sc.name}:\n\n{menu}"
+                    )
+                else:
+                    prompt = (
+                        f"Choose sub-county of {selected_sc.name}:\n\n{menu}"
+                    )
+                await _send_message(phone, prompt)
+                return
+
+            # Fetch the selected option from session
+            options = _fetch_incident_options(db)
+            selected_option = next(
+                (o for o in options if o.value == session.incident_type),
+                None,
+            )
+            if not selected_option:
+                logger.error(
+                    "Cannot find option for incident_type=%s",
+                    session.incident_type,
+                )
+                if lang == "sw":
+                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."
+                else:
+                    err_msg = (
+                        "Sorry, something went wrong. Please start again."
+                    )
+                await _send_message(phone, err_msg)
+                db.delete(session)
+                db.commit()
+                return
+
+            _save_report(
+                db,
+                phone,
+                session,
+                selected_option,
+                selected_sc,
+                session.media_url,
+            )
+            # Delete session after successful submission
+            db.delete(session)
+            db.commit()
+            if lang == "sw":
+                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+            else:
+                thank_msg = "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
+            await _send_message(phone, thank_msg)
+            return
+
+        # ------------------------------------------------------------------
+        # STATE: SUB_COUNTY_SELECT
+        # ------------------------------------------------------------------
+        if state == "SUB_COUNTY_SELECT":
+            text_body = (msg.get("text") or {}).get("body", "").strip()
+            lang = session.language
+
+            # Retrieve the selected county
+            county_id = session.location
+            selected_county = (
+                db.query(SpatialBoundary)
+                .filter(SpatialBoundary.id == county_id)
+                .first()
+            )
+            if not selected_county:
+                logger.error("County not found for ID %s", county_id)
+                db.delete(session)
+                db.commit()
+                return
+
+            sub_counties = (
+                db.query(SpatialBoundary)
+                .filter(
+                    SpatialBoundary.level == 3,
+                    SpatialBoundary.parent_id == selected_county.id,
+                )
+                .order_by(SpatialBoundary.name)
+                .all()
+            )
+
+            try:
+                idx = int(text_body) - 1
+                if idx < 0 or idx >= len(sub_counties):
+                    raise ValueError()
+                selected_sc = sub_counties[idx]
+            except (ValueError, TypeError):
+                menu_lines = [
+                    f"  {i}: {sc.name}" for i, sc in enumerate(sub_counties, 1)
+                ]
+                menu = "\n".join(menu_lines)
+                if lang == "sw":
+                    prompt = f"Tafadhali jibu kwa nambari sahihi.\n\nChagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"
+                else:
+                    prompt = f"Please reply with a valid number.\n\nChoose sub-county of {selected_county.name}:\n\n{menu}"
                 await _send_message(phone, prompt)
                 return
 

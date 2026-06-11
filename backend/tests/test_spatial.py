@@ -44,6 +44,14 @@ def test_create_and_get_basin():
     assert response.status_code == 200
     assert response.json()["name"] == "Test Mara Basin"
 
+    # List basins
+    response = client.get("/api/v1/basins")
+    assert response.status_code == 200
+    basins_list = response.json()
+    assert isinstance(basins_list, list)
+    assert len(basins_list) >= 1
+    assert any(b["code"] == "TEST-MARA" for b in basins_list)
+
 
 def test_create_basin_invalid_geom():
     basin_data = {

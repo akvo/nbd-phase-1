@@ -1,8 +1,6 @@
-"use client";
-
 import React, { useEffect, useState, useMemo } from "react";
 // @ts-ignore
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON, useMap } from "react-leaflet";
 import * as L from "leaflet";
 import { Loader } from "@/components/ui/loader";
 
@@ -19,6 +17,24 @@ interface MapViewerProps {
   markers?: MapMarker[];
   className?: string;
   zoomOffsetClass?: string;
+  basinGeometry?: any;
+}
+
+function MapController({ basinGeometry }: { basinGeometry: any }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (basinGeometry) {
+      try {
+        const layer = L.geoJSON(basinGeometry);
+        map.fitBounds(layer.getBounds(), { padding: [30, 30] });
+      } catch (err) {
+        console.error("Failed to fit bounds to basin geometry:", err);
+      }
+    }
+  }, [basinGeometry, map]);
+
+  return null;
 }
 
 export default function MapViewer({
@@ -27,6 +43,7 @@ export default function MapViewer({
   markers = [],
   className,
   zoomOffsetClass,
+  basinGeometry,
 }: MapViewerProps) {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -113,6 +130,20 @@ export default function MapViewer({
         style={{ width: "100%", height: "100%" }}
         key={`nbd-map-${center[0]}-${center[1]}`}
       >
+        <MapController basinGeometry={basinGeometry} />
+        {basinGeometry && (
+          <GeoJSON
+            key={JSON.stringify(basinGeometry)}
+            data={basinGeometry}
+            style={{
+              color: "#0d9488",
+              weight: 2,
+              opacity: 0.8,
+              fillColor: "#0d9488",
+              fillOpacity: 0.05,
+            }}
+          />
+        )}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

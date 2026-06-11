@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { MapLegend } from "@/components/ui/map-legend";
 // Load static mock database
 import mockData from "../../public/data/mock_map_data.json";
 
-const SHOW_BASIN_SELECTOR = false;
+const SHOW_BASIN_SELECTOR = true;
 
 const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
   ssr: false,
@@ -28,7 +28,38 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSite, setSelectedSite] = useState<any>(null);
   const [isListCollapsed, setIsListCollapsed] = useState(true);
-  console.log('abc');
+
+  const [basinGeometries, setBasinGeometries] = useState<Record<string, any>>({});
+  const [activeGeometry, setActiveGeometry] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/v1/basins")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch basin geometries");
+        return res.json();
+      })
+      .then((data) => {
+        const geomMap: Record<string, any> = {};
+        data.forEach((b: any) => {
+          if (b.code && b.geom) {
+            geomMap[b.code] = b.geom;
+          }
+        });
+        setBasinGeometries(geomMap);
+        if (geomMap[selectedBasin]) {
+          setActiveGeometry(geomMap[selectedBasin]);
+        }
+      })
+      .catch((err) => console.error("Error loading basin geometries:", err));
+  }, []);
+
+  useEffect(() => {
+    if (basinGeometries[selectedBasin]) {
+      setActiveGeometry(basinGeometries[selectedBasin]);
+    } else {
+      setActiveGeometry(null);
+    }
+  }, [selectedBasin, basinGeometries]);
 
   // 1. Filtered sites based on basin, health, and search
   const filteredSites = mockData.sites.filter((site) => {
@@ -113,6 +144,7 @@ export default function Home() {
             center={mapCenter}
             zoom={mapZoom}
             markers={mapMarkers}
+            basinGeometry={activeGeometry}
             zoomOffsetClass={
               isListCollapsed
                 ? "max-md:[&_.leaflet-bottom.leaflet-right]:!bottom-[35vh] max-md:[&_.leaflet-bottom.leaflet-right]:transition-all max-md:[&_.leaflet-bottom.leaflet-right]:duration-300"

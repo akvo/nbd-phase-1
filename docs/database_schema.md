@@ -240,7 +240,7 @@ Stores polygon-based boundary layers for wetlands mapped within a basin.
 | `code` | `VARCHAR(50)` | `UNIQUE`, `NOT NULL` | Unique wetland code. |
 | `basin_id` | `UUID` | `REFERENCES basins(id)` | Parent basin identifier. |
 | `name` | `VARCHAR(150)` | `NOT NULL` | Wetland name (e.g., `'Mara Floodplain'`). |
-| `geom` | `geometry(Polygon, 4326)` | `NOT NULL` | Spatial boundary polygon. |
+| `geom` | `geometry(MultiPolygon, 4326)` | `NOT NULL` | Spatial boundary MultiPolygon. |
 
 ```sql
 CREATE TABLE wetlands (
@@ -248,7 +248,7 @@ CREATE TABLE wetlands (
     code VARCHAR(50) UNIQUE NOT NULL,
     basin_id UUID NOT NULL REFERENCES basins(id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
-    geom geometry(Polygon, 4326) NOT NULL
+    geom geometry(MultiPolygon, 4326) NOT NULL
 );
 CREATE INDEX idx_wetlands_geom ON wetlands USING GIST (geom);
 CREATE INDEX idx_wetlands_basin_id ON wetlands(basin_id);

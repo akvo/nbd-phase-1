@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from geoalchemy2.shape import to_shape
 from app.models.form import (
     Form,
     QuestionGroup,
@@ -187,7 +188,7 @@ def test_seed_spatial_success(db_session: Session):
 
     # 5. Assert Sub-counties created
     sub_counties = db_session.query(SpatialBoundary).all()
-    assert len(sub_counties) == 11
+    assert len(sub_counties) == 28
 
     mara_sub_counties = [
         s.name for s in sub_counties if s.basin.code == "MARA"
@@ -197,15 +198,65 @@ def test_seed_spatial_success(db_session: Session):
     ]
 
     assert sorted(mara_sub_counties) == sorted(
-        ["Mara Region", "Rorya", "Tarime", "Butiama", "Serengeti", "Musoma"]
+        [
+            "Mara Region",
+            "Nakuru",
+            "Narok",
+            "Bomet",
+            "Kuresoi South",
+            "Kilgoris",
+            "Narok West",
+            "Narok North",
+            "Narok South",
+            "Bomet Central",
+            "Konoin",
+            "Molo",
+            "Emurua Dikirr",
+            "Chepalungu",
+            "Bomet East",
+        ]
     )
     assert sorted(sio_sub_counties) == sorted(
-        ["Sio-Siteko Region", "Busia", "Namayingo", "Tororo", "Bugiri"]
+        [
+            "Sio-Siteko Region",
+            "Kakamega",
+            "Busia",
+            "Bungoma",
+            "Matungu",
+            "Budalangi",
+            "Funyula",
+            "Teso South",
+            "Butula",
+            "Bumula",
+            "Matayos",
+            "Nambale",
+            "Kanduyi",
+        ]
     )
+
+    # Verify high-fidelity GeoJSON geometries loaded
+    lower_mara = (
+        db_session.query(Wetland)
+        .filter(Wetland.code == "LOWER_MARA_WETLAND")
+        .first()
+    )
+    sio_estuary = (
+        db_session.query(Wetland)
+        .filter(Wetland.code == "SIO_ESTUARY_WETLAND")
+        .first()
+    )
+    assert lower_mara is not None
+    assert sio_estuary is not None
+
+    lower_mara_shp = to_shape(lower_mara.geom)
+    sio_estuary_shp = to_shape(sio_estuary.geom)
+    assert lower_mara_shp.geom_type == "MultiPolygon"
+    assert sio_estuary_shp.geom_type == "MultiPolygon"
+    assert len(lower_mara_shp.geoms[0].exterior.coords) > 5
 
     # 6. Test Idempotency
     seed_spatial(db_session)
     assert len(db_session.query(Basin).all()) == 2
     assert len(db_session.query(Wetland).all()) == 2
     assert len(db_session.query(Site).all()) == 4
-    assert len(db_session.query(SpatialBoundary).all()) == 11
+    assert len(db_session.query(SpatialBoundary).all()) == 28

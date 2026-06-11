@@ -67,8 +67,13 @@ class WetlandBase(BaseModel):
     def validate_geom(cls, v: Dict[str, Any]) -> Dict[str, Any]:
         try:
             s = shape(v)
-            if s.geom_type != "Polygon":
-                raise ValueError("Geometry must be a Polygon")
+            if s.geom_type not in ("Polygon", "MultiPolygon"):
+                raise ValueError("Geometry must be a Polygon or MultiPolygon")
+            if s.geom_type == "Polygon":
+                from shapely.geometry import MultiPolygon, mapping
+
+                s = MultiPolygon([s])
+                return mapping(s)
         except Exception as e:
             raise ValueError(f"Invalid geometry: {str(e)}")
         return v
@@ -130,11 +135,15 @@ class SpatialBoundaryBase(BaseModel):
         default=None, description="Parent spatial boundary ID"
     )
     basin_id: uuid.UUID
-    centroid_geom: Dict[str, Any]
+    centroid_geom: Dict[str, Any] | None = Field(
+        default=None, description="Centroid coordinate point"
+    )
 
     @field_validator("centroid_geom", mode="before")
     @classmethod
     def preprocess_geom(cls, v: Any) -> Any:
+        if v is None:
+            return None
         if isinstance(v, dict):
             return v
         try:
@@ -147,7 +156,9 @@ class SpatialBoundaryBase(BaseModel):
 
     @field_validator("centroid_geom")
     @classmethod
-    def validate_geom(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_geom(cls, v: Dict[str, Any] | None) -> Dict[str, Any] | None:
+        if v is None:
+            return None
         try:
             s = shape(v)
             if s.geom_type != "Point":

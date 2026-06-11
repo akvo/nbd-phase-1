@@ -1,16 +1,41 @@
 import os
 import json
 import logging
+import csv
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import from_shape
-from shapely.geometry import shape
+from shapely.geometry import shape, Polygon, MultiPolygon
 from app.models.spatial import Basin, Wetland, Site, SpatialBoundary
 
 logger = logging.getLogger(__name__)
 
 
+def load_geojson_geometry(filename: str) -> MultiPolygon:
+    geojson_path = os.path.join(os.path.dirname(__file__), "spatial", filename)
+    with open(geojson_path, "r") as file:
+        gj_data = json.load(file)
+
+    if gj_data.get("type") == "FeatureCollection":
+        geom_data = gj_data["features"][0]["geometry"]
+    elif gj_data.get("type") == "GeometryCollection":
+        geom_data = [
+            g
+            for g in gj_data["geometries"]
+            if g["type"] in ("Polygon", "MultiPolygon")
+        ][0]
+    else:
+        geom_data = gj_data
+
+    geom_shape = shape(geom_data)
+
+    if isinstance(geom_shape, Polygon):
+        geom_shape = MultiPolygon([geom_shape])
+
+    return geom_shape
+
+
 def seed_spatial(db: Session):
-    logger.info("Starting spatial seeding from JSON data...")
+    logger.info("Starting spatial seeding from JSON and GeoJSON data...")
 
     json_path = os.path.join(
         os.path.dirname(__file__), "spatial", "spatial_data.json"
@@ -22,21 +47,47 @@ def seed_spatial(db: Session):
     with open(json_path, "r") as file:
         data = json.load(file)
 
+    geojson_basins = {
+        "MARA": "mara-basin.geojson",
+        "SIO_SITEKO": "sio-basin.geojson",
+    }
+
+    geojson_wetlands = {
+        "LOWER_MARA_WETLAND": "mara-wetland.geojson",
+        "SIO_ESTUARY_WETLAND": "sio-siteko-wetland.geojson",
+    }
+
     # 1. Seed Basins
     for b_data in data.get("basins", []):
         basin_id = b_data["basin_id"]
+
+        geojson_file = geojson_basins.get(basin_id)
+        if geojson_file:
+            try:
+                geom_shape = load_geojson_geometry(geojson_file)
+                geom_val = from_shape(geom_shape, srid=4326)
+            except Exception as e:
+                logger.error(
+                    "Failed to load GeoJSON for basin %s: %s", basin_id, e
+                )
+                geom_val = from_shape(shape(b_data["geom"]), srid=4326)
+        else:
+            geom_val = from_shape(shape(b_data["geom"]), srid=4326)
+
         basin = db.query(Basin).filter(Basin.code == basin_id).first()
         if not basin:
             basin = Basin(
                 code=basin_id,
                 name=b_data["name"],
-                geom=from_shape(shape(b_data["geom"]), srid=4326),
+                geom=geom_val,
             )
             db.add(basin)
             db.flush()
             logger.info("Created Basin: %s", basin_id)
         else:
-            logger.info("Basin already exists: %s", basin_id)
+            basin.geom = geom_val
+            db.flush()
+            logger.info("Updated Basin geometry: %s", basin_id)
 
     # 2. Seed Wetlands
     for w_data in data.get("wetlands", []):
@@ -54,19 +105,39 @@ def seed_spatial(db: Session):
             )
             continue
 
+        geojson_file = geojson_wetlands.get(wetland_id)
+        if geojson_file:
+            try:
+                geom_shape = load_geojson_geometry(geojson_file)
+                geom_val = from_shape(geom_shape, srid=4326)
+            except Exception as e:
+                logger.error(
+                    "Failed to load GeoJSON for wetland %s: %s",
+                    wetland_id,
+                    e,
+                )
+                geom_val = from_shape(shape(w_data["geom"]), srid=4326)
+        else:
+            geom_shape = shape(w_data["geom"])
+            if isinstance(geom_shape, Polygon):
+                geom_shape = MultiPolygon([geom_shape])
+            geom_val = from_shape(geom_shape, srid=4326)
+
         wetland = db.query(Wetland).filter(Wetland.code == wetland_id).first()
         if not wetland:
             wetland = Wetland(
                 code=wetland_id,
                 basin_id=parent_basin.id,
                 name=w_data["name"],
-                geom=from_shape(shape(w_data["geom"]), srid=4326),
+                geom=geom_val,
             )
             db.add(wetland)
             db.flush()
             logger.info("Created Wetland: %s", wetland_id)
         else:
-            logger.info("Wetland already exists: %s", wetland_id)
+            wetland.geom = geom_val
+            db.flush()
+            logger.info("Updated Wetland geometry: %s", wetland_id)
 
     # 3. Seed Sites
     for s_data in data.get("sites", []):
@@ -158,74 +229,118 @@ def seed_spatial(db: Session):
 
         level1_map[sb_name] = sb.id
 
-    # 4.2 Seed Level 2 Boundaries (Districts / Sub-counties)
-    for sb_data in [b for b in boundaries_data if b.get("level") == 2]:
-        sb_name = sb_data["name"]
-        basin_id_str = sb_data["basin_id"]
-        parent_name = sb_data.get("parent_name")
+    # 4.2 Seed Level 2 (Counties) and Level 3 (Sub-counties) from CSV files
+    csv_mappings = [
+        {
+            "file": "Mara-sub-counties.csv",
+            "basin_code": "MARA",
+            "parent_region_name": "Mara Region",
+        },
+        {
+            "file": "Sio-sub-counties.csv",
+            "basin_code": "SIO_SITEKO",
+            "parent_region_name": "Sio-Siteko Region",
+        },
+    ]
 
-        parent_basin = (
-            db.query(Basin).filter(Basin.code == basin_id_str).first()
-        )
+    for mapping in csv_mappings:
+        csv_file = mapping["file"]
+        basin_code = mapping["basin_code"]
+        parent_region_name = mapping["parent_region_name"]
+
+        parent_basin = db.query(Basin).filter(Basin.code == basin_code).first()
         if not parent_basin:
             logger.error(
-                "Parent Basin %s not found for District %s",
-                basin_id_str,
-                sb_name,
+                "Parent Basin %s not found for CSV %s", basin_code, csv_file
             )
             continue
 
-        parent_id = None
-        if parent_name:
-            parent_id = level1_map.get(parent_name)
-            if not parent_id:
-                # Fallback to query
-                parent_obj = (
+        region_id = level1_map.get(parent_region_name)
+        if not region_id:
+            region_obj = (
+                db.query(SpatialBoundary)
+                .filter(
+                    SpatialBoundary.name == parent_region_name,
+                    SpatialBoundary.basin_id == parent_basin.id,
+                    SpatialBoundary.level == 1,
+                )
+                .first()
+            )
+            if region_obj:
+                region_id = region_obj.id
+            else:
+                logger.error("Region %s not found in DB", parent_region_name)
+                continue
+
+        csv_path = os.path.join(os.path.dirname(__file__), "spatial", csv_file)
+        if not os.path.exists(csv_path):
+            logger.error("CSV file not found at %s", csv_path)
+            continue
+
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                county_name = row.get("County", "").strip()
+                sub_county_name = row.get("Sub-County", "").strip()
+
+                if not county_name or not sub_county_name:
+                    continue
+
+                # 1. Look up or create County (Level 2)
+                county_obj = (
                     db.query(SpatialBoundary)
                     .filter(
-                        SpatialBoundary.name == parent_name,
+                        SpatialBoundary.name == county_name,
                         SpatialBoundary.basin_id == parent_basin.id,
-                        SpatialBoundary.level == 1,
+                        SpatialBoundary.level == 2,
+                        SpatialBoundary.parent_id == region_id,
                     )
                     .first()
                 )
-                if parent_obj:
-                    parent_id = parent_obj.id
 
-        sb = (
-            db.query(SpatialBoundary)
-            .filter(
-                SpatialBoundary.name == sb_name,
-                SpatialBoundary.basin_id == parent_basin.id,
-                SpatialBoundary.level == 2,
-            )
-            .first()
-        )
+                if not county_obj:
+                    county_obj = SpatialBoundary(
+                        name=county_name,
+                        basin_id=parent_basin.id,
+                        level=2,
+                        parent_id=region_id,
+                        centroid_geom=None,
+                    )
+                    db.add(county_obj)
+                    db.flush()
+                    logger.info(
+                        "Created County (Level 2): %s in Basin %s",
+                        county_name,
+                        basin_code,
+                    )
 
-        sh_geom = shape(sb_data["centroid_geom"])
+                # 2. Look up or create Sub-County (Level 3)
+                sub_county_obj = (
+                    db.query(SpatialBoundary)
+                    .filter(
+                        SpatialBoundary.name == sub_county_name,
+                        SpatialBoundary.basin_id == parent_basin.id,
+                        SpatialBoundary.level == 3,
+                        SpatialBoundary.parent_id == county_obj.id,
+                    )
+                    .first()
+                )
 
-        if not sb:
-            sb = SpatialBoundary(
-                name=sb_name,
-                basin_id=parent_basin.id,
-                level=2,
-                parent_id=parent_id,
-                centroid_geom=from_shape(sh_geom, srid=4326),
-            )
-            db.add(sb)
-            logger.info(
-                "Created District (Level 2): %s in Basin %s",
-                sb_name,
-                basin_id_str,
-            )
-        else:
-            sb.parent_id = parent_id
-            sb.centroid_geom = from_shape(sh_geom, srid=4326)
-            logger.info(
-                "Updated District (Level 2): %s in Basin %s",
-                sb_name,
-                basin_id_str,
-            )
+                if not sub_county_obj:
+                    sub_county_obj = SpatialBoundary(
+                        name=sub_county_name,
+                        basin_id=parent_basin.id,
+                        level=3,
+                        parent_id=county_obj.id,
+                        centroid_geom=None,
+                    )
+                    db.add(sub_county_obj)
+                    db.flush()
+                    logger.info(
+                        "Created Sub-County (Level 3): %s under County %s",
+                        sub_county_name,
+                        county_name,
+                    )
 
     db.commit()
     logger.info("Spatial seeding successfully completed!")

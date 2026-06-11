@@ -162,30 +162,42 @@ def handle_ussd(
         # Default fallback
         basins = ["MARA", "SIO_SITEKO"]
 
-    # Fetch sub-counties sorted alphabetically (level 2)
-    subcounties = (
+    # Fetch Level 2 (Districts/Counties) sorted by basin and name
+    counties = (
         db.query(SpatialBoundary)
         .join(Basin)
         .filter(Basin.code.in_(basins), SpatialBoundary.level == 2)
-        .order_by(SpatialBoundary.name)
+        .order_by(SpatialBoundary.basin_id, SpatialBoundary.name)
         .all()
     )
 
+    menu_lines = []
+    current_parent_id = None
+    for idx, sc in enumerate(counties, 1):
+        if sc.parent_id != current_parent_id:
+            current_parent_id = sc.parent_id
+            parent = sc.parent
+            if parent:
+                if menu_lines:
+                    menu_lines.append("")
+                if lang == "sw":
+                    menu_lines.append(f"{parent.name} (Mkoa):")
+                else:
+                    menu_lines.append(f"{parent.name} (Region):")
+        menu_lines.append(f"  {idx}. {sc.name}")
+
     if depth == 3:
-        menu_items = []
-        for idx, sc in enumerate(subcounties, 1):
-            menu_items.append(f"{idx}: {sc.name}")
         if lang == "sw":
-            response_text = "CON Chagua Mahali:\n" + "\n".join(menu_items)
+            response_text = "CON Chagua Mahali:\n" + "\n".join(menu_lines)
         else:
-            response_text = "CON Choose Location:\n" + "\n".join(menu_items)
+            response_text = "CON Choose Location:\n" + "\n".join(menu_lines)
         return PlainTextResponse(clean_ussd_response(response_text))
 
-    # Step 4: Terminal processing and saving
+    # Parse County choice
     location_index_str = parts[3]
     try:
-        location_idx = int(location_index_str) - 1
-        if location_idx < 0 or location_idx >= len(subcounties):
+        county_idx = int(location_index_str) - 1
+        if county_idx < 0 or county_idx >= len(counties):
             raise ValueError()
     except ValueError:
         if lang == "sw":
@@ -197,7 +209,58 @@ def handle_ussd(
         processed_sessions[sessionId] = response_text
         return PlainTextResponse(clean_ussd_response(response_text))
 
-    selected_sc = subcounties[location_idx]
+    selected_county = counties[county_idx]
+
+    # Check if there are Level 3 sub-counties below the selected county
+    sub_counties = (
+        db.query(SpatialBoundary)
+        .filter(
+            SpatialBoundary.level == 3,
+            SpatialBoundary.parent_id == selected_county.id,
+        )
+        .order_by(SpatialBoundary.name)
+        .all()
+    )
+
+    if sub_counties:
+        sub_menu_lines = [
+            f"  {idx}. {sc.name}" for idx, sc in enumerate(sub_counties, 1)
+        ]
+        if depth == 4:
+            if lang == "sw":
+                response_text = (
+                    f"CON Chagua Wilaya ndogo ya {selected_county.name}:\n"
+                    + "\n".join(sub_menu_lines)
+                )
+            else:
+                response_text = (
+                    f"CON Choose Sub-County of {selected_county.name}:\n"
+                    + "\n".join(sub_menu_lines)
+                )
+            return PlainTextResponse(clean_ussd_response(response_text))
+
+        # Parse Sub-county choice
+        sub_county_index_str = parts[4]
+        try:
+            sub_county_idx = int(sub_county_index_str) - 1
+            if sub_county_idx < 0 or sub_county_idx >= len(sub_counties):
+                raise ValueError()
+        except ValueError:
+            if lang == "sw":
+                response_text = (
+                    "END Uteuzi wa wilaya ndogo sio sahihi. Kikao kimefungwa."
+                )
+            else:
+                response_text = (
+                    "END Invalid sub-county selection. Session closed."
+                )
+            processed_sessions[sessionId] = response_text
+            return PlainTextResponse(clean_ussd_response(response_text))
+
+        selected_sc = sub_counties[sub_county_idx]
+    else:
+        # No level 3 sub-counties exist, treat County selection as final
+        selected_sc = selected_county
 
     # Geocode and save report
     if not form:
@@ -256,14 +319,30 @@ def handle_ussd(
             # Fallback if site not found in database
             dp.basin_id = selected_sc.basin_id
             centroid_geom = selected_sc.centroid_geom
-            point = to_shape(centroid_geom)
-            dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+            curr_parent = selected_sc.parent
+            while not centroid_geom and curr_parent:
+                centroid_geom = curr_parent.centroid_geom
+                curr_parent = curr_parent.parent
+
+            if centroid_geom:
+                point = to_shape(centroid_geom)
+                dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+            else:
+                dp.geo = None
     else:
         # Fallback to selected sub-county centroid
         dp.basin_id = selected_sc.basin_id
         centroid_geom = selected_sc.centroid_geom
-        point = to_shape(centroid_geom)
-        dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+        curr_parent = selected_sc.parent
+        while not centroid_geom and curr_parent:
+            centroid_geom = curr_parent.centroid_geom
+            curr_parent = curr_parent.parent
+
+        if centroid_geom:
+            point = to_shape(centroid_geom)
+            dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
+        else:
+            dp.geo = None
 
     db.add(dp)
     db.flush()
