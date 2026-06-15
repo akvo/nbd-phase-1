@@ -76,6 +76,10 @@ class Datapoint(Base):
         "Answer", back_populates="datapoint", cascade="all, delete-orphan"
     )
 
+    @property
+    def form_name(self) -> str:
+        return self.form.name if self.form else "Unknown Form"
+
     __table_args__ = (
         CheckConstraint(
             "(basin_id IS NOT NULL)::int + "

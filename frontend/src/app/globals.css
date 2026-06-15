@@ -212,3 +212,19 @@
   background-color: #303030;
   opacity: 8%;
 }
+
+/* Akvo React Form styles */
+.arf-sidebar .arf-sidebar-list {
+  padding: 10px 20px !important;
+}
+
+.ant-list-item {
+  display: flex !important;
+  justify-content: flex-start !important;
+  padding: 12px 0 !important;
+}
+
+.ant-list-split .ant-list-item {
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+/* End Akvo React Form styles */

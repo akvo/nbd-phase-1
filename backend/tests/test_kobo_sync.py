@@ -471,7 +471,7 @@ def test_sync_kobo_image_attachment_uploaded_to_gcs(
     # GCS upload was called once for the image
     assert len(captured_uploads) == 1
     upload = captured_uploads[0]
-    assert upload["blob_name"].startswith("development/kobo/")
+    assert upload["blob_name"].startswith("media/kobo/")
     assert upload["blob_name"].endswith(".jpg")
     assert upload["content_type"] == "image/jpeg"
 
@@ -491,7 +491,7 @@ def test_sync_kobo_image_attachment_uploaded_to_gcs(
     assert len(answers) == 1
     img_answer = answers[0]
     assert img_answer.name is not None
-    assert img_answer.name.startswith("development/kobo/")
+    assert img_answer.name.startswith("media/kobo/")
     assert img_answer.name.endswith(".jpg")
 
 

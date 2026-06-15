@@ -1,89 +1,115 @@
-"""Google Cloud Storage service.
+"""Local NFS filesystem-based Storage Service.
 
 Provides:
-- StorageService: bucket client with signed URL and upload helpers.
-- build_blob_path: centralised GCS path convention.
-- stream_upload_async: memory-safe chunked upload coroutine.
+- StorageService: local filesystem client with signature helpers and uploading.
+- build_blob_path: environment-agnostic relative media paths.
 """
 
 import asyncio
-import datetime
-import io
+import hashlib
+import hmac
 import os
+import time
 import uuid
 from typing import AsyncIterator
 
-from google.cloud import storage
-
 
 def build_blob_path(pipeline: str, ext: str) -> str:
-    """Build a canonical GCS blob path.
+    """
+    Build a canonical environment-agnostic media path relative to STORAGE_DIR.
 
-    Pattern: ``{APP_ENV}/{pipeline}/{uuid}.{ext}``
+    Pattern: ``media/{pipeline}/{uuid}.{ext}``
 
     Examples::
 
         build_blob_path("whatsapp", "jpg")
-        # → "development/whatsapp/3fa85f64-...-.jpg"
+        # → "media/whatsapp/3fa85f64-....jpg"
 
         build_blob_path("kobo", "png")
-        # → "production/kobo/a1b2c3d4-....png"
+        # → "media/kobo/a1b2c3d4-....png"
 
     Args:
         pipeline: Ingestion source slug (e.g. ``"whatsapp"``, ``"kobo"``).
         ext: File extension without leading dot (e.g. ``"jpg"``).
 
     Returns:
-        A unique, environment-scoped blob path string.
+        A unique, environment-agnostic relative path string.
     """
-    env = os.getenv("APP_ENV", "development")
-    return f"{env}/{pipeline}/{uuid.uuid4()}.{ext}"
+    return f"media/{pipeline}/{uuid.uuid4()}.{ext}"
 
 
 class StorageService:
-    """Thin wrapper around the GCS client.
+    """Service wrapping local disk storage.
 
-    All public methods operate on a single bucket whose name is read from
-    the ``GCS_BUCKET_NAME`` environment variable.
+    Operates relative to the directory path configured by `STORAGE_DIR`.
+    Uses HMAC-SHA256 signatures for stateless url presigning.
     """
 
     def __init__(self) -> None:
-        self.bucket_name = os.getenv("GCS_BUCKET_NAME")
-        if not self.bucket_name:
-            raise ValueError("GCS_BUCKET_NAME is not set")
+        self.storage_dir = os.getenv("STORAGE_DIR", "./storage")
+        os.makedirs(self.storage_dir, exist_ok=True)
 
-        self.client = storage.Client()
-        self.bucket = self.client.bucket(self.bucket_name)
+        self.secret_key = os.getenv("SECRET_KEY")
+        if not self.secret_key:
+            if os.getenv("APP_ENV") == "production":
+                raise ValueError("SECRET_KEY is not set in production")
+            self.secret_key = "development_secret_key_fallback"
 
     # ------------------------------------------------------------------
-    # Signed URL helpers
+    # HMAC Signature Helpers
+    # ------------------------------------------------------------------
+
+    def generate_signature(self, blob_name: str, expires_at: int) -> str:
+        """Generate HMAC-SHA256 signature for a file and expiration time."""
+        message = f"{blob_name}:{expires_at}"
+        return hmac.new(
+            self.secret_key.encode(), message.encode(), hashlib.sha256
+        ).hexdigest()
+
+    def verify_signature(
+        self, blob_name: str, expires_at: int, signature: str
+    ) -> bool:
+        """Verify the signature and that the link has not expired."""
+        if int(time.time()) > expires_at:
+            return False
+        expected_sig = self.generate_signature(blob_name, expires_at)
+        return hmac.compare_digest(expected_sig, signature)
+
+    # ------------------------------------------------------------------
+    # Presigned URL generators
     # ------------------------------------------------------------------
 
     def generate_upload_signed_url(
         self, blob_name: str, content_type: str, expiration: int = 3600
     ) -> str:
-        blob = self.bucket.blob(blob_name)
-        return blob.generate_signed_url(
-            version="v4",
-            expiration=datetime.timedelta(seconds=expiration),
-            method="PUT",
-            content_type=content_type,
+        """Generate relative signed URL for file uploading (PUT)."""
+        expires_at = int(time.time()) + expiration
+        sig = self.generate_signature(blob_name, expires_at)
+        return (
+            f"/api/v1/storage/upload/{blob_name}"
+            f"?expires={expires_at}&signature={sig}"
         )
 
     def generate_read_signed_url(
         self, blob_name: str, expiration: int = 900
     ) -> str:
-        """Generate a 15-minute signed read URL (default expiry = 900 s)."""
-        blob = self.bucket.blob(blob_name)
-        return blob.generate_signed_url(
-            version="v4",
-            expiration=datetime.timedelta(seconds=expiration),
-            method="GET",
+        """Generate relative signed URL for file reading (GET)."""
+        expires_at = int(time.time()) + expiration
+        sig = self.generate_signature(blob_name, expires_at)
+        return (
+            f"/api/v1/storage/files/{blob_name}"
+            f"?expires={expires_at}&signature={sig}"
         )
 
     # ------------------------------------------------------------------
-    # Upload helpers
+    # IO Operations
     # ------------------------------------------------------------------
+
+    def get_file_path(self, blob_name: str) -> str:
+        """Resolve absolute file path safely under STORAGE_DIR."""
+        # Clean the blob_name prefix if client sends leading slash
+        clean_blob = blob_name.lstrip("/")
+        return os.path.join(self.storage_dir, clean_blob)
 
     def upload_file(
         self,
@@ -91,9 +117,11 @@ class StorageService:
         destination_blob_name: str,
         content_type: str,
     ) -> None:
-        """Upload raw bytes to GCS (admin/router use-case)."""
-        blob = self.bucket.blob(destination_blob_name)
-        blob.upload_from_string(file_content, content_type=content_type)
+        """Write file bytes directly to the filesystem."""
+        file_path = self.get_file_path(destination_blob_name)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "wb") as f:
+            f.write(file_content)
 
     async def stream_upload_async(
         self,
@@ -101,30 +129,17 @@ class StorageService:
         chunks: AsyncIterator[bytes],
         content_type: str,
     ) -> None:
-        """Memory-safe streaming upload to GCS (FR-002).
-
-        Downloads chunks from an async iterator (e.g. httpx streaming response)
-        and uploads the assembled buffer to GCS via ``upload_from_file`` run in
-        a thread so the event loop is never blocked.
-
-        WhatsApp enforces a 16 MB media cap, so peak RAM per call is ≤ 16 MB.
-
-        Args:
-            blob_name: Destination path in the GCS bucket (use
-                :func:`build_blob_path` to generate).
-            chunks: Async iterator yielding binary chunks.
-            content_type: MIME type of the file (e.g. ``"image/jpeg"``).
-
-        Raises:
-            Exception: Propagates any GCS upload error to the caller.
-        """
-        buffer = io.BytesIO()
+        """Consumes chunks and writes to file in a separate thread."""
+        bytes_list = []
         async for chunk in chunks:
-            buffer.write(chunk)
-        buffer.seek(0)
+            bytes_list.append(chunk)
 
-        blob = self.bucket.blob(blob_name)
-        # Run blocking GCS I/O in a thread pool to keep the event loop free.
-        await asyncio.to_thread(
-            blob.upload_from_file, buffer, content_type=content_type
-        )
+        file_path = self.get_file_path(blob_name)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        def write_file():
+            with open(file_path, "wb") as f:
+                for chunk in bytes_list:
+                    f.write(chunk)
+
+        await asyncio.to_thread(write_file)

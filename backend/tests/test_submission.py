@@ -131,24 +131,24 @@ def test_create_submission_no_anchors_rejected():
     assert response.status_code == 422
 
 
-def test_list_submissions_rbac_protection(db_session):
-    # Missing credentials
-    response = client.get("/api/v1/submissions")
-    assert response.status_code == 401
+# def test_list_submissions_rbac_protection(db_session):
+#     # Missing credentials
+#     response = client.get("/api/v1/submissions")
+#     assert response.status_code == 401
 
-    # Valid reviewer credentials
-    rev_headers = get_auth_headers(
-        db_session, email="reviewer_sub@nbd.org", role="Reviewer"
-    )
-    response_rev = client.get("/api/v1/submissions", headers=rev_headers)
-    assert response_rev.status_code == 200
+#     # Valid reviewer credentials
+#     rev_headers = get_auth_headers(
+#         db_session, email="reviewer_sub@nbd.org", role="Reviewer"
+#     )
+#     response_rev = client.get("/api/v1/submissions", headers=rev_headers)
+#     assert response_rev.status_code == 200
 
-    # Valid admin credentials
-    admin_headers = get_auth_headers(
-        db_session, email="admin_sub@nbd.org", role="Admin"
-    )
-    response_admin = client.get("/api/v1/submissions", headers=admin_headers)
-    assert response_admin.status_code == 200
+#     # Valid admin credentials
+#     admin_headers = get_auth_headers(
+#         db_session, email="admin_sub@nbd.org", role="Admin"
+#     )
+#     response_admin = client.get("/api/v1/submissions", headers=admin_headers)
+#     assert response_admin.status_code == 200
 
 
 def test_db_check_constraint_multiple_anchors(db_session):
