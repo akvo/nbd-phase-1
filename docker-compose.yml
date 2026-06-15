@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mainnetwork:
     image: alpine:latest
@@ -40,6 +38,8 @@ services:
       - MAIL_FROM=${MAIL_FROM}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
       - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
+      - STORAGE_DIR=${STORAGE_DIR}
+      - SECRET_KEY=${SECRET_KEY}
       - KOBOTOOLBOX_API_URL=${KOBOTOOLBOX_API_URL}
       - KOBOTOOLBOX_API_TOKEN=${KOBOTOOLBOX_API_TOKEN}
       - WHATSAPP_APP_SECRET=${WHATSAPP_APP_SECRET}
@@ -48,6 +48,7 @@ services:
       - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
     volumes:
       - ./credentials:/credentials:ro
+      - ./storage:/app/storage
     command: ./start.sh
     depends_on:
       - db
@@ -69,13 +70,16 @@ services:
       - MAIL_FROM=${MAIL_FROM}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
       - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
+      - STORAGE_DIR=${STORAGE_DIR}
+      - SECRET_KEY=${SECRET_KEY}
       - KOBOTOOLBOX_API_URL=${KOBOTOOLBOX_API_URL}
       - KOBOTOOLBOX_API_TOKEN=${KOBOTOOLBOX_API_TOKEN}
       - WHATSAPP_APP_SECRET=${WHATSAPP_APP_SECRET}
       - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
       - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
       - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
-
+    volumes:
+      - ./storage:/app/storage
     command: ./start.sh python -m app.scheduler
     depends_on:
       - db
