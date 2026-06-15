@@ -62,7 +62,7 @@ We will run the shadcn init command inside the running frontend container:
 We will install the basic components required for styling:
 
 ```bash
-./dc.sh exec frontend npx shadcn@latest add button card input dialog --yes
+./dc.sh exec frontend npx shadcn@latest add button card input dialog table --yes
 ```
 
 ---

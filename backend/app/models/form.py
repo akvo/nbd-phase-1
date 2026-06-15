@@ -46,6 +46,14 @@ class QuestionType(str, enum.Enum):
     attachment = "attachment"
 
 
+class FormType(int, enum.Enum):
+    CITIZEN_REPORTER = 1
+    CITIZEN_SCIENTIST = 2
+    INDIGENOUS_KNOWLEDGE = 3  # FGD / Indigenous Knowledge Record
+    LAB_QA = 4
+    EXTERNAL_SATELLITE = 5
+
+
 class Form(Base):
     __tablename__ = "form"
 

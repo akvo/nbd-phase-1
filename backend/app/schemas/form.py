@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.models.form import QuestionType
 from app.services.translation import get_translation
 
@@ -247,3 +247,223 @@ class FormPublishedVersionResponse(BaseModel):
     published_by_id: Optional[UUID] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class BlueprintOptionSchema(BaseModel):
+    id: Optional[int] = None
+    name: Optional[str] = None
+    label: Optional[str] = None
+    value: Optional[str] = None
+    order: Optional[int] = None
+    other: bool = False
+    color: Optional[str] = None
+    translations: List[Dict[str, Any]] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def from_orm_model(cls, opt):
+        if not opt:
+            return None
+        return cls(
+            id=opt.id,
+            name=opt.label,
+            label=opt.label,
+            value=opt.value,
+            order=opt.order,
+            other=opt.other,
+            color=opt.color,
+            translations=opt.translations or [],
+        )
+
+
+class BlueprintQuestionSchema(BaseModel):
+    id: int
+    name: Optional[str] = None
+    label: str
+    short_label: Optional[str] = None
+    shortLabel: Optional[str] = None
+    type: str
+    required: bool = True
+    rule: Optional[Dict[str, Any]] = None
+    dependency: Optional[List[Dict[str, Any]]] = None
+    dependency_rule: Optional[str] = None
+    dependencyRule: Optional[str] = None
+    api: Optional[Dict[str, Any]] = None
+    extra: Optional[Dict[str, Any]] = None
+    tooltip: Optional[Dict[str, Any]] = None
+    fn: Optional[Dict[str, Any]] = None
+    pre: Optional[Dict[str, Any]] = None
+    displayOnly: bool = False
+    display_only: bool = False
+    hiddenString: bool = False
+    hidden_string: bool = False
+    requiredDoubleEntry: bool = False
+    required_double_entry: bool = False
+    requiredSign: Optional[str] = None
+    required_sign: Optional[str] = None
+    meta: bool = False
+    translations: List[Dict[str, Any]] = []
+    option: Optional[Any] = None
+    options: Optional[List[BlueprintOptionSchema]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_options(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            opt = data.get("option")
+            opts = data.get("options")
+            if opt is None and opts is not None:
+                data["option"] = opts
+            elif opt is not None and opts is None:
+                if isinstance(opt, list):
+                    data["options"] = opt
+        return data
+
+    @classmethod
+    def from_orm_model(cls, q):
+        opts = (
+            [BlueprintOptionSchema.from_orm_model(o) for o in q.options]
+            if q.options
+            else []
+        )
+        extra = q.extra or {}
+
+        opt_val = opts if opts else None
+        if extra and "option" in extra and isinstance(extra["option"], str):
+            opt_val = extra["option"]
+
+        q_type_str = q.type.value if hasattr(q.type, "value") else str(q.type)
+
+        return cls(
+            id=q.id,
+            name=q.name,
+            label=q.label,
+            short_label=q.short_label,
+            shortLabel=q.short_label,
+            type=q_type_str,
+            required=q.required,
+            rule=q.rule,
+            dependency=q.dependency,
+            dependency_rule=q.dependency_rule,
+            dependencyRule=q.dependency_rule,
+            api=q.api,
+            extra=q.extra,
+            tooltip=q.tooltip,
+            fn=q.fn,
+            pre=q.pre,
+            displayOnly=q.display_only or False,
+            display_only=q.display_only or False,
+            hiddenString=extra.get("hiddenString", False),
+            hidden_string=extra.get("hiddenString", False),
+            requiredDoubleEntry=extra.get("requiredDoubleEntry", False),
+            required_double_entry=extra.get("requiredDoubleEntry", False),
+            requiredSign=extra.get("requiredSign"),
+            required_sign=extra.get("requiredSign"),
+            meta=q.meta,
+            translations=q.translations or [],
+            option=opt_val,
+            options=opts if opts else None,
+        )
+
+
+class BlueprintQuestionGroupSchema(BaseModel):
+    id: int
+    name: str
+    label: Optional[str] = None
+    description: Optional[str] = None
+    order: Optional[int] = None
+    repeatable: bool = False
+    repeatText: Optional[str] = None
+    repeat_text: Optional[str] = None
+    repeatButtonPlacement: Optional[str] = None
+    translations: List[Dict[str, Any]] = []
+    question: List[BlueprintQuestionSchema] = []
+    questions: List[BlueprintQuestionSchema] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_questions(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            q = data.get("question")
+            qs = data.get("questions")
+            if not q and qs:
+                data["question"] = qs
+            elif q and not qs:
+                data["questions"] = q
+        return data
+
+    @classmethod
+    def from_orm_model(cls, g):
+        qs = (
+            [
+                BlueprintQuestionSchema.from_orm_model(q)
+                for q in g.questions
+                if q.deleted_at is None
+            ]
+            if g.questions
+            else []
+        )
+        return cls(
+            id=g.id,
+            name=g.name,
+            label=g.label,
+            description=g.label,
+            order=g.order,
+            repeatable=g.repeatable,
+            repeatText=g.repeat_text,
+            repeat_text=g.repeat_text,
+            repeatButtonPlacement=None,
+            translations=g.translations or [],
+            question=qs,
+            questions=qs,
+        )
+
+
+class FormBlueprintResponse(BaseModel):
+    form_id: Optional[int] = None
+    name: str
+    type: int = 1
+    version: int = 1
+    languages: List[str] = ["en"]
+    defaultLanguage: str = "en"
+    translations: List[Dict[str, Any]] = []
+    question_group: List[BlueprintQuestionGroupSchema] = []
+    question_groups: List[BlueprintQuestionGroupSchema] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_groups(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            q_group = data.get("question_group")
+            q_groups = data.get("question_groups")
+            if not q_group and q_groups:
+                data["question_group"] = q_groups
+            elif q_group and not q_groups:
+                data["question_groups"] = q_group
+        return data
+
+    @classmethod
+    def from_orm_model(cls, db_form, active_groups):
+        groups = [
+            BlueprintQuestionGroupSchema.from_orm_model(g)
+            for g in active_groups
+        ]
+        return cls(
+            form_id=db_form.id,
+            name=db_form.name,
+            type=db_form.type,
+            version=db_form.version,
+            languages=db_form.languages or ["en"],
+            defaultLanguage="en",
+            translations=db_form.translations or [],
+            question_group=groups,
+            question_groups=groups,
+        )
+
