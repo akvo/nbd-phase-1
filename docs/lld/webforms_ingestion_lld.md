@@ -107,7 +107,18 @@ A new router file `backend/app/routers/internal_router.py` will expose the follo
      - `status` = `'PENDING'` (requires moderation)
   3. Iterates over answers list and saves each dynamic question answer as a row in the `answer` (EAV) table.
 
+
+### 3.4 Question Type Mapping & Media Uploads
+To fully support all Akvo-React-Form field types, `resolve_answers_and_anchors` parses and maps question values to correct database columns in the `Answer` model:
+- **`number`**: Placed in `Answer.value` (float).
+- **`cascade`**: Stored as a list of hierarchical strings in `Answer.options`, and the terminal/last element is stored in `Answer.name`.
+- **`multiple_option`**: Stored as a list of selected values in `Answer.options`.
+- **`image`, `signature`, `attachment`**: Checked for base64 encoded data URLs (e.g. `data:image/` or `data:application/`). If present, decodes the payload, uploads the binary file to local NFS storage using `StorageService`, and stores the relative path in `Answer.name`.
+- **`geo`, `geotrace`, `geoshape`**: Coordinates list/dict serialized as JSON strings and stored in `Answer.name`.
+- **All other types**: Stored as strings in `Answer.name`.
+
 ---
+
 
 ## 4. Verification Plan
 
