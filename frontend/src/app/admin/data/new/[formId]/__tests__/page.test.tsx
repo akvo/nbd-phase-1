@@ -100,9 +100,9 @@ describe('NewFormPage', () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith('/internal/fgd', {
+        '1': 'GOOD',
         wetland_id: 1,
         form_id: 1,
-        answers: [{ question_id: 1, value: 'GOOD' }],
       });
     });
   });

@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import L from 'leaflet';
+// Dynamically import Webform from akvo-react-form to prevent SSR issues
+import dynamic from 'next/dynamic';
+import 'akvo-react-form/dist/index.css';
 
 // Silence the React 19 element.ref deprecation warning and patch Leaflet double-initialization
 if (typeof window !== 'undefined') {
@@ -143,10 +146,6 @@ if (React) {
     r.createElement = newCreateElement;
   }
 }
-
-// Dynamically import Webform from akvo-react-form to prevent SSR issues
-import dynamic from 'next/dynamic';
-import 'akvo-react-form/dist/index.css';
 
 const Webform = dynamic<any>(() => import('akvo-react-form').then((mod) => mod.Webform), {
   ssr: false,
