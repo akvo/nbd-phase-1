@@ -68,7 +68,7 @@ The platform uses a self-hosted Network File System (NFS) mounted directory for 
 ### 📱 Ingestion Pipelines
 
 - **USSD Ingestion**: Stateless endpoint `/api/v1/ussd` handling Africa's Talking session menus.
-- **WhatsApp Ingestion**: Endpoint `/api/v1/whatsapp/webhook` running a stateful chatbot with asynchronous, non-blocking media streaming to GCS.
+- **WhatsApp Ingestion**: Endpoint `/api/v1/whatsapp/webhook` running a stateful chatbot with asynchronous, non-blocking media streaming to local storage.
 
 ### 🏃 Running Locally
 
