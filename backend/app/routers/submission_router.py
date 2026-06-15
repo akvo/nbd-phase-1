@@ -89,3 +89,127 @@ def list_submissions(
     if status is not None:
         query = query.filter(Datapoint.status == status)
     return query.all()
+
+
+@router.patch("/{id}/status")
+def update_submission_status(
+    id: int,
+    payload: schemas.SubmissionStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    from app.models.sampling_record import SamplingRecord
+    from app.services.reconciliation import reconcile_lab_datapoint
+    from decimal import Decimal
+    from datetime import datetime
+
+    dp = db.query(Datapoint).filter(Datapoint.id == id).first()
+    if not dp:
+        raise HTTPException(
+            status_code=404, detail=f"Submission with ID {id} not found."
+        )
+
+    if dp.status in ("APPROVED", "REJECTED"):
+        raise HTTPException(
+            status_code=400, detail=f"Submission is already {dp.status}."
+        )
+
+    dp.status = payload.status
+
+    if payload.status == "APPROVED":
+        # Check if site_id is present
+        if dp.site_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot approve a submission without a site_id.",
+            )
+
+        # Query all answers for this datapoint
+        answers = db.query(Answer).filter(Answer.datapoint_id == dp.id).all()
+
+        # Parse answers
+        ph_val = None
+        temp_val = None
+        do_val = None
+        inv_percent = Decimal("0.0")
+        water_lvl = "MEDIUM"
+
+        for ans in answers:
+            if not ans.question:
+                continue
+            q_name = (ans.question.name or "").lower()
+
+            if q_name == "ph":
+                if ans.value is not None:
+                    ph_val = Decimal(str(ans.value))
+            elif q_name == "temp":
+                if ans.value is not None:
+                    temp_val = Decimal(str(ans.value))
+            elif q_name == "do":
+                if ans.value is not None:
+                    do_val = Decimal(str(ans.value))
+            elif q_name == "invasive_percent":
+                if ans.value is not None:
+                    inv_percent = Decimal(str(ans.value))
+            elif q_name == "water_level":
+                raw_val = ans.name or ans.value or "MEDIUM"
+                val_str = str(raw_val).upper().strip()
+                if val_str in ("HIGH", "MEDIUM", "LOW"):
+                    water_lvl = val_str
+
+        # Check constraints (non-nullable fields)
+        if ph_val is None or temp_val is None or do_val is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Missing water quality parameters (pH, Temperature, "
+                    "or Dissolved Oxygen) required to approve records."
+                ),
+            )
+
+        sampling_rec = SamplingRecord(
+            site_id=dp.site_id,
+            ph_value=ph_val,
+            temp_value=temp_val,
+            do_value=do_val,
+            invasive_macrophytes=inv_percent,
+            water_level=water_lvl,
+            sampled_at=dp.created_at or datetime.utcnow(),
+        )
+        db.add(sampling_rec)
+        db.flush()
+
+        # Trigger auto-reconciliation for matching approved Lab QA reports
+        from app.models.form import Form
+
+        lab_reports = (
+            db.query(Datapoint)
+            .join(Form)
+            .filter(
+                Form.type == 4,
+                Datapoint.site_id == dp.site_id,
+                Datapoint.status == "APPROVED",
+            )
+            .all()
+        )
+
+        for report in lab_reports:
+            try:
+                reconcile_lab_datapoint(db, report.id)
+            except Exception as e:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    f"Failed to reconcile Lab QA datapoint {report.id}: {e}"
+                )
+
+    try:
+        db.commit()
+        return {
+            "id": dp.id,
+            "status": dp.status,
+            "message": "Submission status updated successfully",
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))

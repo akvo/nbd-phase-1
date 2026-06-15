@@ -60,3 +60,13 @@ class DatapointResponse(DatapointBase):
     answers: List[AnswerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SubmissionStatusUpdate(BaseModel):
+    status: str
+
+    @model_validator(mode="after")
+    def validate_status(self) -> "SubmissionStatusUpdate":
+        if self.status not in ("APPROVED", "REJECTED"):
+            raise ValueError("Status must be either APPROVED or REJECTED")
+        return self
