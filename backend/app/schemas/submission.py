@@ -56,6 +56,7 @@ class DatapointResponse(DatapointBase):
     uuid: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
+    form_name: Optional[str] = None
     answers: List[AnswerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

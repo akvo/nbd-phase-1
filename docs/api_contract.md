@@ -283,41 +283,51 @@ Ingests real-time reports from USSD (`*123#`) and WhatsApp.
 ### 4.2 KoboToolbox Background Pull Worker
 * **Mechanism**: A background worker polls the Kobo REST API every 60 minutes, using a watermark cursor on `submission_time` to fetch new structured sampling records offline-submitted by Citizen Scientists.
 
-### 4.3 Admin Webforms Ingestion
+### 4.3 Admin Webforms Ingestion (Internal Ingestion)
 
-#### POST /api/v1/lab-results
+#### POST /api/v1/internal/lab-qa
 Captures shadow sampling data (BOD, Nitrate, Mercury) provided by academic partners.
-* **Role Requirement**: `Partner` or `Admin`.
-
-```json
-{
-  "site_id": "NBD-MARA-001",
-  "sampling_period": "2026-Q2",
-  "results": {
-    "biochemical_oxygen_demand": 4.2,
-    "orthophosphate": 0.15,
-    "nitrate": 1.8,
-    "mercury": 0.002
+* **Payload Schema**:
+  ```json
+  {
+    "site_id": "76ec2a00-1c3b-489e-9d22-1d54be2e0ffd",
+    "sampling_period": "2026-Q2",
+    "form_id": 1,
+    "answers": [
+      { "question_id": 10, "value": 4.2 },
+      { "question_id": 11, "value": 1.8 }
+    ]
   }
-}
-```
+  ```
 
-#### POST /api/v1/fgd-records
-Captures qualitative Indigenous Knowledge signals from Monthly Barazas (Focus Group Discussions).
-* **Role Requirement**: `Reviewer` or `Admin`.
-
-```json
-{
-  "wetland_id": "Mara",
-  "period": "2026-06",
-  "participant_count": 12,
-  "dimensions": {
-    "fish_abundance": "MODERATELY_DECLINED",
-    "water_clarity": "MUCH_WORSE",
-    "vegetation_cover": "PARTIALLY_LOST"
+#### POST /api/v1/internal/fgd
+Captures qualitative Indigenous Knowledge signals from Focus Group Discussions (FGD) and calculates weighted average IK signals.
+* **Payload Schema**:
+  ```json
+  {
+    "wetland_id": "76ec2a00-1c3b-489e-9d22-1d54be2e0ffd",
+    "form_id": 2,
+    "answers": [
+      { "question_id": 20, "value": "GOOD" },
+      { "question_id": 21, "value": "MODERATE" }
+    ]
   }
-}
-```
+  ```
+
+#### POST /api/v1/internal/submit
+Generic fallback endpoint validating other dynamic webform submissions, saving them as `PENDING` for moderation.
+* **Payload Schema**:
+  ```json
+  {
+    "form_id": 3,
+    "basin_id": "9bd4883b-ba50-42a7-8277-0fc5e44e0ffe",
+    "wetland_id": null,
+    "site_id": null,
+    "answers": [
+      { "question_id": 30, "value": "Custom Answer Text" }
+    ]
+  }
+  ```
 
 ---
 
