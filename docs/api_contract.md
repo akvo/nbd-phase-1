@@ -285,6 +285,12 @@ Ingests real-time reports from USSD (`*123#`) and WhatsApp.
 
 ### 4.3 Admin Webforms Ingestion (Internal Ingestion)
 
+The internal ingestion endpoints are polymorphic and accept questions matched either by the database integer primary key `id` (e.g. `10`) or by the seeded question `name` string (e.g. `"nitrate"` or `"media_attachment"`).
+
+> [!NOTE]
+> **Recommended Pattern**: Utilizing string-based question identifiers (like `"nitrate"`) is the recommended practice for integrations and webforms. Database primary keys can shift across environments (development, staging, production) due to auto-increment sequences, whereas the seeded string names remain stable and constant.
+
+
 #### POST /api/v1/internal/lab-qa
 Captures shadow sampling data (BOD, Nitrate, Mercury) provided by academic partners.
 * **Payload Schema**:
@@ -295,7 +301,7 @@ Captures shadow sampling data (BOD, Nitrate, Mercury) provided by academic partn
     "form_id": 1,
     "answers": [
       { "question_id": 10, "value": 4.2 },
-      { "question_id": 11, "value": 1.8 }
+      { "question_id": "nitrate", "value": 1.8 }
     ]
   }
   ```
@@ -309,7 +315,7 @@ Captures qualitative Indigenous Knowledge signals from Focus Group Discussions (
     "form_id": 2,
     "answers": [
       { "question_id": 20, "value": "GOOD" },
-      { "question_id": 21, "value": "MODERATE" }
+      { "question_id": "vegetation_cover", "value": "MODERATE" }
     ]
   }
   ```
@@ -324,7 +330,8 @@ Generic fallback endpoint validating other dynamic webform submissions, saving t
     "wetland_id": null,
     "site_id": null,
     "answers": [
-      { "question_id": 30, "value": "Custom Answer Text" }
+      { "question_id": 30, "value": "Custom Answer Text" },
+      { "question_id": "media_attachment", "value": "data:image/png;base64,..." }
     ]
   }
   ```
