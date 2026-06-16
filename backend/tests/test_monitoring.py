@@ -10,7 +10,6 @@ from app.models.spatial import Basin
 from app.scheduler import (
     cleanup_whatsapp_sessions,
     monitor_webhook_endpoints,
-    alert_states,
 )
 from app.services.kobo import sync_kobo_submissions
 
@@ -54,10 +53,6 @@ def test_whatsapp_session_pruning(db_session):
 
 @pytest.mark.anyio
 async def test_webhook_watchdog_failures(db_session, monkeypatch):
-    # Reset alert states
-    alert_states["ussd"] = {"last_alerted": None, "is_failing": False}
-    alert_states["whatsapp"] = {"last_alerted": None, "is_failing": False}
-
     sys_user = User.get_or_create_system_user(db_session)
 
     # Insert 5 failure logs for ussd in the last 5 minutes
@@ -88,20 +83,33 @@ async def test_webhook_watchdog_failures(db_session, monkeypatch):
 
     # Verify email alert was sent only for ussd
     assert mock_send.call_count == 1
-    assert alert_states["ussd"]["is_failing"] is True
-    assert alert_states["ussd"]["last_alerted"] is not None
+
+    # Verify the alert is recorded in the DB
+    alert_log = (
+        db_session.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "ussd_webhook",
+            AuditLog.action == "ALERT",
+        )
+        .first()
+    )
+    assert alert_log is not None
+    assert alert_log.entity_id == "ALERT_SENT"
 
 
 @pytest.mark.anyio
 async def test_webhook_watchdog_recovery(db_session, monkeypatch):
-    # Reset alert states
-    alert_states["ussd"] = {
-        "last_alerted": datetime.datetime.utcnow() - timedelta(minutes=10),
-        "is_failing": True,
-    }
-    alert_states["whatsapp"] = {"last_alerted": None, "is_failing": False}
-
     sys_user = User.get_or_create_system_user(db_session)
+
+    # Log a previous failure alert in the DB (10 min ago)
+    past_alert = AuditLog(
+        actor_id=sys_user.id,
+        action="ALERT",
+        entity_type="ussd_webhook",
+        entity_id="ALERT_SENT",
+        timestamp=datetime.datetime.utcnow() - timedelta(minutes=10),
+    )
+    db_session.add(past_alert)
 
     # Insert a success log (200) inside the last 5 minutes
     now = datetime.datetime.utcnow()
@@ -129,16 +137,22 @@ async def test_webhook_watchdog_recovery(db_session, monkeypatch):
 
     # Verify recovery alert was triggered
     assert mock_send.call_count == 1
-    assert alert_states["ussd"]["is_failing"] is False
-    assert alert_states["ussd"]["last_alerted"] is None
+
+    # Verify recovery is recorded in the DB
+    recovery_log = (
+        db_session.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "ussd_webhook",
+            AuditLog.action == "ALERT_RESOLVED",
+        )
+        .first()
+    )
+    assert recovery_log is not None
+    assert recovery_log.entity_id == "RESOLVED"
 
 
 @pytest.mark.anyio
 async def test_webhook_watchdog_ping_fallback(db_session, monkeypatch):
-    # Reset alert states
-    alert_states["ussd"] = {"last_alerted": None, "is_failing": False}
-    alert_states["whatsapp"] = {"last_alerted": None, "is_failing": False}
-
     # Zero traffic logs in DB.
     # Force ping by mocking httpx to fail (timeout/500)
     mock_get = MagicMock(side_effect=httpx.ConnectError("Connection failed"))
@@ -173,7 +187,9 @@ async def test_kobo_sync_crash_alerts(db_session, monkeypatch):
     )
 
     mock_send = AsyncMock(return_value=True)
-    monkeypatch.setattr("app.mail.EmailService.send_alert_email", mock_send)
+    monkeypatch.setattr(
+        "app.services.kobo.EmailService.send_alert_email", mock_send
+    )
 
     # Create admin user to receive alert
     admin = User(

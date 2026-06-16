@@ -84,16 +84,27 @@ def monitor_webhook_endpoints():
                 except Exception:
                     continuous_failures = 5
 
+            # Retrieve alert state from DB
+            last_alert_log = (
+                db.query(AuditLog)
+                .filter(
+                    AuditLog.entity_type == entity_type,
+                    AuditLog.action.in_(["ALERT", "ALERT_RESOLVED"]),
+                )
+                .order_by(desc(AuditLog.timestamp))
+                .first()
+            )
+
+            is_failing = last_alert_log and last_alert_log.action == "ALERT"
+            last_alerted = last_alert_log.timestamp if is_failing else None
+
             if continuous_failures >= 5:
                 logger.warning(
                     f"Webhook {name} is failing "
                     f"(continuous_failures={continuous_failures})"
                 )
-                state = alert_states[name]
-                state["is_failing"] = True
 
                 now = datetime.utcnow()
-                last_alerted = state["last_alerted"]
                 if (
                     not last_alerted
                     or (now - last_alerted).total_seconds() > 3600
@@ -144,12 +155,20 @@ def monitor_webhook_endpoints():
                     else:
                         loop.run_until_complete(coro)
 
-                    state["last_alerted"] = now
+                    # Log the alert to DB to persist the state
+                    sys_user = User.get_or_create_system_user(db)
+                    alert_log = AuditLog(
+                        actor_id=sys_user.id,
+                        action="ALERT",
+                        entity_type=entity_type,
+                        entity_id="ALERT_SENT",
+                        timestamp=now,
+                    )
+                    db.add(alert_log)
+                    db.commit()
             else:
-                state = alert_states[name]
-                if state["is_failing"]:
+                if is_failing:
                     logger.info(f"Webhook {name} has recovered.")
-                    state["is_failing"] = False
                     email_service = EmailService()
 
                     import asyncio
@@ -160,9 +179,8 @@ def monitor_webhook_endpoints():
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
 
-                    now_str = datetime.utcnow().strftime(
-                        "%Y-%m-%d %H:%M:%S UTC"
-                    )
+                    now = datetime.utcnow()
+                    now_str = now.strftime("%Y-%m-%d %H:%M:%S UTC")
                     coro = email_service.send_alert_email(
                         to=ops_emails,
                         subject=(
@@ -187,7 +205,17 @@ def monitor_webhook_endpoints():
                     else:
                         loop.run_until_complete(coro)
 
-                    state["last_alerted"] = None
+                    # Log recovery to DB to persist the state
+                    sys_user = User.get_or_create_system_user(db)
+                    recovery_log = AuditLog(
+                        actor_id=sys_user.id,
+                        action="ALERT_RESOLVED",
+                        entity_type=entity_type,
+                        entity_id="RESOLVED",
+                        timestamp=now,
+                    )
+                    db.add(recovery_log)
+                    db.commit()
     except Exception as e:
         logger.error(f"Error in monitor_webhook_endpoints: {e}")
     finally:
