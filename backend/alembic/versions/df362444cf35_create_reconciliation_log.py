@@ -54,6 +54,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
+            "citizen_id",
             "citizen_datapoint_id",
             "lab_datapoint_id",
             "parameter_name",
