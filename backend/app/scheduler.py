@@ -60,6 +60,7 @@ def monitor_webhook_endpoints():
                 db.query(AuditLog)
                 .filter(
                     AuditLog.entity_type == entity_type,
+                    AuditLog.action == "POST",
                     AuditLog.timestamp >= cutoff,
                 )
                 .order_by(desc(AuditLog.timestamp))
