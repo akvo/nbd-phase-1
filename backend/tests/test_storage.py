@@ -19,13 +19,13 @@ def setup_and_teardown_storage(monkeypatch):
 
     # Clean up test storage directory if it exists
     if os.path.exists(TEST_STORAGE_DIR):
-        shutil.rmtree(TEST_STORAGE_DIR)
+        shutil.rmtree(TEST_STORAGE_DIR, ignore_errors=True)
 
     yield
 
     # Clean up after test
     if os.path.exists(TEST_STORAGE_DIR):
-        shutil.rmtree(TEST_STORAGE_DIR)
+        shutil.rmtree(TEST_STORAGE_DIR, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------

@@ -346,6 +346,23 @@ def submit_lab_qa(
             db.add(answer_record)
 
         db.commit()
+
+        # Trigger auto-reconciliation check
+        from app.services.reconciliation import reconcile_lab_datapoint
+
+        try:
+            reconcile_lab_datapoint(db, dp.id)
+        except Exception as recon_err:
+            # Prevent failure of submission if reconciliation fails
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                "Reconciliation failed for lab datapoint "
+                f"{dp.id}: {recon_err}",
+                exc_info=True,
+            )
+
         return {"status": "success", "datapoint_id": dp.id}
     except Exception as e:
         db.rollback()

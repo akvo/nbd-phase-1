@@ -66,17 +66,30 @@ export default function DataOverviewPage() {
       });
   }, []);
 
-  const handleApprove = (id: string) => {
-    setSubmissions(prev =>
-      prev.map(sub => (sub.id === id ? { ...sub, status: 'Active' as const } : sub))
-    );
+  const handleApprove = async (id: string) => {
+    try {
+      const cleanId = id.replace('DP-', '');
+      await apiClient.patch(`/submissions/${cleanId}/status`, { status: 'APPROVED' });
+      setSubmissions(prev =>
+        prev.map(sub => (sub.id === id ? { ...sub, status: 'Approved' } : sub))
+      );
+    } catch (err) {
+      console.error("Failed to approve submission:", err);
+    }
   };
 
-  const handleReject = (id: string) => {
-    setSubmissions(prev =>
-      prev.map(sub => (sub.id === id ? { ...sub, status: 'Rejected' as const } : sub))
-    );
+  const handleReject = async (id: string) => {
+    try {
+      const cleanId = id.replace('DP-', '');
+      await apiClient.patch(`/submissions/${cleanId}/status`, { status: 'REJECTED' });
+      setSubmissions(prev =>
+        prev.map(sub => (sub.id === id ? { ...sub, status: 'Rejected' } : sub))
+      );
+    } catch (err) {
+      console.error("Failed to reject submission:", err);
+    }
   };
+
 
   const handleClear = () => {
     setFormFilter('');

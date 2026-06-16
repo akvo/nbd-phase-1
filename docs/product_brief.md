@@ -18,6 +18,13 @@ The primary mission of the platform is to provide a formal channel for daily com
 | **Mara Basin** | Kenya and Tanzania |
 | **Sio-Siteko Basin** | Kenya and Uganda |
 
+### 1.1.2 Spatial Infrastructure Hierarchy
+
+The platform organizes environmental monitoring, qualitative indigenous reports, and quantitative sampling records across a three-tier geographic hierarchy:
+* **Basin**: The primary watershed boundary (e.g., Mara Basin, Sio-Siteko Basin), represented as PostGIS `MultiPolygon` geometries.
+* **Wetland**: Distinct wetland regions (e.g., Mara Floodplain) contained within a Basin, represented as PostGIS `Polygon` geometries.
+* **Site**: Fixed physical monitoring stations (e.g., Lower Mara Bridge point) contained within a Wetland, represented as PostGIS `Point` geometries.
+
 ### 1.2 Architectural Vision
 
 This deployment represents Phase 1 of a broader digital strategy. The architecture mandates a **reusable shell design**; while the initial forms and scoring rules are wetland-specific, the core ingest channels, moderation workflows, and identity models are domain-agnostic to support future thematic scaling.

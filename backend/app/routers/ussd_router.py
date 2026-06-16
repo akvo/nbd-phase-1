@@ -31,6 +31,46 @@ def handle_ussd(
     text: Optional[str] = FastAPIForm(""),
     db: Session = Depends(get_db),
 ):
+    from app.models.user import User
+    from app.models.audit_log import AuditLog
+
+    status_code = 200
+    try:
+        response = _handle_ussd_core(
+            sessionId=sessionId,
+            phoneNumber=phoneNumber,
+            networkCode=networkCode,
+            serviceCode=serviceCode,
+            text=text,
+            db=db,
+        )
+        return response
+    except Exception as e:
+        status_code = 500
+        raise e
+    finally:
+        try:
+            sys_user = User.get_or_create_system_user(db)
+            audit = AuditLog(
+                actor_id=sys_user.id,
+                action="POST",
+                entity_type="ussd_webhook",
+                entity_id=str(status_code),
+            )
+            db.add(audit)
+            db.commit()
+        except Exception:
+            db.rollback()
+
+
+def _handle_ussd_core(
+    sessionId: str,
+    phoneNumber: str,
+    networkCode: str,
+    serviceCode: str,
+    text: Optional[str],
+    db: Session,
+):
     # Idempotency check
     if sessionId in processed_sessions:
         return PlainTextResponse(processed_sessions[sessionId])

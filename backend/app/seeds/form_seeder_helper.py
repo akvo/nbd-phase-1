@@ -156,6 +156,7 @@ def seed_forms(db: Session):
                         required=q_required,
                         rule=rule if rule else None,
                         api=api_config,
+                        extra=q_data.get("extra"),
                     )
                     db.add(q)
                     db.flush()
@@ -169,6 +170,7 @@ def seed_forms(db: Session):
                     q.required = q_required
                     q.rule = rule if rule else None
                     q.api = api_config
+                    q.extra = q_data.get("extra")
                     q.translations = q_translations
                     db.flush()
                     logger.info(

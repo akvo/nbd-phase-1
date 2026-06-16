@@ -220,3 +220,19 @@ def create_sub_county(
 )
 def list_sub_counties(db: Session = Depends(get_db)):
     return db.query(SpatialBoundary).all()
+
+
+@router.get("/reference/sites")
+def list_reference_sites(db: Session = Depends(get_db)):
+    sites = db.query(Site).all()
+    results = []
+    # Add Sites under Wetlands
+    for site in sites:
+        results.append(
+            {
+                "id": str(site.id),
+                "name": site.name,
+                "parent_id": str(site.wetland_id),
+            }
+        )
+    return results

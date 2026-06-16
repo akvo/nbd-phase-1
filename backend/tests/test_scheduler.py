@@ -1,6 +1,4 @@
-import pytest
-from unittest.mock import MagicMock
-import sys
+from unittest.mock import MagicMock, patch
 
 # Pre-mock BlockingScheduler before any imports to avoid hanging the test runner
 mock_scheduler_instance = MagicMock()
@@ -18,9 +16,11 @@ import runpy
 from app.scheduler import hourly_kobotoolbox_pull, monthly_gee_ingest
 
 
-def test_hourly_kobotoolbox_pull(monkeypatch):
+@patch("app.services.kobo.sync_kobo_submissions")
+def test_hourly_kobotoolbox_pull(mock_sync, monkeypatch):
     monkeypatch.setattr(time, "sleep", lambda x: None)
     hourly_kobotoolbox_pull()
+    mock_sync.assert_called_once()
 
 
 def test_monthly_gee_ingest(monkeypatch):
@@ -36,7 +36,7 @@ def test_scheduler_main_execution(monkeypatch):
     runpy.run_module("app.scheduler", run_name="__main__")
 
     mock_blocking_scheduler.assert_called()
-    assert mock_scheduler_instance.add_job.call_count == 3
+    assert mock_scheduler_instance.add_job.call_count == 4
 
     call_1 = mock_scheduler_instance.add_job.call_args_list[0]
     call_2 = mock_scheduler_instance.add_job.call_args_list[1]
