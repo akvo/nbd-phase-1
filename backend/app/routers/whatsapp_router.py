@@ -17,6 +17,9 @@ import hashlib
 import json
 
 
+from app.database import get_db
+from sqlalchemy.orm import Session
+
 router = APIRouter(prefix="/api/v1/whatsapp", tags=["WhatsApp"])
 
 
@@ -64,6 +67,7 @@ async def receive_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
     config: WhatsAppConfig = Depends(get_whatsapp_config),
+    db: Session = Depends(get_db),
 ):
     """Entry point for Meta webhook POSTs.
 
@@ -71,22 +75,50 @@ async def receive_webhook(
     asynchronous processing so Meta receives a 200 OK in < 300 ms
     (FR-004).
     """
-    # Read raw body for signature verification
-    raw_body = await request.body()
-    # Store raw body for later use
-    request._body = raw_body
-    if not _verify_signature(request, config):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature"
-        )
-    payload = json.loads(raw_body)
-    # Basic validation – Meta sends 'entry' list
-    if not payload.get("entry"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed payload"
-        )
-    # Dispatch asynchronously — Meta gets the response before processing begins
-    from app.services.whatsapp_service import process_whatsapp_message
+    from app.models.user import User
+    from app.models.audit_log import AuditLog
 
-    background_tasks.add_task(process_whatsapp_message, payload)
-    return {"status": "accepted"}
+    status_code = 200
+    try:
+        # Read raw body for signature verification
+        raw_body = await request.body()
+        # Store raw body for later use
+        request._body = raw_body
+        if not _verify_signature(request, config):
+            status_code = 403
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid signature",
+            )
+        payload = json.loads(raw_body)
+        # Basic validation – Meta sends 'entry' list
+        if not payload.get("entry"):
+            status_code = 400
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Malformed payload",
+            )
+        # Dispatch asynchronously
+        from app.services.whatsapp_service import process_whatsapp_message
+
+        background_tasks.add_task(process_whatsapp_message, payload)
+        return {"status": "accepted"}
+    except HTTPException as http_err:
+        status_code = http_err.status_code
+        raise http_err
+    except Exception as err:
+        status_code = 500
+        raise err
+    finally:
+        try:
+            sys_user = User.get_or_create_system_user(db)
+            audit = AuditLog(
+                actor_id=sys_user.id,
+                action="POST",
+                entity_type="whatsapp_webhook",
+                entity_id=str(status_code),
+            )
+            db.add(audit)
+            db.commit()
+        except Exception:
+            db.rollback()

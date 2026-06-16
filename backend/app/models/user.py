@@ -13,3 +13,19 @@ class User(Base):
     organization = Column(String(255), nullable=True)
     password_hash = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+
+    @classmethod
+    def get_or_create_system_user(cls, db) -> "User":
+        system_email = "system@nbd-wetland.org"  # TODO:: Need to updated (env)
+        system_user = db.query(cls).filter(cls.email == system_email).first()
+        if not system_user:
+            system_user = cls(
+                email=system_email,
+                role="Admin",
+                organization="System Watchdog",
+                is_active=True,
+            )
+            db.add(system_user)
+            db.commit()
+            db.refresh(system_user)
+        return system_user

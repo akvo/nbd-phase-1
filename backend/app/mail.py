@@ -88,3 +88,55 @@ class EmailService:
         fm = FastMail(self.fastmail_config)
         await fm.send_message(message)
         return True
+
+    async def send_alert_email(
+        self,
+        to: Union[str, List[str]],
+        subject: str,
+        status_message: str,
+        description: str,
+        alert_level: str = "danger",  # danger, warning, info
+        details_headers: List[str] = None,
+        details_table: List[List[str]] = None,
+        traceback: str = None,
+        action_url: str = "http://localhost:3000/admin/data",
+    ) -> bool:
+        from jinja2 import Template
+        import datetime
+
+        template_dir = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(
+            template_dir, "templates", "email", "alert_template.html"
+        )
+
+        try:
+            with open(template_path, "r", encoding="utf-8") as f:
+                template_content = f.read()
+        except FileNotFoundError:
+            # Fallback inline template in case file isn't found
+            template_content = """
+            <html><body>
+            <h2>{{ subject }}</h2>
+            <p><strong>Status:</strong> {{ status_message }}</p>
+            <p>{{ description }}</p>
+            {% if traceback %}<pre>{{ traceback }}</pre>{% endif %}
+            </body></html>
+            """
+
+        template = Template(template_content)
+        rendered_html = template.render(
+            subject=subject,
+            status_message=status_message,
+            description=description,
+            alert_level=alert_level,
+            details_headers=details_headers,
+            details_table=details_table,
+            traceback=traceback,
+            action_url=action_url,
+            app_env=os.getenv("APP_ENV", "development"),
+            timestamp=datetime.datetime.utcnow().strftime(
+                "%Y-%m-%d %H:%M:%S UTC"
+            ),
+        )
+
+        return await self.send_email_async(to, subject, rendered_html)
