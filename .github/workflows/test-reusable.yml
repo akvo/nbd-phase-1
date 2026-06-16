@@ -51,11 +51,3 @@ jobs:
           ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
         run: |
           ./ci/test.sh
-
-      - name: Upload coverage to Coveralls
-        if: steps.test_script.outcome == 'success'
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ./backend/coverage.lcov
-          fail-on-error: false
