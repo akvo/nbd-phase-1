@@ -255,3 +255,106 @@ def test_reconciliation_zero_division(db_session):
 
     db_session.refresh(citizen)
     assert citizen.needs_retraining is False
+
+
+def test_reconciliation_multiple_citizens(db_session):
+    client = TestClient(app)
+
+    # 1. Create a Basin, Wetland, and a Site
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="MARA3",
+        name="Mara Test Basin 3",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="WET3",
+        basin_id=basin.id,
+        name="Test Wetland C",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="SITE3",
+        wetland_id=wetland.id,
+        name="Test Site C",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    # 2. Create multiple Citizens at the Site
+    citizen1 = Citizen(
+        phone_number="+254700000001",
+        site_id=site.id,
+        role="SCIENTIST",
+    )
+    citizen2 = Citizen(
+        phone_number="+254700000003",
+        site_id=site.id,
+        role="WATCHER",
+    )
+    db_session.add_all([citizen1, citizen2])
+    db_session.flush()
+
+    # 3. Create a SamplingRecord (10 days ago)
+    sampling_record = SamplingRecord(
+        id=uuid.uuid4(),
+        site_id=site.id,
+        ph_value=Decimal("9.0"),
+        temp_value=Decimal("25.0"),
+        do_value=Decimal("6.5"),
+        invasive_macrophytes=Decimal("10.0"),
+        water_level="MEDIUM",
+        sampled_at=datetime.utcnow() - timedelta(days=10),
+    )
+    db_session.add(sampling_record)
+    db_session.flush()
+
+    # 4. Create the Lab QA Form and Questions
+    form = Form(name="Lab QA Form 3")
+    db_session.add(form)
+    db_session.flush()
+
+    group = QuestionGroup(name="Parameters", form_id=form.id, order=1)
+    db_session.add(group)
+    db_session.flush()
+
+    q_ph = Question(
+        form_id=form.id,
+        question_group_id=group.id,
+        label="pH Level",
+        name="ph",
+        type="number",
+    )
+    db_session.add(q_ph)
+    db_session.commit()
+
+    # 5. Submit Lab QA (pH=7.0)
+    payload = {
+        "form_id": form.id,
+        "site_id": str(site.id),
+        "sampling_period": "2026-Q2",
+        "answers": [
+            {"question_id": q_ph.id, "value": 7.0},
+        ],
+    }
+
+    response = client.post("/api/v1/internal/lab-qa", json=payload)
+    assert response.status_code == 200
+
+    # Verify reconciliation log has been written for BOTH citizens
+    # without unique constraint violation.
+    logs = (
+        db_session.query(ReconciliationLog)
+        .filter(ReconciliationLog.parameter_name == "ph_value")
+        .all()
+    )
+    assert len(logs) == 2
