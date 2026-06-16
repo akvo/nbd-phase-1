@@ -24,14 +24,16 @@ services:
       - SMTP_USE_TLS=false
       - SMTP_USE_SSL=false
       - MAIL_FROM=alerts@nbd-wetland.org
-      - GOOGLE_APPLICATION_CREDENTIALS=/credentials/your-service-account.json
-      - GCS_BUCKET_NAME=your-gcs-bucket-name
+      - STORAGE_DIR=/app/storage_test
+      - SECRET_KEY=your_test_secret_key_here
       - KOBOTOOLBOX_API_URL=https://eu.kobotoolbox.org
       - KOBOTOOLBOX_API_TOKEN=your_actual_token_here
       - WHATSAPP_APP_SECRET=your_meta_app_secret_here
       - WHATSAPP_VERIFY_TOKEN=your_verify_token_here
       - WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token_here
       - WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id_here
+    volumes:
+      - ./storage_test:/app/storage_test
     command: ["./test.sh"]
     depends_on:
       - db
