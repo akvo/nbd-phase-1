@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime, timedelta
 from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
@@ -9,7 +8,6 @@ from app.models.spatial import Basin, Wetland, Site
 from app.models.form import Form, QuestionGroup, Question
 from app.models.submission import Datapoint, Answer
 from app.models.sampling_record import SamplingRecord
-from app.models.reconciliation import ReconciliationLog
 from app.models.citizen import Citizen
 
 client = TestClient(app)
@@ -175,3 +173,34 @@ def test_reject_submission_success(db_session: Session, setup_moderation_data):
         db_session.query(SamplingRecord).filter_by(site_id=dp.site_id).first()
     )
     assert record is None
+
+
+def test_approve_lab_qa_submission_success(
+    db_session: Session, setup_moderation_data
+):
+    site = setup_moderation_data["site"]
+    # Form definition for Lab QA (type 4)
+    form_lab = Form(name="Lab QA Report Form", version=1, type=4, status=1)
+    db_session.add(form_lab)
+    db_session.flush()
+
+    # Create a pending Lab QA Datapoint (no ph/temp/do answers)
+    dp = Datapoint(
+        form_id=form_lab.id,
+        site_id=site.id,
+        status="PENDING",
+        submitter="Lab QA Submitter",
+    )
+    db_session.add(dp)
+    db_session.commit()
+
+    response = client.patch(
+        f"/api/v1/submissions/{dp.id}/status", json={"status": "APPROVED"}
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "APPROVED"
+
+    # Refresh
+    db_session.expire_all()
+    db_dp = db_session.query(Datapoint).filter_by(id=dp.id).first()
+    assert db_dp.status == "APPROVED"

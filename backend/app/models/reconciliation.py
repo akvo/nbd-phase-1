@@ -48,6 +48,7 @@ class ReconciliationLog(Base):
 
     __table_args__ = (
         UniqueConstraint(
+            "citizen_id",
             "citizen_datapoint_id",
             "lab_datapoint_id",
             "parameter_name",
