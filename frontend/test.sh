@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -exuo pipefail
+#!/bin/sh
+set -e
 
 echo "Running frontend tests..."
 yarn test:coverage
