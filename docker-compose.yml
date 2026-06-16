@@ -76,7 +76,7 @@ services:
       - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
     volumes:
       - ./storage:/app/storage
-    command: ./start.sh python -m app.scheduler
+    command: ./run_worker.sh
     depends_on:
       - db
     network_mode: service:mainnetwork
