@@ -17,6 +17,17 @@ The application is structured as a multi-container stack orchestrated via Docker
 
 ---
 
+## 📍 Spatial Infrastructure Hierarchy
+
+All environmental data, sampling records, and pollution reports collected by the platform are anchored to exactly one level of the geographic hierarchy:
+1. **Basin** (`basins` table): Watershed boundaries (MultiPolygon).
+2. **Wetland** (`wetlands` table): Wetland zones belonging to a Basin (Polygon).
+3. **Site** (`sites` table): Fixed sampling points belonging to a Wetland (Point).
+
+For more detailed technical specifications, refer to [spatial_infrastructure_lld.md](docs/lld/spatial_infrastructure_lld.md).
+
+---
+
 ## 📁 Repository Structure
 
 ```text
