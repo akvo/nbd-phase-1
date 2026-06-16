@@ -303,8 +303,29 @@ This schema includes heavy metal and nutrient parameters for professional labora
     {
       "id": 1,
       "order": 1,
+      "name": "Site Details",
+      "question": [
+        {
+          "id": "site_id",
+          "order": 1,
+          "type": "cascade",
+          "name": "Select Site",
+          "required": true,
+          "endpoint": "/api/v1/reference/sites",
+          "extra": {
+            "option": "site"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "order": 2,
       "name": "Chemical & Nutrient Analysis",
       "question": [
+        { "id": "lab_ph", "type": "number", "name": "pH", "rule": { "allowDecimal": true } },
+        { "id": "lab_temperature", "type": "number", "name": "Water Temperature", "rule": { "allowDecimal": true } },
+        { "id": "lab_dissolved_oxygen", "type": "number", "name": "Dissolved Oxygen", "rule": { "allowDecimal": true } },
         { "id": "bod", "type": "number", "name": "Biochemical Oxygen Demand (BOD)", "rule": { "allowDecimal": true } },
         { "id": "orthophosphate", "type": "number", "name": "Orthophosphate", "rule": { "allowDecimal": true } },
         { "id": "nitrate", "type": "number", "name": "Nitrate", "rule": { "allowDecimal": true } },
