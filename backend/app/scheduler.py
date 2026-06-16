@@ -1,14 +1,197 @@
 import logging
 import time
+import os
 from datetime import datetime, timedelta
+import httpx
+from sqlalchemy import desc
 from apscheduler.schedulers.blocking import BlockingScheduler
 from app.database import SessionLocal
 from app.models.whatsapp_session import WhatsAppSession
+from app.models.audit_log import AuditLog
+from app.mail import EmailService
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+alert_states = {
+    "ussd": {"last_alerted": None, "is_failing": False},
+    "whatsapp": {"last_alerted": None, "is_failing": False},
+}
+
+
+def monitor_webhook_endpoints():
+    logger.info("Running webhook watchdog check...")
+    db = SessionLocal()
+    try:
+        from app.models.user import User
+
+        # Ensure system user exists
+        User.get_or_create_system_user(db)
+
+        endpoints = {
+            "ussd": {
+                "entity_type": "ussd_webhook",
+                "ping_url": "http://backend:8000/api/v1/ussd",
+                "display_name": "USSD webhook (/api/v1/ussd)",
+            },
+            "whatsapp": {
+                "entity_type": "whatsapp_webhook",
+                "ping_url": "http://backend:8000/api/v1/whatsapp/webhook",
+                "display_name": "WhatsApp webhook (/api/v1/whatsapp/webhook)",
+            },
+        }
+
+        ops_emails_str = os.getenv(
+            "OPS_EMAIL_RECIPIENTS", "alerts@nbd-wetland.org"
+        )
+        ops_emails = [
+            email.strip()
+            for email in ops_emails_str.split(",")
+            if email.strip()
+        ]
+
+        for name, info in endpoints.items():
+            entity_type = info["entity_type"]
+            cutoff = datetime.utcnow() - timedelta(minutes=5)
+            logs = (
+                db.query(AuditLog)
+                .filter(
+                    AuditLog.entity_type == entity_type,
+                    AuditLog.timestamp >= cutoff,
+                )
+                .order_by(desc(AuditLog.timestamp))
+                .all()
+            )
+
+            continuous_failures = 0
+            if logs:
+                for log in logs:
+                    if log.entity_id == "ERROR" or (
+                        log.entity_id.isdigit() and int(log.entity_id) >= 500
+                    ):
+                        continuous_failures += 1
+                    else:
+                        break
+            else:
+                # No traffic in last 5 minutes. Run diagnostic ping
+                try:
+                    r = httpx.get(info["ping_url"], timeout=5.0)
+                    if r.status_code >= 500:
+                        continuous_failures = 5
+                except Exception:
+                    continuous_failures = 5
+
+            if continuous_failures >= 5:
+                logger.warning(
+                    f"Webhook {name} is failing "
+                    f"(continuous_failures={continuous_failures})"
+                )
+                state = alert_states[name]
+                state["is_failing"] = True
+
+                now = datetime.utcnow()
+                last_alerted = state["last_alerted"]
+                if (
+                    not last_alerted
+                    or (now - last_alerted).total_seconds() > 3600
+                ):
+                    logger.info(
+                        f"Sending failure alert email for {name} "
+                        f"to {ops_emails}"
+                    )
+                    email_service = EmailService()
+
+                    import asyncio
+
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    coro = email_service.send_alert_email(
+                        to=ops_emails,
+                        subject=(
+                            f"[CRITICAL ALERT] {info['display_name']} "
+                            f"webhook is DOWN"
+                        ),
+                        status_message="CRITICAL DOWNTIME",
+                        description=(
+                            f"The monitoring watchdog detected that the "
+                            f"{info['display_name']} endpoint has returned "
+                            f"continuous errors or been unreachable for "
+                            f"the last 5 minutes."
+                        ),
+                        alert_level="danger",
+                        details_headers=["Metric", "Value"],
+                        details_table=[
+                            ["Endpoint", info["display_name"]],
+                            [
+                                "Continuous Failure Checks",
+                                str(continuous_failures),
+                            ],
+                            [
+                                "Triggered Timestamp",
+                                now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                            ],
+                        ],
+                    )
+                    if loop.is_running():
+                        loop.create_task(coro)
+                    else:
+                        loop.run_until_complete(coro)
+
+                    state["last_alerted"] = now
+            else:
+                state = alert_states[name]
+                if state["is_failing"]:
+                    logger.info(f"Webhook {name} has recovered.")
+                    state["is_failing"] = False
+                    email_service = EmailService()
+
+                    import asyncio
+
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    now_str = datetime.utcnow().strftime(
+                        "%Y-%m-%d %H:%M:%S UTC"
+                    )
+                    coro = email_service.send_alert_email(
+                        to=ops_emails,
+                        subject=(
+                            f"[RECOVERY] {info['display_name']} "
+                            f"webhook is UP"
+                        ),
+                        status_message="RESOLVED / HEALTHY",
+                        description=(
+                            f"The monitoring watchdog detected that the "
+                            f"{info['display_name']} endpoint has recovered "
+                            f"and is now responding normally."
+                        ),
+                        alert_level="info",
+                        details_headers=["Metric", "Value"],
+                        details_table=[
+                            ["Endpoint", info["display_name"]],
+                            ["Recovery Timestamp", now_str],
+                        ],
+                    )
+                    if loop.is_running():
+                        loop.create_task(coro)
+                    else:
+                        loop.run_until_complete(coro)
+
+                    state["last_alerted"] = None
+    except Exception as e:
+        logger.error(f"Error in monitor_webhook_endpoints: {e}")
+    finally:
+        db.close()
 
 
 def hourly_kobotoolbox_pull():
@@ -77,6 +260,9 @@ if __name__ == "__main__":
 
     # Schedule hourly WhatsApp session cleanup
     scheduler.add_job(cleanup_whatsapp_sessions, "cron", hour="*")
+
+    # Schedule webhook watchdog check (every minute)
+    scheduler.add_job(monitor_webhook_endpoints, "cron", minute="*")
 
     logger.info("Scheduler configured. Starting loop...")
     try:
