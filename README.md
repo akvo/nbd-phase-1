@@ -117,6 +117,16 @@ You can run these scripts inside the backend container for setup and maintenance
 
 ---
 
+## 📝 Questionnaire Customisation & Moderation Constraints
+
+When modifying or extending form blueprints (such as the **Monthly Wetland Sampling** form), the following constraints must be respected to maintain system moderation functionality:
+
+- **Core Mapped Fields**: The backend status moderation logic (`PATCH /api/v1/submissions/{id}/status`) relies on exact question identifier matches (`ph`, `temp`, `do`, `invasive_percent`, `water_level`) to extract values and dynamically map them to the structured `sampling_records` table on approval.
+- **Blueprint Renaming**: You can safely change display labels or question orders in form blueprints. However, if you modify the machine-name identifiers of the core five questions in the form json, you must update the string matches inside [submission_router.py](backend/app/routers/submission_router.py).
+- **Adding New Parameters**: Ingesting new structured water quality parameters (e.g. salinity) will require an Alembic database migration to add target columns to the `sampling_records` table and updating the router extraction logic to save them.
+
+---
+
 ## 📘 Design and Solution Design Document (SDD)
 
 - The canonical source of truth for the Solution Design Document is located in [design-docs/solution-design-technical.md](design-docs/solution-design-technical.md).
