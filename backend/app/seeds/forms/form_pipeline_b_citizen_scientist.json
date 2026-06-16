@@ -7,21 +7,32 @@
       "name": "Site Details",
       "question": [
         {
-          "id": "sampling_id",
+          "id": "site_id",
           "order": 1,
+          "type": "cascade",
+          "name": "Select Site",
+          "required": true,
+          "endpoint": "/api/v1/reference/sites",
+          "extra": {
+            "option": "site"
+          }
+        },
+        {
+          "id": "sampling_id",
+          "order": 2,
           "type": "input",
           "name": "Sampling ID",
           "required": true
         },
         {
           "id": "site_photo",
-          "order": 2,
+          "order": 3,
           "type": "image",
           "name": "Site Photo"
         },
         {
           "id": "location",
-          "order": 3,
+          "order": 4,
           "type": "geo",
           "name": "GPS Reading",
           "required": true
