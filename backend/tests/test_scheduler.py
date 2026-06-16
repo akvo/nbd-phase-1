@@ -36,7 +36,7 @@ def test_scheduler_main_execution(monkeypatch):
     runpy.run_module("app.scheduler", run_name="__main__")
 
     mock_blocking_scheduler.assert_called()
-    assert mock_scheduler_instance.add_job.call_count == 3
+    assert mock_scheduler_instance.add_job.call_count == 4
 
     call_1 = mock_scheduler_instance.add_job.call_args_list[0]
     call_2 = mock_scheduler_instance.add_job.call_args_list[1]
