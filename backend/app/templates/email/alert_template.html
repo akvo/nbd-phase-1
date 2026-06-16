@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ subject }}</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f3f4f6;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .header {
+      background: linear-gradient(135deg, #d9383a 0%, #991b1b 100%);
+      color: #ffffff;
+      padding: 24px;
+      text-align: center;
+    }
+    .header.warning {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    .header.info {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    .header p {
+      margin: 4px 0 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 24px;
+      color: #374151;
+      line-height: 1.6;
+    }
+    .alert-banner {
+      background-color: #fef2f2;
+      border-left: 4px solid #ef4444;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      border-radius: 0 4px 4px 0;
+    }
+    .alert-banner.warning {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+    }
+    .alert-banner.info {
+      background-color: #eff6ff;
+      border-left: 4px solid #3b82f6;
+    }
+    .alert-banner p {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    th {
+      background-color: #f9fafb;
+      color: #4b5563;
+      font-weight: 600;
+      text-align: left;
+      border-bottom: 2px solid #e5e7eb;
+      padding: 10px 12px;
+    }
+    td {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      color: #1f2937;
+      word-break: break-word;
+    }
+    .traceback-container {
+      background-color: #1f2937;
+      color: #f9fafb;
+      padding: 16px;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      margin: 20px 0;
+      border: 1px solid #374151;
+    }
+    .btn-container {
+      text-align: center;
+      margin: 24px 0 12px;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #1d4ed8;
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn:hover {
+      background-color: #1e40af;
+    }
+    .footer {
+      background-color: #f9fafb;
+      padding: 16px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #6b7280;
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer p {
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header {% if alert_level == 'warning' %}warning{% elif alert_level == 'info' %}info{% endif %}">
+      <h1>NBD Platform Alert System</h1>
+      <p>System notification from regional wetland monitoring service</p>
+    </div>
+    <div class="content">
+      <div class="alert-banner {% if alert_level == 'warning' %}warning{% elif alert_level == 'info' %}info{% endif %}">
+        <p><strong>Status:</strong> {{ status_message }}</p>
+      </div>
+
+      <p>{{ description }}</p>
+
+      {% if details_table %}
+      <table>
+        <thead>
+          <tr>
+            {% for header in details_headers %}
+            <th>{{ header }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in details_table %}
+          <tr>
+            {% for cell in row %}
+            <td>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if traceback %}
+      <p><strong>System Details / Traceback:</strong></p>
+      <div class="traceback-container">
+        <pre style="margin: 0;">{{ traceback }}</pre>
+      </div>
+      {% endif %}
+
+      <div class="btn-container">
+        <a href="{{ action_url }}" class="btn">Access NBD Admin Portal</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p><strong>Environment:</strong> {{ app_env | upper }} | <strong>Timestamp:</strong> {{ timestamp }}</p>
+      <p>This is an automated system notification. Please do not reply directly to this email.</p>
+    </div>
+  </div>
+</body>
+</html>
