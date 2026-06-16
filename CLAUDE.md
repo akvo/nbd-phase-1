@@ -66,3 +66,13 @@ Do not generate a new HTML wrapper or rewrite the SVG from scratch unless the us
 ## Gitignored noise
 
 `.claude/settings.local.json`, `.playwright-mcp/`, and `.superpowers/brainstorm/*/state/` are excluded by `.gitignore`. The `.superpowers/brainstorm/` directory contains transient brainstorm session state from earlier design work and is not part of the deliverable.
+
+## Development environment
+
+For local development, use ngrok to expose the API for Africa's Talking and WhatsApp callbacks:
+
+```bash
+ngrok http --url=nbd.ngrok.dev 3000
+```
+
+This tunnels local port 3000 to `nbd.ngrok.dev`, which is configured as the callback URL for Africa's Talking (USSD/WhatsApp) during development.
