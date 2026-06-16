@@ -69,6 +69,14 @@ def parse_kobo_timestamp(ts_str: str | None) -> datetime:
 
 def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
     logger.info("Starting KoboToolbox submissions sync...")
+    try:
+        return _sync_kobo_submissions_core(db)
+    except Exception as e:
+        _send_sync_crash_alert(db, e)
+        raise e
+
+
+def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
     service = KoboService()
     sync_results = {"processed_forms": 0, "ingested_records": 0, "errors": []}
 
@@ -76,17 +84,14 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
         forms = service.get_forms()
     except Exception as e:
         logger.error(f"Failed to fetch forms list from KoboToolbox: {e}")
-        sync_results["errors"].append(str(e))
-        return sync_results
+        raise e
 
     # Get a default polymorphic anchor
     default_basin = db.query(Basin).first()
     if not default_basin:
-        logger.error(
-            "No Basin found in database to act as polymorphic anchor."
-        )
-        sync_results["errors"].append("No Basin found for polymorphic anchor.")
-        return sync_results
+        err_msg = "No Basin found in database to act as polymorphic anchor."
+        logger.error(err_msg)
+        raise ValueError(err_msg)
 
     for form in forms:
         form_name = form.get("name")
@@ -297,7 +302,8 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                                 except ValueError as e:
                                     raise ValueError(
                                         f"Value '{val}' for numeric question "
-                                        f"'{question.name}' is not a valid number: {e}"
+                                        f"'{question.name}' is not a valid "
+                                        f"number: {e}"
                                     )
                                 # Validate bounds
                                 q_name_lower = (
@@ -405,7 +411,8 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                     db.commit()
                 except Exception as dl_err:
                     logger.error(
-                        f"Failed to write dead letter for {sub_uuid_str}: {dl_err}"
+                        f"Failed to write dead letter for "
+                        f"{sub_uuid_str}: {dl_err}"
                     )
                     db.rollback()
 
@@ -439,22 +446,6 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
             admin_emails = [a.email for a in admins]
 
             if admin_emails:
-                html_body = (
-                    "<h3>Kobo Ingestion Failures Alert</h3>"
-                    "<p>The following submissions failed validation or "
-                    "mapping during the hourly sync:</p>"
-                    "<table border='1' cellpadding='5' cellspacing='0'>"
-                    "<tr><th>Submission UUID</th><th>Submitter</th>"
-                    "<th>Error Detail</th></tr>"
-                )
-                for failure in sync_failures:
-                    html_body += (
-                        f"<tr><td>{failure['uuid']}</td>"
-                        f"<td>{failure['submitted_by']}</td>"
-                        f"<td>{failure['error']}</td></tr>"
-                    )
-                html_body += "</table>"
-
                 email_service = EmailService()
                 try:
                     loop = asyncio.get_event_loop()
@@ -462,22 +453,33 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
 
+                failures_table = [
+                    [f["uuid"], f["submitted_by"], f["error"]]
+                    for f in sync_failures
+                ]
+
+                coro = email_service.send_alert_email(
+                    to=admin_emails,
+                    subject="[NBD Portal] Kobo Ingestion Failures Alert",
+                    status_message="QUARANTINED SUBMISSIONS",
+                    description=(
+                        "The following submissions failed validation or "
+                        "mapping during the hourly sync and have been "
+                        "quarantined in the dead-letter queue (DLQ):"
+                    ),
+                    alert_level="warning",
+                    details_headers=[
+                        "Submission UUID",
+                        "Submitter",
+                        "Error Detail",
+                    ],
+                    details_table=failures_table,
+                )
+
                 if loop.is_running():
-                    loop.create_task(
-                        email_service.send_email_async(
-                            to=admin_emails,
-                            subject="[NBD Portal] Kobo Ingestion Failures Alert",
-                            html_body=html_body,
-                        )
-                    )
+                    loop.create_task(coro)
                 else:
-                    loop.run_until_complete(
-                        email_service.send_email_async(
-                            to=admin_emails,
-                            subject="[NBD Portal] Kobo Ingestion Failures Alert",
-                            html_body=html_body,
-                        )
-                    )
+                    loop.run_until_complete(coro)
         except Exception as email_err:
             logger.error(
                 f"Failed to send aggregated failure email alert: {email_err}"
@@ -485,3 +487,50 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
 
     logger.info("KoboToolbox sync finished.")
     return sync_results
+
+
+def _send_sync_crash_alert(db: Session, error: Exception):
+    try:
+        from app.models.user import User
+        import traceback
+        import asyncio
+
+        admins = (
+            db.query(User.email)
+            .filter(func.lower(User.role) == "admin", User.is_active.is_(True))
+            .all()
+        )
+        admin_emails = [a.email for a in admins]
+        if not admin_emails:
+            return
+
+        email_service = EmailService()
+        tb_str = "".join(
+            traceback.format_exception(type(error), error, error.__traceback__)
+        )
+
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        coro = email_service.send_alert_email(
+            to=admin_emails,
+            subject="[CRITICAL ALERT] Kobo Sync Service Crash",
+            status_message="SERVICE CRASHED",
+            description=(
+                "The KoboToolbox background synchronization service has "
+                "crashed due to an unhandled exception."
+            ),
+            alert_level="danger",
+            details_headers=["Error Type", "Error Message"],
+            details_table=[[type(error).__name__, str(error)]],
+            traceback=tb_str,
+        )
+        if loop.is_running():
+            loop.create_task(coro)
+        else:
+            loop.run_until_complete(coro)
+    except Exception as email_err:
+        logger.error(f"Failed to send sync crash email alert: {email_err}")
