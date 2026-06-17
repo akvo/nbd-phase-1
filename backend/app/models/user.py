@@ -22,7 +22,9 @@ class User(Base):
 
     # Invite tracking
     invited_at = Column(DateTime, nullable=True)
-    invited_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    invited_by_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
     first_login_at = Column(DateTime, nullable=True)
     last_login_at = Column(DateTime, nullable=True)
 

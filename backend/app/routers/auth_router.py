@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter, Depends, HTTPException, Request, Response, status
+)
 from sqlalchemy.orm import Session
 
 from google.oauth2 import id_token
