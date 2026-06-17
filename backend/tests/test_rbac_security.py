@@ -6,15 +6,13 @@ from sqlalchemy.orm import Session
 from app.main import app
 from app.models.user import User
 from app.models.spatial import Site
+from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
 client = TestClient(app)
 
-# Test JWT secret used by get_current_user in testing mode
-TEST_SECRET = "test_secret"
-
 
 def create_token(email: str) -> str:
-    return jwt.encode({"email": email}, TEST_SECRET, algorithm="HS256")
+    return jwt.encode({"email": email}, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 @pytest.fixture

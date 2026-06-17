@@ -1,29 +1,29 @@
-import os
 from typing import List, Optional
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.config.auth import (
+    JWT_SECRET,
+    JWT_ALGORITHM,
+    SESSION_COOKIE_NAME,
+)
 
-security = HTTPBearer()
-
-JWT_SECRET = os.getenv("JWT_SECRET", "test_secret")
-JWT_ALGORITHM = "HS256"
+security = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    if not credentials:
+def get_current_user_from_cookie(request: Request, db: Session) -> User:
+    """Extract and validate user from session cookie."""
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization credentials missing",
+            detail="Session cookie missing",
         )
-    token = credentials.credentials
+
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         email = payload.get("email")
@@ -32,7 +32,69 @@ def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token claims",
             )
-    except Exception:
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired",
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session token",
+        )
+
+    user = (
+        db.query(User)
+        .filter(User.email == email, User.is_active.is_(True))
+        .first()
+    )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not registered or inactive",
+        )
+    return user
+
+
+def get_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Get current user from either:
+    1. Authorization header (Bearer token) - for API clients
+    2. Session cookie (nbd_session) - for browser clients
+    """
+    token = None
+
+    # First, try Authorization header
+    if credentials:
+        token = credentials.credentials
+    else:
+        # Fall back to session cookie
+        token = request.cookies.get(SESSION_COOKIE_NAME)
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization credentials missing",
+        )
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get("email")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token claims",
+            )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired",
+        )
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",

@@ -2,9 +2,9 @@ import jwt
 from fastapi.testclient import TestClient
 from app.main import app
 from app.models.user import User
+from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
 client = TestClient(app)
-TEST_SECRET = "test_secret"
 
 
 def get_auth_headers(db_session, email="admin_test@nbd.org", role="Admin"):
@@ -13,7 +13,7 @@ def get_auth_headers(db_session, email="admin_test@nbd.org", role="Admin"):
         user = User(email=email, role=role, is_active=True)
         db_session.add(user)
         db_session.commit()
-    token = jwt.encode({"email": email}, TEST_SECRET, algorithm="HS256")
+    token = jwt.encode({"email": email}, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -33,20 +33,19 @@ def test_create_user_admin_sso_success(db_session):
     assert "id" in data
 
 
-def test_create_user_partner_with_password(db_session):
+def test_create_user_reviewer_with_organization(db_session):
     headers = get_auth_headers(db_session)
     payload = {
-        "email": "partner@partner.org",
-        "role": "Partner",
-        "organization": "Partner Org",
-        "password": "securepassword123",
+        "email": "reviewer@review.org",
+        "role": "Reviewer",
+        "organization": "Review Board",
     }
     response = client.post("/api/v1/users", json=payload, headers=headers)
     assert response.status_code == 201
     data = response.json()
-    assert data["email"] == "partner@partner.org"
-    assert data["role"] == "Partner"
-    assert data["organization"] == "Partner Org"
+    assert data["email"] == "reviewer@review.org"
+    assert data["role"] == "Reviewer"
+    assert data["organization"] == "Review Board"
 
 
 def test_create_user_duplicate_email(db_session):
@@ -81,7 +80,7 @@ def test_list_users(db_session):
         "/api/v1/users",
         json={
             "email": "user2@nbd.org",
-            "role": "Partner",
+            "role": "Reviewer",
         },
         headers=headers,
     )

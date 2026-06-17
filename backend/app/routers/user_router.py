@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,8 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.audit_log import AuditLog
 from app.schemas import user as schemas
-from app.dependencies.auth import RoleChecker
+from app.dependencies.auth import RoleChecker, get_current_user
 
 router = APIRouter(
     prefix="/api/v1/users",
@@ -55,6 +57,59 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     )
     try:
         db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post(
+    "/invite",
+    response_model=schemas.UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def invite_user(
+    invite: schemas.UserInviteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Invite a new user to the platform.
+
+    Creates a user record with the specified email and role.
+    The user can then log in via Google SSO if their email matches.
+    """
+    # Check if email already exists
+    existing = db.query(User).filter(User.email == invite.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"User with email '{invite.email}' already exists.",
+        )
+
+    db_user = User(
+        email=invite.email,
+        role=invite.role,
+        organization=invite.organization,
+        is_active=True,
+        invited_at=datetime.now(timezone.utc),
+        invited_by_id=current_user.id,
+    )
+
+    try:
+        db.add(db_user)
+        db.flush()
+
+        # Log the invite action
+        audit_log = AuditLog(
+            actor_id=current_user.id,
+            action="INVITE",
+            entity_type="user",
+            entity_id=str(db_user.id),
+        )
+        db.add(audit_log)
         db.commit()
         db.refresh(db_user)
         return db_user

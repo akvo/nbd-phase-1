@@ -38,6 +38,9 @@ services:
       - MAIL_FROM=${MAIL_FROM}
       - STORAGE_DIR=${STORAGE_DIR}
       - SECRET_KEY=${SECRET_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - JWT_SECRET=${SECRET_KEY}
+      - JWT_EXPIRY_HOURS=${JWT_EXPIRY_HOURS:-24}
       - KOBOTOOLBOX_API_URL=${KOBOTOOLBOX_API_URL}
       - KOBOTOOLBOX_API_TOKEN=${KOBOTOOLBOX_API_TOKEN}
       - WHATSAPP_APP_SECRET=${WHATSAPP_APP_SECRET}
@@ -68,6 +71,9 @@ services:
       - MAIL_FROM=${MAIL_FROM}
       - STORAGE_DIR=${STORAGE_DIR}
       - SECRET_KEY=${SECRET_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - JWT_SECRET=${SECRET_KEY}
+      - JWT_EXPIRY_HOURS=${JWT_EXPIRY_HOURS:-24}
       - KOBOTOOLBOX_API_URL=${KOBOTOOLBOX_API_URL}
       - KOBOTOOLBOX_API_TOKEN=${KOBOTOOLBOX_API_TOKEN}
       - WHATSAPP_APP_SECRET=${WHATSAPP_APP_SECRET}
@@ -85,8 +91,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
     environment:
       - NODE_ENV=${NODE_ENV}
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
     command: ./start.sh
     stdin_open: true
     tty: true

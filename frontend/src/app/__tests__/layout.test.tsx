@@ -1,6 +1,30 @@
 import { render, screen } from '@testing-library/react';
+import { expect, test, vi } from 'vitest';
+
+// Mock Next.js navigation hooks used by AuthProvider
+vi.mock('next/navigation', () => {
+  return {
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      prefetch: vi.fn(),
+    }),
+    usePathname: () => '/',
+  };
+});
+
+// Mock the API client
+vi.mock('@/lib/api', () => {
+  return {
+    apiClient: {
+      get: vi.fn(() => Promise.resolve({ data: null })),
+      post: vi.fn(() => Promise.resolve({ data: {} })),
+    },
+  };
+});
+
+// Import after mocks
 import RootLayout from '../layout';
-import { expect, test } from 'vitest';
 
 test('renders root layout with children', () => {
   render(

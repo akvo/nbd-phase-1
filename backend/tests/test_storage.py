@@ -167,6 +167,7 @@ def test_api_presigned_upload():
 def test_api_presigned_read(db_session):
     import jwt
     from app.models.user import User
+    from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
     # Create admin user
     admin = User(
@@ -177,8 +178,8 @@ def test_api_presigned_read(db_session):
 
     token = jwt.encode(
         {"email": "admin_storage_nfs@nbd.org"},
-        "test_secret",
-        algorithm="HS256",
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
     )
 
     response = client.get(
@@ -204,6 +205,7 @@ def test_api_presigned_read_unauthenticated():
 def test_api_presigned_read_non_admin_forbidden(db_session):
     import jwt
     from app.models.user import User
+    from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
     reviewer = User(
         email="reviewer_storage_nfs@nbd.org", role="Reviewer", is_active=True
@@ -213,8 +215,8 @@ def test_api_presigned_read_non_admin_forbidden(db_session):
 
     token = jwt.encode(
         {"email": "reviewer_storage_nfs@nbd.org"},
-        "test_secret",
-        algorithm="HS256",
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
     )
 
     response = client.get(
