@@ -62,3 +62,38 @@ async def send_test_email(
         html_body=payload.body,
     )
     return {"message": "Test email has been queued", "recipient": payload.to}
+
+
+@app.get("/api/v1/test/mock-webhook-failure")
+def mock_webhook_failure(
+    endpoint: str,
+    status_code: int = 500,
+):
+    from app.database import SessionLocal
+    from app.models.user import User
+    from app.models.audit_log import AuditLog
+
+    db = SessionLocal()
+    try:
+        sys_user = User.get_or_create_system_user(db)
+        entity_type = (
+            "ussd_webhook" if endpoint == "ussd" else "whatsapp_webhook"
+        )
+        audit = AuditLog(
+            actor_id=sys_user.id,
+            action="POST",
+            entity_type=entity_type,
+            entity_id=str(status_code),
+        )
+        db.add(audit)
+        db.commit()
+        return {
+            "status": "logged",
+            "endpoint": f"/api/v1/{endpoint}",
+            "logged_status_code": status_code,
+        }
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()

@@ -197,9 +197,14 @@ def test_sync_kobo_submissions_name_mismatch(
 
 @patch("app.services.kobo.KoboService.get_forms")
 @patch("app.services.kobo.KoboService.get_submissions")
-@patch("app.mail.EmailService.send_email_async")
+@patch("app.services.kobo.EmailService.send_email_async")
+@patch("app.services.kobo.EmailService.send_alert_email")
 def test_sync_kobo_bounds_and_dlq_flows(
-    mock_send_email, mock_get_submissions, mock_get_forms, db_session: Session
+    mock_send_alert,
+    mock_send_email,
+    mock_get_submissions,
+    mock_get_forms,
+    db_session: Session,
 ):
     from app.models.dead_letter import DeadLetter
     from app.models.user import User
@@ -336,17 +341,18 @@ def test_sync_kobo_bounds_and_dlq_flows(
     assert datapoint is not None
 
     # Check email aggregation: alert should be sent exactly once
-    assert mock_send_email.call_count == 1
+    assert mock_send_alert.call_count == 1
     # Check email args
-    call_args = mock_send_email.call_args
+    call_args = mock_send_alert.call_args
     recipients = call_args[1].get("to") or call_args[0][0]
     # Should only contain active admin
     assert recipients == ["admin1@nbd-wetland.org"]
     subject = call_args[1].get("subject") or call_args[0][1]
     assert "Kobo Ingestion Failures Alert" in subject
-    html_body = call_args[1].get("html_body") or call_args[0][2]
-    assert sub1_uuid in html_body
-    assert sub2_uuid in html_body
+    details_table = call_args[1].get("details_table")
+    flat_table = [item for sublist in details_table for item in sublist]
+    assert sub1_uuid in flat_table
+    assert sub2_uuid in flat_table
 
 
 # ---------------------------------------------------------------------------
@@ -498,8 +504,10 @@ def test_sync_kobo_image_attachment_uploaded_to_gcs(
 @patch("app.services.kobo.KoboService.get_forms")
 @patch("app.services.kobo.KoboService.get_submissions")
 @patch("app.services.kobo.StorageService")
-@patch("app.mail.EmailService.send_email_async")
+@patch("app.services.kobo.EmailService.send_email_async")
+@patch("app.services.kobo.EmailService.send_alert_email")
 def test_sync_kobo_image_download_failure_routes_to_dlq(
+    mock_send_alert,
     mock_send_email,
     mock_storage_class,
     mock_get_submissions,

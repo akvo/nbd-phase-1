@@ -17,6 +17,17 @@ The application is structured as a multi-container stack orchestrated via Docker
 
 ---
 
+## 📍 Spatial Infrastructure Hierarchy
+
+All environmental data, sampling records, and pollution reports collected by the platform are anchored to exactly one level of the geographic hierarchy:
+1. **Basin** (`basins` table): Watershed boundaries (MultiPolygon).
+2. **Wetland** (`wetlands` table): Wetland zones belonging to a Basin (Polygon).
+3. **Site** (`sites` table): Fixed sampling points belonging to a Wetland (Point).
+
+For more detailed technical specifications, refer to [spatial_infrastructure_lld.md](docs/lld/spatial_infrastructure_lld.md).
+
+---
+
 ## 📁 Repository Structure
 
 ```text
@@ -114,6 +125,16 @@ You can run these scripts inside the backend container for setup and maintenance
   ```bash
   ./dc.sh exec backend python app/seeds/seeder.py
   ```
+
+---
+
+## 📝 Questionnaire Customisation & Moderation Constraints
+
+When modifying or extending form blueprints (such as the **Monthly Wetland Sampling** form), the following constraints must be respected to maintain system moderation functionality:
+
+- **Core Mapped Fields**: The backend status moderation logic (`PATCH /api/v1/submissions/{id}/status`) relies on exact question identifier matches (`ph`, `temp`, `do`, `invasive_percent`, `water_level`) to extract values and dynamically map them to the structured `sampling_records` table on approval.
+- **Blueprint Renaming**: You can safely change display labels or question orders in form blueprints. However, if you modify the machine-name identifiers of the core five questions in the form json, you must update the string matches inside [submission_router.py](backend/app/routers/submission_router.py).
+- **Adding New Parameters**: Ingesting new structured water quality parameters (e.g. salinity) will require an Alembic database migration to add target columns to the `sampling_records` table and updating the router extraction logic to save them.
 
 ---
 

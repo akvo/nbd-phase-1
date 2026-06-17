@@ -275,6 +275,17 @@ This pipeline ingests physico-chemical, ecological, and hydrological data collec
 }
 ```
 
+### 5.3 Customisation & Moderation Mapping Rules
+
+When modifying or extending the Monthly Wetland Sampling questionnaire, developers and admins must respect the following mapping constraints:
+
+* **Question Identifiers (`Question.name`)**: The backend submission moderation router relies on exact question identifier matches (`ph`, `temp`, `do`, `invasive_percent`, `water_level`) to parse values and insert them into the structured `sampling_records` database table upon approval.
+  * Changing the order or display labels of these questions in the form blueprint is completely safe.
+  * If any of these five question names/identifiers are modified in the form blueprint, the matching logic inside the backend code (`submission_router.py`) must be updated accordingly.
+* **Adding New Parameters**: Any new parameters added to the questionnaire in the future (e.g. salinity, turbidity) will require:
+  * A database migration to add corresponding columns in the `sampling_records` table.
+  * Updating the extraction loop in `submission_router.py` to map the new answer value to the new database column.
+
 ---
 
 ## 6. Pipeline C: Admin Webforms (Lab QA and FGD)
@@ -292,8 +303,29 @@ This schema includes heavy metal and nutrient parameters for professional labora
     {
       "id": 1,
       "order": 1,
+      "name": "Site Details",
+      "question": [
+        {
+          "id": "site_id",
+          "order": 1,
+          "type": "cascade",
+          "name": "Select Site",
+          "required": true,
+          "endpoint": "/api/v1/reference/sites",
+          "extra": {
+            "option": "site"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "order": 2,
       "name": "Chemical & Nutrient Analysis",
       "question": [
+        { "id": "lab_ph", "type": "number", "name": "pH", "rule": { "allowDecimal": true } },
+        { "id": "lab_temperature", "type": "number", "name": "Water Temperature", "rule": { "allowDecimal": true } },
+        { "id": "lab_dissolved_oxygen", "type": "number", "name": "Dissolved Oxygen", "rule": { "allowDecimal": true } },
         { "id": "bod", "type": "number", "name": "Biochemical Oxygen Demand (BOD)", "rule": { "allowDecimal": true } },
         { "id": "orthophosphate", "type": "number", "name": "Orthophosphate", "rule": { "allowDecimal": true } },
         { "id": "nitrate", "type": "number", "name": "Nitrate", "rule": { "allowDecimal": true } },
