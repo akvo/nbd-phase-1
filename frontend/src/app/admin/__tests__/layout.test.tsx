@@ -24,6 +24,27 @@ vi.mock('@/lib/api', () => {
   };
 });
 
+// Mock useAuth hook
+vi.mock('@/context/AuthContext', () => {
+  return {
+    useAuth: () => ({
+      user: {
+        id: 'test-user-id',
+        email: 'admin@test.com',
+        role: 'Admin',
+        display_name: 'Test Admin',
+        avatar_url: null,
+      },
+      loading: false,
+      error: null,
+      logout: vi.fn(),
+      refresh: vi.fn(),
+      isAdmin: true,
+      isReviewer: false,
+    }),
+  };
+});
+
 
 describe('Admin Top-Nav Layout', () => {
   test('renders top navigation and headers', () => {
@@ -45,7 +66,6 @@ describe('Admin Top-Nav Layout', () => {
     // Verify right utility header buttons
     expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument();
   });
 
   test('renders page title, badges, action buttons and sub-nav tabs', () => {

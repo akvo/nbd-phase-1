@@ -1,11 +1,17 @@
 import { expect, test, vi, describe, beforeEach } from "vitest";
 
-const { mockCreate, mockGet } = vi.hoisted(() => {
+const { mockCreate, mockGet, mockInterceptors } = vi.hoisted(() => {
   const mockGet = vi.fn();
+  const mockInterceptors = {
+    response: {
+      use: vi.fn(),
+    },
+  };
   const mockCreate = vi.fn((config?: any) => ({
     get: mockGet,
+    interceptors: mockInterceptors,
   }));
-  return { mockCreate, mockGet };
+  return { mockCreate, mockGet, mockInterceptors };
 });
 
 // Mock axios module
@@ -33,8 +39,13 @@ describe("API Client", () => {
       headers: {
         "Content-Type": "application/json",
       },
+      withCredentials: true,
     });
     expect(apiClient).toBeDefined();
+  });
+
+  test("apiClient has 401 interceptor configured", () => {
+    expect(mockInterceptors.response.use).toHaveBeenCalled();
   });
 
   test("getBasins fetches data from correct endpoint and returns response data", async () => {
