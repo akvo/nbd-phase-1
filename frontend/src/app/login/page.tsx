@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Script from "next/script";
 import { MessageNote } from "@/components/ui/message-note";
@@ -15,7 +15,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   auth_failed: "Authentication failed. Please try again.",
 };
 
-export default function LoginPage() {
+function LoginContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -123,5 +123,19 @@ export default function LoginPage() {
       {/* Empty Footer spacing wrapper */}
       <footer className="h-6"></footer>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-sm text-slate-500">Loading...</div>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
