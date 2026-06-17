@@ -3,10 +3,10 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.models.user import User
+from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 from sqlalchemy import text
 
 client = TestClient(app)
-TEST_SECRET = "test_secret"
 
 
 def get_auth_headers(
@@ -17,7 +17,7 @@ def get_auth_headers(
         user = User(email=email, role=role, is_active=True)
         db_session.add(user)
         db_session.commit()
-    token = jwt.encode({"email": email}, TEST_SECRET, algorithm="HS256")
+    token = jwt.encode({"email": email}, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return {"Authorization": f"Bearer {token}"}
 
 
