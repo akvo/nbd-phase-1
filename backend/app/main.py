@@ -12,6 +12,7 @@ from app.routers.ussd_router import router as ussd_router
 from app.routers.citizen_router import router as citizen_router
 from app.routers.whatsapp_router import router as whatsapp_router
 from app.routers.internal_router import router as internal_router
+from app.routers.auth_router import router as auth_router
 
 
 app = FastAPI(
@@ -21,6 +22,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
+app.include_router(auth_router)
 app.include_router(storage_router)
 app.include_router(spatial_router)
 app.include_router(form_router)

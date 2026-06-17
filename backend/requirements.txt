@@ -16,3 +16,5 @@ alembic==1.13.1
 numpy<2
 python-multipart==0.0.9
 PyJWT==2.8.0
+google-auth==2.29.0
+cachecontrol==0.14.0

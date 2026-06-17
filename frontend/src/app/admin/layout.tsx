@@ -6,13 +6,25 @@ import Header from '@/components/admin/header';
 import Tabs from '@/components/admin/tabs';
 import { Download, Plus, ChevronDown, ClipboardList } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [forms, setForms] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Redirect non-admins away from admin-only routes
+  useEffect(() => {
+    if (!authLoading && user) {
+      const adminOnlyRoutes = ['/admin/users', '/admin/sites'];
+      if (adminOnlyRoutes.some(route => pathname.startsWith(route)) && !isAdmin) {
+        router.push('/admin/data');
+      }
+    }
+  }, [pathname, user, authLoading, isAdmin, router]);
 
   useEffect(() => {
     apiClient.get('/forms')
@@ -61,6 +73,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     title = 'Site configuration';
     subtitle = 'Manage basin details, sub-county bounds, and fixed monitoring points';
     isTabbedRoute = true;
+  }
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-slate-500">Loading...</div>
+      </div>
+    );
   }
 
   return (
