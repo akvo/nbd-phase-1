@@ -31,7 +31,9 @@ export default function Home() {
   const [selectedSite, setSelectedSite] = useState<any>(null);
   const [isListCollapsed, setIsListCollapsed] = useState(true);
 
-  const [basinGeometries, setBasinGeometries] = useState<Record<string, any>>({});
+  const [basinGeometries, setBasinGeometries] = useState<Record<string, any>>(
+    {}
+  );
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
 
   useEffect(() => {
@@ -159,17 +161,17 @@ export default function Home() {
 
           {/* Basin selector */}
           <div className="p-4 border-b border-slate-100 space-y-4 shrink-0">
-            {SHOW_BASIN_SELECTOR &&
-            <Dropdown
-              label="Basin Region"
-              options={dropdownOptions}
-              value={selectedBasin}
-              onChange={(val) => {
-                setSelectedBasin(val);
-                setSelectedSite(null);
-              }}
-            />
-            }
+            {SHOW_BASIN_SELECTOR && (
+              <Dropdown
+                label="Basin Region"
+                options={dropdownOptions}
+                value={selectedBasin}
+                onChange={(val) => {
+                  setSelectedBasin(val);
+                  setSelectedSite(null);
+                }}
+              />
+            )}
 
             {/* Health filter toggles */}
             <div className="flex bg-slate-100 p-1 rounded-lg w-full text-xs font-semibold">
@@ -177,10 +179,11 @@ export default function Home() {
                 <button
                   key={filter}
                   onClick={() => setSelectedHealthFilter(filter)}
-                  className={`flex-1 py-1.5 rounded-md text-center transition-all ${selectedHealthFilter === filter
+                  className={`flex-1 py-1.5 rounded-md text-center transition-all ${
+                    selectedHealthFilter === filter
                       ? "bg-white text-slate-800 shadow"
                       : "text-slate-400 hover:text-slate-600"
-                    }`}
+                  }`}
                 >
                   {filter}
                 </button>
@@ -198,7 +201,9 @@ export default function Home() {
           </div>
 
           {/* Site cards list */}
-          <div className={`p-4 flex flex-col min-h-0 ${isListCollapsed ? "shrink-0" : "flex-1 overflow-y-auto"}`}>
+          <div
+            className={`p-4 flex flex-col min-h-0 ${isListCollapsed ? "shrink-0" : "flex-1 overflow-y-auto"}`}
+          >
             <div
               className="text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between items-center cursor-pointer select-none hover:text-slate-600 transition-colors py-1"
               onClick={() => setIsListCollapsed(!isListCollapsed)}
@@ -206,18 +211,24 @@ export default function Home() {
               <div className="flex items-center w-full justify-between gap-2">
                 {filteredIncidents.length > 0 && (
                   <span className="text-red-500 normal-case font-medium">
-                    {filteredIncidents.length} Incident{filteredIncidents.length > 1 ? "s" : ""}
+                    {filteredIncidents.length} Incident
+                    {filteredIncidents.length > 1 ? "s" : ""}
                   </span>
                 )}
                 <svg
-                  className={`w-3.5 h-3.5 transform transition-transform duration-200 ${isListCollapsed ? "" : "rotate-180"
-                    }`}
+                  className={`w-3.5 h-3.5 transform transition-transform duration-200 ${
+                    isListCollapsed ? "" : "rotate-180"
+                  }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   strokeWidth="2.5"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
             </div>
@@ -227,7 +238,7 @@ export default function Home() {
                 {filteredSites.length > 0 ? (
                   filteredSites.map((site) => {
                     const isCritical = ["D", "E"].includes(
-                      site.current_health_class,
+                      site.current_health_class
                     );
                     const isAtRisk = site.current_health_class === "C";
 
@@ -247,12 +258,13 @@ export default function Home() {
                             </span>
                           </div>
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isCritical
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                              isCritical
                                 ? "bg-red-50 text-red-600"
                                 : isAtRisk
                                   ? "bg-amber-50 text-amber-600"
                                   : "bg-green-50 text-green-600"
-                              }`}
+                            }`}
                           >
                             {site.current_health_class}
                           </div>
@@ -265,12 +277,13 @@ export default function Home() {
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${isCritical
+                                className={`h-full rounded-full ${
+                                  isCritical
                                     ? "bg-red-500"
                                     : isAtRisk
                                       ? "bg-amber-500"
                                       : "bg-green-500"
-                                  }`}
+                                }`}
                                 style={{ width: `${site.progress_percent}%` }}
                               />
                             </div>
@@ -281,19 +294,35 @@ export default function Home() {
                         </div>
 
                         <div className="flex gap-1.5">
-                          <Badge variant={site.is_approved ? "success" : "warning"}>
+                          <Badge
+                            variant={site.is_approved ? "success" : "warning"}
+                          >
                             {site.is_approved ? "Approved" : "Pending"}
                           </Badge>
                           {site.is_ik_adjusted && (
                             <Badge variant="primary">IK-adjusted</Badge>
                           )}
                           <div className="flex items-center gap-1 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm">
-          <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span>{site.country}</span>
-        </div>
+                            <svg
+                              className="w-3.5 h-3.5 text-slate-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                            </svg>
+                            <span>{site.country}</span>
+                          </div>
                         </div>
                       </Card>
                     );

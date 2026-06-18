@@ -80,7 +80,7 @@ export default function UsersPage() {
   // Invite form state
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"Admin" | "Reviewer">(
-    "Reviewer",
+    "Reviewer"
   );
   const [inviteOrg, setInviteOrg] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -174,7 +174,7 @@ export default function UsersPage() {
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
 
   const getStatusLabel = (
-    user: User,
+    user: User
   ): { label: string; variant: "success" | "warning" | "danger" } => {
     if (!user.is_active) return { label: "Inactive", variant: "danger" };
     if (!user.first_login_at && user.invited_at)

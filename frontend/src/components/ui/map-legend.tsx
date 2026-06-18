@@ -3,14 +3,14 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-interface MapLegendProps extends React.HTMLAttributes<HTMLDivElement> {}
+type MapLegendProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function MapLegend({ className, ...props }: MapLegendProps) {
   return (
     <div
       className={cn(
         "absolute left-4 md:left-[25rem] right-auto top-20 z-20 pointer-events-none bg-slate-900/60 backdrop-blur-none text-white px-3 py-2 rounded-lg text-xs flex flex-col gap-1.5 shadow-lg border border-slate-700/50",
-        className,
+        className
       )}
       {...props}
     >

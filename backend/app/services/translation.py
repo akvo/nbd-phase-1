@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 def get_translation(
     translations: List[Dict[str, Any]] | None, lang: str, fallback: str
 ) -> str:
-    """Finds the text corresponding to 'lang' in a translations JSONB list, falling back to 'fallback'."""
+    """Find text for 'lang' in translations list, else return fallback."""
     if not translations:
         return fallback
     for entry in translations:

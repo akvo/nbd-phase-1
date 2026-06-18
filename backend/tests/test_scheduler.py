@@ -1,19 +1,22 @@
 from unittest.mock import MagicMock, patch
 
-# Pre-mock BlockingScheduler before any imports to avoid hanging the test runner
+# Pre-mock BlockingScheduler before any imports to avoid hanging test runner
 mock_scheduler_instance = MagicMock()
 mock_scheduler_instance.start.side_effect = SystemExit()
 mock_blocking_scheduler = MagicMock(return_value=mock_scheduler_instance)
 
-import apscheduler.schedulers.blocking
+import apscheduler.schedulers.blocking  # noqa: E402
 
 apscheduler.schedulers.blocking.BlockingScheduler = mock_blocking_scheduler
 
-import time
-import runpy
+import time  # noqa: E402
+import runpy  # noqa: E402
 
 # Now import the target functions
-from app.scheduler import hourly_kobotoolbox_pull, monthly_gee_ingest
+from app.scheduler import (  # noqa: E402
+    hourly_kobotoolbox_pull,
+    monthly_gee_ingest,
+)
 
 
 @patch("app.services.kobo.sync_kobo_submissions")

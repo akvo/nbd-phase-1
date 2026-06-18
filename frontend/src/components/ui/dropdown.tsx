@@ -39,7 +39,7 @@ export function Dropdown({
           onChange={(e) => onChange?.(e.target.value)}
           className={cn(
             "h-10 w-full rounded-lg border border-grey-300 bg-white px-3.5 py-2 text-sm text-nbd-text-dark transition-colors outline-none focus-visible:border-nbd-primary focus-visible:ring-2 focus-visible:ring-nbd-primary/20 disabled:cursor-not-allowed disabled:bg-nbd-disabled disabled:text-nbd-disabled-text appearance-none",
-            className,
+            className
           )}
           {...props}
         >

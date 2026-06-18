@@ -87,7 +87,7 @@ export function MessageNote({
       className={cn(
         "flex gap-3 rounded-lg border-l-4 p-4 text-sm font-medium transition-all shadow-sm",
         styles[type],
-        className,
+        className
       )}
       {...props}
     >

@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
-// @ts-ignore
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON, useMap } from "react-leaflet";
+// @ts-expect-error - react-leaflet types incompatible with React 19
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  ZoomControl,
+  GeoJSON,
+  useMap,
+} from "react-leaflet";
 import * as L from "leaflet";
 import { Loader } from "@/components/ui/loader";
 
@@ -55,8 +63,8 @@ export default function MapViewer({
     if (!isMounted || typeof window === "undefined" || !L) return null;
 
     const createIcon = (type: "site" | "incident", status?: string) => {
-      let pingBg = "bg-teal-400";
-      let centerBg = "bg-teal-600";
+      let pingBg: string;
+      let centerBg: string;
       let isWarningIcon = false;
 
       if (type === "site") {
@@ -121,7 +129,10 @@ export default function MapViewer({
   }
 
   return (
-    <div className={`${className || ""} ${zoomOffsetClass || ""}`} style={{ width: "100%", height: "100%" }}>
+    <div
+      className={`${className || ""} ${zoomOffsetClass || ""}`}
+      style={{ width: "100%", height: "100%" }}
+    >
       <MapContainer
         center={center}
         zoom={zoom}

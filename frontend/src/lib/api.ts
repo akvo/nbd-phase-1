@@ -14,7 +14,10 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Only redirect if we're in a browser and on an admin page
-      if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith("/admin")
+      ) {
         window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
       }
     }

@@ -346,7 +346,8 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
         if state == "CONSENT":
             text_body = (msg.get("text") or {}).get("body", "").strip()
             welcome_msg = (
-                "Welcome to NBD Wetland Watch \U0001f30a / Chagua lugha yako:\n\n"
+                "Welcome to NBD Wetland Watch \U0001f30a / "
+                "Chagua lugha yako:\n\n"
                 "Reply *1* for English\n"
                 "Reply *2* kwa Kiswahili"
             )
@@ -362,18 +363,19 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 if session.language == "sw":
                     terms_msg = (
                         "Karibu kwenye NBD Wetland Watch \U0001f30a\n\n"
-                        "Jukwaa hili linakusanya taarifa za matukio ya mazingira. "
-                        "Ripoti yako inahifadhiwa bila jina na matumizi ya data yamezuiliwa "
-                        "kwa mipango ya ufuatiliaji.\n\n"
+                        "Jukwaa hili linakusanya taarifa za matukio "
+                        "ya mazingira. "
+                        "Ripoti yako inahifadhiwa bila jina na matumizi "
+                        "ya data yamezuiliwa kwa mipango ya ufuatiliaji.\n\n"
                         "Jibu *1* kukubali masharti na kuanza kuripoti.\n"
                         "Jibu *2* kukataa."
                     )
                 else:
                     terms_msg = (
                         "Welcome to NBD Wetland Watch \U0001f30a\n\n"
-                        "This platform collects environmental incident reports. "
-                        "Your report is saved anonymously and data usage is "
-                        "restricted to monitoring programs.\n\n"
+                        "This platform collects environmental incident "
+                        "reports. Your report is saved anonymously and "
+                        "data usage is restricted to monitoring programs.\n\n"
                         "Reply *1* to accept terms and start reporting.\n"
                         "Reply *2* to decline."
                     )
@@ -393,9 +395,12 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 options = _fetch_incident_options(db)
                 if not options:
                     if lang == "sw":
-                        err_msg = "Samahani, mfumo haujaundwa bado. Tafadhali jaribu tena baadaye."
+                        err_msg = "Samahani, mfumo haujaundwa bado. Tafadhali jaribu tena baadaye."  # noqa: E501
                     else:
-                        err_msg = "Sorry, the reporting system is not yet configured. Please try again later."
+                        err_msg = (
+                            "Sorry, the reporting system is not yet "
+                            "configured. Please try again later."
+                        )
                     await _send_message(phone, err_msg)
                     return
 
@@ -414,9 +419,12 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 await _send_message(phone, prompt)
             elif text_body == "2":
                 if lang == "sw":
-                    decline_msg = "Ni lazima ukubali masharti ya data ili kuwasilisha ripoti. Tuma ujumbe wowote ili kuanza tena."
+                    decline_msg = "Ni lazima ukubali masharti ya data ili kuwasilisha ripoti. Tuma ujumbe wowote ili kuanza tena."  # noqa: E501
                 else:
-                    decline_msg = "You must accept the data terms to submit a report. Send any message to start again."
+                    decline_msg = (
+                        "You must accept the data terms to submit a report. "
+                        "Send any message to start again."
+                    )
                 await _send_message(phone, decline_msg)
                 # Reset so they start fresh next time
                 db.delete(session)
@@ -425,8 +433,8 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 if lang == "sw":
                     terms_msg = (
                         "Karibu kwenye NBD Wetland Watch \U0001f30a\n\n"
-                        "Jukwaa hili linakusanya taarifa za matukio ya mazingira. "
-                        "Ripoti yako inahifadhiwa bila jina na matumizi ya data yamezuiliwa "
+                        "Jukwaa hili linakusanya taarifa za matukio ya mazingira. "  # noqa: E501
+                        "Ripoti yako inahifadhiwa bila jina na matumizi ya data yamezuiliwa "  # noqa: E501
                         "kwa mipango ya ufuatiliaji.\n\n"
                         "Jibu *1* kukubali masharti na kuanza kuripoti.\n"
                         "Jibu *2* kukataa."
@@ -434,9 +442,9 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 else:
                     terms_msg = (
                         "Welcome to NBD Wetland Watch \U0001f30a\n\n"
-                        "This platform collects environmental incident reports. "
-                        "Your report is saved anonymously and data usage is "
-                        "restricted to monitoring programs.\n\n"
+                        "This platform collects environmental incident "
+                        "reports. Your report is saved anonymously and "
+                        "data usage is restricted to monitoring programs.\n\n"
                         "Reply *1* to accept terms and start reporting.\n"
                         "Reply *2* to decline."
                     )
@@ -495,7 +503,6 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
         # STATE: MEDIA_UPLOAD
         # ------------------------------------------------------------------
         if state == "MEDIA_UPLOAD":
-            media_gcs_path = None
             lang = session.language
             if msg_type in ("image", "video", "document"):
                 media_id = (msg.get(msg_type) or {}).get("id")
@@ -618,11 +625,9 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     session.incident_type,
                 )
                 if lang == "sw":
-                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."
+                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."  # noqa: E501
                 else:
-                    err_msg = (
-                        "Sorry, something went wrong. Please start again."
-                    )
+                    err_msg = "Sorry, something went wrong. Please start again."  # noqa: E501
                 await _send_message(phone, err_msg)
                 db.delete(session)
                 db.commit()
@@ -640,9 +645,12 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             db.delete(session)
             db.commit()
             if lang == "sw":
-                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."  # noqa: E501
             else:
-                thank_msg = "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
+                thank_msg = (
+                    "\u2705 Thank you! Your report has been received "
+                    "by NBD Wetland Watch."
+                )
             await _send_message(phone, thank_msg)
             return
 
@@ -687,9 +695,17 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 ]
                 menu = "\n".join(menu_lines)
                 if lang == "sw":
-                    prompt = f"Tafadhali jibu kwa nambari sahihi.\n\nChagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"
+                    prompt = (
+                        f"Tafadhali jibu kwa nambari sahihi.\n\n"
+                        f"Chagua wilaya ndogo ya {selected_county.name}:\n\n"
+                        f"{menu}"
+                    )
                 else:
-                    prompt = f"Please reply with a valid number.\n\nChoose sub-county of {selected_county.name}:\n\n{menu}"
+                    prompt = (
+                        f"Please reply with a valid number.\n\n"
+                        f"Choose sub-county of {selected_county.name}:\n\n"
+                        f"{menu}"
+                    )
                 await _send_message(phone, prompt)
                 return
 
@@ -705,11 +721,9 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     session.incident_type,
                 )
                 if lang == "sw":
-                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."
+                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."  # noqa: E501
                 else:
-                    err_msg = (
-                        "Sorry, something went wrong. Please start again."
-                    )
+                    err_msg = "Sorry, something went wrong. Please start again."  # noqa: E501
                 await _send_message(phone, err_msg)
                 db.delete(session)
                 db.commit()
@@ -727,9 +741,12 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             db.delete(session)
             db.commit()
             if lang == "sw":
-                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."  # noqa: E501
             else:
-                thank_msg = "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
+                thank_msg = (
+                    "\u2705 Thank you! Your report has been received "
+                    "by NBD Wetland Watch."
+                )
             await _send_message(phone, thank_msg)
             return
 

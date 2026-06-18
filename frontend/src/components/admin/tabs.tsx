@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Lock } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Lock } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface TabItem {
   name: string;
@@ -12,10 +12,10 @@ interface TabItem {
 }
 
 const tabItems: TabItem[] = [
-  { name: 'Data', href: '/admin/data' },
-  { name: 'User management', href: '/admin/users', adminOnly: true },
-  { name: 'Site management', href: '/admin/sites', adminOnly: true },
-  { name: 'Activity log', href: '/admin/audit-logs', adminOnly: true },
+  { name: "Data", href: "/admin/data" },
+  { name: "User management", href: "/admin/users", adminOnly: true },
+  { name: "Site management", href: "/admin/sites", adminOnly: true },
+  { name: "Activity log", href: "/admin/audit-logs", adminOnly: true },
 ];
 
 export default function Tabs() {
@@ -45,11 +45,11 @@ export default function Tabs() {
           <Link
             key={tab.name}
             href={tab.href}
-            data-active={isActive ? 'true' : undefined}
+            data-active={isActive ? "true" : undefined}
             className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors ${
               isActive
-                ? 'bg-slate-200 text-slate-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
+                ? "bg-slate-200 text-slate-800 shadow-sm"
+                : "text-slate-500 hover:text-slate-800"
             }`}
           >
             {tab.name}

@@ -1,14 +1,18 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import Header from '@/components/admin/header';
-import Tabs from '@/components/admin/tabs';
-import { Download, Plus, ChevronDown, ClipboardList } from 'lucide-react';
-import { apiClient } from '@/lib/api';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import Header from "@/components/admin/header";
+import Tabs from "@/components/admin/tabs";
+import { Download, Plus, ChevronDown, ClipboardList } from "lucide-react";
+import { apiClient } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading: authLoading, isAdmin } = useAuth();
@@ -19,20 +23,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Redirect non-admins away from admin-only routes
   useEffect(() => {
     if (!authLoading && user) {
-      const adminOnlyRoutes = ['/admin/users', '/admin/sites', '/admin/audit-logs'];
-      if (adminOnlyRoutes.some(route => pathname.startsWith(route)) && !isAdmin) {
-        router.push('/admin/data');
+      const adminOnlyRoutes = [
+        "/admin/users",
+        "/admin/sites",
+        "/admin/audit-logs",
+      ];
+      if (
+        adminOnlyRoutes.some((route) => pathname.startsWith(route)) &&
+        !isAdmin
+      ) {
+        router.push("/admin/data");
       }
     }
   }, [pathname, user, authLoading, isAdmin, router]);
 
   useEffect(() => {
-    apiClient.get('/forms')
-      .then(res => {
+    apiClient
+      .get("/forms")
+      .then((res) => {
         if (res.data && res.data.length > 0) {
           const fetched = res.data.map((f: any) => ({
             id: String(f.id),
-            name: f.name
+            name: f.name,
           }));
           setForms(fetched);
         }
@@ -45,37 +57,43 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Dynamic Page Title & Subtitle based on the active tab/route
-  let title = 'Admin Dashboard';
-  let subtitle = 'Nile Basin Discourse platform administrative workspace';
+  let title = "Admin Dashboard";
+  let subtitle = "Nile Basin Discourse platform administrative workspace";
   let showBadge = false;
-  let badgeLabel = '240 instances';
+  const badgeLabel = "240 instances";
   let isTabbedRoute = false;
 
-  if (pathname === '/admin/data') {
-    title = 'Data overview';
-    subtitle = 'Search and filter across all submitted data • Click a row to review';
+  if (pathname === "/admin/data") {
+    title = "Data overview";
+    subtitle =
+      "Search and filter across all submitted data • Click a row to review";
     showBadge = true;
     isTabbedRoute = true;
-  } else if (pathname === '/admin/users') {
-    title = 'User administration';
-    subtitle = 'Manage staff members, roles, and OIDC sign-in invitations';
+  } else if (pathname === "/admin/users") {
+    title = "User administration";
+    subtitle = "Manage staff members, roles, and OIDC sign-in invitations";
     isTabbedRoute = true;
-  } else if (pathname === '/admin/sites') {
-    title = 'Site configuration';
-    subtitle = 'Manage basin details, sub-county bounds, and fixed monitoring points';
+  } else if (pathname === "/admin/sites") {
+    title = "Site configuration";
+    subtitle =
+      "Manage basin details, sub-county bounds, and fixed monitoring points";
     isTabbedRoute = true;
-  } else if (pathname === '/admin/audit-logs') {
-    title = 'Activity log';
-    subtitle = 'Immutable registry of administrative events and moderation actions';
+  } else if (pathname === "/admin/audit-logs") {
+    title = "Activity log";
+    subtitle =
+      "Immutable registry of administrative events and moderation actions";
     isTabbedRoute = true;
   }
 
@@ -95,7 +113,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main Administrative Container */}
       <div className="flex-1 max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
-
         {/* Title, Badges, and Action Buttons Row */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-1">
@@ -112,7 +129,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Action buttons (CSV Download & Add new) - Only on tabbed data pages */}
           {isTabbedRoute && (
-            <div className="flex items-center space-x-3 relative" ref={dropdownRef}>
+            <div
+              className="flex items-center space-x-3 relative"
+              ref={dropdownRef}
+            >
               <button
                 type="button"
                 className="inline-flex items-center space-x-2 px-4 py-2 border border-slate-200 bg-white rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
@@ -161,9 +181,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {isTabbedRoute && <Tabs />}
 
         {/* Dynamic Nested Sub-view Viewport */}
-        <main className="w-full">
-          {children}
-        </main>
+        <main className="w-full">{children}</main>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Index
+from sqlalchemy import Column, String, DateTime, ForeignKey, Index, event, DDL
 from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
 
@@ -24,14 +24,12 @@ class AuditLog(Base):
     )
 
 
-from sqlalchemy import event, DDL
-
 trigger_ddl = DDL(
     """
 CREATE OR REPLACE FUNCTION block_audit_log_mutation()
 RETURNS TRIGGER AS $$
 BEGIN
-    RAISE EXCEPTION 'Audit logs are immutable and cannot be updated or deleted.';
+    RAISE EXCEPTION 'Audit logs are immutable.';
 END;
 $$ LANGUAGE plpgsql;
 

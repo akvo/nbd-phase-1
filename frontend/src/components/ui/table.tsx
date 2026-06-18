@@ -44,7 +44,7 @@ export function TableRow({
     <tr
       className={cn(
         "border-b border-grey-200 transition-colors hover:bg-nbd-light-bg/50 data-[state=selected]:bg-muted",
-        className,
+        className
       )}
       {...props}
     />
@@ -59,7 +59,7 @@ export function TableHead({
     <th
       className={cn(
         "h-10 px-4 text-left align-middle font-semibold text-nbd-text-dark [&:has([role=checkbox])]:pr-0",
-        className,
+        className
       )}
       {...props}
     />
@@ -74,7 +74,7 @@ export function TableCell({
     <td
       className={cn(
         "p-4 align-middle [&:has([role=checkbox])]:pr-0 text-grey-800",
-        className,
+        className
       )}
       {...props}
     />

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     try:
         results = sync_kobo_submissions(db)
         logger.info(
-            "Manual Kobo sync finished: Processed %d forms, Ingested %d records.",
+            "Kobo sync: Processed %d forms, Ingested %d records.",
             results.get("processed_forms", 0),
             results.get("ingested_records", 0),
         )

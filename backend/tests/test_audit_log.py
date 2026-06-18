@@ -54,7 +54,7 @@ def test_create_and_query_audit_log(db_session):
     assert "timestamp" in data
     log_id = data["id"]
 
-    # List audit logs and filter by entity_id (requires Admin auth, returns paginated)
+    # List audit logs and filter by entity_id (requires Admin auth, paginated)
     list_resp = client.get(
         "/api/v1/audit-logs?entity_id=NBD-MARA-999", headers=headers
     )
@@ -220,7 +220,9 @@ def test_audit_log_requires_admin_role(db_session):
     """Test that Reviewer role cannot access audit logs (403 Forbidden)."""
     # Create a Reviewer user
     reviewer_email = "reviewer_audit_test@nbd.org"
-    reviewer = db_session.query(User).filter(User.email == reviewer_email).first()
+    reviewer = (
+        db_session.query(User).filter(User.email == reviewer_email).first()
+    )
     if not reviewer:
         reviewer = User(email=reviewer_email, role="Reviewer", is_active=True)
         db_session.add(reviewer)
@@ -242,7 +244,9 @@ def test_audit_log_requires_admin_role(db_session):
         "entity_type": "Site",
         "entity_id": "SITE-X",
     }
-    resp = client.post("/api/v1/audit-logs", json=payload, headers=reviewer_headers)
+    resp = client.post(
+        "/api/v1/audit-logs", json=payload, headers=reviewer_headers
+    )
     assert resp.status_code == 403
 
 
@@ -252,5 +256,7 @@ def test_audit_log_unauthenticated_access():
     resp = client.get("/api/v1/audit-logs")
     assert resp.status_code == 401
 
-    resp = client.get("/api/v1/audit-logs/00000000-0000-0000-0000-000000000000")
+    resp = client.get(
+        "/api/v1/audit-logs/00000000-0000-0000-0000-000000000000"
+    )
     assert resp.status_code == 401

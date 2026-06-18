@@ -1,31 +1,34 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { Database, Users, MapPin, ArrowRight } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { Database, Users, MapPin, ArrowRight } from "lucide-react";
 
 export default function AdminLandingPage() {
   const cards = [
     {
-      title: 'Data & Curation',
-      description: 'Review, approve, or reject incoming citizen monitoring reports and laboratory QA samples.',
-      href: '/admin/data',
+      title: "Data & Curation",
+      description:
+        "Review, approve, or reject incoming citizen monitoring reports and laboratory QA samples.",
+      href: "/admin/data",
       icon: Database,
-      color: 'text-sky-500 bg-sky-50 border-sky-100',
+      color: "text-sky-500 bg-sky-50 border-sky-100",
     },
     {
-      title: 'User Administration',
-      description: 'Manage administrator accounts, curate reviewer roles, and invite organizational partners via SSO.',
-      href: '/admin/users',
+      title: "User Administration",
+      description:
+        "Manage administrator accounts, curate reviewer roles, and invite organizational partners via SSO.",
+      href: "/admin/users",
       icon: Users,
-      color: 'text-emerald-500 bg-emerald-50 border-emerald-100',
+      color: "text-emerald-500 bg-emerald-50 border-emerald-100",
     },
     {
-      title: 'Site Configurations',
-      description: 'Define monitoring sites, check boundaries, and configure PostGIS-referenced basins and wetlands.',
-      href: '/admin/sites',
+      title: "Site Configurations",
+      description:
+        "Define monitoring sites, check boundaries, and configure PostGIS-referenced basins and wetlands.",
+      href: "/admin/sites",
       icon: MapPin,
-      color: 'text-purple-500 bg-purple-50 border-purple-100',
+      color: "text-purple-500 bg-purple-50 border-purple-100",
     },
   ];
 
@@ -34,9 +37,13 @@ export default function AdminLandingPage() {
       {/* Welcome Banner */}
       <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-slate-900">Welcome to Nile Basin Discourse Admin Portal</h2>
+          <h2 className="text-xl font-bold text-slate-900">
+            Welcome to Nile Basin Discourse Admin Portal
+          </h2>
           <p className="text-slate-500 text-sm max-w-xl">
-            This workspace provides tools to moderate citizen science ingestion channels, manage access roles, and audit compliance logs for the Mara and Sio-Siteko basins.
+            This workspace provides tools to moderate citizen science ingestion
+            channels, manage access roles, and audit compliance logs for the
+            Mara and Sio-Siteko basins.
           </p>
         </div>
         <Link
@@ -58,12 +65,18 @@ export default function AdminLandingPage() {
               className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="space-y-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${card.color}`}>
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center border ${card.color}`}
+                >
                   <Icon className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="font-bold text-slate-900 text-base">{card.title}</h3>
-                  <p className="text-slate-500 text-xs leading-relaxed">{card.description}</p>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    {card.title}
+                  </h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    {card.description}
+                  </p>
                 </div>
               </div>
 
