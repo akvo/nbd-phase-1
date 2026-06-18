@@ -15,6 +15,7 @@ const tabItems: TabItem[] = [
   { name: 'Data', href: '/admin/data' },
   { name: 'User management', href: '/admin/users', adminOnly: true },
   { name: 'Site management', href: '/admin/sites', adminOnly: true },
+  { name: 'Activity log', href: '/admin/audit-logs', adminOnly: true },
 ];
 
 export default function Tabs() {
