@@ -36,6 +36,7 @@ const ACTION_OPTIONS = [
   { value: 'DELETE', label: 'Delete' },
   { value: 'INVITE_USER', label: 'Invite User' },
   { value: 'UPDATE_ROLE', label: 'Update Role' },
+  { value: 'ALERT', label: 'Alert' },
 ];
 
 const ENTITY_TYPE_OPTIONS = [
@@ -44,7 +45,21 @@ const ENTITY_TYPE_OPTIONS = [
   { value: 'submission', label: 'Submission' },
   { value: 'site', label: 'Site' },
   { value: 'form', label: 'Form' },
+  { value: 'ussd_webhook', label: 'USSD' },
+  { value: 'whatsapp_webhook', label: 'WhatsApp' },
 ];
+
+function formatEntityType(entityType: string): string {
+  const mapping: Record<string, string> = {
+    'ussd_webhook': 'USSD',
+    'whatsapp_webhook': 'WhatsApp',
+    'user': 'User',
+    'submission': 'Submission',
+    'site': 'Site',
+    'form': 'Form',
+  };
+  return mapping[entityType] || entityType;
+}
 
 function formatTimestamp(isoString: string): string {
   const date = new Date(isoString);
@@ -68,6 +83,8 @@ function getActionBadgeVariant(action: string): 'primary' | 'success' | 'warning
     case 'EDIT':
     case 'UPDATE_ROLE':
       return 'warning';
+    case 'ALERT':
+      return 'primary';
     default:
       return 'neutral';
   }
@@ -282,11 +299,11 @@ export default function AuditLogsPage() {
                     </TableCell>
                     <TableCell className="py-4 px-6">
                       <Badge variant={getActionBadgeVariant(log.action)}>
-                        {log.action.replace('_', ' ')}
+                        {log.action.replace(/_/g, ' ')}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-4 px-6 capitalize">
-                      {log.entity_type}
+                    <TableCell className="py-4 px-6">
+                      {formatEntityType(log.entity_type)}
                     </TableCell>
                     <TableCell className="py-4 px-6 font-mono text-xs text-slate-500">
                       {log.entity_id.length > 20

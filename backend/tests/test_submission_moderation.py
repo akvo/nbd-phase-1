@@ -1,5 +1,6 @@
 import uuid
 from decimal import Decimal
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -9,8 +10,20 @@ from app.models.form import Form, QuestionGroup, Question
 from app.models.submission import Datapoint, Answer
 from app.models.sampling_record import SamplingRecord
 from app.models.citizen import Citizen
+from app.models.user import User
+from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
 client = TestClient(app)
+
+
+def get_auth_headers(db_session, email="reviewer@nbd.org", role="Reviewer"):
+    user = db_session.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(email=email, role=role, is_active=True)
+        db_session.add(user)
+        db_session.commit()
+    token = jwt.encode({"email": email}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
@@ -129,10 +142,13 @@ def setup_moderation_data(db_session: Session):
 def test_approve_submission_success(
     db_session: Session, setup_moderation_data
 ):
+    headers = get_auth_headers(db_session)
     dp_id = setup_moderation_data["datapoint"].id
 
     response = client.patch(
-        f"/api/v1/submissions/{dp_id}/status", json={"status": "APPROVED"}
+        f"/api/v1/submissions/{dp_id}/status",
+        json={"status": "APPROVED"},
+        headers=headers,
     )
     assert response.status_code == 200
     assert response.json()["status"] == "APPROVED"
@@ -155,10 +171,13 @@ def test_approve_submission_success(
 
 
 def test_reject_submission_success(db_session: Session, setup_moderation_data):
+    headers = get_auth_headers(db_session)
     dp_id = setup_moderation_data["datapoint"].id
 
     response = client.patch(
-        f"/api/v1/submissions/{dp_id}/status", json={"status": "REJECTED"}
+        f"/api/v1/submissions/{dp_id}/status",
+        json={"status": "REJECTED"},
+        headers=headers,
     )
     assert response.status_code == 200
     assert response.json()["status"] == "REJECTED"
@@ -194,8 +213,11 @@ def test_approve_lab_qa_submission_success(
     db_session.add(dp)
     db_session.commit()
 
+    headers = get_auth_headers(db_session)
     response = client.patch(
-        f"/api/v1/submissions/{dp.id}/status", json={"status": "APPROVED"}
+        f"/api/v1/submissions/{dp.id}/status",
+        json={"status": "APPROVED"},
+        headers=headers,
     )
     assert response.status_code == 200
     assert response.json()["status"] == "APPROVED"

@@ -1,6 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
+// Mock Next.js font
+vi.mock('next/font/google', () => ({
+  Inter: () => ({
+    className: 'inter-mock',
+    variable: '--font-inter',
+  }),
+}));
+
 // Mock Next.js navigation hooks used by AuthProvider
 vi.mock('next/navigation', () => {
   return {

@@ -10,6 +10,8 @@ AuditAction = Literal[
     "DELETE",
     "INVITE_USER",
     "UPDATE_ROLE",
+    "ALERT",
+    "LOGIN",  # Legacy, kept for existing records
 ]
 
 
