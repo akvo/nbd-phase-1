@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're invited to NBD Monitoring Platform</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f3f4f6;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .header {
+      background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+      color: #ffffff;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    .header p {
+      margin: 8px 0 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 32px 24px;
+      color: #374151;
+      line-height: 1.6;
+    }
+    .content h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      color: #111827;
+    }
+    .content p {
+      margin: 0 0 16px;
+      font-size: 15px;
+    }
+    .role-badge {
+      display: inline-block;
+      background-color: #e0f2fe;
+      color: #0369a1;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .info-box {
+      background-color: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .info-box p {
+      margin: 0;
+      font-size: 14px;
+      color: #0c4a6e;
+    }
+    .btn-container {
+      text-align: center;
+      margin: 28px 0 12px;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #0369a1;
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn:hover {
+      background-color: #075985;
+    }
+    .footer {
+      background-color: #f9fafb;
+      padding: 20px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #6b7280;
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer p {
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Welcome to NBD Platform</h1>
+      <p>Nile Basin Discourse Wetland Monitoring System</p>
+    </div>
+    <div class="content">
+      <h2>You've been invited!</h2>
+      <p>Hello,</p>
+      <p>You have been invited to join the <strong>NBD Wetland Monitoring Platform</strong> as a <span class="role-badge">{{ role }}</span>.</p>
+
+      {% if invited_by %}
+      <p>This invitation was sent by <strong>{{ invited_by }}</strong>.</p>
+      {% endif %}
+
+      <div class="info-box">
+        <p><strong>What's next?</strong> Sign in using your Google account associated with this email address ({{ email }}). Your account has already been set up and is ready to use.</p>
+      </div>
+
+      <div class="btn-container">
+        <a href="{{ login_url }}" class="btn">Sign in to NBD Platform</a>
+      </div>
+
+      <p style="font-size: 13px; color: #6b7280; margin-top: 24px;">If you didn't expect this invitation or believe it was sent in error, you can safely ignore this email.</p>
+    </div>
+    <div class="footer">
+      <p>Nile Basin Discourse | Regional Wetland Monitoring Initiative</p>
+      <p>This is an automated message. Please do not reply directly to this email.</p>
+    </div>
+  </div>
+</body>
+</html>
