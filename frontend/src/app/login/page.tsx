@@ -81,10 +81,10 @@ function LoginContent() {
         <div className="w-full max-w-[375px] space-y-8">
           {/* Header Title */}
           <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-nbd-text-dark tracking-tight">
+            <h1 className="text-[22px] font-semibold text-gray-900 tracking-tight">
               Log in to your account
-            </h2>
-            <p className="text-sm text-grey-500">
+            </h1>
+            <p className="text-sm text-gray-500">
               Citizen-Led Wetland Monitoring Platform
             </p>
           </div>
@@ -111,7 +111,7 @@ function LoginContent() {
 
           {/* Footer Notice */}
           <div className="text-center pt-4">
-            <p className="text-sm text-grey-400 leading-relaxed">
+            <p className="text-[13px] text-gray-400 leading-relaxed">
               No account? Contact your platform administrator.
               <br />
               Self-registration is not available.

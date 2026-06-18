@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-sans);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -161,8 +161,8 @@
 }
 
 .gsi-material-button .gsi-material-button-contents {
-  font-family: "Roboto", arial, sans-serif;
-  font-weight: 500;
+  font-family: var(--font-inter), "Inter", sans-serif !important;
+  font-weight: 600 !important;
   white-space: nowrap;
   flex-shrink: 0;
   vertical-align: top;
