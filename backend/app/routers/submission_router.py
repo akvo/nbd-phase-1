@@ -4,8 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies.auth import get_current_user
+from app.models.audit_log import AuditLog
 from app.models.submission import Datapoint, Answer
 from app.models.form import Form
+from app.models.user import User
 from app.schemas import submission as schemas
 
 router = APIRouter(prefix="/api/v1/submissions", tags=["submissions"])
@@ -96,6 +99,7 @@ def update_submission_status(
     id: int,
     payload: schemas.SubmissionStatusUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     from app.models.sampling_record import SamplingRecord
     from app.services.reconciliation import reconcile_lab_datapoint
@@ -223,6 +227,16 @@ def update_submission_status(
                 )
 
     try:
+        # Log the action
+        action = "APPROVE" if payload.status == "APPROVED" else "REJECT"
+        audit_log = AuditLog(
+            actor_id=current_user.id,
+            action=action,
+            entity_type="submission",
+            entity_id=str(dp.id),
+        )
+        db.add(audit_log)
+
         db.commit()
         return {
             "id": dp.id,

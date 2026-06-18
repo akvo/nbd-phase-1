@@ -19,7 +19,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Redirect non-admins away from admin-only routes
   useEffect(() => {
     if (!authLoading && user) {
-      const adminOnlyRoutes = ['/admin/users', '/admin/sites'];
+      const adminOnlyRoutes = ['/admin/users', '/admin/sites', '/admin/audit-logs'];
       if (adminOnlyRoutes.some(route => pathname.startsWith(route)) && !isAdmin) {
         router.push('/admin/data');
       }
@@ -72,6 +72,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   } else if (pathname === '/admin/sites') {
     title = 'Site configuration';
     subtitle = 'Manage basin details, sub-county bounds, and fixed monitoring points';
+    isTabbedRoute = true;
+  } else if (pathname === '/admin/audit-logs') {
+    title = 'Activity log';
+    subtitle = 'Immutable registry of administrative events and moderation actions';
     isTabbedRoute = true;
   }
 

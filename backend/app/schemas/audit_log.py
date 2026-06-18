@@ -1,12 +1,23 @@
-from typing import Literal
+from typing import List, Literal
 from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
+AuditAction = Literal[
+    "APPROVE",
+    "REJECT",
+    "EDIT",
+    "DELETE",
+    "INVITE_USER",
+    "UPDATE_ROLE",
+    "ALERT",
+    "LOGIN",  # Legacy, kept for existing records
+]
+
 
 class AuditLogBase(BaseModel):
     actor_id: UUID
-    action: Literal["APPROVE", "REJECT", "EDIT", "DELETE", "INVITE_USER"]
+    action: AuditAction
     entity_type: str
     entity_id: str
 
@@ -20,3 +31,10 @@ class AuditLogResponse(AuditLogBase):
     timestamp: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AuditLogListResponse(BaseModel):
+    items: List[AuditLogResponse]
+    total: int
+    page: int
+    page_size: int

@@ -12,7 +12,6 @@ from google.auth import exceptions as google_exceptions
 
 from app.database import get_db
 from app.models.user import User
-from app.models.audit_log import AuditLog
 from app.schemas.user import GoogleAuthRequest, CurrentUserResponse
 from app.config.auth import (
     GOOGLE_CLIENT_ID,
@@ -137,15 +136,6 @@ def google_auth(
     user.display_name = name
     user.avatar_url = picture
     user.last_login_at = now
-
-    # Log the login event
-    audit_log = AuditLog(
-        actor_id=user.id,
-        action="LOGIN",
-        entity_type="user",
-        entity_id=str(user.id),
-    )
-    db.add(audit_log)
     db.commit()
     db.refresh(user)
 
