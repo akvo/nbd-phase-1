@@ -73,13 +73,13 @@ sequenceDiagram
   - **Aggregation**: $\text{WQI} = W_{\text{pH}} \times q_{\text{pH}} + W_{\text{DO}} \times q_{\text{DO}}$.
   - **Group score mapping**: $\text{Physico-chemical Score} = \max(0.0, 1.0 - \frac{\text{WQI}}{100})$.
 - **Modular Strategy Registry**: Scoring execution must use a Strategy pattern registry. Each `FormType` maps dynamically to a `BaseScoringHandler` subclass. Citizen Scientist (Form Type 2) triggers the `WetlandScoringHandler`. New domains (e.g., forest monitoring) can be added as self-contained configurations without modifying the core submission router.
+- **Fuzzy Logic Adjustment**: Integrate community observations from the latest FGD Baraza sessions. Traverse the spatial hierarchy (Site -> Wetland) to locate the most recent FGD record for the site's parent wetland. Map qualitative inputs to numerical sets, run the rule matrix, and defuzzify using the centroid method to adjust the composite health score.
 - **Database Persistence**: Save calculated scores to `health_scores` table linked to the site, period, and original submission.
 
 ### Nice-to-Have
 - Support for additional parameters (e.g., Turbidity, Electrical Conductivity) in later phases with configurable limits via DB tables rather than code constants.
 
 ### Out of Scope
-- Fuzzy logic adjustment calculations (this PRD is strictly restricted to base scientific WQI calculations; fuzzy logic is mapped in the next sub-task).
 - Direct data modification by non-admin users.
 
 ---
@@ -89,11 +89,14 @@ sequenceDiagram
 ### User Acceptance Criteria (UAC)
 - **UAC-1.1**: When a KoboCollect sampling record with pH `7.8` and Dissolved Oxygen `4.77` mg/L is approved, the physico-chemical group score is computed as `0.16` (corresponding to WQI `84.23`).
 - **UAC-1.2**: If the Catchment score is `0.65` and Ecological score is `0.45`, the resulting Composite Score is computed as `0.42` (average of `0.16`, `0.65`, `0.45`).
+- **UAC-2.1**: The scoring engine successfully adjusts a borderline scientific score (e.g., 0.638) downward if the local community has reported a recent, severe decline in fish abundance and water clarity (adjusting to 0.55 / Class C).
 
 ### Technical Acceptance Criteria (TAC)
 - **TAC-1.1**: The scoring engine must run within the same transaction bounds of the submission approval PATCH request to prevent partial updates.
 - **TAC-1.2**: If pH or DO observed values are missing or null in the submission, fallback to default ideal values or throw a structured execution error to DLQ.
 - **TAC-1.3**: Math equations must implement strict division-by-zero protection (e.g. when observed values equal limits or ideal values).
+- **TAC-2.1**: The database query fetching the IK signal must enforce the spatial hierarchy; it must join the sites table to the wetlands table to locate the correct Monthly Baraza record.
+- **TAC-2.2**: The engine must implement the exact rule matrix defined in the SDD (e.g., If Composite is Medium and IK is Moderate → Output is Low).
 
 ---
 
@@ -120,6 +123,7 @@ sequenceDiagram
 | **Ingestion Router Integration** | Wire scoring trigger to `PATCH /api/v1/submissions/{id}` endpoint | Medium | 3h |
 | **Database Migrations** | Add tables for storing group means and parameter WQI details | Simple | 2h |
 | **API Endpoints** | Expose site health scores details via `GET /api/v1/sites/{id}/scores` | Medium | 4h |
+| **Fuzzy Logic Core** | Implement fuzzy membership functions, rule matrix, defuzzification math, and spatial joins | Medium | 6h |
 
 ---
 
