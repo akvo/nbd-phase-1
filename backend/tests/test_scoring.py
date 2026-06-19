@@ -8,7 +8,7 @@ from app.models.health_score import HealthScore
 from app.models.spatial import Basin, Wetland, Site
 from app.models.form import Form, QuestionGroup, Question
 from app.models.user import User
-from app.services.scoring import calculate_wqi_and_scores
+from app.services.scoring.handlers.wetland import calculate_wqi_and_scores
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -256,3 +256,15 @@ def test_approve_submission_triggers_scoring(
     assert health_score.health_class == "B"
     assert health_score.adjusted_score == health_score.composite_score
     assert health_score.ik_signal_value == Decimal("0.00")
+
+
+def test_scoring_handler_registry():
+    from app.services.scoring import get_handler
+    from app.models.form import FormType
+    from app.services.scoring.handlers.wetland import WetlandScoringHandler
+
+    handler = get_handler(FormType.CITIZEN_SCIENTIST)
+    assert handler is WetlandScoringHandler
+
+    # Non-existent or unregistered form types return None
+    assert get_handler(FormType.CITIZEN_REPORTER) is None
