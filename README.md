@@ -128,17 +128,34 @@ You can run these scripts inside the backend container for setup and maintenance
 
 ---
 
-## 📝 Questionnaire Customisation & Moderation Constraints
+## 📝 Questionnaire Customisation & Scoring/Moderation Constraints
 
-When modifying or extending form blueprints (such as the **Monthly Wetland Sampling** form), the following constraints must be respected to maintain system moderation functionality:
+When modifying, extending, or creating form blueprints, specific rules must be followed to maintain compatibility with the platform's automated moderation and scoring engine pipelines:
 
-- **Core Mapped Fields**: The backend status moderation logic (`PATCH /api/v1/submissions/{id}/status`) relies on exact question identifier matches (`ph`, `temp`, `do`, `invasive_percent`, `water_level`) to extract values and dynamically map them to the structured `sampling_records` table on approval.
-- **Blueprint Renaming**: You can safely change display labels or question orders in form blueprints. However, if you modify the machine-name identifiers of the core five questions in the form json, you must update the string matches inside [submission_router.py](backend/app/routers/submission_router.py).
-- **Adding New Parameters**: Ingesting new structured water quality parameters (e.g. salinity) will require an Alembic database migration to add target columns to the `sampling_records` table and updating the router extraction logic to save them.
+### 1. Form Type Assignments
+The database `Form.type` field determines which ingestion pipeline or scoring rule applies:
+- **`1` (`CITIZEN_REPORTER`)**: Citizen pollution reports (USSD/WhatsApp). Mapped visually but not mathematically scored.
+- **`2` (`CITIZEN_SCIENTIST`)**: **[Triggers Scoring Engine]** Monthly structured citizen wetland sampling records containing physico-chemical parameters.
+- **`3` (`INDIGENOUS_KNOWLEDGE`)**: Community Focus Group Discussions (FGD). Aggregated into the Indigenous Knowledge (IK) Signal for soft fuzzy-logic adjustments.
+- **`4` (`LAB_QA`)**: Professional lab control reports. Triggers auto-reconciliation check logs against nearby Type 2 data.
+- **`5` (`EXTERNAL_SATELLITE`)**: Google Earth Engine climate and Sentinel overlays.
+
+### 2. Core Mapped Fields for Type 2 (Scoring)
+The backend status moderation logic (`PATCH /api/v1/submissions/{id}/status`) and WQI scoring engine rely on **exact question identifier names** (lowercased) in the form JSON structure:
+- **`ph`**: Triggers pH quality ratings ($q_{\text{pH}}$) and is required (non-null).
+- **`do`**: Triggers Dissolved Oxygen quality ratings ($q_{\text{DO}}$) and is required (non-null).
+- **`temp`**: Triggers Water Temperature logging and is required (non-null).
+- **`invasive_percent`**: Triggers invasive macrophyte density ratings for the Ecological Group Score (defaults to `0.0` if omitted).
+- **`water_level`**: Triggers water level mapping for the Catchment Group Score (looks for option codes `"HIGH"`, `"MEDIUM"`, `"LOW"`; defaults to `"MEDIUM"` if omitted).
+
+### 3. Modifying & Extending Blueprints
+- **Blueprint Renaming**: You can safely change display labels or question orders in form blueprints. However, if you modify the machine-name identifiers of the core questions (`ph`, `temp`, `do`, `invasive_percent`, `water_level`), you **must** update the string matches inside [submission_router.py](backend/app/routers/submission_router.py) to prevent `HTTP 400` validation failures.
+- **Adding New Parameters**: Ingesting new structured water quality parameters (e.g. salinity) will require an Alembic database migration to add target columns to the `sampling_records` table, updating the router extraction logic, and adjusting the WQI weights ($W_n$) in the scoring service.
 
 ---
 
 ## 📘 Design and Solution Design Document (SDD)
 
-- The canonical source of truth for the Solution Design Document is located in [design-docs/solution-design-technical.md](design-docs/solution-design-technical.md).
+- The canonical source of truth for the Solution Design Document is located in [final-docs/Final SDD.pdf](final-docs/Final%20SDD.pdf) and [design-docs/solution-design-technical.md](design-docs/solution-design-technical.md).
 - Visual system architecture diagrams are stored under [final-docs/diagrams/](final-docs/diagrams/).
+
