@@ -111,6 +111,19 @@ def map_health_class(score: Decimal) -> str:
         return "E"
 
 
+def map_class_to_color(health_class: str) -> tuple[str, str]:
+    """Maps a health class rating (A-E) to a status color tuple.
+
+    Returns (display_name, database_value) e.g., ("Yellow", "YELLOW").
+    """
+    if health_class in ("A", "B"):
+        return "Green", "GREEN"
+    elif health_class in ("C", "D"):
+        return "Yellow", "YELLOW"
+    else:
+        return "Red", "RED"
+
+
 def calculate_wqi_and_scores(
     ph: Decimal,
     do: Decimal,

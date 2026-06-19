@@ -123,9 +123,27 @@ class SiteCreate(SiteBase):
     pass
 
 
+class ManagementActionResponse(BaseModel):
+    label: str = Field(..., validation_alias="short_label")
+    description: str = Field(..., validation_alias="description_text")
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class SiteStatus(BaseModel):
+    composite_score: float
+    ik_adjusted_score: float
+    traffic_light: str
+    health_class: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class Site(SiteBase):
     id: uuid.UUID
-    model_config = ConfigDict(from_attributes=True)
+    status: SiteStatus | None = None
+    management_actions: list[ManagementActionResponse] = []
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class SpatialBoundaryBase(BaseModel):

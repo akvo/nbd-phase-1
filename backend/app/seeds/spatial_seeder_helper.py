@@ -171,6 +171,43 @@ def seed_spatial(db: Session):
         else:
             logger.info("Site already exists: %s", site_id)
 
+        from app.models.management_action import ManagementAction
+
+        for color, label, desc in [
+            (
+                "GREEN",
+                "Maintain Buffers",
+                "Protect riparian vegetation buffer zone and maintain current conservation practices.",  # noqa: E501
+            ),
+            (
+                "YELLOW",
+                "Establish Silt Traps",
+                "Install vegetative filters along the edges of agricultural plots to catch sediment.",  # noqa: E501
+            ),
+            (
+                "RED",
+                "Revegetate Wetland",
+                "Conduct active native replanting of papyrus and macrophytes to restore water filtration.",  # noqa: E501
+            ),
+        ]:
+            existing_action = (
+                db.query(ManagementAction)
+                .filter(
+                    ManagementAction.site_id == site.id,
+                    ManagementAction.status_color == color,
+                )
+                .first()
+            )
+            if not existing_action:
+                action = ManagementAction(
+                    site_id=site.id,
+                    status_color=color,
+                    short_label=label,
+                    description_text=desc,
+                )
+                db.add(action)
+                db.flush()
+
     # 4. Seed Spatial Boundaries (Hierarchical Regions and Districts)
     boundaries_data = data.get("spatial_boundaries", [])
 
