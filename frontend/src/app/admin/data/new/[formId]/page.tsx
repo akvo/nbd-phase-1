@@ -58,7 +58,7 @@ if (typeof window !== "undefined") {
         (container as any)._leaflet_id = null;
       }
       return new originalMapClass(el, options);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     L.Map.prototype = originalMapClass.prototype;
   }
@@ -115,7 +115,11 @@ if (React) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...children: any[]
     ) {
-      const element = originalCreateElement.apply(React, [type, props, ...children]);
+      const element = originalCreateElement.apply(React, [
+        type,
+        props,
+        ...children,
+      ]);
       if (
         element &&
         typeof element === "object" &&
@@ -276,7 +280,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
       setTimeout(() => {
         window.location.href = "/admin/data";
       }, 1500);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||
