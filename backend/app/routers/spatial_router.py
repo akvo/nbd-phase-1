@@ -222,6 +222,21 @@ def list_sub_counties(db: Session = Depends(get_db)):
     return db.query(SpatialBoundary).all()
 
 
+@router.get("/reference/wetlands")
+def list_reference_wetlands(db: Session = Depends(get_db)):
+    wetlands = db.query(Wetland).all()
+    results = []
+    for w in wetlands:
+        results.append(
+            {
+                "id": str(w.id),
+                "name": w.name,
+                "parent_id": str(w.basin_id),
+            }
+        )
+    return results
+
+
 @router.get("/reference/sites")
 def list_reference_sites(db: Session = Depends(get_db)):
     sites = db.query(Site).all()

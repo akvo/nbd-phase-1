@@ -1,5 +1,6 @@
 from decimal import Decimal
 from datetime import datetime
+from typing import Optional, Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -7,8 +8,107 @@ from app.models.form import FormType
 from app.models.submission import Datapoint, Answer
 from app.models.sampling_record import SamplingRecord
 from app.models.health_score import HealthScore
+from app.models.fgd_record import FgdRecord
+from app.models.spatial import Site, Wetland
 from app.services.scoring.base import BaseScoringHandler
 from app.services.scoring.registry import register_handler
+
+# Constants and Mappings
+FISH_ABUNDANCE_MAPPING = {
+    "Same": Decimal("0.0"),
+    "Slight": Decimal("0.3"),
+    "Moderate": Decimal("0.6"),
+    "Severe": Decimal("1.0"),
+}
+
+WATER_CLARITY_MAPPING = {
+    "Same": Decimal("0.0"),
+    "Somewhat Worse": Decimal("0.5"),
+    "Much Worse": Decimal("1.0"),
+}
+
+VEGETATION_COVER_MAPPING = {
+    "Same": Decimal("0.0"),
+    "Partial Loss": Decimal("0.4"),
+    "Severe Loss": Decimal("1.0"),
+}
+
+
+def get_latest_fgd_record(db: Session, site_id: Any) -> Optional[FgdRecord]:
+    """Enforces spatial hierarchy to retrieve the latest FGD record
+
+    for the site's parent wetland.
+    """
+    return (
+        db.query(FgdRecord)
+        .join(Wetland, Wetland.id == FgdRecord.wetland_id)
+        .join(Site, Site.wetland_id == Wetland.id)
+        .filter(Site.id == site_id)
+        .order_by(FgdRecord.conducted_at.desc())
+        .first()
+    )
+
+
+def calculate_ik_signal(fgd: FgdRecord) -> Decimal:
+    """Computes the average IK signal from qualitative FGD values."""
+    fish_val = FISH_ABUNDANCE_MAPPING.get(fgd.fish_abundance, Decimal("0.0"))
+    clarity_val = WATER_CLARITY_MAPPING.get(fgd.water_clarity, Decimal("0.0"))
+    veg_val = VEGETATION_COVER_MAPPING.get(
+        fgd.vegetation_cover, Decimal("0.0")
+    )
+    return (fish_val + clarity_val + veg_val) / Decimal("3.0")
+
+
+def apply_fuzzy_rules(composite_score: Decimal, ik_signal: Decimal) -> Decimal:
+    """Applies fuzzy membership set fuzzification and rule defuzzification."""
+    # 1. Fuzzify Composite Score (C)
+    if composite_score <= Decimal("0.4"):
+        c_set = "Low"
+    elif composite_score <= Decimal("0.8"):
+        c_set = "Medium"
+    else:
+        c_set = "High"
+
+    # 2. Fuzzify IK Signal (IK)
+    if ik_signal <= Decimal("0.2"):
+        ik_set = "None"
+    elif ik_signal <= Decimal("0.7"):
+        ik_set = "Moderate"
+    else:
+        ik_set = "Strong"
+
+    # 3. Apply Rules Matrix to find output set centroid
+    # Centroid values: High = 0.90, Medium = 0.70, Low = 0.50
+    if c_set == "High":
+        if ik_set == "None":
+            centroid = Decimal("0.90")
+        else:
+            centroid = Decimal("0.70")
+    elif c_set == "Medium":
+        if ik_set == "None":
+            centroid = Decimal("0.70")
+        else:
+            centroid = Decimal("0.50")
+    else:
+        centroid = Decimal("0.50")
+
+    # 4. Defuzzify using weighted average formula
+    adjusted = (Decimal("2.0") * centroid + composite_score) / Decimal("3.0")
+    return adjusted.quantize(Decimal("0.01"))
+
+
+def map_health_class(score: Decimal) -> str:
+    """Maps a composite/adjusted score to its health class rating (A-E)."""
+    if score >= Decimal("0.80"):
+        return "A"
+    elif score >= Decimal("0.60"):
+        return "B"
+    elif score >= Decimal("0.40"):
+        return "C"
+    elif score >= Decimal("0.20"):
+        return "D"
+    else:
+        return "E"
 
 
 def calculate_wqi_and_scores(
@@ -158,13 +258,64 @@ class WetlandScoringHandler(BaseScoringHandler):
             invasive_macrophytes=inv_percent,
         )
 
+        # Retrieve parent wetland FGD record and run fuzzy logic adjustment
+        fgd = get_latest_fgd_record(db, datapoint.site_id)
+        if fgd:
+            ik_signal_value = calculate_ik_signal(fgd)
+            adjusted_score = apply_fuzzy_rules(
+                scores["composite_score"], ik_signal_value
+            )
+            health_class = map_health_class(adjusted_score)
+        else:
+            ik_signal_value = Decimal("0.00")
+            adjusted_score = scores["composite_score"]
+            health_class = scores["health_class"]
+
         health_score_rec = HealthScore(
             site_id=datapoint.site_id,
             wqi_score=scores["wqi_score"],
             composite_score=scores["composite_score"],
-            ik_signal_value=Decimal("0.00"),
-            adjusted_score=scores["composite_score"],
-            health_class=scores["health_class"],
+            ik_signal_value=ik_signal_value,
+            adjusted_score=adjusted_score,
+            health_class=health_class,
         )
         db.add(health_score_rec)
+        db.flush()
+
+
+@register_handler(FormType.INDIGENOUS_KNOWLEDGE)
+class IndigenousKnowledgeScoringHandler(BaseScoringHandler):
+    @classmethod
+    def score_submission(cls, db: Session, datapoint: Datapoint) -> None:
+        # Extract answers
+        answers = (
+            db.query(Answer).filter(Answer.datapoint_id == datapoint.id).all()
+        )
+
+        fish_abundance = "Same"
+        water_clarity = "Same"
+        vegetation_cover = "Same"
+
+        for ans in answers:
+            if not ans.question:
+                continue
+            q_name = (ans.question.name or "").lower()
+            val_str = ans.name or str(ans.value)
+
+            if q_name == "fish_abundance_change":
+                fish_abundance = val_str
+            elif q_name == "water_clarity_change":
+                water_clarity = val_str
+            elif q_name == "vegetation_cover_change":
+                vegetation_cover = val_str
+
+        # Create FgdRecord
+        fgd_rec = FgdRecord(
+            wetland_id=datapoint.wetland_id,
+            fish_abundance=fish_abundance,
+            water_clarity=water_clarity,
+            vegetation_cover=vegetation_cover,
+            conducted_at=datapoint.created_at or datetime.utcnow(),
+        )
+        db.add(fgd_rec)
         db.flush()

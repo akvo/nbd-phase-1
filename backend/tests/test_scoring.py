@@ -268,3 +268,102 @@ def test_scoring_handler_registry():
 
     # Non-existent or unregistered form types return None
     assert get_handler(FormType.CITIZEN_REPORTER) is None
+
+
+def test_fuzzy_rules_adjustment_math():
+    from app.services.scoring.handlers.wetland import (
+        apply_fuzzy_rules,
+        calculate_ik_signal,
+    )
+    from app.models.fgd_record import FgdRecord
+
+    # Test average IK signal calculation
+    fgd = FgdRecord(
+        fish_abundance="Moderate",  # 0.6
+        water_clarity="Much Worse",  # 1.0
+        vegetation_cover="Partial Loss",  # 0.4
+    )
+    ik_sig = calculate_ik_signal(fgd)
+    assert abs(ik_sig - Decimal("0.67")) < Decimal("0.01")
+
+    # Test borderline composite score (0.638) adjustment with moderate
+    # decline (0.67). Output set is Low (centroid = 0.50).
+    # Defuzzified = (2 * 0.50 + 0.638) / 3 = 0.546 -> rounded to 0.55
+    adj_score = apply_fuzzy_rules(Decimal("0.638"), ik_sig)
+    assert adj_score == Decimal("0.55")
+
+
+def test_approve_submission_with_fuzzy_logic_adjustment(
+    db_session: Session, setup_scoring_data
+):
+    from app.models.fgd_record import FgdRecord
+    from datetime import datetime
+
+    site = setup_scoring_data["site"]
+    form_id = setup_scoring_data["datapoint"].form_id
+
+    # Create a fresh pending Datapoint for the same site
+    dp = Datapoint(
+        form_id=form_id,
+        site_id=site.id,
+        status="PENDING",
+        submitter="Scoring Ingestion Submitter 2",
+    )
+    db_session.add(dp)
+    db_session.flush()
+
+    # Query questions for the form
+    from app.models.form import Question
+
+    questions = db_session.query(Question).filter_by(form_id=form_id).all()
+    q_map = {q.name: q.id for q in questions}
+
+    # Add answers yielding base composite score of 0.72
+    ans_ph = Answer(datapoint_id=dp.id, question_id=q_map["ph"], value=7.8)
+    ans_temp = Answer(
+        datapoint_id=dp.id, question_id=q_map["temp"], value=23.25
+    )
+    ans_do = Answer(datapoint_id=dp.id, question_id=q_map["do"], value=4.77)
+    ans_inv = Answer(
+        datapoint_id=dp.id, question_id=q_map["invasive_percent"], value=0.0
+    )
+    ans_level = Answer(
+        datapoint_id=dp.id, question_id=q_map["water_level"], name="medium"
+    )
+    db_session.add_all([ans_ph, ans_temp, ans_do, ans_inv, ans_level])
+    db_session.commit()
+
+    # Create an FGD record for the parent wetland
+    fgd = FgdRecord(
+        wetland_id=site.wetland_id,
+        fish_abundance="Moderate",  # 0.6
+        water_clarity="Much Worse",  # 1.0
+        vegetation_cover="Partial Loss",  # 0.4
+        conducted_at=datetime.utcnow(),
+    )
+    db_session.add(fgd)
+    db_session.commit()
+
+    headers = get_auth_headers(db_session)
+    response = client.patch(
+        f"/api/v1/submissions/{dp.id}/status",
+        json={"status": "APPROVED"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "APPROVED"
+
+    # Verify that the HealthScore created has been adjusted downward
+    db_session.expire_all()
+    health_score = (
+        db_session.query(HealthScore)
+        .filter_by(site_id=site.id)
+        .order_by(HealthScore.calculated_at.desc())
+        .first()
+    )
+    assert health_score is not None
+    assert abs(health_score.ik_signal_value - Decimal("0.67")) < Decimal(
+        "0.01"
+    )
+    assert abs(health_score.adjusted_score - Decimal("0.57")) < Decimal("0.01")
+    assert health_score.health_class == "C"

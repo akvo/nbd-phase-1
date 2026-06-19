@@ -111,8 +111,9 @@ def test_seed_forms_success(db_session: Session):
     meta_group = [
         g for g in ik_form.question_groups if g.name == "Contextual Metadata"
     ][0]
-    assert len(meta_group.questions) == 5
+    assert len(meta_group.questions) == 6
     meta_q_names = [q.name for q in meta_group.questions]
+    assert "wetland_id" in meta_q_names
     assert "land_use" in meta_q_names
     assert "area" in meta_q_names
 

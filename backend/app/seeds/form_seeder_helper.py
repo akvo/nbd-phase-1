@@ -189,7 +189,13 @@ def seed_forms(db: Session):
                         "    Updated Question: %s (ID: %s)", q_id, q.id
                     )
 
-                # 4. Iterate and Upsert Options
+                # 4. Recreate Options Freshly to avoid
+                # unique/duplicate violations
+                db.query(Option).filter(Option.question_id == q.id).delete(
+                    synchronize_session=False
+                )
+                db.flush()
+
                 options_data = q_data.get("option", [])
                 for opt_idx, opt_data in enumerate(options_data, start=1):
                     opt_label = opt_data.get("name")
@@ -197,39 +203,20 @@ def seed_forms(db: Session):
                     opt_order = opt_data.get("order", opt_idx)
                     opt_translations = opt_data.get("translations", [])
 
-                    opt = (
-                        db.query(Option)
-                        .filter(
-                            Option.question_id == q.id, Option.value == opt_val
-                        )
-                        .first()
+                    opt = Option(
+                        question_id=q.id,
+                        label=opt_label,
+                        value=opt_val,
+                        order=opt_order,
+                        translations=opt_translations,
                     )
-
-                    if not opt:
-                        opt = Option(
-                            question_id=q.id,
-                            label=opt_label,
-                            value=opt_val,
-                            order=opt_order,
-                            translations=opt_translations,
-                        )
-                        db.add(opt)
-                        db.flush()
-                        logger.info(
-                            "      Created Option: %s -> %s",
-                            opt_val,
-                            opt_label,
-                        )
-                    else:
-                        opt.label = opt_label
-                        opt.order = opt_order
-                        opt.translations = opt_translations
-                        db.flush()
-                        logger.info(
-                            "      Updated Option: %s -> %s",
-                            opt_val,
-                            opt_label,
-                        )
+                    db.add(opt)
+                    db.flush()
+                    logger.info(
+                        "      Created Option: %s -> %s",
+                        opt_val,
+                        opt_label,
+                    )
 
         # 5. Publish Form to make it active and generate a schema snapshot
         publish_form_snapshot(form, db)

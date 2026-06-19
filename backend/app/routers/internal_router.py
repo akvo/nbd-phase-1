@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.submission import Datapoint, Answer
 from app.models.user import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/internal", tags=["internal"])
 
@@ -283,6 +286,19 @@ def submit_fgd(
             db.add(avg_answer)
 
         db.commit()
+
+        # Trigger FGD handler to create the FgdRecord row in the database
+        from app.services.scoring import get_handler
+        from app.models.form import FormType
+
+        handler = get_handler(FormType.INDIGENOUS_KNOWLEDGE)
+        if handler:
+            try:
+                handler.score_submission(db, dp)
+                db.commit()
+            except Exception as e:
+                logger.error("Failed to execute FGD scoring handler: %s", e)
+
         return {"status": "success", "datapoint_id": dp.id}
     except Exception as e:
         db.rollback()

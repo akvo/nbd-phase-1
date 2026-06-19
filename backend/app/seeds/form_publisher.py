@@ -87,6 +87,7 @@ def publish_form_snapshot(form: Form, db: Session):
     schema_snapshot = {
         "form_id": form.id,
         "name": form.name,
+        "type": form.type,
         "version": form.version,
         "question_groups": question_groups_schema,
     }
