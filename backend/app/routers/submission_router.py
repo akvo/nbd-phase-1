@@ -101,10 +101,7 @@ def update_submission_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.sampling_record import SamplingRecord
     from app.services.reconciliation import reconcile_lab_datapoint
-    from decimal import Decimal
-    from datetime import datetime
 
     dp = db.query(Datapoint).filter(Datapoint.id == id).first()
     if not dp:
@@ -128,85 +125,13 @@ def update_submission_status(
                     detail="Cannot approve a submission without a site_id.",
                 )
 
-        if dp.form and dp.form.type == 2:
-            # Query all answers for this datapoint
-            answers = (
-                db.query(Answer).filter(Answer.datapoint_id == dp.id).all()
-            )
+        if dp.form:
+            from app.services.scoring import get_handler
+            from app.models.form import FormType
 
-            # Parse answers
-            ph_val = None
-            temp_val = None
-            do_val = None
-            inv_percent = Decimal("0.0")
-            water_lvl = "MEDIUM"
-
-            for ans in answers:
-                if not ans.question:
-                    continue
-                q_name = (ans.question.name or "").lower()
-
-                if q_name == "ph":
-                    if ans.value is not None:
-                        ph_val = Decimal(str(ans.value))
-                elif q_name == "temp":
-                    if ans.value is not None:
-                        temp_val = Decimal(str(ans.value))
-                elif q_name == "do":
-                    if ans.value is not None:
-                        do_val = Decimal(str(ans.value))
-                elif q_name == "invasive_percent":
-                    if ans.value is not None:
-                        inv_percent = Decimal(str(ans.value))
-                elif q_name == "water_level":
-                    raw_val = ans.name or ans.value or "MEDIUM"
-                    val_str = str(raw_val).upper().strip()
-                    if val_str in ("HIGH", "MEDIUM", "LOW"):
-                        water_lvl = val_str
-
-            # Check constraints (non-nullable fields)
-            if ph_val is None or temp_val is None or do_val is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "Missing water quality parameters (pH, Temperature, "
-                        "or Dissolved Oxygen) required to approve records."
-                    ),
-                )
-
-            sampling_rec = SamplingRecord(
-                site_id=dp.site_id,
-                ph_value=ph_val,
-                temp_value=temp_val,
-                do_value=do_val,
-                invasive_macrophytes=inv_percent,
-                water_level=water_lvl,
-                sampled_at=dp.created_at or datetime.utcnow(),
-            )
-            db.add(sampling_rec)
-            db.flush()
-
-            # Calculate and save health score
-            from app.services.scoring import calculate_wqi_and_scores
-            from app.models.health_score import HealthScore
-
-            scores = calculate_wqi_and_scores(
-                ph=ph_val,
-                do=do_val,
-                water_level=water_lvl,
-                invasive_macrophytes=inv_percent,
-            )
-
-            health_score_rec = HealthScore(
-                site_id=dp.site_id,
-                wqi_score=scores["wqi_score"],
-                composite_score=scores["composite_score"],
-                ik_signal_value=Decimal("0.00"),
-                adjusted_score=scores["composite_score"],
-                health_class=scores["health_class"],
-            )
-            db.add(health_score_rec)
-            db.flush()
+            handler = get_handler(FormType(dp.form.type))
+            if handler:
+                handler.score_submission(db, dp)
 
             # Trigger auto-reconciliation for matching approved Lab QA reports
             from app.models.form import Form
