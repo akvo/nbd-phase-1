@@ -367,3 +367,76 @@ def test_approve_submission_with_fuzzy_logic_adjustment(
     )
     assert abs(health_score.adjusted_score - Decimal("0.57")) < Decimal("0.01")
     assert health_score.health_class == "C"
+
+
+def test_defuzzification_class_and_color_mappings():
+    # Test that different scores yield correct health classes and color codes
+    from app.services.scoring.handlers.wetland import map_health_class
+
+    # Class A (>= 0.80)
+    assert map_health_class(Decimal("0.85")) == "A"
+    # Class B (>= 0.60)
+    assert map_health_class(Decimal("0.65")) == "B"
+    # Class C (>= 0.40)
+    assert map_health_class(Decimal("0.45")) == "C"
+    # Class D (>= 0.20)
+    assert map_health_class(Decimal("0.25")) == "D"
+    # Class E (< 0.20)
+    assert map_health_class(Decimal("0.15")) == "E"
+
+
+def test_get_site_details_with_status_and_actions(
+    db_session: Session, setup_scoring_data
+):
+    from app.models.management_action import ManagementAction
+    from app.models.health_score import HealthScore
+
+    site = setup_scoring_data["site"]
+
+    # Delete any existing health scores and management actions to isolate
+    db_session.query(HealthScore).filter_by(site_id=site.id).delete()
+    db_session.query(ManagementAction).filter_by(site_id=site.id).delete()
+
+    # Seed health score yielding Class C (adjusted_score = 0.55) -> Yellow
+    score_rec = HealthScore(
+        site_id=site.id,
+        wqi_score=Decimal("0.50"),
+        composite_score=Decimal("0.60"),
+        ik_signal_value=Decimal("0.30"),
+        adjusted_score=Decimal("0.55"),
+        health_class="C",
+    )
+    db_session.add(score_rec)
+
+    # Seed management actions for multiple colors
+    action_yellow = ManagementAction(
+        site_id=site.id,
+        status_color="YELLOW",
+        short_label="Yellow Action",
+        description_text="This action is for yellow status.",
+    )
+    action_red = ManagementAction(
+        site_id=site.id,
+        status_color="RED",
+        short_label="Red Action",
+        description_text="This action is for red status.",
+    )
+    db_session.add_all([action_yellow, action_red])
+    db_session.commit()
+
+    # Request the site detail endpoint
+    response = client.get(f"/api/v1/sites/{site.id}")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify status serialization
+    assert data["status"] is not None
+    assert data["status"]["health_class"] == "C"
+    assert data["status"]["traffic_light"] == "Yellow"
+    assert data["status"]["ik_adjusted_score"] == 0.55
+
+    # Verify management actions are dynamically filtered to ONLY yellow action
+    assert len(data["management_actions"]) == 1
+    assert data["management_actions"][0]["label"] == "Yellow Action"
+    desc = "This action is for yellow status."
+    assert data["management_actions"][0]["description"] == desc
