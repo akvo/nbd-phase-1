@@ -1,5 +1,6 @@
 {
   "name": "Monthly Wetland Sampling",
+  "type": 2,
   "question_group": [
     {
       "id": 1,

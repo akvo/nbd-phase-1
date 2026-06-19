@@ -10,6 +10,7 @@ from app.models.form import (
     Question,
     Option,
     FormPublishedVersion,
+    FormStatus,
 )
 from app.schemas import form as schemas
 
@@ -159,7 +160,7 @@ def publish_form(form_id: int, db: Session = Depends(get_db)):
         # Update Form attributes
         db_form.published_at = datetime.utcnow()
         db_form.version = next_version
-        db_form.status = 2  # status: Published (matching reference FormStatus)
+        db_form.status = FormStatus.PUBLISHED.value
         db_form.active_version_id = published_version.id
         db.commit()
 

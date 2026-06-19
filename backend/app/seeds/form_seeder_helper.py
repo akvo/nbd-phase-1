@@ -43,23 +43,35 @@ def seed_forms(db: Session):
         form = db.query(Form).filter(Form.name == form_name).first()
         languages = form_data.get("languages", ["en"])
         translations = form_data.get("translations", [])
+        form_type = form_data.get("type", 1)
         if not form:
             form = Form(
                 name=form_name,
                 version=1,
-                type=1,
+                type=form_type,
                 status=1,
                 translations=translations,
                 languages=languages,
             )
             db.add(form)
             db.flush()
-            logger.info("Created Form: %s (ID: %s)", form_name, form.id)
+            logger.info(
+                "Created Form: %s (ID: %s, Type: %s)",
+                form_name,
+                form.id,
+                form_type,
+            )
         else:
             form.translations = translations
             form.languages = languages
+            form.type = form_type
             db.flush()
-            logger.info("Form already exists: %s (ID: %s)", form_name, form.id)
+            logger.info(
+                "Updated Form: %s (ID: %s, Type: %s)",
+                form_name,
+                form.id,
+                form_type,
+            )
 
         # 2. Iterate and Upsert Question Groups
         groups = form_data.get("question_group", [])
