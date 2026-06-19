@@ -72,8 +72,7 @@ sequenceDiagram
   - **Quality Ratings ($q_n$)**: $q_n = 100 \times \frac{V_n - V_{io}}{S_n - V_{io}}$ where $V_{io} = 7.0$ for pH and $14.6$ mg/L for DO.
   - **Aggregation**: $\text{WQI} = W_{\text{pH}} \times q_{\text{pH}} + W_{\text{DO}} \times q_{\text{DO}}$.
   - **Group score mapping**: $\text{Physico-chemical Score} = \max(0.0, 1.0 - \frac{\text{WQI}}{100})$.
-- **Composite Score Aggregation**: Calculate the raw Composite Score as the average of the three groups:
-- **Form-Specific Execution (Citizen Scientist)**: The baseline scientific scoring calculations must execute only upon the approval of Citizen Scientist (Form Type 2) records. Other form types (e.g., Pollution Reports, Lab shadow tests) do not trigger baseline scoring calculations.
+- **Modular Strategy Registry**: Scoring execution must use a Strategy pattern registry. Each `FormType` maps dynamically to a `BaseScoringHandler` subclass. Citizen Scientist (Form Type 2) triggers the `WetlandScoringHandler`. New domains (e.g., forest monitoring) can be added as self-contained configurations without modifying the core submission router.
 - **Database Persistence**: Save calculated scores to `health_scores` table linked to the site, period, and original submission.
 
 ### Nice-to-Have

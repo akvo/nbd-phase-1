@@ -6,29 +6,64 @@
 
 ---
 
-## 1. Component Design
+## 1. Strategy & Registry Architecture
 
-We will introduce a new service layer module `backend/app/services/scoring.py` containing the core mathematical equations, and integrate it into the `PATCH /api/v1/submissions/{id}/status` endpoint located in `backend/app/routers/submission_router.py`.
+To ensure modularity and ease of extension for future monitoring domains (e.g., forest monitoring), the scoring engine is built using a Strategy registry pattern.
 
-### 1.1 `backend/app/services/scoring.py`
-This module will export the following function and helper functions:
-
-```python
-from decimal import Decimal
-from sqlalchemy.orm import Session
-from app.models.health_score import HealthScore
-
-def calculate_wqi_and_scores(ph: Decimal, do: Decimal, water_level: str, invasive_macrophytes: Decimal) -> dict:
-    """
-    Computes quality ratings, weights, WQI score, and group-level means.
-    Returns a dictionary containing:
-      - wqi_score (physico-chemical group score between 0.00 and 1.00)
-      - catchment_score (between 0.00 and 1.00)
-      - ecological_score (between 0.00 and 1.00)
-      - composite_score (average of the three group scores)
-      - health_class ('A', 'B', 'C', 'D', or 'E')
-    """
+### 1.1 Folder Structure
 ```
+backend/app/services/scoring/
+├── __init__.py         # Package entrypoint, imports handlers to trigger registration
+├── base.py             # Defines BaseScoringHandler class interface
+├── registry.py         # Registration decorator and get_handler interface
+└── handlers/
+    └── wetland.py      # WetlandScoringHandler strategy for CITIZEN_SCIENTIST (Type 2)
+```
+
+### 1.2 Class Definitions
+
+#### `app/services/scoring/base.py`
+```python
+from abc import ABC, abstractmethod
+from sqlalchemy.orm import Session
+from app.models.submission import Datapoint
+
+class BaseScoringHandler(ABC):
+    @classmethod
+    @abstractmethod
+    def score_submission(cls, db: Session, datapoint: Datapoint) -> None:
+        """Processes the approved datapoint and generates scoring records."""
+        pass
+```
+
+#### `app/services/scoring/registry.py`
+```python
+from typing import Dict, Type, Optional
+from app.models.form import FormType
+from app.services.scoring.base import BaseScoringHandler
+
+def register_handler(form_type: FormType):
+    """Decorator to register a scoring handler for a specific FormType."""
+    ...
+
+def get_handler(form_type: FormType) -> Optional[Type[BaseScoringHandler]]:
+    ...
+```
+
+#### `app/services/scoring/handlers/wetland.py`
+This class implements the `BaseScoringHandler` for `FormType.CITIZEN_SCIENTIST` (Type 2):
+```python
+from app.services.scoring.base import BaseScoringHandler
+from app.services.scoring.registry import register_handler
+
+@register_handler(FormType.CITIZEN_SCIENTIST)
+class WetlandScoringHandler(BaseScoringHandler):
+    @classmethod
+    def score_submission(cls, db: Session, datapoint: Datapoint) -> None:
+        # Extracts answers, computes WQI, saves SamplingRecord and HealthScore.
+        ...
+```
+
 
 #### WQI Formula Implementation Details:
 - **Constants**:
@@ -77,32 +112,18 @@ Only certain form types participate in or trigger calculations within the platfo
 
 ## 2. Ingestion Integration Flow
 
-In `backend/app/routers/submission_router.py`, inside the `update_submission_status` router (triggered when a submission status updates to `APPROVED` for Form Type 2):
+In `backend/app/routers/submission_router.py`, inside the `update_submission_status` router (triggered when a submission status updates to `APPROVED`):
 
 ```python
-# 1. Insert the raw parameters into sampling_records (existing behavior)
-# 2. Run the WQI and Composite scoring computations
-from app.services.scoring import calculate_wqi_and_scores
+if dp.form:
+    from app.services.scoring import get_handler
+    from app.models.form import FormType
 
-scores = calculate_wqi_and_scores(
-    ph=ph_val,
-    do=do_val,
-    water_level=water_lvl,
-    invasive_macrophytes=inv_percent
-)
-
-# 3. Create a new HealthScore record and persist to DB
-health_score_rec = HealthScore(
-    site_id=dp.site_id,
-    wqi_score=scores["wqi_score"],
-    composite_score=scores["composite_score"],
-    ik_signal_value=Decimal("0.00"),  # Placeholder for Phase 2
-    adjusted_score=scores["composite_score"],  # Placeholder for Phase 2
-    health_class=scores["health_class"]
-)
-db.add(health_score_rec)
-db.flush()
+    handler = get_handler(FormType(dp.form.type))
+    if handler:
+        handler.score_submission(db, dp)
 ```
+
 
 ---
 
