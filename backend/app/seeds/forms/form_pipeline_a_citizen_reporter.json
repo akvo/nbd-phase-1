@@ -1,5 +1,6 @@
 {
   "name": "Pollution Reporting Form",
+  "type": 1,
   "translations": [
     { "name": "Pollution Reporting Form", "language": "en" },
     { "name": "Fomu ya Kuripoti Uchafuzi", "language": "sw" }

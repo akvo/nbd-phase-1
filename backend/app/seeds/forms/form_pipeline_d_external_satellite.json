@@ -1,5 +1,6 @@
 {
   "name": "External Satellite & Climate Data",
+  "type": 5,
   "question_group": [
     {
       "id": 1,

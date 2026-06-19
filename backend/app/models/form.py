@@ -54,6 +54,11 @@ class FormType(int, enum.Enum):
     EXTERNAL_SATELLITE = 5
 
 
+class FormStatus(int, enum.Enum):
+    DRAFT = 1
+    PUBLISHED = 2
+
+
 class Form(Base):
     __tablename__ = "form"
 
@@ -70,7 +75,7 @@ class Form(Base):
         Integer, ForeignKey("form.id", ondelete="CASCADE"), nullable=True
     )
     type = Column(Integer, default=1, nullable=False)
-    status = Column(Integer, default=1, nullable=False)
+    status = Column(Integer, default=FormStatus.DRAFT.value, nullable=False)
     published_at = Column(DateTime, nullable=True)
     previous_version_id = Column(
         Integer, ForeignKey("form.id", ondelete="SET NULL"), nullable=True

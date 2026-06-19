@@ -6,6 +6,7 @@ from app.models.form import (
     QuestionGroup,
     Question,
     FormPublishedVersion,
+    FormStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -106,7 +107,7 @@ def publish_form_snapshot(form: Form, db: Session):
 
     form.published_at = datetime.utcnow()
     form.version = next_version
-    form.status = 2  # Published status
+    form.status = FormStatus.PUBLISHED.value
     form.active_version_id = published_version.id
     db.flush()
     logger.info(

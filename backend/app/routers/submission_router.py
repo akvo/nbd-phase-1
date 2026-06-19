@@ -131,9 +131,7 @@ def update_submission_status(
         if dp.form and dp.form.type == 2:
             # Query all answers for this datapoint
             answers = (
-                db.query(Answer)
-                .filter(Answer.datapoint_id == dp.id)
-                .all()
+                db.query(Answer).filter(Answer.datapoint_id == dp.id).all()
             )
 
             # Parse answers
@@ -186,6 +184,28 @@ def update_submission_status(
                 sampled_at=dp.created_at or datetime.utcnow(),
             )
             db.add(sampling_rec)
+            db.flush()
+
+            # Calculate and save health score
+            from app.services.scoring import calculate_wqi_and_scores
+            from app.models.health_score import HealthScore
+
+            scores = calculate_wqi_and_scores(
+                ph=ph_val,
+                do=do_val,
+                water_level=water_lvl,
+                invasive_macrophytes=inv_percent,
+            )
+
+            health_score_rec = HealthScore(
+                site_id=dp.site_id,
+                wqi_score=scores["wqi_score"],
+                composite_score=scores["composite_score"],
+                ik_signal_value=Decimal("0.00"),
+                adjusted_score=scores["composite_score"],
+                health_class=scores["health_class"],
+            )
+            db.add(health_score_rec)
             db.flush()
 
             # Trigger auto-reconciliation for matching approved Lab QA reports
