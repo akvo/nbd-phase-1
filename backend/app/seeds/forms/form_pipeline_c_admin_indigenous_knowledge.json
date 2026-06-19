@@ -8,6 +8,17 @@
       "name": "Contextual Metadata",
       "question": [
         {
+          "id": "wetland_id",
+          "order": 1,
+          "type": "cascade",
+          "name": "Select Wetland",
+          "required": true,
+          "endpoint": "/api/v1/reference/wetlands",
+          "extra": {
+            "option": "wetland"
+          }
+        },
+        {
           "id": "dependent_population",
           "type": "option",
           "name": "Dependant Population",
@@ -49,10 +60,10 @@
           "type": "option",
           "name": "Fish Abundance Trend",
           "option": [
-            { "name": "Same or increased", "value": 0.0 },
-            { "name": "Slightly declined", "value": 0.3 },
-            { "name": "Moderately declined", "value": 0.6 },
-            { "name": "Severely declined", "value": 1.0 }
+            { "name": "Same or increased", "value": "Same" },
+            { "name": "Slightly declined", "value": "Slight" },
+            { "name": "Moderately declined", "value": "Moderate" },
+            { "name": "Severely declined", "value": "Severe" }
           ]
         },
         {
@@ -60,9 +71,9 @@
           "type": "option",
           "name": "Water Clarity Trend",
           "option": [
-            { "name": "Same or clearer", "value": 0.0 },
-            { "name": "Somewhat worse", "value": 0.5 },
-            { "name": "Much worse", "value": 1.0 }
+            { "name": "Same or clearer", "value": "Same" },
+            { "name": "Somewhat worse", "value": "Somewhat Worse" },
+            { "name": "Much worse", "value": "Much Worse" }
           ]
         },
         {
@@ -70,9 +81,9 @@
           "type": "option",
           "name": "Vegetation Cover Trend",
           "option": [
-            { "name": "Same or more", "value": 0.0 },
-            { "name": "Partially lost", "value": 0.4 },
-            { "name": "Severely lost", "value": 1.0 }
+            { "name": "Same or more", "value": "Same" },
+            { "name": "Partially lost", "value": "Partial Loss" },
+            { "name": "Severely lost", "value": "Severe Loss" }
           ]
         },
         {
