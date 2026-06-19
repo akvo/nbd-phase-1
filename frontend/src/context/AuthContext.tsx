@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const response = await apiClient.get("/auth/me");
       setUser(response.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setUser(null);
       // Don't set error for 401s - that's expected when not logged in

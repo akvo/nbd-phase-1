@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,18 +27,22 @@ export default function Home() {
   const [selectedBasin, setSelectedBasin] = useState("MARA");
   const [selectedHealthFilter, setSelectedHealthFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSite, setSelectedSite] = useState<any>(null);
   const [isListCollapsed, setIsListCollapsed] = useState(true);
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [basinGeometries, setBasinGeometries] = useState<Record<string, any>>(
     {}
   );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
 
   useEffect(() => {
     getBasins()
       .then((data) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const geomMap: Record<string, any> = {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data.forEach((b: any) => {
           if (b.code && b.geom) {
             geomMap[b.code] = b.geom;
@@ -51,6 +54,7 @@ export default function Home() {
         }
       })
       .catch((err) => console.error("Error loading basin geometries:", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

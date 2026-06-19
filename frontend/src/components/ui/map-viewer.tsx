@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from "react";
-// @ts-expect-error - react-leaflet types incompatible with React 19
 import {
   MapContainer,
   TileLayer,
@@ -25,9 +24,11 @@ interface MapViewerProps {
   markers?: MapMarker[];
   className?: string;
   zoomOffsetClass?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   basinGeometry?: any;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function MapController({ basinGeometry }: { basinGeometry: any }) {
   const map = useMap();
 

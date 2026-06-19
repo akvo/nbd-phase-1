@@ -17,6 +17,7 @@ export default function AdminLayout({
   const router = useRouter();
   const { user, loading: authLoading, isAdmin } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [forms, setForms] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +43,7 @@ export default function AdminLayout({
       .get("/forms")
       .then((res) => {
         if (res.data && res.data.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const fetched = res.data.map((f: any) => ({
             id: String(f.id),
             name: f.name,

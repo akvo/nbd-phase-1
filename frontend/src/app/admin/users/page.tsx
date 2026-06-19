@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { UserPlus, Mail, ChevronDown, Check, X, Edit2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import {
@@ -297,10 +298,12 @@ export default function UsersPage() {
                     <TableCell className="py-4 px-6">
                       <div className="flex items-center space-x-3">
                         {user.avatar_url ? (
-                          <img
+                          <Image
                             src={user.avatar_url}
                             alt={user.display_name || user.email}
-                            className="w-9 h-9 rounded-full object-cover"
+                            width={36}
+                            height={36}
+                            className="rounded-full object-cover"
                           />
                         ) : (
                           <div
@@ -520,10 +523,12 @@ export default function UsersPage() {
             <div className="p-6 space-y-4">
               <div className="flex items-center space-x-3">
                 {editingUser.avatar_url ? (
-                  <img
+                  <Image
                     src={editingUser.avatar_url}
                     alt={editingUser.display_name || editingUser.email}
-                    className="w-10 h-10 rounded-full object-cover"
+                    width={40}
+                    height={40}
+                    className="rounded-full object-cover"
                   />
                 ) : (
                   <div

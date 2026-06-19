@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import L from "leaflet";
@@ -12,6 +11,7 @@ import "akvo-react-form/dist/index.css";
 // Silence the React 19 element.ref deprecation warning and patch Leaflet double-initialization
 if (typeof window !== "undefined") {
   const originalError = console.error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   console.error = function (...args: any[]) {
     if (
       typeof args[0] === "string" &&
@@ -23,6 +23,7 @@ if (typeof window !== "undefined") {
   };
 
   const originalWarn = console.warn;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   console.warn = function (...args: any[]) {
     if (
       typeof args[0] === "string" &&
@@ -36,23 +37,28 @@ if (typeof window !== "undefined") {
   // Leaflet double-initialization patch
   if (L) {
     const originalMap = L.map;
-    L.map = function (el: any, options: any) {
+    L.map = function (el: string | HTMLElement, options?: L.MapOptions) {
       const container =
         typeof el === "string" ? document.getElementById(el) : el;
-      if (container && container._leaflet_id) {
-        container._leaflet_id = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (container && (container as any)._leaflet_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (container as any)._leaflet_id = null;
       }
       return originalMap.call(L, el, options);
     };
 
     const originalMapClass = L.Map;
-    L.Map = function (el: any, options: any) {
+    L.Map = function (el: string | HTMLElement, options?: L.MapOptions) {
       const container =
         typeof el === "string" ? document.getElementById(el) : el;
-      if (container && container._leaflet_id) {
-        container._leaflet_id = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (container && (container as any)._leaflet_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (container as any)._leaflet_id = null;
       }
       return new originalMapClass(el, options);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     L.Map.prototype = originalMapClass.prototype;
   }
@@ -63,7 +69,7 @@ if (React) {
   // Silence the React 19 element.ref deprecation warning to prevent Next.js dev overlay from crashing
   if (typeof window !== "undefined") {
     const originalError = console.error;
-    console.error = function (...args: any[]) {
+    console.error = function (...args: unknown[]) {
       if (
         typeof args[0] === "string" &&
         args[0].includes("Accessing element.ref was removed in React 19")
@@ -74,7 +80,7 @@ if (React) {
     };
 
     const originalWarn = console.warn;
-    console.warn = function (...args: any[]) {
+    console.warn = function (...args: unknown[]) {
       if (
         typeof args[0] === "string" &&
         args[0].includes("Accessing element.ref was removed in React 19")
@@ -85,6 +91,7 @@ if (React) {
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const r = React as any;
   if (!r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) {
     r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {
@@ -101,11 +108,14 @@ if (React) {
   const originalCreateElement = r.createElement;
   if (originalCreateElement && !originalCreateElement.__refPolyfilled) {
     const newCreateElement = function (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       type: any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       props: any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...children: any[]
     ) {
-      const element = originalCreateElement.apply(React, arguments as any);
+      const element = originalCreateElement.apply(React, [type, props, ...children]);
       if (
         element &&
         typeof element === "object" &&
@@ -171,7 +181,7 @@ if (React) {
           });
 
           return clonedElement;
-        } catch (e) {
+        } catch {
           // Fallback to original element if cloning fails
           return element;
         }
@@ -183,6 +193,7 @@ if (React) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Webform = dynamic<any>(
   () => import("akvo-react-form").then((mod) => mod.Webform),
   {
@@ -203,8 +214,8 @@ interface NewFormPageProps {
 }
 
 export default function NewFormPage({ params }: NewFormPageProps) {
-  const router = useRouter();
   const { formId } = use(params);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [blueprint, setBlueprint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -240,6 +251,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
     };
   }, [formId]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFinish = async (values: any) => {
     setSubmitting(true);
     setError(null);
@@ -264,6 +276,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
       setTimeout(() => {
         window.location.href = "/admin/data";
       }, 1500);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||

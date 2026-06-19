@@ -37,6 +37,7 @@ export default function DataOverviewPage() {
       .get("/submissions")
       .then((res) => {
         if (res.data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const fetchedSubmissions = res.data.map((dp: any) => {
             const statusMapped = dp.status
               ? dp.status.charAt(0).toUpperCase() +

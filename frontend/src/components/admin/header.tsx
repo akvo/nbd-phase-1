@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Settings,
@@ -278,10 +279,12 @@ export default function Header() {
             className="flex items-center space-x-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
           >
             {user?.avatar_url ? (
-              <img
+              <Image
                 src={user.avatar_url}
                 alt=""
-                className="w-6 h-6 rounded-full"
+                width={24}
+                height={24}
+                className="rounded-full"
               />
             ) : (
               <User className="w-4 h-4 text-slate-500" />

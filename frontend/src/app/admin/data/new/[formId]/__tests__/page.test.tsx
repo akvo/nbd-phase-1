@@ -4,10 +4,12 @@ import React from "react";
 
 // Mock React.use hook to prevent suspension in testing
 vi.mock("react", async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const actual = await vi.importActual<any>("react");
   return {
     ...actual,
-    use: (promise: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    use: (_promise: any) => {
       return { formId: "fgd" };
     },
   };
@@ -32,7 +34,9 @@ const mockPost = vi.fn();
 vi.mock("@/lib/api", () => {
   return {
     apiClient: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       get: (...args: any[]) => mockGet(...args),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       post: (...args: any[]) => mockPost(...args),
     },
   };
@@ -41,6 +45,7 @@ vi.mock("@/lib/api", () => {
 // Mock akvo-react-form
 vi.mock("akvo-react-form", () => {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Webform: ({ forms, onFinish }: any) => (
       <div data-testid="mock-webform">
         <span>Form: {forms?.name}</span>

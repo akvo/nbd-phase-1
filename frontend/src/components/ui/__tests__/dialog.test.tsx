@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,

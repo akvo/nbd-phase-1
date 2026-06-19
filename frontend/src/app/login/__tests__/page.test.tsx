@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => {
 // Mock next/script
 vi.mock("next/script", () => {
   return {
+    // eslint-disable-next-line
     default: ({ children, ...props }: any) => null,
   };
 });

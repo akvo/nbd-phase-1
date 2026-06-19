@@ -25,6 +25,7 @@ apiClient.interceptors.response.use(
   }
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getBasins = async (): Promise<any[]> => {
   const response = await apiClient.get("/basins");
   return response.data;

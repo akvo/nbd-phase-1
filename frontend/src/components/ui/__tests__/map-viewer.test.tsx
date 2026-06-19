@@ -4,13 +4,17 @@ import { expect, test, vi } from "vitest";
 
 vi.mock("react-leaflet", () => {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     MapContainer: ({ children }: any) => (
       <div data-testid="map-container">{children}</div>
     ),
     TileLayer: () => <div data-testid="tile-layer" />,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Marker: ({ children }: any) => <div data-testid="marker">{children}</div>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Popup: ({ children }: any) => <div data-testid="popup">{children}</div>,
     ZoomControl: () => <div data-testid="zoom-control" />,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     GeoJSON: ({ data }: any) => (
       <div data-testid="geojson" data-geojson={JSON.stringify(data)} />
     ),
