@@ -70,7 +70,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   };
 
   // Pre-calculate composites for display matching Figma LLD spec
-  const rawComposite = (site.current_score + (site.is_ik_adjusted ? 0.05 : 0)).toFixed(2);
+  const rawComposite = (
+    site.current_score + (site.is_ik_adjusted ? 0.05 : 0)
+  ).toFixed(2);
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
@@ -80,11 +82,17 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
             Monitoring Station
           </span>
-          <h2 className="text-lg font-bold text-slate-800 truncate mt-0.5">{site.site_name}</h2>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">{site.site_id}</p>
+          <h2 className="text-lg font-bold text-slate-800 truncate mt-0.5">
+            {site.site_name}
+          </h2>
+          <p className="text-xs text-slate-500 font-mono mt-0.5">
+            {site.site_id}
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm border ${gradeCircleClass}`}>
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm border ${gradeCircleClass}`}
+          >
             {site.current_health_class}
           </div>
           <Button
@@ -100,18 +108,30 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
       {/* Badges line */}
       <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-2 items-center">
         <div className="flex items-center gap-1 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm">
-          <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          <svg
+            className="w-3.5 h-3.5 text-slate-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+            />
           </svg>
           <span>{site.country}</span>
         </div>
         <Badge variant={site.is_approved ? "success" : "warning"}>
           {site.is_approved ? "Approved" : "Pending"}
         </Badge>
-        {site.is_ik_adjusted && (
-          <Badge variant="primary">IK-adjusted</Badge>
-        )}
+        {site.is_ik_adjusted && <Badge variant="primary">IK-adjusted</Badge>}
       </div>
 
       {/* Drawer Body */}
@@ -119,11 +139,23 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         {/* Warning Alert Banner */}
         {(isCritical || isAtRisk) && (
           <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 flex gap-3 items-start animate-fade-in">
-            <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <svg
+              className="w-5 h-5 text-amber-600 shrink-0 mt-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
             </svg>
             <p className="text-xs text-amber-700 leading-relaxed font-medium">
-              Wetland health is currently at risk or degraded (Class {site.current_health_class}). Management interventions are highly recommended to prevent further ecological decline.
+              Wetland health is currently at risk or degraded (Class{" "}
+              {site.current_health_class}). Management interventions are highly
+              recommended to prevent further ecological decline.
             </p>
           </div>
         )}
@@ -132,7 +164,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         {site.community_signal && (
           <div className="text-sm text-slate-700 leading-relaxed border-l-4 border-teal-500 pl-3.5 py-1 bg-teal-50/30 rounded-r-lg">
             <span className="font-bold text-slate-800">Community signal: </span>
-            <span className="italic">"{site.community_signal}"</span>
+            <span className="italic">&quot;{site.community_signal}&quot;</span>
           </div>
         )}
 
@@ -156,7 +188,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           {/* Temperature */}
           <div className="bg-slate-50/60 p-4 border-b border-slate-200 flex flex-col justify-between h-24">
             <div className="flex justify-between items-start text-xs text-slate-500">
-              <span className="font-medium text-slate-400">Water temperature</span>
+              <span className="font-medium text-slate-400">
+                Water temperature
+              </span>
               <Thermometer className="w-4 h-4 text-slate-400" />
             </div>
             <div className="text-base font-bold text-slate-800">
@@ -177,11 +211,21 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             <div className="text-base font-bold text-slate-800">
               {site.details.physico_chemical.dissolved_oxygen} mg/L
             </div>
-            <div className={`flex items-center gap-1.5 text-[10px] font-semibold ${
-              site.details.physico_chemical.dissolved_oxygen < 5 ? "text-amber-600" : "text-green-600"
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${site.details.physico_chemical.dissolved_oxygen < 5 ? "bg-amber-500" : "bg-green-500"}`} />
-              <span>{site.details.physico_chemical.dissolved_oxygen < 5 ? "Low" : "Normal"}</span>
+            <div
+              className={`flex items-center gap-1.5 text-[10px] font-semibold ${
+                site.details.physico_chemical.dissolved_oxygen < 5
+                  ? "text-amber-600"
+                  : "text-green-600"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${site.details.physico_chemical.dissolved_oxygen < 5 ? "bg-amber-500" : "bg-green-500"}`}
+              />
+              <span>
+                {site.details.physico_chemical.dissolved_oxygen < 5
+                  ? "Low"
+                  : "Normal"}
+              </span>
             </div>
           </div>
 
@@ -191,9 +235,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               <span className="font-medium text-slate-400">Water level</span>
               <Ruler className="w-4 h-4 text-slate-400" />
             </div>
-            <div className="text-base font-bold text-slate-800">
-              142 cm
-            </div>
+            <div className="text-base font-bold text-slate-800">142 cm</div>
             <div className="flex items-center gap-1.5 text-[10px] text-green-600 font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
               <span>Stable</span>
@@ -204,20 +246,28 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         {/* Score Breakdown Progress Bars */}
         <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="bg-white border-b border-slate-200 px-4.5 py-3.5">
-            <h4 className="font-bold text-sm text-slate-800">Score breakdown</h4>
-            <p className="text-xs text-slate-500 mt-0.5">Parameter group scores (May 2026 sampling)</p>
+            <h4 className="font-bold text-sm text-slate-800">
+              Score breakdown
+            </h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Parameter group scores (May 2026 sampling)
+            </p>
           </div>
           <div className="p-4.5 space-y-4 bg-white">
             {/* Physico-chemical */}
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-semibold text-slate-700">
                 <span>Physico-chemical</span>
-                <span>{site.details.physico_chemical.group_score.toFixed(2)}</span>
+                <span>
+                  {site.details.physico_chemical.group_score.toFixed(2)}
+                </span>
               </div>
               <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
                 <div
                   className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(site.details.physico_chemical.group_score)}`}
-                  style={{ width: `${site.details.physico_chemical.group_score * 100}%` }}
+                  style={{
+                    width: `${site.details.physico_chemical.group_score * 100}%`,
+                  }}
                 />
               </div>
             </div>
@@ -226,12 +276,16 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-semibold text-slate-700">
                 <span>Catchment / hydro</span>
-                <span>{site.details.catchment_hydrological.group_score.toFixed(2)}</span>
+                <span>
+                  {site.details.catchment_hydrological.group_score.toFixed(2)}
+                </span>
               </div>
               <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
                 <div
                   className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(site.details.catchment_hydrological.group_score)}`}
-                  style={{ width: `${site.details.catchment_hydrological.group_score * 100}%` }}
+                  style={{
+                    width: `${site.details.catchment_hydrological.group_score * 100}%`,
+                  }}
                 />
               </div>
             </div>
@@ -245,7 +299,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
                 <div
                   className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(site.details.ecological.group_score)}`}
-                  style={{ width: `${site.details.ecological.group_score * 100}%` }}
+                  style={{
+                    width: `${site.details.ecological.group_score * 100}%`,
+                  }}
                 />
               </div>
             </div>
@@ -274,10 +330,14 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             {site.is_ik_adjusted && (
               <div className="flex justify-between">
                 <span>IK health signal (FGD)</span>
-                <span>{(site.details.ik_signal.encoded_signal_value).toFixed(2)}</span>
+                <span>
+                  {site.details.ik_signal.encoded_signal_value.toFixed(2)}
+                </span>
               </div>
             )}
-            <div className={`flex justify-between font-bold border-t border-slate-200/60 pt-2 mt-1 ${gradeTextClass}`}>
+            <div
+              className={`flex justify-between font-bold border-t border-slate-200/60 pt-2 mt-1 ${gradeTextClass}`}
+            >
               <span>Adjusted score - Class {site.current_health_class}</span>
               <span>{site.current_score.toFixed(2)}</span>
             </div>
@@ -302,19 +362,25 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             <div className="divide-y divide-slate-100 bg-white">
               <div className="grid grid-cols-4 p-3 items-center">
                 <div className="font-semibold text-slate-700">pH</div>
-                <div className="text-center font-mono text-slate-800">{site.details.physico_chemical.ph}</div>
+                <div className="text-center font-mono text-slate-800">
+                  {site.details.physico_chemical.ph}
+                </div>
                 <div className="text-center text-slate-400">-</div>
                 <div className="text-center text-slate-400">-</div>
               </div>
               <div className="grid grid-cols-4 p-3 items-center">
                 <div className="font-semibold text-slate-700">Dissolved O₂</div>
-                <div className="text-center font-mono text-slate-800">{site.details.physico_chemical.dissolved_oxygen}</div>
+                <div className="text-center font-mono text-slate-800">
+                  {site.details.physico_chemical.dissolved_oxygen}
+                </div>
                 <div className="text-center text-slate-500">mg/L</div>
                 <div className="text-center text-slate-400">-</div>
               </div>
               <div className="grid grid-cols-4 p-3 items-center">
                 <div className="font-semibold text-slate-700">Temperature</div>
-                <div className="text-center font-mono text-slate-800">{site.details.physico_chemical.temperature}</div>
+                <div className="text-center font-mono text-slate-800">
+                  {site.details.physico_chemical.temperature}
+                </div>
                 <div className="text-center text-slate-500">°C</div>
                 <div className="text-center text-slate-400">-</div>
               </div>
@@ -331,7 +397,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                 <div className="text-center text-slate-400">-</div>
               </div>
               <div className="grid grid-cols-4 p-3 items-center">
-                <div className="font-semibold text-slate-700">Macroinvertebrate</div>
+                <div className="font-semibold text-slate-700">
+                  Macroinvertebrate
+                </div>
                 <div className="text-center font-mono text-slate-800">0.48</div>
                 <div className="text-center text-slate-500">index</div>
                 <div className="text-center text-slate-400">-</div>
@@ -350,31 +418,48 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               <div className="flex justify-between text-xs text-slate-500">
                 <span>IK Signal Strength:</span>
                 <span className="font-semibold text-blue-700">
-                  {(site.details.ik_signal.encoded_signal_value * 100).toFixed(0)}%
+                  {(site.details.ik_signal.encoded_signal_value * 100).toFixed(
+                    0
+                  )}
+                  %
                 </span>
               </div>
-              <Progress value={site.details.ik_signal.encoded_signal_value * 100} />
+              <Progress
+                value={site.details.ik_signal.encoded_signal_value * 100}
+              />
             </div>
             <div className="grid grid-cols-1 gap-2.5 pt-1 text-xs text-slate-700">
               <div className="flex items-center gap-2">
                 <span>🐟</span>
-                <span className="font-medium text-slate-500">Fish Abundance:</span>
+                <span className="font-medium text-slate-500">
+                  Fish Abundance:
+                </span>
                 <span className="font-semibold text-slate-800 capitalize">
-                  {site.details.ik_signal.fish_abundance.replace(/_/g, " ").toLowerCase()}
+                  {site.details.ik_signal.fish_abundance
+                    .replace(/_/g, " ")
+                    .toLowerCase()}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span>💧</span>
-                <span className="font-medium text-slate-500">Water Clarity:</span>
+                <span className="font-medium text-slate-500">
+                  Water Clarity:
+                </span>
                 <span className="font-semibold text-slate-800 capitalize">
-                  {site.details.ik_signal.water_clarity.replace(/_/g, " ").toLowerCase()}
+                  {site.details.ik_signal.water_clarity
+                    .replace(/_/g, " ")
+                    .toLowerCase()}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span>🌱</span>
-                <span className="font-medium text-slate-500">Vegetation Cover:</span>
+                <span className="font-medium text-slate-500">
+                  Vegetation Cover:
+                </span>
                 <span className="font-semibold text-slate-800 capitalize">
-                  {site.details.ik_signal.vegetation_cover.replace(/_/g, " ").toLowerCase()}
+                  {site.details.ik_signal.vegetation_cover
+                    .replace(/_/g, " ")
+                    .toLowerCase()}
                 </span>
               </div>
             </div>

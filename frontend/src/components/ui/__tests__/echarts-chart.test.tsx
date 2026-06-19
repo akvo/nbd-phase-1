@@ -1,9 +1,9 @@
-import { render } from '@testing-library/react';
-import { EChartsChart } from '../echarts-chart';
-import { expect, test, vi } from 'vitest';
-import * as echarts from 'echarts';
+import { render } from "@testing-library/react";
+import { EChartsChart } from "../echarts-chart";
+import { expect, test, vi } from "vitest";
+import * as echarts from "echarts";
 
-vi.mock('echarts', () => {
+vi.mock("echarts", () => {
   const mockChart = {
     setOption: vi.fn(),
     resize: vi.fn(),
@@ -14,9 +14,11 @@ vi.mock('echarts', () => {
   };
 });
 
-test('renders container and initializes chart', () => {
-  const options = { title: { text: 'Test Chart' } };
-  const { container } = render(<EChartsChart options={options} className="custom-chart" />);
+test("renders container and initializes chart", () => {
+  const options = { title: { text: "Test Chart" } };
+  const { container } = render(
+    <EChartsChart options={options} className="custom-chart" />
+  );
   expect(container.firstChild).toBeInTheDocument();
   expect(echarts.init).toHaveBeenCalled();
 });

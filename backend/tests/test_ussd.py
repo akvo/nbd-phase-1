@@ -121,7 +121,7 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
             "phoneNumber": "+255700000000",
             "networkCode": "64004",
             "serviceCode": "*123#",
-            "text": "1*1*2*3",  # Lang (1) -> Accept (1) -> Incident (2) -> Sub-county (3)
+            "text": "1*1*2*3",  # Lang -> Accept -> Incident -> Sub-county
         },
     )
     assert response.status_code == 200
@@ -134,7 +134,7 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
             "phoneNumber": "+255700000000",
             "networkCode": "64004",
             "serviceCode": "*123#",
-            "text": "1*1*2*3*1",  # Lang (1) -> Accept (1) -> Incident (2) -> Sub-county (3)
+            "text": "1*1*2*3*1",  # Lang -> Accept -> Incident -> County -> SC
         },
     )
     assert response.status_code == 200

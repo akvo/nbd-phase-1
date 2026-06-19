@@ -466,4 +466,3 @@ class FormBlueprintResponse(BaseModel):
             question_group=groups,
             question_groups=groups,
         )
-

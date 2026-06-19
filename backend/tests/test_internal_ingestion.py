@@ -30,7 +30,7 @@ def setup_fgd_data(db_session: Session):
     basin = Basin(
         code="MARA-INGEST",
         name="Mara Ingest Basin",
-        geom="SRID=4326;MULTIPOLYGON(((34.5 -1.5, 34.6 -1.5, 34.6 -1.4, 34.5 -1.4, 34.5 -1.5)))",
+        geom="SRID=4326;MULTIPOLYGON(((34.5 -1.5,34.6 -1.5,34.6 -1.4,34.5 -1.4,34.5 -1.5)))",  # noqa: E501
     )
     db_session.add(basin)
     db_session.commit()
@@ -39,7 +39,7 @@ def setup_fgd_data(db_session: Session):
         code="WET-INGEST",
         basin_id=basin.id,
         name="Ingest Wetland",
-        geom="SRID=4326;MULTIPOLYGON(((34.5 -1.5, 34.6 -1.5, 34.6 -1.4, 34.5 -1.4, 34.5 -1.5)))",
+        geom="SRID=4326;MULTIPOLYGON(((34.5 -1.5,34.6 -1.5,34.6 -1.4,34.5 -1.4,34.5 -1.5)))",  # noqa: E501
     )
     db_session.add(wetland)
     db_session.commit()
@@ -85,7 +85,7 @@ def setup_lab_data(db_session: Session):
     basin = Basin(
         code="MARA-LAB",
         name="Mara Lab Basin",
-        geom="SRID=4326;MULTIPOLYGON(((34.5 -1.5, 34.6 -1.5, 34.6 -1.4, 34.5 -1.4, 34.5 -1.5)))",
+        geom="SRID=4326;MULTIPOLYGON(((34.5 -1.5,34.6 -1.5,34.6 -1.4,34.5 -1.4,34.5 -1.5)))",  # noqa: E501
     )
     db_session.add(basin)
     db_session.commit()
@@ -94,7 +94,7 @@ def setup_lab_data(db_session: Session):
         code="WET-LAB",
         basin_id=basin.id,
         name="Lab Wetland",
-        geom="SRID=4326;MULTIPOLYGON(((34.5 -1.5, 34.6 -1.5, 34.6 -1.4, 34.5 -1.4, 34.5 -1.5)))",
+        geom="SRID=4326;MULTIPOLYGON(((34.5 -1.5,34.6 -1.5,34.6 -1.4,34.5 -1.4,34.5 -1.5)))",  # noqa: E501
     )
     db_session.add(wetland)
     db_session.commit()

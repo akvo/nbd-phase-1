@@ -1,8 +1,15 @@
-import { render, screen } from '@testing-library/react';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../dialog';
-import { expect, test } from 'vitest';
+import { render, screen } from "@testing-library/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "../dialog";
+import { expect, test } from "vitest";
 
-test('renders open dialog content', () => {
+test("renders open dialog content", () => {
   render(
     <Dialog open={true}>
       <DialogContent>
@@ -18,8 +25,8 @@ test('renders open dialog content', () => {
     </Dialog>
   );
 
-  expect(screen.getByText('Dialog Title')).toBeInTheDocument();
-  expect(screen.getByText('Dialog Description')).toBeInTheDocument();
-  expect(screen.getByText('Content')).toBeInTheDocument();
-  expect(screen.getByText('Confirm')).toBeInTheDocument();
+  expect(screen.getByText("Dialog Title")).toBeInTheDocument();
+  expect(screen.getByText("Dialog Description")).toBeInTheDocument();
+  expect(screen.getByText("Content")).toBeInTheDocument();
+  expect(screen.getByText("Confirm")).toBeInTheDocument();
 });

@@ -14,7 +14,10 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Only redirect if we're in a browser and on an admin page
-      if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith("/admin")
+      ) {
         window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
       }
     }
@@ -22,6 +25,7 @@ apiClient.interceptors.response.use(
   }
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getBasins = async (): Promise<any[]> => {
   const response = await apiClient.get("/basins");
   return response.data;

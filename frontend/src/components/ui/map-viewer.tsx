@@ -1,6 +1,13 @@
 import React, { useEffect, useState, useMemo } from "react";
-// @ts-ignore
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  ZoomControl,
+  GeoJSON,
+  useMap,
+} from "react-leaflet";
 import * as L from "leaflet";
 import { Loader } from "@/components/ui/loader";
 
@@ -17,9 +24,11 @@ interface MapViewerProps {
   markers?: MapMarker[];
   className?: string;
   zoomOffsetClass?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   basinGeometry?: any;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function MapController({ basinGeometry }: { basinGeometry: any }) {
   const map = useMap();
 
@@ -55,8 +64,8 @@ export default function MapViewer({
     if (!isMounted || typeof window === "undefined" || !L) return null;
 
     const createIcon = (type: "site" | "incident", status?: string) => {
-      let pingBg = "bg-teal-400";
-      let centerBg = "bg-teal-600";
+      let pingBg: string;
+      let centerBg: string;
       let isWarningIcon = false;
 
       if (type === "site") {
@@ -121,7 +130,10 @@ export default function MapViewer({
   }
 
   return (
-    <div className={`${className || ""} ${zoomOffsetClass || ""}`} style={{ width: "100%", height: "100%" }}>
+    <div
+      className={`${className || ""} ${zoomOffsetClass || ""}`}
+      style={{ width: "100%", height: "100%" }}
+    >
       <MapContainer
         center={center}
         zoom={zoom}

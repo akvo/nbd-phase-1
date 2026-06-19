@@ -16,7 +16,7 @@ export function Loader({
     <div
       className={cn(
         "h-full w-full min-h-[200px] bg-slate-50 rounded-xl flex flex-col items-center justify-center gap-3 text-slate-500 font-medium border border-slate-100 shadow-sm",
-        className,
+        className
       )}
       {...props}
     >

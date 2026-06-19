@@ -24,7 +24,7 @@ export function Checkbox({
     <label
       className={cn(
         "flex items-center gap-3 cursor-pointer select-none",
-        disabled && "cursor-not-allowed opacity-50",
+        disabled && "cursor-not-allowed opacity-50"
       )}
     >
       <div className="relative">
@@ -43,7 +43,7 @@ export function Checkbox({
               ? "border-nbd-primary bg-nbd-primary text-white"
               : "border-grey-300 bg-white",
             disabled && "bg-nbd-disabled border-nbd-disabled-text",
-            className,
+            className
           )}
         >
           {checked && (

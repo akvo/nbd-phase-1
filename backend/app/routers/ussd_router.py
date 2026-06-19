@@ -131,7 +131,8 @@ def _handle_ussd_core(
             response_text = (
                 "CON Karibu kwenye NBD Wetland Watch. Jukwaa hili linakusanya "
                 "taarifa za matukio ya mazingira. Ripoti yako inahifadhiwa "
-                "bila jina. Matumizi ya data yamezuiliwa kwa mipango ya ufuatiliaji.\n"
+                "bila jina. Matumizi ya data yamezuiliwa kwa mipango "
+                "ya ufuatiliaji.\n"
                 "Bonyeza 1 kukubali na kuanza kuripoti.\n"
                 "Bonyeza 2 kukataa masharti."
             )
@@ -139,7 +140,8 @@ def _handle_ussd_core(
             response_text = (
                 "CON Welcome to NBD Wetland Watch. This platform collects "
                 "environmental incident reports. Your report is saved "
-                "anonymously. Data usage is restricted to monitoring programs.\n"
+                "anonymously. Data usage is restricted to monitoring "
+                "programs.\n"
                 "Press 1 to accept and start reporting.\n"
                 "Press 2 to decline terms."
             )
@@ -149,7 +151,10 @@ def _handle_ussd_core(
     consent = parts[1]
     if consent != "1":
         if lang == "sw":
-            response_text = "END Masharti ya data lazima yakubalike ili kuripoti. Kikao kimefungwa."
+            response_text = (
+                "END Masharti ya data lazima yakubalike ili kuripoti. "
+                "Kikao kimefungwa."
+            )
         else:
             response_text = (
                 "END Data terms must be accepted to report. Session closed."
@@ -406,7 +411,10 @@ def _handle_ussd_core(
     db.commit()
 
     if lang == "sw":
-        response_text = "END Asante kwa ripoti yako. NBD Wetland Watch imepokea taarifa yako."
+        response_text = (
+            "END Asante kwa ripoti yako. NBD Wetland Watch imepokea "
+            "taarifa yako."
+        )
     else:
         response_text = (
             "END Thank you for your report. NBD Wetland Watch has "

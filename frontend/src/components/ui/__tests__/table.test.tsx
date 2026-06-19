@@ -1,8 +1,15 @@
-import { render, screen } from '@testing-library/react';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../table';
-import { expect, test } from 'vitest';
+import { render, screen } from "@testing-library/react";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "../table";
+import { expect, test } from "vitest";
 
-test('renders table structure correctly with headers and cells', () => {
+test("renders table structure correctly with headers and cells", () => {
   render(
     <Table>
       <TableHeader>
@@ -18,6 +25,6 @@ test('renders table structure correctly with headers and cells', () => {
     </Table>
   );
 
-  expect(screen.getByText('Header 1')).toBeInTheDocument();
-  expect(screen.getByText('Cell 1')).toBeInTheDocument();
+  expect(screen.getByText("Header 1")).toBeInTheDocument();
+  expect(screen.getByText("Cell 1")).toBeInTheDocument();
 });

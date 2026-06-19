@@ -34,6 +34,7 @@ function LoginContent() {
       if (res.status === 200) {
         window.location.href = redirectUrl;
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const detail = err.response?.data?.detail || "auth_failed";
       setError(ERROR_MESSAGES[detail] || ERROR_MESSAGES.auth_failed);
@@ -62,6 +63,7 @@ function LoginContent() {
     if (window.google) {
       initializeGoogleSignIn();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

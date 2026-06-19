@@ -1,8 +1,16 @@
-import { render, screen } from '@testing-library/react';
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter } from '../card';
-import { expect, test } from 'vitest';
+import { render, screen } from "@testing-library/react";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+  CardFooter,
+} from "../card";
+import { expect, test } from "vitest";
 
-test('renders card subcomponents correctly', () => {
+test("renders card subcomponents correctly", () => {
   render(
     <Card size="sm">
       <CardHeader>
@@ -15,11 +23,14 @@ test('renders card subcomponents correctly', () => {
     </Card>
   );
 
-  expect(screen.getByText('Card Title')).toBeInTheDocument();
-  expect(screen.getByText('Card Description')).toBeInTheDocument();
-  expect(screen.getByText('Card Action')).toBeInTheDocument();
-  expect(screen.getByText('Card Content')).toBeInTheDocument();
-  expect(screen.getByText('Card Footer')).toBeInTheDocument();
+  expect(screen.getByText("Card Title")).toBeInTheDocument();
+  expect(screen.getByText("Card Description")).toBeInTheDocument();
+  expect(screen.getByText("Card Action")).toBeInTheDocument();
+  expect(screen.getByText("Card Content")).toBeInTheDocument();
+  expect(screen.getByText("Card Footer")).toBeInTheDocument();
 
-  expect(screen.getByText('Card Title').parentElement).toHaveAttribute('data-slot', 'card-header');
+  expect(screen.getByText("Card Title").parentElement).toHaveAttribute(
+    "data-slot",
+    "card-header"
+  );
 });

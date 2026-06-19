@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
   Settings,
   Bell,
@@ -16,9 +17,9 @@ import {
   UserPlus,
   AlertTriangle,
   ArrowRight,
-} from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { apiClient } from '@/lib/api';
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { apiClient } from "@/lib/api";
 
 interface AuditLog {
   id: string;
@@ -36,41 +37,41 @@ function formatTimeAgo(isoString: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'Just now';
+  if (diffMins < 1) return "Just now";
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   return `${diffDays}d ago`;
 }
 
 function formatAction(action: string): string {
-  return action.replace(/_/g, ' ').toLowerCase();
+  return action.replace(/_/g, " ").toLowerCase();
 }
 
 function formatEntityType(entityType: string): string {
   const mapping: Record<string, string> = {
-    'ussd_webhook': 'USSD',
-    'whatsapp_webhook': 'WhatsApp',
-    'user': 'user',
-    'submission': 'submission',
-    'site': 'site',
-    'form': 'form',
+    ussd_webhook: "USSD",
+    whatsapp_webhook: "WhatsApp",
+    user: "user",
+    submission: "submission",
+    site: "site",
+    form: "form",
   };
   return mapping[entityType] || entityType;
 }
 
 function getActionIcon(action: string) {
   switch (action) {
-    case 'APPROVE':
+    case "APPROVE":
       return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-    case 'REJECT':
+    case "REJECT":
       return <XCircle className="w-4 h-4 text-rose-500" />;
-    case 'EDIT':
+    case "EDIT":
       return <Pencil className="w-4 h-4 text-amber-500" />;
-    case 'DELETE':
+    case "DELETE":
       return <Trash2 className="w-4 h-4 text-rose-500" />;
-    case 'INVITE_USER':
+    case "INVITE_USER":
       return <UserPlus className="w-4 h-4 text-sky-500" />;
-    case 'ALERT':
+    case "ALERT":
       return <AlertTriangle className="w-4 h-4 text-amber-500" />;
     default:
       return <Bell className="w-4 h-4 text-slate-400" />;
@@ -79,18 +80,18 @@ function getActionIcon(action: string) {
 
 function getActionColor(action: string): string {
   switch (action) {
-    case 'APPROVE':
-      return 'bg-emerald-50 text-emerald-700';
-    case 'REJECT':
-    case 'DELETE':
-      return 'bg-rose-50 text-rose-700';
-    case 'EDIT':
-    case 'ALERT':
-      return 'bg-amber-50 text-amber-700';
-    case 'INVITE_USER':
-      return 'bg-sky-50 text-sky-700';
+    case "APPROVE":
+      return "bg-emerald-50 text-emerald-700";
+    case "REJECT":
+    case "DELETE":
+      return "bg-rose-50 text-rose-700";
+    case "EDIT":
+    case "ALERT":
+      return "bg-amber-50 text-amber-700";
+    case "INVITE_USER":
+      return "bg-sky-50 text-sky-700";
     default:
-      return 'bg-slate-50 text-slate-700';
+      return "bg-slate-50 text-slate-700";
   }
 }
 
@@ -105,14 +106,15 @@ export default function Header() {
   const notifRef = useRef<HTMLDivElement>(null);
 
   // Active state logic for main top nav
-  const isAdminViewActive = pathname.startsWith('/admin');
+  const isAdminViewActive = pathname.startsWith("/admin");
 
   // Fetch recent activity logs for admins
   useEffect(() => {
     if (isAdmin) {
       setLogsLoading(true);
-      apiClient.get('/audit-logs?page_size=5')
-        .then(res => {
+      apiClient
+        .get("/audit-logs?page_size=5")
+        .then((res) => {
           if (res.data?.items) {
             setRecentLogs(res.data.items);
           }
@@ -128,15 +130,21 @@ export default function Header() {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+      if (
+        notifRef.current &&
+        !notifRef.current.contains(event.target as Node)
+      ) {
         setNotifOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = async () => {
@@ -152,8 +160,8 @@ export default function Header() {
           href="/admin"
           className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             isAdminViewActive
-              ? 'bg-sky-50 text-sky-500'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? "bg-sky-50 text-sky-500"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
           Admin view
@@ -186,7 +194,7 @@ export default function Header() {
             type="button"
             aria-label="Notifications"
             onClick={() => isAdmin && setNotifOpen(!notifOpen)}
-            className={`p-2 rounded-full hover:bg-slate-50 hover:text-slate-800 transition-colors relative ${!isAdmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            className={`p-2 rounded-full hover:bg-slate-50 hover:text-slate-800 transition-colors relative ${!isAdmin ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
           >
             <Bell className="w-5 h-5" />
             {isAdmin && recentLogs.length > 0 && (
@@ -197,8 +205,12 @@ export default function Header() {
           {notifOpen && isAdmin && (
             <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl border border-slate-200 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">Recent Activity</h3>
-                <span className="text-xs text-slate-400">{recentLogs.length} latest</span>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Recent Activity
+                </h3>
+                <span className="text-xs text-slate-400">
+                  {recentLogs.length} latest
+                </span>
               </div>
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                 {logsLoading ? (
@@ -223,7 +235,9 @@ export default function Header() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActionColor(log.action)}`}>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActionColor(log.action)}`}
+                            >
                               {formatAction(log.action)}
                             </span>
                             <span className="text-xs text-slate-400">
@@ -233,7 +247,10 @@ export default function Header() {
                           <p className="text-sm text-slate-600">
                             {formatEntityType(log.entity_type)}
                             <span className="text-slate-400 ml-1 font-mono text-xs">
-                              #{log.entity_id.length > 8 ? log.entity_id.slice(0, 8) : log.entity_id}
+                              #
+                              {log.entity_id.length > 8
+                                ? log.entity_id.slice(0, 8)
+                                : log.entity_id}
                             </span>
                           </p>
                         </div>
@@ -262,16 +279,18 @@ export default function Header() {
             className="flex items-center space-x-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
           >
             {user?.avatar_url ? (
-              <img
+              <Image
                 src={user.avatar_url}
                 alt=""
-                className="w-6 h-6 rounded-full"
+                width={24}
+                height={24}
+                className="rounded-full"
               />
             ) : (
               <User className="w-4 h-4 text-slate-500" />
             )}
             <span className="max-w-[120px] truncate">
-              {user?.display_name || user?.email?.split('@')[0] || 'Account'}
+              {user?.display_name || user?.email?.split("@")[0] || "Account"}
             </span>
             <ChevronDown className="w-4 h-4 text-slate-500" />
           </button>
@@ -283,7 +302,9 @@ export default function Header() {
                   <div className="text-sm font-medium text-slate-900 truncate">
                     {user.display_name || user.email}
                   </div>
-                  <div className="text-xs text-slate-500 truncate">{user.email}</div>
+                  <div className="text-xs text-slate-500 truncate">
+                    {user.email}
+                  </div>
                   <div className="mt-1">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-50 text-sky-700">
                       {user.role}

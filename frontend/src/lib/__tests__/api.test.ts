@@ -7,6 +7,7 @@ const { mockCreate, mockGet, mockInterceptors } = vi.hoisted(() => {
       use: vi.fn(),
     },
   };
+  // eslint-disable-next-line
   const mockCreate = vi.fn((config?: any) => ({
     get: mockGet,
     interceptors: mockInterceptors,
@@ -18,6 +19,7 @@ const { mockCreate, mockGet, mockInterceptors } = vi.hoisted(() => {
 vi.mock("axios", () => {
   return {
     default: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       create: (config?: any) => (mockCreate as any)(config),
     },
   };

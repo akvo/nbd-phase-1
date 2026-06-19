@@ -18,7 +18,7 @@ export function Progress({
     <div
       className={cn(
         "relative h-3 w-full overflow-hidden rounded-full bg-nbd-secondary",
-        className,
+        className
       )}
       {...props}
     >

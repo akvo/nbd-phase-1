@@ -8,7 +8,7 @@ All prose written for this repository — SDD content, client responses, summari
 
 ## What this repository is
 
-This is a **documentation-only repository** for the Solution Design Document (SDD) of the NBD assignment *"Technical Support to Implement Citizen-Led Data Generation and Management Activities"*. The platform itself is built in a separate codebase; nothing in here is compiled, tested, or deployed. There are no build, lint, or test commands.
+This is the **full-stack implementation repository** for the NBD platform *"Technical Support to Implement Citizen-Led Data Generation and Management Activities"*. It contains both the platform codebase (`backend/`, `frontend/`) and the Solution Design Document (SDD) in `design-docs/`.
 
 The deliverable is a single SDD that goes to the client (Nile Basin Discourse). Everything in this repo exists to produce, revise, or respond to comments on that document.
 
@@ -66,6 +66,40 @@ Do not generate a new HTML wrapper or rewrite the SVG from scratch unless the us
 ## Gitignored noise
 
 `.claude/settings.local.json`, `.playwright-mcp/`, and `.superpowers/brainstorm/*/state/` are excluded by `.gitignore`. The `.superpowers/brainstorm/` directory contains transient brainstorm session state from earlier design work and is not part of the deliverable.
+
+## Running commands (linting, tests, etc.)
+
+**Always use `./dc.sh` to run development commands** — never invoke `python`, `flake8`, `eslint`, `pytest`, or similar tools directly on the host. The Docker containers have the correct dependencies and environment.
+
+```bash
+# Backend
+./dc.sh exec backend flake8              # Lint check
+./dc.sh exec backend tests               # Run pytest
+
+# Frontend
+./dc.sh exec frontend yarn lint          # ESLint check
+./dc.sh exec frontend yarn prettier:check # Prettier check
+./dc.sh exec frontend yarn test          # Run vitest
+./dc.sh exec frontend sh test.sh         # Run all checks (prettier + lint + tests)
+
+# Arbitrary commands
+./dc.sh exec backend <command>
+./dc.sh exec frontend <command>
+```
+
+This ensures consistent tool versions and avoids "works on my machine" issues.
+
+## Before pushing
+
+**All checks must pass before pushing.** Run these and fix any failures:
+
+```bash
+./dc.sh exec backend flake8               # Backend lint
+./dc.sh exec frontend yarn prettier:check # Frontend formatting
+./dc.sh exec frontend yarn lint           # Frontend lint
+```
+
+Or run the full frontend test suite with `./dc.sh exec frontend sh test.sh`.
 
 ## Development environment
 

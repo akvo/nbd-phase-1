@@ -1,5 +1,4 @@
 import pytest
-import uuid
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -19,7 +18,7 @@ def setup_seeds(db_session: Session):
 
 
 def test_translation_utility():
-    """Verify that get_translation resolves translations properly and respects fallback."""
+    """Verify get_translation resolves translations and respects fallback."""
     translations = [
         {"name": "Komunitas Kuliner Survey 2021", "language": "id"},
         {"name": "Utafiti wa Upishi wa Jamii 2021", "language": "sw"},
@@ -43,8 +42,8 @@ def test_translation_utility():
 
 
 def test_models_have_translations_columns(db_session: Session):
-    """Verify that the translations JSONB columns exist on form EAV models."""
-    # This will fail in RED phase because translations/languages columns do not exist yet
+    """Verify translations JSONB columns exist on form EAV models."""
+    # This will fail in RED phase because translations/languages columns DNE
     assert hasattr(Form, "translations")
     assert hasattr(Form, "languages")
     assert hasattr(QuestionGroup, "translations")
@@ -60,7 +59,7 @@ def test_whatsapp_session_has_language_column():
 
 
 def test_api_localised_form_response(db_session: Session):
-    """Verify that requesting a form with Accept-Language or lang parameter localises the response."""
+    """Verify form requests with lang parameter localise the response."""
     # Setup form with translations
     form = Form(
         name="Culinary Survey",
@@ -176,7 +175,7 @@ def test_ussd_multilingual_flow(db_session: Session):
 
 @pytest.mark.asyncio
 async def test_whatsapp_multilingual_flow(db_session: Session):
-    """Verify that choosing Kiswahili in WhatsApp updates session locale and localizes flow."""
+    """Verify choosing Kiswahili in WhatsApp updates session locale."""
     from app.services.whatsapp_service import process_whatsapp_message
     from app.models.whatsapp_session import WhatsAppSession
 
