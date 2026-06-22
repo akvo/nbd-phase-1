@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronDown, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import {
+  ChevronDown,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+} from "lucide-react";
 import { adminApiClient } from "@/lib/api";
 import {
   Table,
@@ -164,7 +169,10 @@ export default function IngestionPage() {
                 : "Unknown";
 
               return (
-                <TableRow key={rec.id} className="hover:bg-slate-50/50 transition-colors">
+                <TableRow
+                  key={rec.id}
+                  className="hover:bg-slate-50/50 transition-colors"
+                >
                   <TableCell className="py-4 px-6 font-mono text-xs text-slate-500">
                     {rec.id.slice(0, 8)}...
                   </TableCell>
@@ -173,7 +181,10 @@ export default function IngestionPage() {
                       {rec.source_system}
                     </span>
                   </TableCell>
-                  <TableCell className="py-4 px-6 font-medium text-slate-900 max-w-xs truncate" title={rec.error_reason}>
+                  <TableCell
+                    className="py-4 px-6 font-medium text-slate-900 max-w-xs truncate"
+                    title={rec.error_reason}
+                  >
                     {rec.error_reason}
                   </TableCell>
                   <TableCell className="py-4 px-6 text-slate-500">
@@ -211,7 +222,10 @@ export default function IngestionPage() {
             })}
             {records.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center text-slate-400">
+                <TableCell
+                  colSpan={6}
+                  className="py-12 text-center text-slate-400"
+                >
                   <div className="flex flex-col items-center justify-center space-y-2">
                     <AlertTriangle className="w-8 h-8 text-slate-300" />
                     <span>No quarantined dead-letters found.</span>
