@@ -31,6 +31,8 @@ vi.mock("next/navigation", () => {
 // Mock apiClient
 const mockGet = vi.fn();
 const mockPost = vi.fn();
+const mockAdminPost = vi.fn();
+
 vi.mock("@/lib/api", () => {
   return {
     apiClient: {
@@ -38,6 +40,12 @@ vi.mock("@/lib/api", () => {
       get: (...args: any[]) => mockGet(...args),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       post: (...args: any[]) => mockPost(...args),
+    },
+    adminApiClient: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      get: (...args: any[]) => mockGet(...args),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      post: (...args: any[]) => mockAdminPost(...args),
     },
   };
 });
@@ -99,7 +107,7 @@ describe("NewFormPage", () => {
         question_group: [],
       },
     });
-    mockPost.mockResolvedValueOnce({ data: { success: true } });
+    mockAdminPost.mockResolvedValueOnce({ data: { success: true } });
 
     const params = Promise.resolve({ formId: "fgd" });
     render(<NewFormPage params={params} />);
@@ -111,7 +119,7 @@ describe("NewFormPage", () => {
     fireEvent.click(screen.getByTestId("submit-btn"));
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith("/internal/fgd", {
+      expect(mockAdminPost).toHaveBeenCalledWith("/submissions/fgd", {
         "1": "GOOD",
         wetland_id: 1,
         form_id: 1,

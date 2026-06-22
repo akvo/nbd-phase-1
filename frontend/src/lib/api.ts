@@ -25,6 +25,29 @@ apiClient.interceptors.response.use(
   }
 );
 
+export const adminApiClient = axios.create({
+  baseURL: "/api/v1/admin",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  withCredentials: true,
+});
+
+adminApiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith("/admin")
+      ) {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getBasins = async (): Promise<any[]> => {
   const response = await apiClient.get("/basins");

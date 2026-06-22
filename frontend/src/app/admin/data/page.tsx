@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
-import { apiClient } from "@/lib/api";
+import { adminApiClient } from "@/lib/api";
 import {
   Table,
   TableHeader,
@@ -33,8 +33,19 @@ export default function DataOverviewPage() {
   const pageSize = 10;
 
   useEffect(() => {
-    apiClient
-      .get("/submissions")
+    const params: Record<string, string | number> = {};
+    if (formFilter) {
+      params.form_type = parseInt(formFilter, 10);
+    }
+    if (statusFilter) {
+      params.status = statusFilter.toUpperCase();
+    }
+    if (basinFilter) {
+      params.basin = basinFilter;
+    }
+
+    adminApiClient
+      .get("/submissions", { params })
       .then((res) => {
         if (res.data) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,12 +87,12 @@ export default function DataOverviewPage() {
       .catch(() => {
         // Fallback to empty if API fails
       });
-  }, []);
+  }, [formFilter, statusFilter, basinFilter]);
 
   const handleApprove = async (id: string) => {
     try {
       const cleanId = id.replace("DP-", "");
-      await apiClient.patch(`/submissions/${cleanId}/status`, {
+      await adminApiClient.patch(`/submissions/${cleanId}/status`, {
         status: "APPROVED",
       });
       setSubmissions((prev) =>
@@ -97,7 +108,7 @@ export default function DataOverviewPage() {
   const handleReject = async (id: string) => {
     try {
       const cleanId = id.replace("DP-", "");
-      await apiClient.patch(`/submissions/${cleanId}/status`, {
+      await adminApiClient.patch(`/submissions/${cleanId}/status`, {
         status: "REJECTED",
       });
       setSubmissions((prev) =>
@@ -110,6 +121,16 @@ export default function DataOverviewPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      const cleanId = id.replace("DP-", "");
+      await adminApiClient.delete(`/submissions/${cleanId}`);
+      setSubmissions((prev) => prev.filter((sub) => sub.id !== id));
+    } catch (err) {
+      console.error("Failed to delete submission:", err);
+    }
+  };
+
   const handleClear = () => {
     setFormFilter("");
     setStatusFilter("");
@@ -117,16 +138,9 @@ export default function DataOverviewPage() {
     setCurrentPage(1);
   };
 
-  const filteredSubmissions = submissions.filter((sub) => {
-    if (formFilter && sub.formType !== formFilter) return false;
-    if (statusFilter && sub.status !== statusFilter) return false;
-    if (basinFilter && !sub.basinSite.includes(basinFilter)) return false;
-    return true;
-  });
-
-  const totalPages = Math.ceil(filteredSubmissions.length / pageSize) || 1;
+  const totalPages = Math.ceil(submissions.length / pageSize) || 1;
   const startIndex = (currentPage - 1) * pageSize;
-  const paginatedSubmissions = filteredSubmissions.slice(
+  const paginatedSubmissions = submissions.slice(
     startIndex,
     startIndex + pageSize
   );
@@ -147,7 +161,10 @@ export default function DataOverviewPage() {
               className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer"
             >
               <option value="">Select a form</option>
-              <option value="Active">Active</option>
+              <option value="1">Citizen Reporter</option>
+              <option value="2">Citizen Scientist</option>
+              <option value="3">Indigenous Knowledge</option>
+              <option value="4">Lab QA</option>
             </select>
             <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
@@ -163,8 +180,8 @@ export default function DataOverviewPage() {
               className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer"
             >
               <option value="">Select status</option>
-              <option value="Active">Active</option>
               <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
             </select>
             <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -181,7 +198,8 @@ export default function DataOverviewPage() {
               className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer"
             >
               <option value="">Select a basin</option>
-              <option value="MARA">Mara Basin</option>
+              <option value="Mara">Mara Basin</option>
+              <option value="Sio-Siteko">Sio-Siteko Basin</option>
             </select>
             <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
@@ -281,6 +299,13 @@ export default function DataOverviewPage() {
                     >
                       Approve
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(sub.id)}
+                      className="px-3.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -299,7 +324,7 @@ export default function DataOverviewPage() {
         </Table>
 
         {/* Pagination Controls */}
-        {filteredSubmissions.length > 0 && (
+        {submissions.length > 0 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
             <div className="text-xs text-slate-500">
               Showing{" "}
@@ -308,11 +333,11 @@ export default function DataOverviewPage() {
               </span>{" "}
               to{" "}
               <span className="font-semibold text-slate-700">
-                {Math.min(startIndex + pageSize, filteredSubmissions.length)}
+                {Math.min(startIndex + pageSize, submissions.length)}
               </span>{" "}
               of{" "}
               <span className="font-semibold text-slate-700">
-                {filteredSubmissions.length}
+                {submissions.length}
               </span>{" "}
               submissions
             </div>
