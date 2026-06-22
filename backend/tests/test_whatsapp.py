@@ -237,7 +237,7 @@ class TestConsentState:
         "app.services.whatsapp_service._send_message",
         new_callable=AsyncMock,
     )
-    def test_accept_consent_advances_to_incident_select(
+    def test_accept_consent_advances_to_dynamic_question(
         self, mock_send, db_session
     ):
         phone = "+254700001003"
@@ -260,7 +260,144 @@ class TestConsentState:
             .first()
         )
         assert updated is not None
-        assert updated.state == "INCIDENT_SELECT"
+        assert updated.state == "DYNAMIC_QUESTION"
+        assert updated.current_question_id is not None
+
+    @patch(
+        "app.services.whatsapp_service._send_message",
+        new_callable=AsyncMock,
+    )
+    def test_whatsapp_full_traversal(self, mock_send, db_session):
+        from app.models.submission import Datapoint, Answer
+
+        phone = "+254700001004"
+        sess = WhatsAppSession(
+            phone_number=phone, state="DATA_TERMS", language="en"
+        )
+        db_session.add(sess)
+        db_session.commit()
+
+        # Step 1: Accept data terms ->
+        # progresses to first question (incident_type)
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "1"))
+
+        db_session.expire_all()
+        sess = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        print(
+            "\n=== STEP 1:",
+            sess.state,
+            "Q:",
+            sess.current_question_id,
+            "ANS:",
+            sess.answers,
+        )
+        assert sess.state == "DYNAMIC_QUESTION"
+
+        # Step 2: Answer option question (Incident selection -> 2: Smell)
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "2"))
+
+        db_session.expire_all()
+        sess = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        print(
+            "=== STEP 2:",
+            sess.state,
+            "Q:",
+            sess.current_question_id,
+            "ANS:",
+            sess.answers,
+        )
+
+        # Step 3: Answer cascade question (Location selection -> County)
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "1"))
+
+        db_session.expire_all()
+        sess = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        print(
+            "=== STEP 3:",
+            sess.state,
+            "Q:",
+            sess.current_question_id,
+            "ANS:",
+            sess.answers,
+        )
+
+        # Step 4: Answer cascade question (Sub-county -> 1)
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "1"))
+
+        db_session.expire_all()
+        sess = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        print(
+            "=== STEP 4:",
+            sess.state,
+            "Q:",
+            sess.current_question_id,
+            "ANS:",
+            sess.answers,
+            "LOC:",
+            sess.location,
+        )
+
+        # Step 5: Skip image upload (reply "skip")
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "skip"))
+
+        # Verify session is cleaned up and data is saved
+        db_session.expire_all()
+        sess_count = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .count()
+        )
+        print("=== STEP 5 SESS COUNT:", sess_count)
+        assert sess_count == 0
+
+        dp = (
+            db_session.query(Datapoint)
+            .filter(Datapoint.submitter == "WHATSAPP")
+            .first()
+        )
+        assert dp is not None
+        assert dp.status == "PENDING"
+
+        answers = (
+            db_session.query(Answer).filter(Answer.datapoint_id == dp.id).all()
+        )
+        assert len(answers) >= 2
 
 
 # ---------------------------------------------------------------------------
