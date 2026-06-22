@@ -47,8 +47,25 @@ def custom_rate_limit_exceeded_handler(request, exc):
     )
 
 
+API_DESCRIPTION = (
+    "Welcome to the National Biodiversity Database (NBD) API.\n"
+    "This API provides services for monitoring wetland health, managing "
+    "spatial boundaries, and collecting sampling data.\n\n"
+    "### Data Dictionary & Units\n"
+    "The data structures exposed by this API contain strict metric "
+    "definitions:\n"
+    "- **pH**: Dimensionless scale (2.0 to 10.0)\n"
+    "- **Temperature**: Degrees Celsius (°C)\n"
+    "- **Dissolved Oxygen (DO)**: Milligrams per liter (mg/L)\n"
+    "- **Invasive Macrophytes**: Cover percentage (%)\n"
+    "- **CPUE**: Catch Per Unit Effort (kg/net-night)\n"
+    "- **Health Indices / Scores**: Normalized (0.0 to 1.0)"
+)
+
+
 app = FastAPI(
     title="Nbd Pilot API",
+    description=API_DESCRIPTION,
     version="1.0.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
