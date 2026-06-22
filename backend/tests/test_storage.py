@@ -146,12 +146,33 @@ async def test_stream_upload_async():
 # ---------------------------------------------------------------------------
 
 
-def test_api_presigned_upload():
+def test_api_presigned_upload(db_session):
+    import jwt
+    from app.models.user import User
+    from app.config.auth import JWT_SECRET, JWT_ALGORITHM
+
+    # Create admin user
+    admin = User(
+        email="admin_upload_nfs@nbd.org", role="Admin", is_active=True
+    )
+    db_session.add(admin)
+    db_session.commit()
+
+    token = jwt.encode(
+        {"email": "admin_upload_nfs@nbd.org"},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+
     payload = {
         "file_name": "media/whatsapp/photo.jpg",
         "content_type": "image/jpeg",
     }
-    response = client.post("/api/v1/storage/presigned-upload", json=payload)
+    response = client.post(
+        "/api/v1/storage/presigned-upload",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert response.status_code == 200
     res_data = response.json()
     assert "upload_url" in res_data
@@ -162,6 +183,44 @@ def test_api_presigned_upload():
     assert "/api/v1/storage/upload/media/whatsapp/photo.jpg" in upload_url
     assert "expires=" in upload_url
     assert "signature=" in upload_url
+
+
+def test_api_presigned_upload_unauthenticated():
+    payload = {
+        "file_name": "media/whatsapp/photo.jpg",
+        "content_type": "image/jpeg",
+    }
+    response = client.post("/api/v1/storage/presigned-upload", json=payload)
+    assert response.status_code == 401
+
+
+def test_api_presigned_upload_non_admin_forbidden(db_session):
+    import jwt
+    from app.models.user import User
+    from app.config.auth import JWT_SECRET, JWT_ALGORITHM
+
+    reviewer = User(
+        email="reviewer_upload_nfs@nbd.org", role="Reviewer", is_active=True
+    )
+    db_session.add(reviewer)
+    db_session.commit()
+
+    token = jwt.encode(
+        {"email": "reviewer_upload_nfs@nbd.org"},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+
+    payload = {
+        "file_name": "media/whatsapp/photo.jpg",
+        "content_type": "image/jpeg",
+    }
+    response = client.post(
+        "/api/v1/storage/presigned-upload",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
 
 
 def test_api_presigned_read(db_session):
