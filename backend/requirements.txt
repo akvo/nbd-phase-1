@@ -19,3 +19,5 @@ PyJWT==2.8.0
 google-auth==2.29.0
 cachecontrol==0.14.0
 flake8==7.0.0
+slowapi==0.1.9
+limits==3.7.0

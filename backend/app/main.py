@@ -1,5 +1,8 @@
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel, EmailStr
+from slowapi.errors import RateLimitExceeded
+
+from app.limiter import limiter
 from app.mail import EmailService
 from app.routers.storage_router import router as storage_router
 from app.routers.spatial_router import router as spatial_router
@@ -17,12 +20,44 @@ from app.routers.public_router import router as public_router
 from app.routers.admin_router import router as admin_router
 
 
+from fastapi.responses import JSONResponse
+
+
+def custom_rate_limit_exceeded_handler(request, exc):
+    retry_after = 60
+    try:
+        from datetime import datetime
+
+        if (
+            exc.limit
+            and hasattr(exc.limit, "limit")
+            and hasattr(exc.limit.limit, "reset_at")
+        ):
+            reset_at = exc.limit.limit.reset_at
+            if reset_at:
+                now = datetime.now().timestamp()
+                retry_after = max(1, int(reset_at - now))
+    except Exception:
+        pass
+
+    return JSONResponse(
+        status_code=429,
+        content={"detail": getattr(exc, "detail", "Rate limit exceeded")},
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
 app = FastAPI(
     title="Nbd Pilot API",
     version="1.0.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
 )
+app.state.limiter = limiter
+app.add_exception_handler(
+    RateLimitExceeded, custom_rate_limit_exceeded_handler
+)
+
 
 app.include_router(auth_router)
 app.include_router(storage_router)

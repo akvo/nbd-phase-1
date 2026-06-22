@@ -70,3 +70,27 @@ class SubmissionStatusUpdate(BaseModel):
         if self.status not in ("APPROVED", "REJECTED"):
             raise ValueError("Status must be either APPROVED or REJECTED")
         return self
+
+
+class PublicDatapointResponse(DatapointResponse):
+    @model_validator(mode="after")
+    def mask_pii_name(self) -> "PublicDatapointResponse":
+        if self.name:
+            if self.name.startswith("wa-"):
+                parts = self.name.split("-")
+                if len(parts) > 1:
+                    phone = parts[1]
+                    if len(phone) > 6:
+                        masked_phone = (
+                            phone[:4] + "*" * (len(phone) - 7) + phone[-3:]
+                        )
+                        self.name = f"wa-{masked_phone}"
+                    else:
+                        self.name = "wa-***"
+            elif self.name.startswith("+") and self.name[1:].isdigit():
+                phone = self.name
+                if len(phone) > 6:
+                    self.name = phone[:4] + "*" * (len(phone) - 7) + phone[-3:]
+                else:
+                    self.name = "***"
+        return self

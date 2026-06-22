@@ -429,3 +429,173 @@ def test_get_incidents_aggregated(db_session: Session):
     assert res_json[0]["sub_county"] == "Rorya"
     assert res_json[0]["total_reports"] == 1
     assert res_json[0]["breakdown"]["smell"] == 1
+
+
+def test_public_endpoints_pii_exclusion(db_session: Session):
+    # Setup test basin and wetland to satisfy foreign keys
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="TB",
+        name="Test Basin",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="TW",
+        basin_id=basin.id,
+        name="Test Wetland",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    # Setup simple site
+    site = Site(
+        id=uuid.uuid4(),
+        code="TESTPII",
+        wetland_id=wetland.id,
+        name="Test Site PII",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.commit()
+
+    # Helper function to recursively check for phone_number key
+    def assert_no_pii(data):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                assert (
+                    k != "phone_number"
+                ), f"Found PII key 'phone_number' in response: {data}"
+                assert_no_pii(v)
+        elif isinstance(data, list):
+            for item in data:
+                assert_no_pii(item)
+
+    # 1. GET /api/v1/sites
+    response = client.get("/api/v1/sites")
+    assert response.status_code == 200
+    assert_no_pii(response.json())
+
+    # 2. GET /api/v1/sites/{id}
+    response = client.get(f"/api/v1/sites/{site.id}")
+    assert response.status_code == 200
+    assert_no_pii(response.json())
+
+    # 3. GET /api/v1/incidents
+    response = client.get("/api/v1/incidents")
+    assert response.status_code == 200
+    assert_no_pii(response.json())
+
+
+def test_public_api_rate_limiting():
+    # Enable rate limiter specifically for this test
+    original_enabled = app.state.limiter.enabled
+    app.state.limiter.enabled = True
+    app.state.limiter.reset()
+
+    try:
+        # Make 60 requests - should all succeed (or return 404 for
+        # unknown IDs, but not 429)
+        for _ in range(60):
+            response = client.get("/api/v1/sites")
+            assert response.status_code != 429
+
+        # The 61st request should be rate limited (429)
+        response = client.get("/api/v1/sites")
+        assert response.status_code == 429
+        assert "Retry-After" in response.headers
+    finally:
+        # Restore rate limiter status
+        app.state.limiter.enabled = original_enabled
+        app.state.limiter.reset()
+
+
+def test_submission_name_pii_masking(db_session: Session):
+    import jwt
+    from app.config.auth import JWT_SECRET, JWT_ALGORITHM
+    from app.models.user import User
+
+    # 1. Setup test basin, wetland, site, form,
+    # and datapoint with a phone number in name
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="MB2",
+        name="Mara Basin 2",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="MW2",
+        basin_id=basin.id,
+        name="Mara Wetland 2",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="MS2",
+        wetland_id=wetland.id,
+        name="Mara Site 2",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    form = Form(name="Test Forms", type=1)
+    db_session.add(form)
+    db_session.flush()
+
+    dp = Datapoint(
+        uuid=uuid.uuid4(),
+        form_id=form.id,
+        site_id=site.id,
+        submitter="WHATSAPP",
+        status="PENDING",
+        name="wa-+254712345678",
+    )
+    db_session.add(dp)
+    db_session.commit()
+
+    # 2. Query public GET /api/v1/submissions
+    # Verify name is masked in the response
+    response = client.get(f"/api/v1/submissions?site_id={site.id}")
+    assert response.status_code == 200
+    res_json = response.json()
+    assert len(res_json) == 1
+    assert res_json[0]["name"] == "wa-+254******678"
+
+    # 3. Create Admin user and generate JWT token
+    email = "admin_test_mask@nbd.org"
+    user = db_session.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(email=email, role="Admin", is_active=True)
+        db_session.add(user)
+        db_session.commit()
+    token = jwt.encode({"email": email}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 4. Query admin GET /api/v1/admin/submissions
+    # Verify name is NOT masked in the response for Admin
+    response = client.get(
+        "/api/v1/admin/submissions?status=PENDING", headers=headers
+    )
+    assert response.status_code == 200
+    res_json = response.json()
+    admin_dp = next((d for d in res_json if d["uuid"] == str(dp.uuid)), None)
+    assert admin_dp is not None
+    assert admin_dp["name"] == "wa-+254712345678"

@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/v1/submissions", tags=["submissions"])
 
 @router.post(
     "",
-    response_model=schemas.DatapointResponse,
+    response_model=schemas.PublicDatapointResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def create_submission(
@@ -70,7 +70,7 @@ def create_submission(
 
 @router.get(
     "",
-    response_model=List[schemas.DatapointResponse],
+    response_model=List[schemas.PublicDatapointResponse],
 )
 def list_submissions(
     form_id: Optional[int] = None,

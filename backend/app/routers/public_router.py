@@ -1,10 +1,11 @@
 import uuid
 from typing import List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_, desc
 from sqlalchemy.orm import Session
 
+from app.limiter import limiter
 from app.database import get_db
 from app.models.spatial import Site, Wetland, Basin, SpatialBoundary
 from app.models.health_score import HealthScore
@@ -17,7 +18,9 @@ router = APIRouter(prefix="/api/v1", tags=["public"])
 
 
 @router.get("/sites", response_model=List[schemas.Site])
+@limiter.limit("60/minute")
 def list_sites(
+    request: Request,
     search: Optional[str] = Query(
         None, description="Search by name or description"
     ),
@@ -125,7 +128,8 @@ def list_sites(
 
 
 @router.get("/sites/{site_id}", response_model=schemas.Site)
-def get_site(site_id: str, db: Session = Depends(get_db)):
+@limiter.limit("60/minute")
+def get_site(request: Request, site_id: str, db: Session = Depends(get_db)):
     try:
         val = uuid.UUID(site_id)
         db_site = db.query(Site).filter(Site.id == val).first()
@@ -175,7 +179,9 @@ def get_site(site_id: str, db: Session = Depends(get_db)):
 @router.get(
     "/sites/{site_id}/scores", response_model=List[schemas.SiteScoreHistory]
 )
+@limiter.limit("60/minute")
 def get_site_scores(
+    request: Request,
     site_id: str,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -211,7 +217,9 @@ def get_site_scores(
 
 
 @router.get("/sites/{site_id}/external/{source}")
+@limiter.limit("60/minute")
 def get_site_external_data(
+    request: Request,
     site_id: str,
     source: str,
     db: Session = Depends(get_db),
@@ -312,7 +320,9 @@ def get_site_external_data(
 
 
 @router.get("/incidents")
+@limiter.limit("60/minute")
 def list_incidents(
+    request: Request,
     basin: Optional[str] = Query(
         None, description="Filter by basin code or name"
     ),
