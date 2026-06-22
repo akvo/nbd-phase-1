@@ -1,6 +1,6 @@
 # Low-Level Design (LLD) — Admin Data Workspace API (Sub-Task 2)
 
-Detailed technical specifications for implementing the `/api/v1/admin/` endpoints, PII soft-deletes, dead-letter triaging, and frontend admin API integrations.
+Detailed technical specifications for implementing the `/api/v1/admin/` endpoints, hard-deletes, dead-letter triaging, and frontend admin API integrations.
 
 ---
 
@@ -21,16 +21,13 @@ Approve or reject a submission. Matches existing submission moderation but regis
 * **Response**: `200 OK`
 
 ### `DELETE /api/v1/admin/submissions/{id}`
-PII soft-delete scrub. Restricts to Admin role (`RoleChecker(["Admin"])`).
+Hard delete a submission. Restricts to Admin role (`RoleChecker(["Admin"])`).
 * **Response**: `204 No Content`
 * **Algorithm**:
   1. Retrieve `Datapoint` by `id`. If not found, raise `404 Not Found`.
-  2. If `Datapoint.submitter` is present:
-     - Check if it represents a UUID. If so, fetch the `Citizen` record by `id == submitter` and nullify `phone_number`.
-     - Otherwise, lookup the `Citizen` record by `phone_number == submitter` and nullify `phone_number`.
-  3. Traverse all related `Answer` records. If the linked `Question.type` is `image`, `signature`, `attachment`, or `audio` (case-insensitive), nullify `Answer.name`.
-  4. Write `AuditLog` row: `action="PII_DELETE"`, `entity_type="submission"`, `entity_id=str(datapoint.id)`.
-  5. Commit transaction.
+  2. Perform a database delete on the `Datapoint` record (which cascades to related `Answer` records).
+  3. Write `AuditLog` row: `action="DELETE"`, `entity_type="submission"`, `entity_id=str(id)`.
+  4. Commit transaction.
 
 ### `GET /api/v1/admin/dead-letters`
 Fetch unprocessable/quarantined submissions.

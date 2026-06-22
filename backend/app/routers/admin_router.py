@@ -9,7 +9,6 @@ from app.models.audit_log import AuditLog
 from app.models.submission import Datapoint, Answer
 from app.models.form import Form, FormType
 from app.models.user import User
-from app.models.citizen import Citizen
 from app.models.dead_letter import DeadLetter
 from app.schemas import submission as schemas
 from app.schemas import dead_letter as dl_schemas
@@ -162,43 +161,16 @@ def delete_submission(
             status_code=404, detail=f"Submission with ID {id} not found."
         )
 
-    # 1. Nullify phone number in linked Citizen record if found
-    if dp.submitter:
-        # Try matching by ID (UUID)
-        try:
-            citizen_id = uuid.UUID(dp.submitter)
-            citizen = (
-                db.query(Citizen).filter(Citizen.id == citizen_id).first()
-            )
-            if citizen:
-                citizen.phone_number = None
-        except ValueError:
-            # Try matching by phone number
-            citizen = (
-                db.query(Citizen)
-                .filter(Citizen.phone_number == dp.submitter)
-                .first()
-            )
-            if citizen:
-                citizen.phone_number = None
-
-    # 2. Scrub identifying media GCS paths in answers
-    for ans in dp.answers:
-        if ans.question and (
-            ans.question.type == "image"
-            or ans.question.type == "signature"
-            or ans.question.type == "attachment"
-            or str(ans.question.type).lower() == "audio"
-        ):
-            ans.name = None
-
     try:
-        # Log the PII delete action
+        # Delete the datapoint (cascades to answers table)
+        db.delete(dp)
+
+        # Log the delete action
         audit_log = AuditLog(
             actor_id=current_user.id,
-            action="PII_DELETE",
+            action="DELETE",
             entity_type="submission",
-            entity_id=str(dp.id),
+            entity_id=str(id),
         )
         db.add(audit_log)
         db.commit()

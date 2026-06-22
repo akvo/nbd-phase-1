@@ -150,7 +150,7 @@ def test_delete_submission_admin_only(db_session):
     assert resp.status_code == 403
 
 
-def test_delete_submission_PII_soft_delete(db_session):
+def test_delete_submission_hard_delete(db_session):
     admin_headers = get_auth_headers(db_session, "admin_del@nbd.org", "Admin")
     basin = create_mock_basin(db_session, "Mara")
     wetland = create_mock_wetland(db_session, basin.id)
@@ -196,32 +196,31 @@ def test_delete_submission_PII_soft_delete(db_session):
     db_session.add(ans)
     db_session.commit()
 
-    # Call soft-delete
+    # Call delete
     resp = client.delete(
         f"/api/v1/admin/submissions/{dp.id}", headers=admin_headers
     )
     assert resp.status_code == 204
 
-    # Assert Citizen phone number is nullified
+    # Assert Citizen phone number is NOT nullified
+    # (since citizen is separate and submission was hard deleted)
     db_session.refresh(citizen)
-    assert citizen.phone_number is None
+    assert citizen.phone_number == "+254712345678"
 
-    # Assert media answer name is nullified
-    db_session.refresh(ans)
-    assert ans.name is None
-
-    # Assert datapoint still exists
+    # Assert datapoint and answers are completely deleted
     assert (
         db_session.query(Datapoint).filter(Datapoint.id == dp.id).first()
-        is not None
+        is None
+    )
+    assert (
+        db_session.query(Answer).filter(Answer.datapoint_id == dp.id).first()
+        is None
     )
 
     # Assert audit log entry exists
     audit = (
         db_session.query(AuditLog)
-        .filter(
-            AuditLog.entity_id == str(dp.id), AuditLog.action == "PII_DELETE"
-        )
+        .filter(AuditLog.entity_id == str(dp.id), AuditLog.action == "DELETE")
         .first()
     )
     assert audit is not None

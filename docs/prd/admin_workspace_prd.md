@@ -11,12 +11,12 @@
 ### Problem Statement
 All admin-facing endpoints currently sit under the `/api/v1/` namespace alongside public routes. They lack a uniform, SSO-protected prefix, and several critical capabilities are completely absent:
 - No `/api/v1/admin/` namespace isolating internal staff endpoints from the public layer.
-- No soft-delete mechanism to scrub PII while preserving environmental data.
+- No deletion mechanism for submissions.
 - No dead-letter triage endpoint under the admin prefix.
 - The FGD and Lab QA "direct-to-approved" manual entry POST endpoints use the `/api/v1/internal/` prefix instead of `/api/v1/admin/`.
 
 ### Core Metric
-All admin-only CRUD and triage actions are reachable exclusively under `/api/v1/admin/` and protected by `get_current_user`. PII deletion updates `phone_number` to NULL without removing the observation row.
+All admin-only CRUD and triage actions are reachable exclusively under `/api/v1/admin/` and protected by `get_current_user`. Deletion completely removes the submission.
 
 ---
 
@@ -35,7 +35,7 @@ All admin-only CRUD and triage actions are reachable exclusively under `/api/v1/
 ### ❌ Net-New (must be built)
 | Feature | Notes |
 |---|---|
-| `DELETE /api/v1/admin/submissions/{id}` | PII soft-delete: set `phone_number` to NULL in linked Citizen record, scrub identifying media GCS paths from answers; preserve the datapoint row. Write audit log. |
+| `DELETE /api/v1/admin/submissions/{id}` | Hard delete the submission and its related answers. Write audit log. |
 | `/api/v1/admin/` router namespace | New `admin_router.py` registered in `main.py` with `Depends(get_current_user)` on every route |
 | `GET /api/v1/admin/submissions` | Superset of existing list — adds `basin` filter **by name** and `form_type` (int) filter alongside existing `status` |
 
@@ -70,14 +70,12 @@ All admin-only CRUD and triage actions are reachable exclusively under `/api/v1/
 2. Frontend calls `POST /api/v1/admin/submissions/fgd` with the session payload.
 3. Backend hardcodes `status = APPROVED`, skips triage queue, writes audit log.
 
-**Flow D — PII Soft-Delete (Admin)**
-1. Admin clicks Delete on a citizen pollution report.
+**Flow D — Submission Deletion (Admin)**
+1. Admin clicks Delete on a submission.
 2. Frontend calls `DELETE /api/v1/admin/submissions/{id}`.
-3. Backend finds the linked Citizen record and sets `phone_number = NULL`.
-4. Scrubs any identifying media answer (GCS path to voice/photo) by setting `answer.name = NULL` where `question.type = "image"` or `"audio"`.
-5. The Datapoint row and its aggregated sub-county count remain intact.
-6. Backend writes audit log entry `action = "PII_DELETE"`.
-7. Returns `204 No Content`.
+3. Backend deletes the submission and its related answers.
+4. Backend writes audit log entry `action = "DELETE"`.
+5. Returns `204 No Content`.
 
 ---
 
@@ -87,7 +85,7 @@ All admin-only CRUD and triage actions are reachable exclusively under `/api/v1/
 - New `admin_router.py` registered under prefix `/api/v1/admin/` with `get_current_user` dependency applied to ALL routes.
 - `GET /api/v1/admin/submissions` — filterable by `form_type` (int), `status` (string), and `basin` (basin name string). Returns full list ≤ 200 rows default limit.
 - `PATCH /api/v1/admin/submissions/{id}/status` — Approve / Reject transitions. Triggers scoring on Approve and writes audit log (re-exported from existing logic).
-- `DELETE /api/v1/admin/submissions/{id}` — PII soft-delete (nullify phone_number in Citizen table, nullify media answer paths). Admin role only. Audit log entry required.
+- `DELETE /api/v1/admin/submissions/{id}` — Hard delete the submission and its answers. Admin role only. Audit log entry required.
 - `GET /api/v1/admin/dead-letters` — Serve quarantine table, filterable by `status` and `source_system`. Auth-guarded.
 - `PATCH /api/v1/admin/dead-letters/{id}` — Acknowledge / dismiss a dead-letter entry. Write audit log.
 - `POST /api/v1/admin/submissions/fgd` — Direct-to-Approved FGD manual entry.
