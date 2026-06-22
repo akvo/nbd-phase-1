@@ -172,7 +172,7 @@ class SiteStatus(BaseModel):
     )
     traffic_light: str = Field(
         ...,
-        description="Visual status traffic light indicator (GREEN, YELLOW, RED)",
+        description="Visual status traffic light indicator (GREEN, YELLOW, RED)",  # noqa
     )
     health_class: str = Field(
         ...,
@@ -257,7 +257,7 @@ class SiteScoreHistory(BaseModel):
     )
     ik_signal_value: Decimal = Field(
         ...,
-        description="Indigenous Knowledge signal value (normalized 0.0 to 1.0)",
+        description="Indigenous Knowledge signal value (normalized 0.0 to 1.0)",  # noqa
     )
     adjusted_score: Decimal = Field(
         ...,
