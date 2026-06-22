@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -42,6 +43,17 @@ class WhatsAppSession(Base):
         nullable=False,
         default="en",
         comment="Selected locale code (e.g. en, sw)",
+    )
+    answers = Column(
+        JSONB,
+        nullable=True,
+        default=dict,
+        comment="Dynamic form question responses",
+    )
+    current_question_id = Column(
+        Integer,
+        nullable=True,
+        comment="Current question ID user is answering",
     )
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
