@@ -25,6 +25,13 @@ class FormNames:
     LAB_QA = "Lab QA Report"
     SATELLITE_CLIMATE = "External Satellite & Climate Data"
 
+    INCIDENT_TYPE_MAP = {
+        1: "water_colour",
+        2: "smell",
+        3: "fish_kill",
+        4: "storm_event",
+    }
+
 
 class QuestionType(str, enum.Enum):
     input = "input"
