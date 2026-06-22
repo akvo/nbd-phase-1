@@ -91,11 +91,28 @@ class Wetland(WetlandBase):
 
 
 class SiteBase(BaseModel):
-    code: str = Field(..., max_length=50)
-    wetland_id: uuid.UUID
-    name: str = Field(..., max_length=150)
-    description: str | None = Field(default=None)
-    geom: Dict[str, Any]
+    code: str = Field(
+        ...,
+        max_length=50,
+        description=(
+            "Unique alphanumeric identifier code for the monitoring site"
+        ),
+    )
+    wetland_id: uuid.UUID = Field(
+        ..., description="Unique identifier of the associated wetland"
+    )
+    name: str = Field(
+        ...,
+        max_length=150,
+        description="Human-readable name of the monitoring site",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Optional text description of the monitoring site",
+    )
+    geom: Dict[str, Any] = Field(
+        ..., description="GeoJSON Point geometry representation of the site"
+    )
 
     @field_validator("geom", mode="before")
     @classmethod
@@ -127,17 +144,43 @@ class SiteCreate(SiteBase):
 
 
 class ManagementActionResponse(BaseModel):
-    label: str = Field(..., validation_alias="short_label")
-    description: str = Field(..., validation_alias="description_text")
+    label: str = Field(
+        ...,
+        validation_alias="short_label",
+        description="Label/title of the recommended management action",
+    )
+    description: str = Field(
+        ...,
+        validation_alias="description_text",
+        description="Detailed description of the management action",
+    )
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class SiteStatus(BaseModel):
-    composite_score: float
-    ik_adjusted_score: float
-    traffic_light: str
-    health_class: str
+    composite_score: float = Field(
+        ...,
+        description="Composite wetland health score (normalized 0.0 to 1.0)",
+    )
+    ik_adjusted_score: float = Field(
+        ...,
+        description=(
+            "Fuzzy-adjusted composite score after integrating "
+            "Indigenous Knowledge (normalized 0.0 to 1.0)"
+        ),
+    )
+    traffic_light: str = Field(
+        ...,
+        description="Visual status traffic light indicator (GREEN, YELLOW, RED)",
+    )
+    health_class: str = Field(
+        ...,
+        description=(
+            "WHO-aligned wetland health class (A=Excellent, B=Good, "
+            "C=Fair, D=Poor, E=Critical)"
+        ),
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -199,13 +242,39 @@ class SpatialBoundary(SpatialBoundaryBase):
 
 
 class SiteScoreHistory(BaseModel):
-    id: uuid.UUID
-    site_id: uuid.UUID
-    wqi_score: Decimal
-    composite_score: Decimal
-    ik_signal_value: Decimal
-    adjusted_score: Decimal
-    health_class: str
-    calculated_at: datetime
+    id: uuid.UUID = Field(
+        ..., description="Unique identifier of the score history entry"
+    )
+    site_id: uuid.UUID = Field(
+        ..., description="Unique identifier of the associated monitoring site"
+    )
+    wqi_score: Decimal = Field(
+        ..., description="Water Quality Index score (normalized 0.0 to 1.0)"
+    )
+    composite_score: Decimal = Field(
+        ...,
+        description="Composite wetland health score (normalized 0.0 to 1.0)",
+    )
+    ik_signal_value: Decimal = Field(
+        ...,
+        description="Indigenous Knowledge signal value (normalized 0.0 to 1.0)",
+    )
+    adjusted_score: Decimal = Field(
+        ...,
+        description=(
+            "Fuzzy-adjusted composite score after integrating "
+            "Indigenous Knowledge (normalized 0.0 to 1.0)"
+        ),
+    )
+    health_class: str = Field(
+        ...,
+        description=(
+            "WHO-aligned wetland health class (A=Excellent, B=Good, "
+            "C=Fair, D=Poor, E=Critical)"
+        ),
+    )
+    calculated_at: datetime = Field(
+        ..., description="Timestamp when the scores were calculated"
+    )
 
     model_config = ConfigDict(from_attributes=True)
