@@ -8,9 +8,9 @@ class DeadLetterBase(BaseModel):
     source_system: str
     raw_payload: Dict[str, Any]
     error_reason: str
-    status: Literal["Pending Triage", "Resolved", "Discarded"] = (
-        "Pending Triage"
-    )
+    status: Literal[
+        "Pending Triage", "Resolved", "Discarded", "Acknowledged"
+    ] = "Pending Triage"
 
 
 class DeadLetterCreate(DeadLetterBase):
@@ -18,7 +18,7 @@ class DeadLetterCreate(DeadLetterBase):
 
 
 class DeadLetterUpdate(BaseModel):
-    status: Literal["Pending Triage", "Resolved", "Discarded"]
+    status: Literal["Pending Triage", "Resolved", "Discarded", "Acknowledged"]
 
 
 class DeadLetterResponse(DeadLetterBase):
