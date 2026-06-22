@@ -53,6 +53,20 @@ class QuestionType(str, enum.Enum):
     attachment = "attachment"
 
 
+# TODO :: Maybe we also should introduce a form theme or domain
+#
+# class FormTheme(int, enum.Enum):
+#     WETLAND = 1
+#     FOREST = 2
+#     RIVER = 3
+#     LAKE = 4
+#     COASTAL = 5
+#     OTHER = 6
+#
+# EOL OF TODO
+#
+
+
 class FormType(int, enum.Enum):
     CITIZEN_REPORTER = 1
     CITIZEN_SCIENTIST = 2
