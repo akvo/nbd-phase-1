@@ -37,6 +37,7 @@ def get_storage_service() -> StorageService:
 @router.post("/presigned-upload", response_model=PresignedUploadResponse)
 def get_upload_url(
     payload: PresignedUploadRequest,
+    current_user: User = Depends(RoleChecker(["Admin"])),
     service: StorageService = Depends(get_storage_service),
 ):
     try:

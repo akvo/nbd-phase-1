@@ -1,5 +1,7 @@
 # Low-Level Design (LLD) — NFS Storage Migration
 
+<!-- DIRTY_AMENDMENT: [Added Admin role guard to POST /api/v1/storage/presigned-upload, approved 2026-06-22] -->
+
 > **Stage 3 of 3 — Documentation Hierarchy**
 > Owner: Winston (Architect) | Target Location: `docs/lld/nfs_storage_migration_lld.md` | References: `docs/prd/nfs_storage_migration_prd.md`, `docs/api_contract.md`
 > Status: `Approved`
