@@ -163,57 +163,6 @@ def create_site(site: schemas.SiteCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/sites/{site_id}", response_model=schemas.Site)
-def get_site(site_id: str, db: Session = Depends(get_db)):
-    try:
-        val = uuid.UUID(site_id)
-        db_site = db.query(Site).filter(Site.id == val).first()
-    except ValueError:
-        db_site = db.query(Site).filter(Site.code == site_id).first()
-
-    if not db_site:
-        raise HTTPException(
-            status_code=404, detail=f"Site '{site_id}' not found."
-        )
-
-    from app.models.health_score import HealthScore
-    from app.models.management_action import ManagementAction
-
-    latest_score = (
-        db.query(HealthScore)
-        .filter(HealthScore.site_id == db_site.id)
-        .order_by(HealthScore.calculated_at.desc())
-        .first()
-    )
-
-    if latest_score:
-        h_class = latest_score.health_class
-        from app.services.scoring.handlers.wetland import map_class_to_color
-
-        traffic_light, color_db = map_class_to_color(h_class)
-
-        db_site.status = {
-            "composite_score": float(latest_score.composite_score),
-            "ik_adjusted_score": float(latest_score.adjusted_score),
-            "traffic_light": traffic_light,
-            "health_class": h_class,
-        }
-
-        db_site.management_actions = (
-            db.query(ManagementAction)
-            .filter(
-                ManagementAction.site_id == db_site.id,
-                ManagementAction.status_color == color_db,
-            )
-            .all()
-        )
-    else:
-        db_site.status = None
-        db_site.management_actions = []
-
-    return db_site
-
-
 @router.post(
     "/reference/sub-counties",
     response_model=schemas.SpatialBoundary,

@@ -1,5 +1,7 @@
 from typing import Dict, Any
 import uuid
+from datetime import datetime
+from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from shapely.geometry import shape
 
@@ -92,6 +94,7 @@ class SiteBase(BaseModel):
     code: str = Field(..., max_length=50)
     wetland_id: uuid.UUID
     name: str = Field(..., max_length=150)
+    description: str | None = Field(default=None)
     geom: Dict[str, Any]
 
     @field_validator("geom", mode="before")
@@ -192,4 +195,17 @@ class SpatialBoundaryCreate(SpatialBoundaryBase):
 
 class SpatialBoundary(SpatialBoundaryBase):
     id: uuid.UUID
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SiteScoreHistory(BaseModel):
+    id: uuid.UUID
+    site_id: uuid.UUID
+    wqi_score: Decimal
+    composite_score: Decimal
+    ik_signal_value: Decimal
+    adjusted_score: Decimal
+    health_class: str
+    calculated_at: datetime
+
     model_config = ConfigDict(from_attributes=True)

@@ -1,6 +1,6 @@
 import uuid
 import enum
-from sqlalchemy import Column, String, ForeignKey, Integer
+from sqlalchemy import Column, String, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
@@ -56,6 +56,7 @@ class Site(Base):
         nullable=False,
     )
     name = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
     geom = Column(Geometry("POINT", srid=4326), nullable=False)
 
     wetland = relationship("Wetland", back_populates="sites")
