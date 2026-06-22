@@ -17,7 +17,7 @@ class Citizen(Base):
     __tablename__ = "citizens"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    phone_number = Column(String(50), nullable=False)
+    phone_number = Column(String(50), nullable=True)
     site_id = Column(
         UUID(as_uuid=True),
         ForeignKey("sites.id", ondelete="RESTRICT"),

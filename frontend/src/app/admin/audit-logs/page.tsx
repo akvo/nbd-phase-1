@@ -44,6 +44,10 @@ const ACTION_OPTIONS = [
   { value: "INVITE_USER", label: "Invite User" },
   { value: "UPDATE_ROLE", label: "Update Role" },
   { value: "ALERT", label: "Alert" },
+  { value: "CREATE", label: "Create" },
+  { value: "UPDATE", label: "Update" },
+  { value: "ACKNOWLEDGE", label: "Acknowledge" },
+  { value: "ALERT_RESOLVED", label: "Alert Resolved" },
 ];
 
 const ENTITY_TYPE_OPTIONS = [
@@ -85,11 +89,15 @@ function getActionBadgeVariant(
   switch (action) {
     case "APPROVE":
     case "INVITE_USER":
+    case "CREATE":
+    case "ACKNOWLEDGE":
+    case "ALERT_RESOLVED":
       return "success";
     case "REJECT":
     case "DELETE":
       return "danger";
     case "EDIT":
+    case "UPDATE":
     case "UPDATE_ROLE":
       return "warning";
     case "ALERT":

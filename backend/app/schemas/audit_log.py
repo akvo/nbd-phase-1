@@ -13,6 +13,10 @@ AuditAction = Literal[
     "ALERT",
     "LOGIN",  # Legacy, kept for existing records
     "POST",  # Legacy, kept for existing records
+    "CREATE",
+    "UPDATE",
+    "ACKNOWLEDGE",
+    "ALERT_RESOLVED",
 ]
 
 

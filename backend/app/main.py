@@ -14,6 +14,7 @@ from app.routers.whatsapp_router import router as whatsapp_router
 from app.routers.internal_router import router as internal_router
 from app.routers.auth_router import router as auth_router
 from app.routers.public_router import router as public_router
+from app.routers.admin_router import router as admin_router
 
 
 app = FastAPI(
@@ -36,6 +37,7 @@ app.include_router(citizen_router)
 app.include_router(whatsapp_router)
 app.include_router(internal_router)
 app.include_router(public_router)
+app.include_router(admin_router)
 
 
 class TestEmailRequest(BaseModel):

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { apiClient } from "@/lib/api";
+import { apiClient, adminApiClient } from "@/lib/api";
 import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import L from "leaflet";
 // Dynamically import Webform from akvo-react-form to prevent SSR issues
@@ -263,11 +263,18 @@ export default function NewFormPage({ params }: NewFormPageProps) {
       const formType = blueprint?.type;
       const numericFormId = parseInt(formId, 10) || blueprint?.form_id || 1;
 
-      let endpoint = "/internal/submit";
+      let endpoint = "/submissions/fgd";
+      let client = adminApiClient;
+
       if (formId === "fgd" || formType === 3) {
-        endpoint = "/internal/fgd";
+        endpoint = "/submissions/fgd";
+        client = adminApiClient;
       } else if (formId === "lab-qa" || formType === 4) {
-        endpoint = "/internal/lab-qa";
+        endpoint = "/submissions/lab-qa";
+        client = adminApiClient;
+      } else {
+        endpoint = "/internal/submit";
+        client = apiClient;
       }
 
       const payload = {
@@ -275,7 +282,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
         form_id: numericFormId,
       };
 
-      await apiClient.post(endpoint, payload);
+      await client.post(endpoint, payload);
       setSuccess(true);
       setTimeout(() => {
         window.location.href = "/admin/data";
