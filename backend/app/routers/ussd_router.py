@@ -6,8 +6,8 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.spatial import SpatialBoundary, Basin, Site
-from app.models.form import Form, Question, Option, FormNames
+from app.models.spatial import SpatialBoundary, Basin
+from app.models.form import Form, Question, QuestionGroup, Option, FormNames
 from app.models.submission import Datapoint, Answer
 from app.models.citizen import Citizen
 
@@ -85,29 +85,36 @@ def _handle_ussd_core(
         parts = input_str.split("*")
         depth = len(parts)
 
-    # Fetch form and incident_type options dynamically
+    # Fetch form configuration snapshot
     form = (
         db.query(Form)
         .filter(Form.name == FormNames.POLLUTION_REPORTING)
         .first()
     )
-    options = []
-    q_incident = None
-    if form:
-        q_incident = (
-            db.query(Question)
-            .filter(
-                Question.form_id == form.id, Question.name == "incident_type"
+    if not form:
+        return PlainTextResponse(
+            clean_ussd_response(
+                "END Hitilafu ya mfumo wa ndani. Fomu haijaundwa."
+                if depth > 0 and parts[0] == "2"
+                else "END Internal system error. Form not configured."
             )
-            .first()
         )
-        if q_incident:
-            options = (
-                db.query(Option)
-                .filter(Option.question_id == q_incident.id)
-                .order_by(Option.order.asc())
-                .all()
-            )
+
+    # Fetch all questions in order of Group Order, then Question Order
+    active_questions = (
+        db.query(Question)
+        .join(QuestionGroup)
+        .filter(
+            Question.form_id == form.id,
+            Question.deleted_at.is_(None),
+            QuestionGroup.deleted_at.is_(None),
+        )
+        .order_by(
+            QuestionGroup.order.asc().nullslast(),
+            Question.order.asc().nullslast(),
+        )
+        .all()
+    )
 
     # Step 0: Language Selection Menu
     if depth == 0:
@@ -163,39 +170,9 @@ def _handle_ussd_core(
         return PlainTextResponse(clean_ussd_response(response_text))
 
     from app.services.translation import get_translation
+    from app.services.form_engine import is_question_active
 
-    # Step 2: Incident Selection
-    if depth == 2:
-        if not options:
-            if lang == "sw":
-                response_text = (
-                    "END Hitilafu ya mfumo wa ndani. Chaguzi hazijaundwa."
-                )
-            else:
-                response_text = (
-                    "END Internal system error. Form options not configured."
-                )
-            processed_sessions[sessionId] = response_text
-            return PlainTextResponse(clean_ussd_response(response_text))
-
-        menu_items = [
-            f"{idx}: {get_translation(opt.translations, lang, opt.label)}"
-            for idx, opt in enumerate(options, 1)
-        ]
-        if lang == "sw":
-            response_text = "CON Ripoti mabadiliko katika:\n" + "\n".join(
-                menu_items
-            )
-        else:
-            response_text = "CON Report a change in:\n" + "\n".join(menu_items)
-        return PlainTextResponse(clean_ussd_response(response_text))
-
-    # Step 3: Location Selection (dynamic list based on country networkCode)
-    incident_type = parts[2]
-    # Map network code to participating basins
-    # Kenya: 63902, 63903 (Mara & Sio-Siteko)
-    # Uganda: 64101, 64110 (Sio-Siteko)
-    # Tanzania: 64002, 64004, 64005 (Mara)
+    # Determine participating basins from telco code
     basins = []
     if networkCode in ("63902", "63903"):
         basins = ["MARA", "SIO_SITEKO"]
@@ -204,164 +181,223 @@ def _handle_ussd_core(
     elif networkCode in ("64002", "64004", "64005"):
         basins = ["MARA"]
     else:
-        # Default fallback
         basins = ["MARA", "SIO_SITEKO"]
 
-    # Fetch Level 2 (Districts/Counties) sorted by basin and name
-    counties = (
-        db.query(SpatialBoundary)
-        .join(Basin)
-        .filter(Basin.code.in_(basins), SpatialBoundary.level == 2)
-        .order_by(SpatialBoundary.basin_id, SpatialBoundary.name)
-        .all()
-    )
+    # Traversal loop to evaluate current question
+    current_answers = {}
+    input_idx = 2
+    q_idx = 0
+    selected_sc = None
 
-    menu_lines = []
-    current_parent_id = None
-    for idx, sc in enumerate(counties, 1):
-        if sc.parent_id != current_parent_id:
-            current_parent_id = sc.parent_id
-            parent = sc.parent
-            if parent:
-                if menu_lines:
-                    menu_lines.append("")
-                if lang == "sw":
-                    menu_lines.append(f"{parent.name} (Mkoa):")
+    while q_idx < len(active_questions):
+        q = active_questions[q_idx]
+
+        # Check skip logic (dependency)
+        if not is_question_active(q, current_answers):
+            q_idx += 1
+            continue
+
+        # If USSD does not support media, skip the question
+        if q.type in ("image", "attachment"):
+            q_idx += 1
+            continue
+
+        # If user has provided input for this active question
+        if input_idx < len(parts):
+            user_input = parts[input_idx].strip()
+
+            if q.type == "cascade":
+                # For location cascade,
+                # it consumes 1 or 2 parts depending on levels
+                # Level 2 (County) selection
+                counties = (
+                    db.query(SpatialBoundary)
+                    .join(Basin)
+                    .filter(Basin.code.in_(basins), SpatialBoundary.level == 2)
+                    .order_by(SpatialBoundary.basin_id, SpatialBoundary.name)
+                    .all()
+                )
+                try:
+                    county_choice = int(user_input) - 1
+                    if county_choice < 0 or county_choice >= len(counties):
+                        raise ValueError()
+                    selected_county = counties[county_choice]
+                except (ValueError, TypeError):
+                    err_txt = (
+                        "END Uteuzi wa mahali sio sahihi. Kikao kimefungwa."
+                        if lang == "sw"
+                        else "END Invalid location selection. Session closed."
+                    )
+                    processed_sessions[sessionId] = err_txt
+                    return PlainTextResponse(clean_ussd_response(err_txt))
+
+                sub_counties = (
+                    db.query(SpatialBoundary)
+                    .filter(
+                        SpatialBoundary.level == 3,
+                        SpatialBoundary.parent_id == selected_county.id,
+                    )
+                    .order_by(SpatialBoundary.name)
+                    .all()
+                )
+
+                if sub_counties:
+                    # Check if there is another input part for sub-county
+                    if input_idx + 1 < len(parts):
+                        sub_input = parts[input_idx + 1].strip()
+                        try:
+                            sub_choice = int(sub_input) - 1
+                            if sub_choice < 0 or sub_choice >= len(
+                                sub_counties
+                            ):
+                                raise ValueError()
+                            selected_sc = sub_counties[sub_choice]
+                        except (ValueError, TypeError):
+                            err_txt = (
+                                "END Uteuzi wa wilaya ndogo sio sahihi. Kikao kimefungwa."
+                                if lang == "sw"
+                                else "END Invalid sub-county selection. Session closed."
+                            )
+                            processed_sessions[sessionId] = err_txt
+                            return PlainTextResponse(
+                                clean_ussd_response(err_txt)
+                            )
+                        current_answers[q.id] = str(selected_sc.id)
+                        current_answers[q.name] = str(selected_sc.id)
+                        input_idx += 2
+                    else:
+                        # We have Level 2, but we need Level 3 sub-county! Prompt it.
+                        sub_menu_lines = [
+                            f"  {idx}. {sc.name}"
+                            for idx, sc in enumerate(sub_counties, 1)
+                        ]
+                        prompt_text = (
+                            f"CON Chagua Wilaya ndogo ya {selected_county.name}:\n"
+                            + "\n".join(sub_menu_lines)
+                            if lang == "sw"
+                            else f"CON Choose Sub-County of {selected_county.name}:\n"
+                            + "\n".join(sub_menu_lines)
+                        )
+                        return PlainTextResponse(
+                            clean_ussd_response(prompt_text)
+                        )
                 else:
-                    menu_lines.append(f"{parent.name} (Region):")
-        menu_lines.append(f"  {idx}. {sc.name}")
+                    selected_sc = selected_county
+                    current_answers[q.id] = str(selected_sc.id)
+                    current_answers[q.name] = str(selected_sc.id)
+                    input_idx += 1
 
-    if depth == 3:
-        if lang == "sw":
-            response_text = "CON Chagua Mahali:\n" + "\n".join(menu_lines)
-        else:
-            response_text = "CON Choose Location:\n" + "\n".join(menu_lines)
-        return PlainTextResponse(clean_ussd_response(response_text))
-
-    # Parse County choice
-    location_index_str = parts[3]
-    try:
-        county_idx = int(location_index_str) - 1
-        if county_idx < 0 or county_idx >= len(counties):
-            raise ValueError()
-    except ValueError:
-        if lang == "sw":
-            response_text = (
-                "END Uteuzi wa mahali sio sahihi. Kikao kimefungwa."
-            )
-        else:
-            response_text = "END Invalid location selection. Session closed."
-        processed_sessions[sessionId] = response_text
-        return PlainTextResponse(clean_ussd_response(response_text))
-
-    selected_county = counties[county_idx]
-
-    # Check if there are Level 3 sub-counties below the selected county
-    sub_counties = (
-        db.query(SpatialBoundary)
-        .filter(
-            SpatialBoundary.level == 3,
-            SpatialBoundary.parent_id == selected_county.id,
-        )
-        .order_by(SpatialBoundary.name)
-        .all()
-    )
-
-    if sub_counties:
-        sub_menu_lines = [
-            f"  {idx}. {sc.name}" for idx, sc in enumerate(sub_counties, 1)
-        ]
-        if depth == 4:
-            if lang == "sw":
-                response_text = (
-                    f"CON Chagua Wilaya ndogo ya {selected_county.name}:\n"
-                    + "\n".join(sub_menu_lines)
+            elif q.type == "option":
+                options = (
+                    db.query(Option)
+                    .filter(Option.question_id == q.id)
+                    .order_by(Option.order.asc())
+                    .all()
                 )
+                try:
+                    choice_idx = int(user_input) - 1
+                    if choice_idx < 0 or choice_idx >= len(options):
+                        raise ValueError()
+                    selected_opt = options[choice_idx]
+                except (ValueError, TypeError):
+                    err_txt = (
+                        "END Uteuzi sio sahihi. Kikao kimefungwa."
+                        if lang == "sw"
+                        else "END Invalid selection. Session closed."
+                    )
+                    processed_sessions[sessionId] = err_txt
+                    return PlainTextResponse(clean_ussd_response(err_txt))
+
+                current_answers[q.id] = selected_opt.value
+                current_answers[q.name] = selected_opt.value
+                input_idx += 1
+
             else:
-                response_text = (
-                    f"CON Choose Sub-County of {selected_county.name}:\n"
-                    + "\n".join(sub_menu_lines)
-                )
-            return PlainTextResponse(clean_ussd_response(response_text))
+                current_answers[q.id] = user_input
+                current_answers[q.name] = user_input
+                input_idx += 1
 
-        # Parse Sub-county choice
-        sub_county_index_str = parts[4]
-        try:
-            sub_county_idx = int(sub_county_index_str) - 1
-            if sub_county_idx < 0 or sub_county_idx >= len(sub_counties):
-                raise ValueError()
-        except ValueError:
-            if lang == "sw":
-                response_text = (
-                    "END Uteuzi wa wilaya ndogo sio sahihi. Kikao kimefungwa."
+            q_idx += 1
+
+        else:
+            # We don't have user input for this question yet, so prompt for it
+            if q.type == "cascade":
+                counties = (
+                    db.query(SpatialBoundary)
+                    .join(Basin)
+                    .filter(Basin.code.in_(basins), SpatialBoundary.level == 2)
+                    .order_by(SpatialBoundary.basin_id, SpatialBoundary.name)
+                    .all()
                 )
+                menu_lines = []
+                current_parent_id = None
+                for idx, sc in enumerate(counties, 1):
+                    if sc.parent_id != current_parent_id:
+                        current_parent_id = sc.parent_id
+                        parent = sc.parent
+                        if parent:
+                            if menu_lines:
+                                menu_lines.append("")
+                            menu_lines.append(
+                                f"{parent.name} (Mkoa):"
+                                if lang == "sw"
+                                else f"{parent.name} (Region):"
+                            )
+                    menu_lines.append(f"  {idx}. {sc.name}")
+
+                prompt_text = (
+                    "CON Chagua Mahali:\n" + "\n".join(menu_lines)
+                    if lang == "sw"
+                    else "CON Choose Location:\n" + "\n".join(menu_lines)
+                )
+                return PlainTextResponse(clean_ussd_response(prompt_text))
+
+            elif q.type == "option":
+                options = (
+                    db.query(Option)
+                    .filter(Option.question_id == q.id)
+                    .order_by(Option.order.asc())
+                    .all()
+                )
+                menu_items = [
+                    f"{idx}: {get_translation(opt.translations, lang, opt.label)}"
+                    for idx, opt in enumerate(options, 1)
+                ]
+                q_label = get_translation(q.translations, lang, q.label)
+                prompt_text = f"CON {q_label}:\n" + "\n".join(menu_items)
+                return PlainTextResponse(clean_ussd_response(prompt_text))
+
             else:
-                response_text = (
-                    "END Invalid sub-county selection. Session closed."
-                )
-            processed_sessions[sessionId] = response_text
-            return PlainTextResponse(clean_ussd_response(response_text))
+                q_label = get_translation(q.translations, lang, q.label)
+                prompt_text = f"CON {q_label}:"
+                return PlainTextResponse(clean_ussd_response(prompt_text))
 
-        selected_sc = sub_counties[sub_county_idx]
-    else:
-        # No level 3 sub-counties exist, treat County selection as final
-        selected_sc = selected_county
-
+    # If we reached here, it means all dynamic questions have been processed!
     # Geocode and save report
-    if not form:
-        if lang == "sw":
-            response_text = "END Hitilafu ya mfumo wa ndani. Fomu haijaundwa."
-        else:
-            response_text = "END Internal system error. Form not configured."
-        processed_sessions[sessionId] = response_text
-        return PlainTextResponse(clean_ussd_response(response_text))
-
-    # Validate incident selection
-    try:
-        incident_idx = int(incident_type) - 1
-        if incident_idx < 0 or incident_idx >= len(options):
-            raise ValueError()
-        selected_option = options[incident_idx]
-    except (ValueError, IndexError):
-        if lang == "sw":
-            response_text = "END Uteuzi wa tukio sio sahihi. Kikao kimefungwa."
-        else:
-            response_text = "END Invalid incident selection. Session closed."
-        processed_sessions[sessionId] = response_text
-        return PlainTextResponse(clean_ussd_response(response_text))
-
-    # Find location_id question
-    q_location = (
-        db.query(Question)
-        .filter(Question.form_id == form.id, Question.name == "location_id")
-        .first()
-    )
-
-    # Check if phoneNumber belongs to a registered citizen
     citizen = (
         db.query(Citizen).filter(Citizen.phone_number == phoneNumber).first()
     )
 
-    # Create Datapoint
     dp = Datapoint(
         uuid=uuid.uuid4(),
         form_id=form.id,
         published_version_id=form.active_version_id,
         submitter="USSD",
         status="PENDING",
-        name=sessionId,  # Store sessionId for reference
+        name=sessionId,
     )
 
     from geoalchemy2.shape import to_shape
 
     if citizen:
+        from app.models.spatial import Site
+
         site = db.query(Site).filter(Site.id == citizen.site_id).first()
         if site:
             dp.site_id = citizen.site_id
             point = to_shape(site.geom)
             dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
-        else:
-            # Fallback if site not found in database
+        elif selected_sc:
             dp.basin_id = selected_sc.basin_id
             centroid_geom = selected_sc.centroid_geom
             curr_parent = selected_sc.parent
@@ -374,8 +410,7 @@ def _handle_ussd_core(
                 dp.geo = {"type": "Point", "coordinates": [point.x, point.y]}
             else:
                 dp.geo = None
-    else:
-        # Fallback to selected sub-county centroid
+    elif selected_sc:
         dp.basin_id = selected_sc.basin_id
         centroid_geom = selected_sc.centroid_geom
         curr_parent = selected_sc.parent
@@ -392,22 +427,18 @@ def _handle_ussd_core(
     db.add(dp)
     db.flush()
 
-    # Create answers
-    ans_incident = Answer(
-        datapoint_id=dp.id,
-        question_id=q_incident.id if q_incident else 0,
-        name=None,
-        options=[selected_option.value],
-    )
-    db.add(ans_incident)
+    # Create Answer records for each question
+    for q in active_questions:
+        ans_val = current_answers.get(q.id)
+        if ans_val is not None:
+            ans = Answer(
+                datapoint_id=dp.id,
+                question_id=q.id,
+                name=None,
+                options=[str(ans_val)],
+            )
+            db.add(ans)
 
-    ans_location = Answer(
-        datapoint_id=dp.id,
-        question_id=q_location.id if q_location else 0,
-        name=None,
-        options=[str(selected_sc.id)],
-    )
-    db.add(ans_location)
     db.commit()
 
     if lang == "sw":
