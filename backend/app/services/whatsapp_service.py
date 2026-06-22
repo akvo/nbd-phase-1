@@ -19,11 +19,12 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models.whatsapp_session import WhatsAppSession
-from app.models.form import Form, Question, Option, FormNames
+from app.models.form import Form, Question, QuestionGroup, Option, FormNames
 from app.models.submission import Datapoint, Answer
 from app.models.spatial import SpatialBoundary, Basin
 from app.models.citizen import Citizen
 from app.services.storage import StorageService, build_blob_path
+from app.services.form_engine import is_question_active
 
 logger = logging.getLogger(__name__)
 
@@ -132,29 +133,6 @@ def _get_or_create_session(db: Session, phone: str) -> WhatsAppSession:
     return session
 
 
-def _fetch_incident_options(db: Session) -> List[Option]:
-    form = (
-        db.query(Form)
-        .filter(Form.name == FormNames.POLLUTION_REPORTING)
-        .first()
-    )
-    if not form:
-        return []
-    q = (
-        db.query(Question)
-        .filter(Question.form_id == form.id, Question.name == "incident_type")
-        .first()
-    )
-    if not q:
-        return []
-    return (
-        db.query(Option)
-        .filter(Option.question_id == q.id)
-        .order_by(Option.order.asc())
-        .all()
-    )
-
-
 def _fetch_subcounties(db: Session) -> List[SpatialBoundary]:
     return (
         db.query(SpatialBoundary)
@@ -185,13 +163,33 @@ def _format_location_menu(
     return "\n".join(menu_lines)
 
 
+def _get_next_active_question(
+    questions: List[Question],
+    answers: Dict[str, Any],
+    current_q_id: Optional[int],
+) -> Optional[Question]:
+    """
+    Find the next question in list that is active, starting after current_q_id.
+    """
+    start_checking = False if current_q_id else True
+    for q in questions:
+        if not start_checking:
+            if q.id == current_q_id:
+                start_checking = True
+            continue
+        # Skip image/attachment type
+        # if it's not WhatsApp but here it is WhatsApp so it is fine
+        if is_question_active(q, answers):
+            return q
+    return None
+
+
 def _save_report(
     db: Session,
     phone: str,
     session: WhatsAppSession,
-    selected_option: Option,
-    selected_sc: SpatialBoundary,
-    media_gcs_path: Optional[str],
+    answers: Dict[str, Any],
+    active_questions: List[Question],
 ) -> None:
     """Persist a completed WhatsApp report as a Datapoint + Answers."""
     from geoalchemy2.shape import to_shape
@@ -205,24 +203,20 @@ def _save_report(
         logger.error("Pollution reporting form not found; aborting save.")
         return
 
-    q_incident = (
-        db.query(Question)
-        .filter(Question.form_id == form.id, Question.name == "incident_type")
-        .first()
-    )
     q_location = (
         db.query(Question)
         .filter(Question.form_id == form.id, Question.name == "location_id")
         .first()
     )
-    q_media = (
-        db.query(Question)
-        .filter(
-            Question.form_id == form.id,
-            Question.name == "media_attachment",
+
+    selected_sc = None
+    if q_location and str(q_location.id) in answers:
+        loc_val = answers[str(q_location.id)]
+        selected_sc = (
+            db.query(SpatialBoundary)
+            .filter(SpatialBoundary.id == loc_val)
+            .first()
         )
-        .first()
-    )
 
     citizen = db.query(Citizen).filter(Citizen.phone_number == phone).first()
 
@@ -243,7 +237,7 @@ def _save_report(
             dp.site_id = citizen.site_id
             pt = to_shape(site.geom)
             dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
-        else:
+        elif selected_sc:
             dp.basin_id = selected_sc.basin_id
             centroid_geom = selected_sc.centroid_geom
             curr_parent = selected_sc.parent
@@ -256,7 +250,7 @@ def _save_report(
                 dp.geo = {"type": "Point", "coordinates": [pt.x, pt.y]}
             else:
                 dp.geo = None
-    else:
+    elif selected_sc:
         dp.basin_id = selected_sc.basin_id
         centroid_geom = selected_sc.centroid_geom
         curr_parent = selected_sc.parent
@@ -273,49 +267,20 @@ def _save_report(
     db.add(dp)
     db.flush()
 
-    # Answer: incident type (store option value)
-    ans_incident = Answer(
-        datapoint_id=dp.id,
-        question_id=q_incident.id if q_incident else 0,
-        name=None,
-        options=[selected_option.value],
-    )
-    db.add(ans_incident)
-
-    # Answer: location
-    ans_location = Answer(
-        datapoint_id=dp.id,
-        question_id=q_location.id if q_location else 0,
-        name=None,
-        options=[str(selected_sc.id)],
-    )
-    db.add(ans_location)
-
-    # Answer: media attachment path (if any)
-    # Only persist when: a matching Question row exists AND upload succeeded.
-    if media_gcs_path and media_gcs_path != "UPLOAD_FAILED":
-        if q_media:
-            ans_media = Answer(
+    # Save answers dynamically
+    for q in active_questions:
+        ans_val = answers.get(str(q.id))
+        if ans_val is not None and ans_val != "UPLOAD_FAILED":
+            # If it's a list, save it as a list, else wrap in a list
+            ans_opts = ans_val if isinstance(ans_val, list) else [str(ans_val)]
+            ans = Answer(
                 datapoint_id=dp.id,
-                question_id=q_media.id,
+                question_id=q.id,
                 name=None,
-                options=[media_gcs_path],
-                index=1,
+                options=ans_opts,
+                index=1 if q.type in ("image", "attachment") else None,
             )
-            db.add(ans_media)
-        else:
-            logger.warning(
-                "No 'media_attachment' question found for form_id=%s; "
-                "skipping media answer (blob=%s)",
-                form.id,
-                media_gcs_path,
-            )
-    elif media_gcs_path == "UPLOAD_FAILED":
-        logger.warning(
-            "Media upload had previously failed for phone=%s; "
-            "omitting media answer row.",
-            phone,
-        )
+            db.add(ans)
 
     db.commit()
 
@@ -339,6 +304,37 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
     try:
         session = _get_or_create_session(db, phone)
         state = session.state
+
+        # Fetch form configuration snapshot
+        form = (
+            db.query(Form)
+            .filter(Form.name == FormNames.POLLUTION_REPORTING)
+            .first()
+        )
+        if not form:
+            logger.error("Pollution reporting form not found; aborting.")
+            return
+
+        # Fetch all questions in order of Group Order, then Question Order
+        active_questions = (
+            db.query(Question)
+            .join(QuestionGroup)
+            .filter(
+                Question.form_id == form.id,
+                Question.deleted_at.is_(None),
+                QuestionGroup.deleted_at.is_(None),
+            )
+            .order_by(
+                QuestionGroup.order.asc().nullslast(),
+                Question.order.asc().nullslast(),
+            )
+            .all()
+        )
+
+        from app.services.translation import get_translation
+
+        # Initialize session answers dict
+        session_answers = session.answers or {}
 
         # ------------------------------------------------------------------
         # STATE: CONSENT
@@ -391,32 +387,30 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             text_body = (msg.get("text") or {}).get("body", "").strip()
             lang = session.language
             if text_body == "1":
-                # Accepted — move to incident selection
-                options = _fetch_incident_options(db)
-                if not options:
+                # Accepted — move to dynamic questions
+                session_answers = {}
+                session.answers = session_answers
+
+                # Find first active question
+                first_q = _get_next_active_question(
+                    active_questions, session_answers, None
+                )
+                if not first_q:
                     if lang == "sw":
-                        err_msg = "Samahani, mfumo haujaundwa bado. Tafadhali jaribu tena baadaye."  # noqa: E501
+                        thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
                     else:
-                        err_msg = (
-                            "Sorry, the reporting system is not yet "
-                            "configured. Please try again later."
-                        )
-                    await _send_message(phone, err_msg)
+                        thank_msg = "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
+                    await _send_message(phone, thank_msg)
+                    db.delete(session)
+                    db.commit()
                     return
 
-                from app.services.translation import get_translation
-
-                menu = "\n".join(
-                    f"{i}: {get_translation(o.translations, lang, o.label)}"
-                    for i, o in enumerate(options, 1)
-                )
-                session.state = "INCIDENT_SELECT"
+                session.current_question_id = first_q.id
+                session.state = "DYNAMIC_QUESTION"
                 db.commit()
-                if lang == "sw":
-                    prompt = f"Je, ungependa kuripoti nini?\n\n{menu}"
-                else:
-                    prompt = f"What would you like to report?\n\n{menu}"
-                await _send_message(phone, prompt)
+
+                # Prompt first question
+                await _prompt_question(phone, first_q, lang, db)
             elif text_body == "2":
                 if lang == "sw":
                     decline_msg = "Ni lazima ukubali masharti ya data ili kuwasilisha ripoti. Tuma ujumbe wowote ili kuanza tena."  # noqa: E501
@@ -426,7 +420,6 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                         "Send any message to start again."
                     )
                 await _send_message(phone, decline_msg)
-                # Reset so they start fresh next time
                 db.delete(session)
                 db.commit()
             else:
@@ -452,302 +445,225 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             return
 
         # ------------------------------------------------------------------
-        # STATE: INCIDENT_SELECT
+        # STATE: DYNAMIC_QUESTION
         # ------------------------------------------------------------------
-        if state == "INCIDENT_SELECT":
-            text_body = (msg.get("text") or {}).get("body", "").strip()
-            options = _fetch_incident_options(db)
+        if state == "DYNAMIC_QUESTION":
             lang = session.language
-            from app.services.translation import get_translation
-
-            try:
-                idx = int(text_body) - 1
-                if idx < 0 or idx >= len(options):
-                    raise ValueError()
-                selected = options[idx]
-            except (ValueError, TypeError):
-                menu = "\n".join(
-                    f"{i}: {get_translation(o.translations, lang, o.label)}"
-                    for i, o in enumerate(options, 1)
-                )
-                if lang == "sw":
-                    prompt = f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
-                else:
-                    prompt = f"Please reply with a valid number.\n\n{menu}"
-                await _send_message(phone, prompt)
-                return
-            session.incident_type = selected.value
-            session.option_text = selected.label
-            session.state = "MEDIA_UPLOAD"
-            db.commit()
-
-            selected_label = get_translation(
-                selected.translations, lang, selected.label
+            curr_q = (
+                db.query(Question)
+                .filter(Question.id == session.current_question_id)
+                .first()
             )
-            if lang == "sw":
-                prompt = (
-                    f"Ulichagua: *{selected_label}*\n\n"
-                    "Tafadhali tuma picha au video ya tukio "
-                    "(au jibu *skip* kuendelea bila picha/video)."
+            if not curr_q:
+                logger.error(
+                    "Current question ID %s not found in database",
+                    session.current_question_id,
                 )
-            else:
-                prompt = (
-                    f"You selected: *{selected_label}*\n\n"
-                    "Please send a photo or video of the incident "
-                    "(or reply *skip* to continue without media)."
-                )
-            await _send_message(phone, prompt)
-            return
+                db.delete(session)
+                db.commit()
+                return
 
-        # ------------------------------------------------------------------
-        # STATE: MEDIA_UPLOAD
-        # ------------------------------------------------------------------
-        if state == "MEDIA_UPLOAD":
-            lang = session.language
-            if msg_type in ("image", "video", "document"):
-                media_id = (msg.get(msg_type) or {}).get("id")
-                mime_type = (msg.get(msg_type) or {}).get(
-                    "mime_type", "application/octet-stream"
-                )
-                if media_id:
-                    ext = mime_type.split("/")[-1].split(";")[0]
-                    blob_name = build_blob_path("whatsapp", ext)
+            valid = False
+            parsed_val = None
+
+            if curr_q.type == "cascade":
+                # Multi-level location cascade: Region -> County -> Sub-county
+                counties = _fetch_subcounties(db)
+                if not session.location:
+                    # Parse County choice
+                    text_body = (msg.get("text") or {}).get("body", "").strip()
                     try:
-                        # Step 1: resolve Meta media URL
-                        media_url = await _get_media_url(media_id)
-                        # Step 2: stream chunks to GCS (memory-safe, FR-002)
-                        storage = StorageService()
-                        await storage.stream_upload_async(
-                            blob_name=blob_name,
-                            chunks=_iter_media_chunks(media_url),
-                            content_type=mime_type,
+                        idx = int(text_body) - 1
+                        if idx < 0 or idx >= len(counties):
+                            raise ValueError()
+                        selected_county = counties[idx]
+                        valid = True
+                    except (ValueError, TypeError):
+                        menu = _format_location_menu(counties, lang)
+                        prompt = (
+                            f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
+                            if lang == "sw"
+                            else f"Please reply with a valid number.\n\n{menu}"
                         )
-                        session.media_url = blob_name
-                        logger.info(
-                            "Media uploaded to GCS: %s (phone=%s)",
-                            blob_name,
-                            phone,
+                        await _send_message(phone, prompt)
+                        return
+
+                    # Check if there are level 3 sub-counties
+                    sub_counties = (
+                        db.query(SpatialBoundary)
+                        .filter(
+                            SpatialBoundary.level == 3,
+                            SpatialBoundary.parent_id == selected_county.id,
                         )
-                    except Exception as exc:
-                        # FR-006: log full traceback so GCS auth/network
-                        # errors are visible in the container logs.
-                        logger.error(
-                            "Media upload failed for %s (blob=%s): %s",
-                            phone,
-                            blob_name,
-                            exc,
-                            exc_info=True,
+                        .order_by(SpatialBoundary.name)
+                        .all()
+                    )
+
+                    if sub_counties:
+                        session.location = str(selected_county.id)
+                        db.commit()
+                        menu_lines = [
+                            f"  {i}: {sc.name}"
+                            for i, sc in enumerate(sub_counties, 1)
+                        ]
+                        menu = "\n".join(menu_lines)
+                        prompt = (
+                            f"Chagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"
+                            if lang == "sw"
+                            else f"Choose sub-county of {selected_county.name}:\n\n{menu}"
                         )
-                        session.media_url = "UPLOAD_FAILED"
-            elif msg_type == "text":
-                skip_text = (msg.get("text") or {}).get("body", "").strip()
-                if skip_text.lower() != "skip":
-                    if lang == "sw":
-                        prompt = "Tafadhali tuma picha/video au jibu *skip*."
+                        await _send_message(phone, prompt)
+                        return
                     else:
-                        prompt = "Please send a photo/video or reply *skip*."
+                        # No sub-counties, county is final
+                        parsed_val = str(selected_county.id)
+                else:
+                    # Parse Sub-county choice
+                    text_body = (msg.get("text") or {}).get("body", "").strip()
+                    county_id = session.location
+                    selected_county = (
+                        db.query(SpatialBoundary)
+                        .filter(SpatialBoundary.id == county_id)
+                        .first()
+                    )
+                    sub_counties = (
+                        db.query(SpatialBoundary)
+                        .filter(
+                            SpatialBoundary.level == 3,
+                            SpatialBoundary.parent_id == selected_county.id,
+                        )
+                        .order_by(SpatialBoundary.name)
+                        .all()
+                    )
+                    try:
+                        idx = int(text_body) - 1
+                        if idx < 0 or idx >= len(sub_counties):
+                            raise ValueError()
+                        selected_sc = sub_counties[idx]
+                        parsed_val = str(selected_sc.id)
+                        valid = True
+                    except (ValueError, TypeError):
+                        menu_lines = [
+                            f"  {i}: {sc.name}"
+                            for i, sc in enumerate(sub_counties, 1)
+                        ]
+                        menu = "\n".join(menu_lines)
+                        prompt = (
+                            f"Tafadhali jibu kwa nambari sahihi.\n\nChagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"
+                            if lang == "sw"
+                            else f"Please reply with a valid number.\n\nChoose sub-county of {selected_county.name}:\n\n{menu}"
+                        )
+                        await _send_message(phone, prompt)
+                        return
+
+            elif curr_q.type == "option":
+                text_body = (msg.get("text") or {}).get("body", "").strip()
+                options = (
+                    db.query(Option)
+                    .filter(Option.question_id == curr_q.id)
+                    .order_by(Option.order.asc())
+                    .all()
+                )
+                try:
+                    idx = int(text_body) - 1
+                    if idx < 0 or idx >= len(options):
+                        raise ValueError()
+                    selected_opt = options[idx]
+                    parsed_val = selected_opt.value
+                    valid = True
+                except (ValueError, TypeError):
+                    menu = "\n".join(
+                        f"{i}: {get_translation(o.translations, lang, o.label)}"
+                        for i, o in enumerate(options, 1)
+                    )
+                    prompt = (
+                        f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
+                        if lang == "sw"
+                        else f"Please reply with a valid number.\n\n{menu}"
+                    )
                     await _send_message(phone, prompt)
                     return
 
-            # Move to location
-            subcounties = _fetch_subcounties(db)
-            menu = _format_location_menu(subcounties, lang)
-            session.state = "LOCATION_SELECT"
-            db.commit()
-            if lang == "sw":
-                prompt = f"Chagua eneo lako:\n\n{menu}"
+            elif curr_q.type in ("image", "attachment"):
+                if msg_type in ("image", "video", "document"):
+                    media_id = (msg.get(msg_type) or {}).get("id")
+                    mime_type = (msg.get(msg_type) or {}).get(
+                        "mime_type", "application/octet-stream"
+                    )
+                    if media_id:
+                        ext = mime_type.split("/")[-1].split(";")[0]
+                        blob_name = build_blob_path("whatsapp", ext)
+                        try:
+                            media_url = await _get_media_url(media_id)
+                            storage = StorageService()
+                            await storage.stream_upload_async(
+                                blob_name=blob_name,
+                                chunks=_iter_media_chunks(media_url),
+                                content_type=mime_type,
+                            )
+                            parsed_val = blob_name
+                            valid = True
+                        except Exception as exc:
+                            logger.error(
+                                "Media upload failed for %s (blob=%s): %s",
+                                phone,
+                                blob_name,
+                                exc,
+                                exc_info=True,
+                            )
+                            parsed_val = "UPLOAD_FAILED"
+                            valid = True
+                elif msg_type == "text":
+                    skip_text = (msg.get("text") or {}).get("body", "").strip()
+                    if skip_text.lower() == "skip":
+                        parsed_val = "UPLOAD_FAILED"
+                        valid = True
+                    else:
+                        prompt = (
+                            "Tafadhali tuma picha/video au jibu *skip*."
+                            if lang == "sw"
+                            else "Please send a photo/video or reply *skip*."
+                        )
+                        await _send_message(phone, prompt)
+                        return
+
             else:
-                prompt = f"Choose your location:\n\n{menu}"
-            await _send_message(phone, prompt)
-            return
+                # Text/number or fallback input types
+                text_body = (msg.get("text") or {}).get("body", "").strip()
+                if text_body:
+                    parsed_val = text_body
+                    valid = True
 
-        # ------------------------------------------------------------------
-        # STATE: LOCATION_SELECT
-        # ------------------------------------------------------------------
-        if state == "LOCATION_SELECT":
-            text_body = (msg.get("text") or {}).get("body", "").strip()
-            subcounties = _fetch_subcounties(db)
-            lang = session.language
-            try:
-                idx = int(text_body) - 1
-                if idx < 0 or idx >= len(subcounties):
-                    raise ValueError()
-                selected_sc = subcounties[idx]
-            except (ValueError, TypeError):
-                menu = _format_location_menu(subcounties, lang)
-                if lang == "sw":
-                    prompt = f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
-                else:
-                    prompt = f"Please reply with a valid number.\n\n{menu}"
-                await _send_message(phone, prompt)
-                return
-
-            # Check if there are Level 3 sub-counties below the selected county
-            sub_counties = (
-                db.query(SpatialBoundary)
-                .filter(
-                    SpatialBoundary.level == 3,
-                    SpatialBoundary.parent_id == selected_sc.id,
-                )
-                .order_by(SpatialBoundary.name)
-                .all()
-            )
-
-            if sub_counties:
-                session.state = "SUB_COUNTY_SELECT"
-                session.location = str(selected_sc.id)
+            if valid:
+                # Save answer in session answers
+                session_answers[str(curr_q.id)] = parsed_val
+                session.answers = session_answers
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(session, "answers")
+                session.location = None  # Reset temporary cascade state
                 db.commit()
 
-                menu_lines = [
-                    f"  {i}: {sc.name}" for i, sc in enumerate(sub_counties, 1)
-                ]
-                menu = "\n".join(menu_lines)
-                if lang == "sw":
-                    prompt = (
-                        f"Chagua wilaya ndogo ya {selected_sc.name}:\n\n{menu}"
-                    )
+                # Get next active question
+                next_q = _get_next_active_question(
+                    active_questions, session_answers, curr_q.id
+                )
+                if next_q:
+                    session.current_question_id = next_q.id
+                    db.commit()
+                    await _prompt_question(phone, next_q, lang, db)
                 else:
-                    prompt = (
-                        f"Choose sub-county of {selected_sc.name}:\n\n{menu}"
+                    # All completed!
+                    _save_report(
+                        db, phone, session, session_answers, active_questions
                     )
-                await _send_message(phone, prompt)
-                return
-
-            # Fetch the selected option from session
-            options = _fetch_incident_options(db)
-            selected_option = next(
-                (o for o in options if o.value == session.incident_type),
-                None,
-            )
-            if not selected_option:
-                logger.error(
-                    "Cannot find option for incident_type=%s",
-                    session.incident_type,
-                )
-                if lang == "sw":
-                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."  # noqa: E501
-                else:
-                    err_msg = "Sorry, something went wrong. Please start again."  # noqa: E501
-                await _send_message(phone, err_msg)
-                db.delete(session)
-                db.commit()
-                return
-
-            _save_report(
-                db,
-                phone,
-                session,
-                selected_option,
-                selected_sc,
-                session.media_url,
-            )
-            # Delete session after successful submission
-            db.delete(session)
-            db.commit()
-            if lang == "sw":
-                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."  # noqa: E501
-            else:
-                thank_msg = (
-                    "\u2705 Thank you! Your report has been received "
-                    "by NBD Wetland Watch."
-                )
-            await _send_message(phone, thank_msg)
-            return
-
-        # ------------------------------------------------------------------
-        # STATE: SUB_COUNTY_SELECT
-        # ------------------------------------------------------------------
-        if state == "SUB_COUNTY_SELECT":
-            text_body = (msg.get("text") or {}).get("body", "").strip()
-            lang = session.language
-
-            # Retrieve the selected county
-            county_id = session.location
-            selected_county = (
-                db.query(SpatialBoundary)
-                .filter(SpatialBoundary.id == county_id)
-                .first()
-            )
-            if not selected_county:
-                logger.error("County not found for ID %s", county_id)
-                db.delete(session)
-                db.commit()
-                return
-
-            sub_counties = (
-                db.query(SpatialBoundary)
-                .filter(
-                    SpatialBoundary.level == 3,
-                    SpatialBoundary.parent_id == selected_county.id,
-                )
-                .order_by(SpatialBoundary.name)
-                .all()
-            )
-
-            try:
-                idx = int(text_body) - 1
-                if idx < 0 or idx >= len(sub_counties):
-                    raise ValueError()
-                selected_sc = sub_counties[idx]
-            except (ValueError, TypeError):
-                menu_lines = [
-                    f"  {i}: {sc.name}" for i, sc in enumerate(sub_counties, 1)
-                ]
-                menu = "\n".join(menu_lines)
-                if lang == "sw":
-                    prompt = (
-                        f"Tafadhali jibu kwa nambari sahihi.\n\n"
-                        f"Chagua wilaya ndogo ya {selected_county.name}:\n\n"
-                        f"{menu}"
+                    db.delete(session)
+                    db.commit()
+                    thank_msg = (
+                        "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+                        if lang == "sw"
+                        else "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
                     )
-                else:
-                    prompt = (
-                        f"Please reply with a valid number.\n\n"
-                        f"Choose sub-county of {selected_county.name}:\n\n"
-                        f"{menu}"
-                    )
-                await _send_message(phone, prompt)
-                return
-
-            # Fetch the selected option from session
-            options = _fetch_incident_options(db)
-            selected_option = next(
-                (o for o in options if o.value == session.incident_type),
-                None,
-            )
-            if not selected_option:
-                logger.error(
-                    "Cannot find option for incident_type=%s",
-                    session.incident_type,
-                )
-                if lang == "sw":
-                    err_msg = "Samahani, kuna kitu kimeenda vibaya. Tafadhali anza tena."  # noqa: E501
-                else:
-                    err_msg = "Sorry, something went wrong. Please start again."  # noqa: E501
-                await _send_message(phone, err_msg)
-                db.delete(session)
-                db.commit()
-                return
-
-            _save_report(
-                db,
-                phone,
-                session,
-                selected_option,
-                selected_sc,
-                session.media_url,
-            )
-            # Delete session after successful submission
-            db.delete(session)
-            db.commit()
-            if lang == "sw":
-                thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."  # noqa: E501
-            else:
-                thank_msg = (
-                    "\u2705 Thank you! Your report has been received "
-                    "by NBD Wetland Watch."
-                )
-            await _send_message(phone, thank_msg)
+                    await _send_message(phone, thank_msg)
             return
 
     except Exception as exc:
@@ -762,3 +678,51 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             pass
     finally:
         db.close()
+
+
+async def _prompt_question(
+    phone: str, q: Question, lang: str, db: Session
+) -> None:
+    """Helper to format and send the question prompt to WhatsApp user."""
+    from app.services.translation import get_translation
+
+    q_label = get_translation(q.translations, lang, q.label)
+
+    if q.type == "cascade":
+        subcounties = _fetch_subcounties(db)
+        menu = _format_location_menu(subcounties, lang)
+        prompt = (
+            f"Chagua eneo lako:\n\n{menu}"
+            if lang == "sw"
+            else f"Choose your location:\n\n{menu}"
+        )
+        await _send_message(phone, prompt)
+
+    elif q.type == "option":
+        options = (
+            db.query(Option)
+            .filter(Option.question_id == q.id)
+            .order_by(Option.order.asc())
+            .all()
+        )
+        menu = "\n".join(
+            f"{i}: {get_translation(o.translations, lang, o.label)}"
+            for i, o in enumerate(options, 1)
+        )
+        prompt = (
+            f"Je, ungependa kuripoti nini?\n\n{menu}"
+            if lang == "sw"
+            else f"What would you like to report?\n\n{menu}"
+        )
+        await _send_message(phone, prompt)
+
+    elif q.type in ("image", "attachment"):
+        prompt = (
+            f"Tafadhali tuma picha au video ya tukio (au jibu *skip* kuendelea bila picha/video)."
+            if lang == "sw"
+            else f"Please send a photo or video of the incident (or reply *skip* to continue without media)."
+        )
+        await _send_message(phone, prompt)
+
+    else:
+        await _send_message(phone, f"{q_label}:")
