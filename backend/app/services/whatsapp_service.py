@@ -397,9 +397,9 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 )
                 if not first_q:
                     if lang == "sw":
-                        thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+                        thank_msg = "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."  # noqa
                     else:
-                        thank_msg = "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
+                        thank_msg = "\u2705 Thank you! Your report has been received by NBD Wetland Watch."  # noqa
                     await _send_message(phone, thank_msg)
                     db.delete(session)
                     db.commit()
@@ -508,9 +508,9 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                         ]
                         menu = "\n".join(menu_lines)
                         prompt = (
-                            f"Chagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"
+                            f"Chagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"  # noqa
                             if lang == "sw"
-                            else f"Choose sub-county of {selected_county.name}:\n\n{menu}"
+                            else f"Choose sub-county of {selected_county.name}:\n\n{menu}"  # noqa
                         )
                         await _send_message(phone, prompt)
                         return
@@ -549,9 +549,9 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                         ]
                         menu = "\n".join(menu_lines)
                         prompt = (
-                            f"Tafadhali jibu kwa nambari sahihi.\n\nChagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"
+                            f"Tafadhali jibu kwa nambari sahihi.\n\nChagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"  # noqa
                             if lang == "sw"
-                            else f"Please reply with a valid number.\n\nChoose sub-county of {selected_county.name}:\n\n{menu}"
+                            else f"Please reply with a valid number.\n\nChoose sub-county of {selected_county.name}:\n\n{menu}"  # noqa
                         )
                         await _send_message(phone, prompt)
                         return
@@ -573,7 +573,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     valid = True
                 except (ValueError, TypeError):
                     menu = "\n".join(
-                        f"{i}: {get_translation(o.translations, lang, o.label)}"
+                        f"{i}: {get_translation(o.translations, lang, o.label)}"  # noqa
                         for i, o in enumerate(options, 1)
                     )
                     prompt = (
@@ -639,6 +639,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 session_answers[str(curr_q.id)] = parsed_val
                 session.answers = session_answers
                 from sqlalchemy.orm.attributes import flag_modified
+
                 flag_modified(session, "answers")
                 session.location = None  # Reset temporary cascade state
                 db.commit()
@@ -659,9 +660,9 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     db.delete(session)
                     db.commit()
                     thank_msg = (
-                        "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+                        "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."  # noqa
                         if lang == "sw"
-                        else "\u2705 Thank you! Your report has been received by NBD Wetland Watch."
+                        else "\u2705 Thank you! Your report has been received by NBD Wetland Watch."  # noqa
                     )
                     await _send_message(phone, thank_msg)
             return
@@ -718,9 +719,9 @@ async def _prompt_question(
 
     elif q.type in ("image", "attachment"):
         prompt = (
-            f"Tafadhali tuma picha au video ya tukio (au jibu *skip* kuendelea bila picha/video)."
+            f"Tafadhali tuma picha au video ya tukio (au jibu *skip* kuendelea bila picha/video)."  # noqa
             if lang == "sw"
-            else f"Please send a photo or video of the incident (or reply *skip* to continue without media)."
+            else f"Please send a photo or video of the incident (or reply *skip* to continue without media)."  # noqa
         )
         await _send_message(phone, prompt)
 

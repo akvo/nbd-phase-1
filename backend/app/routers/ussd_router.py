@@ -254,9 +254,9 @@ def _handle_ussd_core(
                             selected_sc = sub_counties[sub_choice]
                         except (ValueError, TypeError):
                             err_txt = (
-                                "END Uteuzi wa wilaya ndogo sio sahihi. Kikao kimefungwa."
+                                "END Uteuzi wa wilaya ndogo sio sahihi. Kikao kimefungwa."  # noqa
                                 if lang == "sw"
-                                else "END Invalid sub-county selection. Session closed."
+                                else "END Invalid sub-county selection. Session closed."  # noqa
                             )
                             processed_sessions[sessionId] = err_txt
                             return PlainTextResponse(
@@ -266,16 +266,17 @@ def _handle_ussd_core(
                         current_answers[q.name] = str(selected_sc.id)
                         input_idx += 2
                     else:
-                        # We have Level 2, but we need Level 3 sub-county! Prompt it.
+                        # We have Level 2,
+                        # but we need Level 3 sub-county! Prompt it.
                         sub_menu_lines = [
                             f"  {idx}. {sc.name}"
                             for idx, sc in enumerate(sub_counties, 1)
                         ]
                         prompt_text = (
-                            f"CON Chagua Wilaya ndogo ya {selected_county.name}:\n"
+                            f"CON Chagua Wilaya ndogo ya {selected_county.name}:\n"  # noqa
                             + "\n".join(sub_menu_lines)
                             if lang == "sw"
-                            else f"CON Choose Sub-County of {selected_county.name}:\n"
+                            else f"CON Choose Sub-County of {selected_county.name}:\n"  # noqa
                             + "\n".join(sub_menu_lines)
                         )
                         return PlainTextResponse(
@@ -360,7 +361,7 @@ def _handle_ussd_core(
                     .all()
                 )
                 menu_items = [
-                    f"{idx}: {get_translation(opt.translations, lang, opt.label)}"
+                    f"{idx}: {get_translation(opt.translations, lang, opt.label)}"  # noqa
                     for idx, opt in enumerate(options, 1)
                 ]
                 q_label = get_translation(q.translations, lang, q.label)
