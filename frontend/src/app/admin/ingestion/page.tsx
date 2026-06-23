@@ -20,6 +20,7 @@ import {
 interface DeadLetter {
   id: string;
   source_system: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   raw_payload: any;
   error_reason: string;
   status: string;
@@ -59,6 +60,7 @@ export default function IngestionPage() {
 
   useEffect(() => {
     fetchRecords();
+    // eslint-disable-next-line
   }, [statusFilter, sourceFilter]);
 
   const handleAcknowledge = async (id: string) => {

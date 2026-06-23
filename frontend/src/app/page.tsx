@@ -28,16 +28,17 @@ const mapDbSiteToDrawerSite = (site: any): any => {
   const ikAdjustedScore = site.status?.ik_adjusted_score ?? compositeScore;
 
   // Re-map management actions list
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const management_actions = (site.management_actions || []).map(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (action: any) => ({
       label: action.label,
       description: action.description,
     })
   );
 
-  // Match country by prefix MS1 (Tanzania), SIO (Kenya)
-  const country = site.code?.includes("SIO") ? "Kenya" : "Tanzania";
+  // Match country from backend, fallback to prefix MS1 (Tanzania), SIO (Kenya)
+  const country =
+    site.country || (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
 
   return {
     site_id: site.code,
@@ -88,8 +89,11 @@ export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [basins, setBasins] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dbSites, setDbSites] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dbIncidents, setDbIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -132,6 +136,7 @@ export default function Home() {
         setDbSites(sitesData);
         // Filter submissions to only include "Pollution Reporting Form"
         const filteredSubs = subsData.filter(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (sub: any) => sub.form_name === "Pollution Reporting Form"
         );
         setDbIncidents(filteredSubs);
@@ -180,6 +185,7 @@ export default function Home() {
 
     // Resolve incident type and map to severity status
     const qIncidentAns = incident.answers.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (a: any) => a.name === "incident_type" || a.question_id === 2
     );
     const optionVal = qIncidentAns?.options?.[0];
@@ -235,6 +241,7 @@ export default function Home() {
         : [0, 0];
 
       const qIncidentAns = incident.answers.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (a: any) => a.name === "incident_type" || a.question_id === 2
       );
       const optionVal = qIncidentAns?.options?.[0];
@@ -251,6 +258,7 @@ export default function Home() {
       }
 
       const qDetailAns = incident.answers.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (a: any) =>
           a.name === "incident_description" ||
           a.name === "details" ||
@@ -408,9 +416,9 @@ export default function Home() {
                     const isIkAdjusted =
                       site.status?.ik_adjusted_score !==
                       site.status?.composite_score;
-                    const country = site.code?.includes("SIO")
-                      ? "Kenya"
-                      : "Tanzania";
+                    const country =
+                      site.country ||
+                      (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
 
                     return (
                       <Card
