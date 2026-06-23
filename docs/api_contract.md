@@ -86,7 +86,44 @@ Personally Identifiable Information (PII), specifically reporter phone numbers, 
     "name": "Lower Mara Bridge",
     "basin": "Mara",
     "country": "Tanzania",
-    "health_class": "C"
+    "health_class": "C",
+    "status": {
+      "composite_score": 0.638,
+      "ik_adjusted_score": 0.55,
+      "traffic_light": "Yellow",
+      "health_class": "C",
+      "sampling_date": "2026-05-28T10:30:00Z",
+      "metrics": {
+        "ph": {
+          "value": 7.8,
+          "unit": null,
+          "status": "Normal",
+          "label": "pH",
+          "icon": "FlaskConical"
+        },
+        "temperature": {
+          "value": 23.25,
+          "unit": "°C",
+          "status": "Normal",
+          "label": "Water temperature",
+          "icon": "Thermometer"
+        },
+        "dissolved_oxygen": {
+          "value": 4.77,
+          "unit": "mg/L",
+          "status": "Low",
+          "label": "Dissolved O₂",
+          "icon": "Droplets"
+        },
+        "water_level": {
+          "value": "HIGH",
+          "unit": null,
+          "status": "Flood Risk",
+          "label": "Water level",
+          "icon": "Ruler"
+        }
+      }
+    }
   }
 }
 ```
