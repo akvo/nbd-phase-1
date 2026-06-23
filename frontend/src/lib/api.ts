@@ -48,8 +48,24 @@ adminApiClient.interceptors.response.use(
   }
 );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const getBasins = async (): Promise<any[]> => {
+export const getBasins = async (): Promise<Record<string, unknown>[]> => {
   const response = await apiClient.get("/basins");
+  return response.data;
+};
+
+export const getSites = async (params?: {
+  search?: string;
+  health_class?: string;
+  basin?: string;
+}): Promise<Record<string, unknown>[]> => {
+  const response = await apiClient.get("/sites", { params });
+  return response.data;
+};
+
+export const getSubmissions = async (params?: {
+  status?: string;
+  form_id?: number;
+}): Promise<Record<string, unknown>[]> => {
+  const response = await apiClient.get("/submissions", { params });
   return response.data;
 };

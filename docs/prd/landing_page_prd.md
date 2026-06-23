@@ -21,7 +21,7 @@ We will implement the home page screen matching the Figma specifications, includ
 3. **Site & Incident Information Cards**:
    - Scrollable/collapsible drawer or sidebar displaying list cards with site metrics (site name, ID, health grade, progress indicators, community signal summaries, and badges like "Approved", "IK-adjusted", and country tags).
    - Support for detailed slide-out views showing parameter breakdowns (pH, dissolved oxygen, temperature) and qualitative Indigenous Knowledge (IK) signals when a card is selected.
-4. **Static JSON Mock Data**: Simulates the exact payload format defined in `docs/api_contract.md` to run the entire UI dynamically without backend API connections.
+4. **Live Database Integration**: Fetch all active sites and approved pollution incidents dynamically from backend FastAPI endpoints (`/api/v1/sites` and `/api/v1/submissions?status=APPROVED`).
 
 **Why now** (Strategic context):
 The landing page serves as the entry point for citizen scientists, wetland managers, and the public. Providing a responsive, map-centric view immediately brings transparency to wetland degradation trends.
@@ -69,7 +69,7 @@ The landing page serves as the entry point for citizen scientists, wetland manag
 | **FR-003** | The system MUST support filtering both map markers and list items via the status toggle tags (All, Critical, At risk, Healthy). | US-002 | Must Have |
 | **FR-004** | The system MUST implement a search bar that dynamically filters the list of sites on keyup/change. | US-003 | Must Have |
 | **FR-005** | The system MUST display site details matching Figma (including name, ID, Health Grade badge, progress bar, country badge, and IK-adjusted badge). | US-004 | Must Have |
-| **FR-006** | The system MUST load mock data directly from a static JSON file/object replicating `docs/api_contract.md` structures for `summary`, `sites`, and `incidents`. | US-001 | Must Have |
+| **FR-006** | The system MUST fetch active sites and approved incidents dynamically from the database using public API endpoints. | US-001 | Must Have |
 
 ---
 
@@ -88,9 +88,6 @@ The landing page serves as the entry point for citizen scientists, wetland manag
 
 ```
 frontend/
-├── public/
-│   └── data/
-│       └── mock_map_data.json  # Authoritative mockup database
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx            # Landing/Home page with interactive map and side panel
@@ -99,6 +96,8 @@ frontend/
 │       └── ui/
 │           ├── map-viewer.tsx  # Map component wrap
 │           └── site-drawer.tsx # Detailed view drawer
+│   └── lib/
+│       └── api.ts              # Frontend API client
 ```
 
 ---
@@ -109,10 +108,9 @@ frontend/
 - Design and build of the Next.js home page integrating the Leaflet.js interactive map.
 - Side panel/bottom sheet component that listing sites, filterable by health category and search string.
 - Detail drawer detailing physico-chemical parameters and IK signals.
-- Comprehensive local mockup dataset matching the JSON contracts.
+- Direct database query calls to fetch sites, basins, and incidents.
 
 **v1 — Explicitly Out of Scope**:
-- Real API network request calls to backend FastAPI endpoints (simulated entirely via static mock files).
 - Dynamic pollution reporting submission forms (only reporting visualizer maps are in scope).
 
 ---
@@ -121,9 +119,9 @@ frontend/
 
 | Component | Task Description | Complexity | Ballpark Estimate (Hours) | Assumptions |
 |-----------|------------------|------------|---------------------------|-------------|
-| **Mock Database** | Create `mock_map_data.json` based on API contract schemas | Simple | 2h | None |
-| **GIS Map Component** | Dynamic marker rendering, tooltips, custom icons in Leaflet | Medium | 6h | Leaflet is fully integrated |
-| **Search & Filters** | State hooks for status tags, search queries, dynamic routing | Simple | 4h | Frontend search is instant |
+| **API Client Integration** | Implement API hooks and queries for database fetching | Simple | 3h | APIs are available and unauthenticated |
+| **GIS Map Component** | Dynamic marker rendering, tooltips, custom icons, and scroll protection in Leaflet | Medium | 8h | Leaflet is fully integrated |
+| **Search & Filters** | State hooks for status tags, search queries, database loading | Simple | 4h | Frontend search is instant |
 | **Detail Drawer** | Responsive bottom drawer displaying metrics and actions | Medium | 6h | Glassmorphism/visual styles apply |
 | **QA / Verification** | Viewport layout testing, functionality audit | Simple | 3h | None |
 
