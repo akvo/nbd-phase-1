@@ -30,10 +30,12 @@ const mapDbSiteToDrawerSite = (site: any): any => {
 
   // Re-map management actions list
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const management_actions = (site.management_actions || []).map((action: any) => ({
-    label: action.label,
-    description: action.description,
-  }));
+  const management_actions = (site.management_actions || []).map(
+    (action: any) => ({
+      label: action.label,
+      description: action.description,
+    })
+  );
 
   // Match country by prefix MS1 (Tanzania), SIO (Kenya)
   const country = site.code?.includes("SIO") ? "Kenya" : "Tanzania";
@@ -50,7 +52,8 @@ const mapDbSiteToDrawerSite = (site: any): any => {
     community_signal: site.description || "No signal details recorded.",
     progress_percent: Math.round(ikAdjustedScore * 100),
     is_approved: true,
-    is_ik_adjusted: site.status?.ik_adjusted_score !== site.status?.composite_score,
+    is_ik_adjusted:
+      site.status?.ik_adjusted_score !== site.status?.composite_score,
     details: {
       physico_chemical: {
         group_score: compositeScore,
@@ -124,7 +127,7 @@ export default function Home() {
     setLoading(true);
     Promise.all([
       getSites({ basin: selectedBasin }),
-      getSubmissions({ status: "APPROVED" })
+      getSubmissions({ status: "APPROVED" }),
     ])
       .then(([sitesData, subsData]) => {
         setDbSites(sitesData);
@@ -249,9 +252,13 @@ export default function Home() {
       }
 
       const qDetailAns = incident.answers.find(
-        (a: any) => a.name === "incident_description" || a.name === "details" || a.question_id === 3
+        (a: any) =>
+          a.name === "incident_description" ||
+          a.name === "details" ||
+          a.question_id === 3
       );
-      const descText = qDetailAns?.value || incident.description || "No details recorded.";
+      const descText =
+        qDetailAns?.value || incident.description || "No details recorded.";
       const incidentTypeName = qIncidentAns?.value || "Pollution Report";
       const formattedDate = incident.submitted_at
         ? new Date(incident.submitted_at).toLocaleDateString()
@@ -298,7 +305,9 @@ export default function Home() {
         </div>
 
         {/* Left Side Panel (Mobile: stacks below map, Desktop: floating sidebar panel) */}
-        <section className={`relative ${isListCollapsed ? "flex-initial" : "flex-1"} md:absolute md:bottom-auto md:left-auto md:right-auto md:w-96 md:h-full bg-white/95 backdrop-blur-sm border-t md:border-t-0 md:border-r border-slate-200 z-10 flex flex-col shadow-2xl md:shadow-lg rounded-t-2xl md:rounded-t-none`}>
+        <section
+          className={`relative ${isListCollapsed ? "flex-initial" : "flex-1"} md:absolute md:bottom-auto md:left-auto md:right-auto md:w-96 md:h-full bg-white/95 backdrop-blur-sm border-t md:border-t-0 md:border-r border-slate-200 z-10 flex flex-col shadow-2xl md:shadow-lg rounded-t-2xl md:rounded-t-none`}
+        >
           {/* Drag indicator for mobile - clickable toggle */}
           <button
             onClick={() => setIsListCollapsed(!isListCollapsed)}
@@ -360,7 +369,8 @@ export default function Home() {
                   Monitoring Sites ({filteredSites.length})
                   {filteredIncidents.length > 0 && (
                     <span className="text-red-500 normal-case font-medium ml-2">
-                      • {filteredIncidents.length} Incident{filteredIncidents.length > 1 ? "s" : ""}
+                      • {filteredIncidents.length} Incident
+                      {filteredIncidents.length > 1 ? "s" : ""}
                     </span>
                   )}
                 </span>
@@ -385,16 +395,23 @@ export default function Home() {
             {!isListCollapsed && (
               <div className="mt-3 space-y-3 overflow-y-auto pr-1 flex-1">
                 {loading ? (
-                  <div className="py-8 flex justify-center"><Loader message="Loading wetland data..." /></div>
+                  <div className="py-8 flex justify-center">
+                    <Loader message="Loading wetland data..." />
+                  </div>
                 ) : filteredSites.length > 0 ? (
                   filteredSites.map((site) => {
                     const hClass = site.status?.health_class || "C";
                     const isCritical = ["D", "E"].includes(hClass);
                     const isAtRisk = hClass === "C";
-                    const ikAdjustedScore = site.status?.ik_adjusted_score ?? 0.5;
+                    const ikAdjustedScore =
+                      site.status?.ik_adjusted_score ?? 0.5;
                     const progressPercent = Math.round(ikAdjustedScore * 100);
-                    const isIkAdjusted = site.status?.ik_adjusted_score !== site.status?.composite_score;
-                    const country = site.code?.includes("SIO") ? "Kenya" : "Tanzania";
+                    const isIkAdjusted =
+                      site.status?.ik_adjusted_score !==
+                      site.status?.composite_score;
+                    const country = site.code?.includes("SIO")
+                      ? "Kenya"
+                      : "Tanzania";
 
                     return (
                       <Card
@@ -426,7 +443,8 @@ export default function Home() {
 
                         <div className="space-y-1">
                           <div className="text-xs text-slate-500 font-medium">
-                            Community Signal: {site.description || "No signal details recorded."}
+                            Community Signal:{" "}
+                            {site.description || "No signal details recorded."}
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -492,7 +510,10 @@ export default function Home() {
       <MapLegend />
 
       {/* Site granular details Drawer panel */}
-      <SiteDrawer site={mapDbSiteToDrawerSite(selectedSite)} onClose={() => setSelectedSite(null)} />
+      <SiteDrawer
+        site={mapDbSiteToDrawerSite(selectedSite)}
+        onClose={() => setSelectedSite(null)}
+      />
     </main>
   );
 }

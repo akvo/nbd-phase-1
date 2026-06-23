@@ -77,7 +77,9 @@ function GestureHandling() {
     };
 
     const container = map.getContainer();
-    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
     container.addEventListener("touchend", handleTouchEnd, { passive: true });
 
     return () => {
@@ -227,7 +229,10 @@ export default function MapViewer({
                   <div className="flex justify-between items-start gap-3">
                     <div>
                       <h4 className="font-bold text-sm leading-tight text-slate-900">
-                        {marker.name || (marker.type === "site" ? "Monitoring Station" : "Incident Report")}
+                        {marker.name ||
+                          (marker.type === "site"
+                            ? "Monitoring Station"
+                            : "Incident Report")}
                       </h4>
                       {marker.code && (
                         <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
@@ -236,19 +241,21 @@ export default function MapViewer({
                       )}
                     </div>
                     {marker.status && (
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                        marker.type === "site"
-                          ? ["D", "E"].includes(marker.status)
-                            ? "bg-red-50 text-red-600 border border-red-200"
-                            : marker.status === "C"
-                              ? "bg-amber-50 text-amber-600 border border-amber-200"
-                              : "bg-green-50 text-green-600 border border-green-200"
-                          : marker.status === "Critical"
-                            ? "bg-red-50 text-red-600 border border-red-200"
-                            : marker.status === "Elevated"
-                              ? "bg-orange-50 text-orange-600 border border-orange-200"
-                              : "bg-yellow-50 text-yellow-600 border border-yellow-200"
-                      }`}>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          marker.type === "site"
+                            ? ["D", "E"].includes(marker.status)
+                              ? "bg-red-50 text-red-600 border border-red-200"
+                              : marker.status === "C"
+                                ? "bg-amber-50 text-amber-600 border border-amber-200"
+                                : "bg-green-50 text-green-600 border border-green-200"
+                            : marker.status === "Critical"
+                              ? "bg-red-50 text-red-600 border border-red-200"
+                              : marker.status === "Elevated"
+                                ? "bg-orange-50 text-orange-600 border border-orange-200"
+                                : "bg-yellow-50 text-yellow-600 border border-yellow-200"
+                        }`}
+                      >
                         {marker.status}
                       </span>
                     )}
@@ -258,7 +265,9 @@ export default function MapViewer({
                     <div className="space-y-1 mt-1">
                       <div className="flex justify-between text-[10px] font-medium text-slate-500">
                         <span>Health Index</span>
-                        <span className="font-bold text-slate-700">{marker.score}%</span>
+                        <span className="font-bold text-slate-700">
+                          {marker.score}%
+                        </span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
@@ -286,7 +295,7 @@ export default function MapViewer({
                       {marker.popupText}
                     </div>
                   )}
-                  
+
                   {marker.additionalInfo && (
                     <span className="text-[10px] text-slate-400 block mt-1 border-t border-slate-100 pt-1">
                       {marker.additionalInfo}
