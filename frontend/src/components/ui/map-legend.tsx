@@ -28,7 +28,9 @@ export function MapLegend({ className, ...props }: MapLegendProps) {
         <span>Critical (D / E)</span>
       </div>
       <div className="flex flex-col gap-1 border-t border-slate-700/60 pt-1.5">
-        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Pollution Incidents</div>
+        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
+          Pollution Incidents
+        </div>
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded bg-red-600 flex items-center justify-center text-[8px] font-bold text-white">
             !
