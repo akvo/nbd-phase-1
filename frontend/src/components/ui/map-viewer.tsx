@@ -16,6 +16,11 @@ interface MapMarker {
   popupText?: string;
   type: "site" | "incident";
   status?: string;
+  code?: string;
+  name?: string;
+  score?: number;
+  description?: string;
+  additionalInfo?: string;
 }
 
 interface MapViewerProps {
@@ -42,6 +47,51 @@ function MapController({ basinGeometry }: { basinGeometry: any }) {
       }
     }
   }, [basinGeometry, map]);
+
+  return null;
+}
+
+function GestureHandling() {
+  const map = useMap();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Check if it's mobile/touch device
+    const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    if (!isTouch) return;
+
+    // Disable dragging on touch devices by default
+    if (map.dragging) {
+      map.dragging.disable();
+    }
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        map.dragging?.enable();
+      } else {
+        map.dragging?.disable();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      map.dragging?.disable();
+    };
+
+    if (typeof map.getContainer !== "function") return;
+    const container = map.getContainer();
+    if (!container) return;
+
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [map]);
 
   return null;
 }
@@ -85,8 +135,8 @@ export default function MapViewer({
           pingBg = "bg-red-400";
           centerBg = "bg-red-600";
         } else if (status === "Elevated") {
-          pingBg = "bg-orange-400";
-          centerBg = "bg-orange-500";
+          pingBg = "bg-amber-400";
+          centerBg = "bg-amber-500";
         } else {
           pingBg = "bg-yellow-400";
           centerBg = "bg-yellow-500";
@@ -143,6 +193,7 @@ export default function MapViewer({
         key={`nbd-map-${center[0]}-${center[1]}`}
       >
         <MapController basinGeometry={basinGeometry} />
+        <GestureHandling />
         {basinGeometry && (
           <GeoJSON
             key={JSON.stringify(basinGeometry)}
@@ -157,8 +208,8 @@ export default function MapViewer({
           />
         )}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         />
         <ZoomControl position="bottomright" />
         {markers.map((marker, index) => {
@@ -178,13 +229,85 @@ export default function MapViewer({
           if (!icon) return null;
           return (
             <Marker key={index} position={marker.position} icon={icon}>
-              {marker.popupText && (
-                <Popup>
-                  <div className="font-semibold text-sm text-slate-800">
-                    {marker.popupText}
+              <Popup>
+                <div className="p-1 min-w-[200px] flex flex-col gap-2 text-slate-800 font-sans">
+                  <div className="flex justify-between items-start gap-3">
+                    <div>
+                      <h4 className="font-bold text-sm leading-tight text-slate-900">
+                        {marker.name ||
+                          (marker.type === "site"
+                            ? "Monitoring Station"
+                            : "Incident Report")}
+                      </h4>
+                      {marker.code && (
+                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                          {marker.code}
+                        </span>
+                      )}
+                    </div>
+                    {marker.status && (
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          marker.type === "site"
+                            ? ["D", "E"].includes(marker.status)
+                              ? "bg-red-50 text-red-600 border border-red-200"
+                              : marker.status === "C"
+                                ? "bg-amber-50 text-amber-600 border border-amber-200"
+                                : "bg-green-50 text-green-600 border border-green-200"
+                            : marker.status === "Critical"
+                              ? "bg-red-50 text-red-600 border border-red-200"
+                              : marker.status === "Elevated"
+                                ? "bg-orange-50 text-orange-600 border border-orange-200"
+                                : "bg-yellow-50 text-yellow-600 border border-yellow-200"
+                        }`}
+                      >
+                        {marker.status}
+                      </span>
+                    )}
                   </div>
-                </Popup>
-              )}
+
+                  {marker.type === "site" && marker.score !== undefined && (
+                    <div className="space-y-1 mt-1">
+                      <div className="flex justify-between text-[10px] font-medium text-slate-500">
+                        <span>Health Index</span>
+                        <span className="font-bold text-slate-700">
+                          {marker.score}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            ["D", "E"].includes(marker.status || "")
+                              ? "bg-red-500"
+                              : marker.status === "C"
+                                ? "bg-amber-500"
+                                : "bg-green-500"
+                          }`}
+                          style={{ width: `${marker.score}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {marker.description && (
+                    <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-snug mt-1">
+                      {marker.description}
+                    </p>
+                  )}
+
+                  {!marker.name && !marker.code && marker.popupText && (
+                    <div className="font-semibold text-sm text-slate-800 mt-1">
+                      {marker.popupText}
+                    </div>
+                  )}
+
+                  {marker.additionalInfo && (
+                    <span className="text-[10px] text-slate-400 block mt-1 border-t border-slate-100 pt-1">
+                      {marker.additionalInfo}
+                    </span>
+                  )}
+                </div>
+              </Popup>
             </Marker>
           );
         })}

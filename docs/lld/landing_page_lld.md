@@ -26,80 +26,40 @@ Interactive landing page at `/` (`src/app/page.tsx`) mapping basins, monitoring 
 The page utilizes a mobile-first responsive layout matching Figma specifications:
 - **HeaderNavigation**: Logo, navigation action buttons (Log in, Sign up).
 - **Map Container**: Fully fills the background/viewport height. Employs `next/dynamic` to load the Leaflet wrapper with `ssr: false`.
+  - **GIS Popups**: Clicking on a site or incident marker opens an enriched, styled popup containing:
+    - **Header**: Station name / incident category and a colored status badge (Critical, Elevated, Moderate, or health class letter A-E).
+    - **Station Code**: Subtext showing unique station identifier.
+    - **Health Index (Sites only)**: Progress bar matching the station's score.
+    - **Details Box**: Displaying qualitative signal descriptions or details.
+    - **Meta details**: Subtext containing submission date or additional descriptors.
 - **Search & Incident Panel**:
   - Appears as a sliding bottom drawer (`src/components/ui/site-drawer.tsx`) on mobile screens (< 768px).
   - Appears as a left-hand floating sidebar on desktop screens (>= 768px).
   - Contains the View Toggle switch (`All`, `Critical`, `At risk`, `Healthy`), search input field, and list of site cards.
+  - **Collapsible Cards List (Mobile & Desktop)**: The site cards list itself is collapsible (toggled via the "Monitoring Sites" section header, or via the mobile drag handle button at the top of the panel) to allow maximizing map visibility on mobile screens while keeping the dropdown filters and search input visible at all times.
 - **Detailed Site View Card**:
   - Displays site identity (`NBD-MARA-002`), water health grade (`A`, `C`, `D`), progress bar showing aggregate health score %, and country badge.
   - Toggles a modal/drawer parameter breakdown (pH, DO, Temp, unit weights, and triggered management actions matching the API contract).
 
----
+## 3. Data Integration & Schema
 
-## 3. Data Schema & Mocking
+Rather than using local static mock JSON, the landing page fetches data from the database using the unauthenticated API endpoints:
 
-A local static JSON file `public/data/mock_map_data.json` will replicate the public API responses:
+### 3.1 API Endpoints
+1. **Basin Boundaries**: `GET /api/v1/basins`
+   - Returns a list of basins with GeoJSON MultiPolygon geometries.
+2. **Monitoring Sites**: `GET /api/v1/sites`
+   - Returns a list of sites including their UUID, name, coordinates (in GeoJSON Point `[longitude, latitude]` format), latest health class, and recommended management actions.
+3. **Approved Pollution Incidents**: `GET /api/v1/submissions?status=APPROVED`
+   - Returns all approved submissions. The frontend filters these by `form_name === "Pollution Reporting Form"`.
+   - The coordinates are extracted from the `geo` field (`[longitude, latitude]` format).
 
-### 3.1 JSON Format Overview
-```json
-{
-  "basins": [
-    {
-      "basin_id": "MARA",
-      "basin_name": "Mara Basin",
-      "active_sites": 4,
-      "basin_health_status": "YELLOW",
-      "latest_incidents": []
-    }
-  ],
-  "sites": [
-    {
-      "site_id": "NBD-MARA-001",
-      "site_name": "Lower Mara Wetland",
-      "country": "Tanzania",
-      "basin": "Mara Basin",
-      "current_health_class": "C",
-      "current_score": 0.55,
-      "last_updated": "2026-06-16T08:00:00Z",
-      "coordinates": [34.5678, -1.2345],
-      "community_signal": "Declining fish & water clarity",
-      "progress_percent": 55,
-      "is_approved": true,
-      "is_ik_adjusted": true,
-      "details": {
-        "physico_chemical": {
-          "group_score": 0.16,
-          "ph": 7.8,
-          "dissolved_oxygen": 4.77,
-          "temperature": 23.25,
-          "weights": { "ph": 0.3704, "dissolved_oxygen": 0.6297 }
-        },
-        "catchment_hydrological": { "group_score": 0.65 },
-        "ecological": { "group_score": 0.45 },
-        "ik_signal": {
-          "encoded_signal_value": 0.67,
-          "fish_abundance": "MODERATELY_DECLINED",
-          "water_clarity": "MUCH_WORSE",
-          "vegetation_cover": "PARTIALLY_LOST"
-        },
-        "management_actions": [
-          { "label": "Silt Trap Install", "description": "Install vegetative filters along the edges of agricultural plots." },
-          { "label": "Constructed Wetland Build", "description": "Encourage small-scale, man-made wetlands." }
-        ]
-      }
-    }
-  ],
-  "incidents": [
-    {
-      "incident_type": "ANIMAL_KILLS",
-      "coordinates": [34.5710, -1.2410],
-      "report_source": "WhatsApp",
-      "timestamp": "2026-06-15T09:00:00Z",
-      "status": "Critical"
-    }
-  ]
-}
-```
+### 3.2 Coordinate and Severity Mapping
+- **Leaflet Coordinate Flip**: All coordinates are mapped from database GeoJSON format `[longitude, latitude]` to Leaflet's coordinate structure `[latitude, longitude]`.
+- **Incident Severity Translation**: Submissions do not contain an explicit severity string. The frontend maps the `incident_type` option value to a severity status:
+  - Option `3` (Fish or animal kills) -> **Critical**
+  - Options `1` (Water colour) and `2` (Smell) -> **Elevated**
+  - Options `4` (Storm event), `5` (High water level), and `6` (Low water level) -> **Moderate**
 
 ---
 
@@ -107,8 +67,11 @@ A local static JSON file `public/data/mock_map_data.json` will replicate the pub
 
 ### Automated Tests
 - Run `yarn test` to verify component compilation.
-- Verify that dynamic search filtering updates both the DOM card listing and Leaflet marker layers correctly.
+- Verify that dynamic search and status filtering update the markers and card listing correctly.
 
 ### Manual Verification
-- Test UI layout on Chrome DevTools mobile view simulation (375px width) to verify bottom drawer drag handles and responsive text wrap.
-- Verify status filtering behavior when selecting different toggle tags (`Healthy`, `Critical`, etc.).
+- Simulate mobile devices (e.g. 375px width) in Chrome DevTools:
+  - Verify map occupies the top section (`45vh`) and the panel forms the bottom half.
+  - Verify that a single-finger swipe on the map scrolls the page, and two-finger swipe pans the map.
+  - Verify coordinates are correctly positioned on the map (not flipped).
+  - Verify filtering by health/severity.
