@@ -170,6 +170,16 @@ class ManagementActionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
+class MetricEntryResponse(BaseModel):
+    value: Any
+    unit: str | None = None
+    status: str = "Normal"
+    label: str
+    icon: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SiteStatus(BaseModel):
     composite_score: float = Field(
         ...,
@@ -192,6 +202,14 @@ class SiteStatus(BaseModel):
             "WHO-aligned wetland health class (A=Excellent, B=Good, "
             "C=Fair, D=Poor, E=Critical)"
         ),
+    )
+    sampling_date: datetime | None = Field(
+        default=None,
+        description="Timestamp of the latest sampling record",
+    )
+    metrics: dict[str, MetricEntryResponse] = Field(
+        default_factory=dict,
+        description="Map of dynamic parameters collected at this site",
     )
 
     model_config = ConfigDict(from_attributes=True)
