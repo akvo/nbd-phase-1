@@ -26,6 +26,12 @@ Interactive landing page at `/` (`src/app/page.tsx`) mapping basins, monitoring 
 The page utilizes a mobile-first responsive layout matching Figma specifications:
 - **HeaderNavigation**: Logo, navigation action buttons (Log in, Sign up).
 - **Map Container**: Fully fills the background/viewport height. Employs `next/dynamic` to load the Leaflet wrapper with `ssr: false`.
+  - **GIS Popups**: Clicking on a site or incident marker opens an enriched, styled popup containing:
+    - **Header**: Station name / incident category and a colored status badge (Critical, Elevated, Moderate, or health class letter A-E).
+    - **Station Code**: Subtext showing unique station identifier.
+    - **Health Index (Sites only)**: Progress bar matching the station's score.
+    - **Details Box**: Displaying qualitative signal descriptions or details.
+    - **Meta details**: Subtext containing submission date or additional descriptors.
 - **Search & Incident Panel**:
   - Appears as a sliding bottom drawer (`src/components/ui/site-drawer.tsx`) on mobile screens (< 768px).
   - Appears as a left-hand floating sidebar on desktop screens (>= 768px).
