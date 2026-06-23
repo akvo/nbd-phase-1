@@ -1,0 +1,148 @@
+/* add css module styles here (optional) */
+
+@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Roboto+Condensed:wght@300;400&display=swap');
+
+.arfe-container {
+  font-size: 2em;
+  font-family: 'Roboto Condensed', sans-serif;
+}
+
+.arfe-form-definition {
+  margin-bottom: 20px;
+}
+
+.arfe-form-item-no-bottom-margin {
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.arfe-input-checkbox-wrapper {
+  width: -moz-fit-content;
+  width: fit-content;
+}
+
+.arfe-button-icon > svg {
+  margin-top: 2.5px;
+  font-size: 20px;
+  color: rgb(107, 107, 107);
+}
+
+.arfe-reorder-wrapper {
+  padding: 12px;
+  background-color: #f3f3f3;
+}
+.arfe-reorder-wrapper .arfe-reorder-button {
+  background-color: #f3f3f3;
+}
+
+.arfe-select-dropdown {
+  text-align: left;
+  width: 100%;
+}
+
+.arfe-tabs-wrapper {
+  font-family: 'Assistant', sans-serif;
+  margin-bottom: 12px !important;
+  font-size: 18px;
+  font-weight: bold;
+  color: #6a6a6a;
+}
+.arfe-tabs-wrapper-sticky {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+}
+
+.arfe-tabs-wrapper .arfe-right-tabs {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: normal;
+}
+
+.arfe-tab-pane-name-icon svg {
+  margin-bottom: -2px;
+  font-size: 16px;
+}
+
+.arfe-question-group-title {
+  font-family: 'Assistant', sans-serif;
+  font-weight: bold;
+  color: #6a6a6a;
+}
+
+.arfe-space-align-right {
+  width: 100%;
+  justify-content: end;
+}
+
+.arfe-space-align-left {
+  width: 100% !important;
+  justify-content: start;
+}
+
+.arfe-space-vertical-align-left {
+  width: 100%;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.arfe-space-vertical-align-right {
+  width: 100%;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.arfe-more-question-setting-text {
+  text-align: left;
+}
+
+.arfe-dependant-list-box ul,
+.arfe-dependant-list-box {
+  font-size: 14px;
+  -webkit-padding-start: 0px;
+          padding-inline-start: 0px;
+  -webkit-margin-after: 0px;
+          margin-block-end: 0px;
+  list-style: none;
+}
+.arfe-dependant-list-box ul {
+  -webkit-padding-start: 15px;
+          padding-inline-start: 15px;
+}
+
+.arfe-tags {
+  font-size: 14px !important;
+  color: #000;
+  padding: 5px 10px;
+}
+.arfe-tags svg {
+  font-size: 11px;
+  color: #000;
+}
+
+.arfe-tags-active {
+  border-color: #3590ff !important;
+  background: #3590ff;
+  color: #fff;
+}
+.arfe-tags-active svg {
+  color: #fff;
+  font-weight: bold;
+}
+
+.arfe-translation-form-item {
+  margin: 0 !important;
+}
+
+.arfe-translation-form-item label {
+  width: 100% !important;
+}
+
+.arfe-translation-form-item-card {
+  margin-bottom: 10px;
+}
+
+.arfe-field-error-wrapper {
+  margin-top: -18px;
+  margin-bottom: 24px;
+}

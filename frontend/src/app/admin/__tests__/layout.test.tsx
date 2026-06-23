@@ -96,7 +96,7 @@ describe("Admin Top-Nav Layout", () => {
       screen.getByRole("link", { name: "User management" })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Site management" })
+      screen.getByRole("link", { name: "Resource management" })
     ).toBeInTheDocument();
 
     // Verify active tab matching
