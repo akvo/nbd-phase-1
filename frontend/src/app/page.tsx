@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Dropdown } from "@/components/ui/dropdown";
 import { SiteDrawer } from "@/components/ui/site-drawer";
 import { SiteHeader } from "@/components/ui/site-header";
@@ -424,17 +423,17 @@ export default function Home() {
                             <h4 className="font-bold text-slate-800 text-sm group-hover:text-teal-600 transition-colors">
                               {site.name}
                             </h4>
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-slate-400 font-mono">
                               {site.code}
                             </span>
                           </div>
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${
                               isCritical
-                                ? "bg-red-50 text-red-600"
+                                ? "bg-red-50 text-red-700 border-red-200"
                                 : isAtRisk
-                                  ? "bg-amber-50 text-amber-600"
-                                  : "bg-green-50 text-green-600"
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-green-50 text-green-700 border-green-200"
                             }`}
                           >
                             {hClass}
@@ -465,18 +464,17 @@ export default function Home() {
                           </div>
                         </div>
 
-                        <div className="flex gap-1.5">
-                          <Badge variant="success">Approved</Badge>
-                          {isIkAdjusted && (
-                            <Badge variant="primary">IK-adjusted</Badge>
-                          )}
-                          <div className="flex items-center gap-1 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm">
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm flex items-center gap-1">
+                            Approved
+                          </span>
+                          <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200/80 shadow-sm flex items-center gap-1 shrink-0">
                             <svg
-                              className="w-3.5 h-3.5 text-slate-400"
+                              className="w-3 h-3 text-slate-400"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
-                              strokeWidth="2"
+                              strokeWidth="2.5"
                             >
                               <path
                                 strokeLinecap="round"
@@ -489,9 +487,57 @@ export default function Home() {
                                 d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                               />
                             </svg>
-                            <span>{country}</span>
-                          </div>
+                            {country}
+                          </span>
+                          {isIkAdjusted && (
+                            <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-100 shadow-sm flex items-center gap-1 shrink-0">
+                              IK-adjusted
+                            </span>
+                          )}
                         </div>
+
+                        {/* Action Warning Banners for sites requiring intervention */}
+                        {(isCritical || isAtRisk) && (
+                          <div
+                            className={`p-2.5 rounded-lg flex items-start gap-2 text-xs border ${
+                              isCritical
+                                ? "bg-red-50/80 border-red-100 text-red-700"
+                                : "bg-amber-50/80 border-amber-100 text-amber-700"
+                            }`}
+                          >
+                            <svg
+                              className="w-4 h-4 mt-0.5 shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                              />
+                            </svg>
+                            <div className="flex-1 font-semibold leading-relaxed">
+                              {site.management_actions &&
+                              site.management_actions.length > 0 ? (
+                                <span>
+                                  Action:{" "}
+                                  <span className="font-bold">
+                                    {site.management_actions[0].label}
+                                  </span>{" "}
+                                  — {site.management_actions[0].description}
+                                </span>
+                              ) : (
+                                <span>
+                                  {isCritical
+                                    ? "Action: Critical degradation detected. Immediate intervention recommended."
+                                    : "Action: Water quality declining. Preventive intervention recommended."}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </Card>
                     );
                   })

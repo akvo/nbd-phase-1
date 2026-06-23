@@ -70,6 +70,9 @@ The landing page serves as the entry point for citizen scientists, wetland manag
 | **FR-004** | The system MUST implement a search bar that dynamically filters the list of sites on keyup/change. | US-003 | Must Have |
 | **FR-005** | The system MUST display site details matching Figma (including name, ID, Health Grade badge, progress bar, country badge, and IK-adjusted badge). | US-004 | Must Have |
 | **FR-006** | The system MUST fetch active sites and approved incidents dynamically from the database using public API endpoints. | US-001 | Must Have |
+| **FR-007** | Each site card MUST display Location Name, site_id (code), a coloured Health Class badge (A, C, D), and the Community Signal text. | US-004 | Must Have |
+| **FR-008** | The site card MUST render chips for "Approved/Pending", "IK-adjusted" (if applicable), and geographic location (e.g. "Tanzania" or "Kenya"). | US-004 | Must Have |
+| **FR-009** | If a site requires intervention (e.g., poor health class or recommended management actions exist), a distinct warning banner (e.g. "Action: Site stewards notified...") with an alert icon MUST be displayed at the bottom of the card. | US-004 | Must Have |
 
 ---
 
@@ -109,6 +112,7 @@ frontend/
 - Side panel/bottom sheet component that listing sites, filterable by health category and search string.
 - Detail drawer detailing physico-chemical parameters and IK signals.
 - Direct database query calls to fetch sites, basins, and incidents.
+- Implementation of the scrollable feed of sites/incidents beneath the map, incorporating the complex badge UI, status/location chips, and intervention warning banners.
 
 **v1 — Explicitly Out of Scope**:
 - Dynamic pollution reporting submission forms (only reporting visualizer maps are in scope).
@@ -122,6 +126,7 @@ frontend/
 | **API Client Integration** | Implement API hooks and queries for database fetching | Simple | 3h | APIs are available and unauthenticated |
 | **GIS Map Component** | Dynamic marker rendering, tooltips, custom icons, and scroll protection in Leaflet | Medium | 8h | Leaflet is fully integrated |
 | **Search & Filters** | State hooks for status tags, search queries, database loading | Simple | 4h | Frontend search is instant |
+| **Site List & Status Cards** | Scrollable feed of sites/incidents beneath the map, implementing complex badge UI, status/location chips, and action warning banners. | Medium | 6h | Tailwind utility classes and premium styling elements |
 | **Detail Drawer** | Responsive bottom drawer displaying metrics and actions | Medium | 6h | Glassmorphism/visual styles apply |
 | **QA / Verification** | Viewport layout testing, functionality audit | Simple | 3h | None |
 

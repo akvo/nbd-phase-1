@@ -37,9 +37,11 @@ The page utilizes a mobile-first responsive layout matching Figma specifications
   - Appears as a left-hand floating sidebar on desktop screens (>= 768px).
   - Contains the View Toggle switch (`All`, `Critical`, `At risk`, `Healthy`), search input field, and list of site cards.
   - **Collapsible Cards List (Mobile & Desktop)**: The site cards list itself is collapsible (toggled via the "Monitoring Sites" section header, or via the mobile drag handle button at the top of the panel) to allow maximizing map visibility on mobile screens while keeping the dropdown filters and search input visible at all times.
-- **Detailed Site View Card**:
-  - Displays site identity (`NBD-MARA-002`), water health grade (`A`, `C`, `D`), progress bar showing aggregate health score %, and country badge.
-  - Toggles a modal/drawer parameter breakdown (pH, DO, Temp, unit weights, and triggered management actions matching the API contract).
+- **Detailed Site View Card (Task 2)**:
+  - **UAC 2.1 (Card Anatomy)**: Displays the Location Name, site_id code (e.g., `NBD-MARA-002`), a color-coded Health Class badge (A, C, D) using Tailwind HSL themes, and the Community Signal text.
+  - **UAC 2.2 (Chip Rendering)**: Displays the "IK-adjusted" chip alongside the geographic location (e.g., "Tanzania", "Kenya") and status chips ("Pending", "Approved"). The status chip represents the approval state of the site.
+  - **UAC 2.3 (Action Banners)**: Shows a distinct warning banner at the bottom of the card with an alert icon if a site requires intervention (e.g., health class is poor like D or E, or recommended management actions exist in the DB, e.g., "Action: Site stewards notified...").
+  - Clicking on a card toggles a modal/drawer parameter breakdown (pH, DO, Temp, unit weights, and triggered management actions matching the API contract).
 
 ## 3. Data Integration & Schema
 
