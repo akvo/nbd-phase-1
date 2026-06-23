@@ -49,7 +49,14 @@ interface MetricEntry {
   icon: string | null;
 }
 
+interface GroupScoreEntry {
+  score: number;
+  label: string;
+  icon: string | null;
+}
+
 interface SiteDetails {
+  score_breakdown: Record<string, GroupScoreEntry>;
   physico_chemical: {
     group_score: number;
     ph: number;
@@ -109,8 +116,8 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   }
 
   const getScoreColorClass = (score: number) => {
-    if (score >= 0.7) return "bg-green-500";
-    if (score >= 0.6) return "bg-amber-500";
+    if (score >= 0.6) return "bg-green-500";
+    if (score >= 0.2) return "bg-amber-500";
     return "bg-red-500";
   };
 
@@ -118,6 +125,10 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   const rawComposite = (
     site.current_score + (site.is_ik_adjusted ? 0.05 : 0)
   ).toFixed(2);
+
+  const scoreBreakdownEntries = Object.entries(
+    site.details.score_breakdown || {}
+  );
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
@@ -270,83 +281,42 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             </p>
           </div>
           <div className="p-4.5 space-y-4 bg-white">
-            {/* Physico-chemical */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-semibold text-slate-700">
-                <span>Physico-chemical</span>
-                <span>
-                  {site.details.physico_chemical.group_score.toFixed(2)}
-                </span>
+            {scoreBreakdownEntries.map(([key, group]) => (
+              <div key={key} className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-slate-700">
+                  <div className="flex items-center gap-1.5">
+                    <DynamicIcon
+                      name={group.icon}
+                      className="w-3.5 h-3.5 text-slate-400"
+                    />
+                    <span>{group.label}</span>
+                  </div>
+                  <span>{group.score.toFixed(2)}</span>
+                </div>
+                <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(group.score)}`}
+                    style={{
+                      width: `${group.score * 100}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(site.details.physico_chemical.group_score)}`}
-                  style={{
-                    width: `${site.details.physico_chemical.group_score * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Catchment */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-semibold text-slate-700">
-                <span>Catchment / hydro</span>
-                <span>
-                  {site.details.catchment_hydrological.group_score.toFixed(2)}
-                </span>
-              </div>
-              <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(site.details.catchment_hydrological.group_score)}`}
-                  style={{
-                    width: `${site.details.catchment_hydrological.group_score * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Ecological */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-semibold text-slate-700">
-                <span>Ecological</span>
-                <span>{site.details.ecological.group_score.toFixed(2)}</span>
-              </div>
-              <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(site.details.ecological.group_score)}`}
-                  style={{
-                    width: `${site.details.ecological.group_score * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Governance */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-semibold text-slate-700">
-                <span>Governance</span>
-                <span>0.55</span>
-              </div>
-              <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full transition-all duration-300 ease-in-out rounded-full bg-red-500"
-                  style={{ width: "55%" }}
-                />
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Bottom adjustment score panel */}
           <div className="bg-slate-50 p-4 border-t border-slate-200 space-y-2 text-xs font-medium text-slate-700">
             <div className="flex justify-between">
               <span>Composite (pre-adjustment)</span>
-              <span>{rawComposite}</span>
+              <span className="font-semibold text-slate-800">
+                {rawComposite}
+              </span>
             </div>
             {site.is_ik_adjusted && (
               <div className="flex justify-between">
                 <span>IK health signal (FGD)</span>
-                <span>
+                <span className="font-semibold text-slate-800">
                   {site.details.ik_signal.encoded_signal_value.toFixed(2)}
                 </span>
               </div>
@@ -355,7 +325,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               className={`flex justify-between font-bold border-t border-slate-200/60 pt-2 mt-1 ${gradeTextClass}`}
             >
               <span>Adjusted score - Class {site.current_health_class}</span>
-              <span>{site.current_score.toFixed(2)}</span>
+              <span className="text-sm font-extrabold">
+                {site.current_score.toFixed(2)}
+              </span>
             </div>
           </div>
         </div>
