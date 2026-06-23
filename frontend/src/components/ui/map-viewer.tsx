@@ -16,6 +16,11 @@ interface MapMarker {
   popupText?: string;
   type: "site" | "incident";
   status?: string;
+  code?: string;
+  name?: string;
+  score?: number;
+  description?: string;
+  additionalInfo?: string;
 }
 
 interface MapViewerProps {
@@ -217,13 +222,78 @@ export default function MapViewer({
           if (!icon) return null;
           return (
             <Marker key={index} position={marker.position} icon={icon}>
-              {marker.popupText && (
-                <Popup>
-                  <div className="font-semibold text-sm text-slate-800">
-                    {marker.popupText}
+              <Popup>
+                <div className="p-1 min-w-[200px] flex flex-col gap-2 text-slate-800 font-sans">
+                  <div className="flex justify-between items-start gap-3">
+                    <div>
+                      <h4 className="font-bold text-sm leading-tight text-slate-900">
+                        {marker.name || (marker.type === "site" ? "Monitoring Station" : "Incident Report")}
+                      </h4>
+                      {marker.code && (
+                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                          {marker.code}
+                        </span>
+                      )}
+                    </div>
+                    {marker.status && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        marker.type === "site"
+                          ? ["D", "E"].includes(marker.status)
+                            ? "bg-red-50 text-red-600 border border-red-200"
+                            : marker.status === "C"
+                              ? "bg-amber-50 text-amber-600 border border-amber-200"
+                              : "bg-green-50 text-green-600 border border-green-200"
+                          : marker.status === "Critical"
+                            ? "bg-red-50 text-red-600 border border-red-200"
+                            : marker.status === "Elevated"
+                              ? "bg-orange-50 text-orange-600 border border-orange-200"
+                              : "bg-yellow-50 text-yellow-600 border border-yellow-200"
+                      }`}>
+                        {marker.status}
+                      </span>
+                    )}
                   </div>
-                </Popup>
-              )}
+
+                  {marker.type === "site" && marker.score !== undefined && (
+                    <div className="space-y-1 mt-1">
+                      <div className="flex justify-between text-[10px] font-medium text-slate-500">
+                        <span>Health Index</span>
+                        <span className="font-bold text-slate-700">{marker.score}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            ["D", "E"].includes(marker.status || "")
+                              ? "bg-red-500"
+                              : marker.status === "C"
+                                ? "bg-amber-500"
+                                : "bg-green-500"
+                          }`}
+                          style={{ width: `${marker.score}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {marker.description && (
+                    <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-snug mt-1">
+                      {marker.description}
+                    </p>
+                  )}
+
+                  {!marker.name && !marker.code && marker.popupText && (
+                    <div className="font-semibold text-sm text-slate-800 mt-1">
+                      {marker.popupText}
+                    </div>
+                  )}
+                  
+                  {marker.additionalInfo && (
+                    <span className="text-[10px] text-slate-400 block mt-1 border-t border-slate-100 pt-1">
+                      {marker.additionalInfo}
+                    </span>
+                  )}
+                </div>
+              </Popup>
             </Marker>
           );
         })}

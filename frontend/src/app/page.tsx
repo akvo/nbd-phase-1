@@ -213,11 +213,17 @@ export default function Home() {
       const position: [number, number] = coords
         ? [coords[1], coords[0]]
         : [0, 0];
+      const ikAdjustedScore = site.status?.ik_adjusted_score ?? 0.5;
+      const progressPercent = Math.round(ikAdjustedScore * 100);
       return {
         position,
         popupText: `${site.name} (${site.status?.health_class || "N/A"})`,
         type: "site" as const,
         status: site.status?.health_class,
+        code: site.code,
+        name: site.name,
+        score: progressPercent,
+        description: site.description || "No signal details recorded.",
       };
     }),
     ...filteredIncidents.map((incident) => {
@@ -242,11 +248,23 @@ export default function Home() {
         severity = "Elevated";
       }
 
+      const qDetailAns = incident.answers.find(
+        (a: any) => a.name === "incident_description" || a.name === "details" || a.question_id === 3
+      );
+      const descText = qDetailAns?.value || incident.description || "No details recorded.";
+      const incidentTypeName = qIncidentAns?.value || "Pollution Report";
+      const formattedDate = incident.submitted_at
+        ? new Date(incident.submitted_at).toLocaleDateString()
+        : "Unknown date";
+
       return {
         position,
-        popupText: `Incident: ${qIncidentAns?.name || "Pollution Report"} (${severity})`,
+        popupText: `Incident: ${incidentTypeName} (${severity})`,
         type: "incident" as const,
         status: severity,
+        name: incidentTypeName,
+        description: descText,
+        additionalInfo: `Reported on: ${formattedDate}`,
       };
     }),
   ];
