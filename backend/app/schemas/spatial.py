@@ -180,6 +180,14 @@ class MetricEntryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GroupScoreEntryResponse(BaseModel):
+    score: float
+    label: str
+    icon: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SiteStatus(BaseModel):
     composite_score: float = Field(
         ...,
@@ -210,6 +218,10 @@ class SiteStatus(BaseModel):
     metrics: dict[str, MetricEntryResponse] = Field(
         default_factory=dict,
         description="Map of dynamic parameters collected at this site",
+    )
+    score_breakdown: dict[str, GroupScoreEntryResponse] = Field(
+        default_factory=dict,
+        description="Map of dynamic parameter group scores",
     )
 
     model_config = ConfigDict(from_attributes=True)

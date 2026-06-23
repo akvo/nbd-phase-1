@@ -40,6 +40,30 @@ const mapDbSiteToDrawerSite = (site: any): any => {
   const country =
     site.country || (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
 
+  // Parse dynamic score breakdown from status if available
+  const score_breakdown = site.status?.score_breakdown || {
+    physico_chemical: {
+      score: compositeScore,
+      label: "Physico-chemical",
+      icon: "FlaskConical",
+    },
+    catchment_hydrological: {
+      score: compositeScore,
+      label: "Catchment / hydro",
+      icon: "Waves",
+    },
+    ecological: {
+      score: compositeScore,
+      label: "Ecological",
+      icon: "Leaf",
+    },
+    governance: {
+      score: 0.55,
+      label: "Governance",
+      icon: "ShieldCheck",
+    },
+  };
+
   return {
     site_id: site.code,
     site_name: site.name,
@@ -55,15 +79,21 @@ const mapDbSiteToDrawerSite = (site: any): any => {
     is_ik_adjusted:
       site.status?.ik_adjusted_score !== site.status?.composite_score,
     details: {
+      score_breakdown,
       physico_chemical: {
-        group_score: compositeScore,
+        group_score: score_breakdown.physico_chemical?.score ?? compositeScore,
         ph: site.status?.metrics?.ph?.value ?? 7.2,
         dissolved_oxygen: site.status?.metrics?.dissolved_oxygen?.value ?? 6.5,
         temperature: site.status?.metrics?.temperature?.value ?? 22.0,
         weights: { ph: 0.3704, dissolved_oxygen: 0.6297 },
       },
-      catchment_hydrological: { group_score: compositeScore },
-      ecological: { group_score: compositeScore },
+      catchment_hydrological: {
+        group_score:
+          score_breakdown.catchment_hydrological?.score ?? compositeScore,
+      },
+      ecological: {
+        group_score: score_breakdown.ecological?.score ?? compositeScore,
+      },
       ik_signal: {
         encoded_signal_value: site.status?.ik_adjusted_score ?? 0.5,
         fish_abundance: "Stable",

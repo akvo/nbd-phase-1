@@ -171,6 +171,56 @@ def list_sites(
                     "icon": "Ruler",
                 }
 
+            # Calculate group scores dynamically
+            physico_chemical_val = float(latest_score.wqi_score)
+
+            wl = (
+                str(latest_sampling.water_level).upper().strip()
+                if latest_sampling
+                else "MEDIUM"
+            )
+            if wl == "MEDIUM":
+                catchment_val = 1.00
+            elif wl == "HIGH":
+                catchment_val = 0.60
+            elif wl == "LOW":
+                catchment_val = 0.30
+            else:
+                catchment_val = 1.00
+
+            if latest_sampling:
+                eco_raw = latest_sampling.invasive_macrophytes
+                ecological_val = float(1.0 - (eco_raw / 100.0))
+            else:
+                ecological_val = 1.0
+            ecological_val = max(0.00, min(1.00, ecological_val))
+            ecological_val = round(ecological_val, 2)
+
+            governance_val = 0.55
+
+            score_breakdown_map = {
+                "physico_chemical": {
+                    "score": physico_chemical_val,
+                    "label": "Physico-chemical",
+                    "icon": "FlaskConical",
+                },
+                "catchment_hydrological": {
+                    "score": catchment_val,
+                    "label": "Catchment / hydro",
+                    "icon": "Waves",
+                },
+                "ecological": {
+                    "score": ecological_val,
+                    "label": "Ecological",
+                    "icon": "Leaf",
+                },
+                "governance": {
+                    "score": governance_val,
+                    "label": "Governance",
+                    "icon": "ShieldCheck",
+                },
+            }
+
             db_site.status = {
                 "composite_score": float(latest_score.composite_score),
                 "ik_adjusted_score": float(latest_score.adjusted_score),
@@ -180,6 +230,7 @@ def list_sites(
                     latest_sampling.sampled_at if latest_sampling else None
                 ),
                 "metrics": metrics_map,
+                "score_breakdown": score_breakdown_map,
             }
 
             db_site.management_actions = (
@@ -290,6 +341,56 @@ def get_site(request: Request, site_id: str, db: Session = Depends(get_db)):
                 "icon": "Ruler",
             }
 
+        # Calculate group scores dynamically
+        physico_chemical_val = float(latest_score.wqi_score)
+
+        wl = (
+            str(latest_sampling.water_level).upper().strip()
+            if latest_sampling
+            else "MEDIUM"
+        )
+        if wl == "MEDIUM":
+            catchment_val = 1.00
+        elif wl == "HIGH":
+            catchment_val = 0.60
+        elif wl == "LOW":
+            catchment_val = 0.30
+        else:
+            catchment_val = 1.00
+
+        if latest_sampling:
+            eco_raw = latest_sampling.invasive_macrophytes
+            ecological_val = float(1.0 - (eco_raw / 100.0))
+        else:
+            ecological_val = 1.0
+        ecological_val = max(0.00, min(1.00, ecological_val))
+        ecological_val = round(ecological_val, 2)
+
+        governance_val = 0.55
+
+        score_breakdown_map = {
+            "physico_chemical": {
+                "score": physico_chemical_val,
+                "label": "Physico-chemical",
+                "icon": "FlaskConical",
+            },
+            "catchment_hydrological": {
+                "score": catchment_val,
+                "label": "Catchment / hydro",
+                "icon": "Waves",
+            },
+            "ecological": {
+                "score": ecological_val,
+                "label": "Ecological",
+                "icon": "Leaf",
+            },
+            "governance": {
+                "score": governance_val,
+                "label": "Governance",
+                "icon": "ShieldCheck",
+            },
+        }
+
         db_site.status = {
             "composite_score": float(latest_score.composite_score),
             "ik_adjusted_score": float(latest_score.adjusted_score),
@@ -299,6 +400,7 @@ def get_site(request: Request, site_id: str, db: Session = Depends(get_db)):
                 latest_sampling.sampled_at if latest_sampling else None
             ),
             "metrics": metrics_map,
+            "score_breakdown": score_breakdown_map,
         }
 
         db_site.management_actions = (
