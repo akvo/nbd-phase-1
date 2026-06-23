@@ -466,3 +466,125 @@ class FormBlueprintResponse(BaseModel):
             question_group=groups,
             question_groups=groups,
         )
+
+
+# --- Update schemas for PUT /forms/{form_id} ---
+
+
+class OptionUpdate(BaseModel):
+    id: Optional[int] = None  # None = new option
+    name: Optional[str] = None
+    label: Optional[str] = None
+    value: Optional[str] = None
+    order: Optional[int] = None
+    other: bool = False
+    color: Optional[str] = None
+    translations: List[Dict[str, Any]] = []
+
+
+class QuestionUpdate(BaseModel):
+    id: Optional[int] = None  # None = new question
+    name: Optional[str] = None
+    label: str
+    short_label: Optional[str] = None
+    shortLabel: Optional[str] = None
+    type: str
+    required: bool = True
+    order: Optional[int] = None
+    meta: bool = False
+    rule: Optional[Dict[str, Any]] = None
+    dependency: Optional[List[Dict[str, Any]]] = None
+    dependency_rule: Optional[str] = None
+    dependencyRule: Optional[str] = None
+    api: Optional[Dict[str, Any]] = None
+    extra: Optional[Dict[str, Any]] = None
+    tooltip: Optional[Dict[str, Any]] = None
+    fn: Optional[Dict[str, Any]] = None
+    pre: Optional[Dict[str, Any]] = None
+    displayOnly: bool = False
+    display_only: bool = False
+    hiddenString: bool = False
+    hidden_string: bool = False
+    requiredDoubleEntry: bool = False
+    required_double_entry: bool = False
+    requiredSign: Optional[str] = None
+    required_sign: Optional[str] = None
+    translations: List[Dict[str, Any]] = []
+    option: Optional[Any] = None
+    options: Optional[List[OptionUpdate]] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Normalize options
+            opt = data.get("option")
+            opts = data.get("options")
+            if opt is None and opts is not None:
+                data["option"] = opts
+            elif opt is not None and opts is None:
+                if isinstance(opt, list):
+                    data["options"] = opt
+            # Normalize shortLabel to short_label
+            if data.get("shortLabel") and not data.get("short_label"):
+                data["short_label"] = data["shortLabel"]
+            # Normalize dependencyRule to dependency_rule
+            if data.get("dependencyRule") and not data.get("dependency_rule"):
+                data["dependency_rule"] = data["dependencyRule"]
+            # Normalize displayOnly to display_only
+            if data.get("displayOnly") and not data.get("display_only"):
+                data["display_only"] = data["displayOnly"]
+        return data
+
+
+class QuestionGroupUpdate(BaseModel):
+    id: Optional[int] = None  # None = new group
+    name: str
+    label: Optional[str] = None
+    description: Optional[str] = None
+    order: Optional[int] = None
+    repeatable: bool = False
+    repeatText: Optional[str] = None
+    repeat_text: Optional[str] = None
+    repeatButtonPlacement: Optional[str] = None
+    translations: List[Dict[str, Any]] = []
+    question: List[QuestionUpdate] = []
+    questions: List[QuestionUpdate] = []
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Normalize questions
+            q = data.get("question")
+            qs = data.get("questions")
+            if not q and qs:
+                data["question"] = qs
+            elif q and not qs:
+                data["questions"] = q
+            # Normalize repeatText to repeat_text
+            if data.get("repeatText") and not data.get("repeat_text"):
+                data["repeat_text"] = data["repeatText"]
+        return data
+
+
+class FormBlueprintUpdate(BaseModel):
+    name: str
+    type: int = 1
+    languages: List[str] = ["en"]
+    defaultLanguage: str = "en"
+    translations: List[Dict[str, Any]] = []
+    question_group: List[QuestionGroupUpdate] = []
+    question_groups: List[QuestionGroupUpdate] = []
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_groups(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            q_group = data.get("question_group")
+            q_groups = data.get("question_groups")
+            if not q_group and q_groups:
+                data["question_group"] = q_groups
+            elif q_group and not q_groups:
+                data["question_groups"] = q_group
+        return data
