@@ -47,7 +47,7 @@ const mapDbSiteToDrawerSite = (site: any): any => {
     basin: site.code?.includes("SIO") ? "SIO_SITEKO" : "MARA",
     current_health_class: healthClass,
     current_score: ikAdjustedScore,
-    last_updated: new Date().toISOString(),
+    last_updated: site.status?.sampling_date || new Date().toISOString(),
     coordinates: coords ? [coords[1], coords[0]] : [0, 0],
     community_signal: site.description || "No signal details recorded.",
     progress_percent: Math.round(ikAdjustedScore * 100),
@@ -57,9 +57,9 @@ const mapDbSiteToDrawerSite = (site: any): any => {
     details: {
       physico_chemical: {
         group_score: compositeScore,
-        ph: 7.2,
-        dissolved_oxygen: 6.5,
-        temperature: 22.0,
+        ph: site.status?.metrics?.ph?.value ?? 7.2,
+        dissolved_oxygen: site.status?.metrics?.dissolved_oxygen?.value ?? 6.5,
+        temperature: site.status?.metrics?.temperature?.value ?? 22.0,
         weights: { ph: 0.3704, dissolved_oxygen: 0.6297 },
       },
       catchment_hydrological: { group_score: compositeScore },
@@ -71,6 +71,8 @@ const mapDbSiteToDrawerSite = (site: any): any => {
         vegetation_cover: "Stable",
       },
       management_actions,
+      water_level: site.status?.metrics?.water_level?.value || "MEDIUM",
+      metrics: site.status?.metrics || {},
     },
   };
 };

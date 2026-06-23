@@ -4,7 +4,50 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { FlaskConical, Thermometer, Droplets, Ruler } from "lucide-react";
+import * as LucideIcons from "lucide-react";
+
+const DynamicIcon = ({
+  name,
+  className,
+}: {
+  name: string | null;
+  className?: string;
+}) => {
+  if (!name) return null;
+  const IconComponent = LucideIcons[name as keyof typeof LucideIcons] as
+    | React.ComponentType<{ className?: string }>
+    | undefined;
+  if (!IconComponent) return null;
+  return <IconComponent className={className} />;
+};
+
+const getStatusColorClasses = (status: string) => {
+  const s = status.toLowerCase();
+  if (s.includes("flood")) {
+    return {
+      text: "text-blue-600",
+      bg: "bg-blue-500",
+    };
+  }
+  if (s.includes("abnormal") || s.includes("low") || s.includes("drought")) {
+    return {
+      text: "text-amber-600",
+      bg: "bg-amber-500",
+    };
+  }
+  return {
+    text: "text-green-600",
+    bg: "bg-green-500",
+  };
+};
+
+interface MetricEntry {
+  value: string | number | boolean | null;
+  unit: string | null;
+  status: string;
+  label: string;
+  icon: string | null;
+}
 
 interface SiteDetails {
   physico_chemical: {
@@ -23,6 +66,8 @@ interface SiteDetails {
     vegetation_cover: string;
   };
   management_actions: Array<{ label: string; description: string }>;
+  water_level: string;
+  metrics: Record<string, MetricEntry>;
 }
 
 interface Site {
@@ -170,77 +215,48 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
 
         {/* 2x2 Key Metrics Card Small Grid (Figma Node 8237:1345) */}
         <div className="border border-slate-200 rounded-2xl overflow-hidden grid grid-cols-2 bg-slate-50/50">
-          {/* pH */}
-          <div className="bg-slate-50/60 p-4 border-r border-b border-slate-200 flex flex-col justify-between h-24">
-            <div className="flex justify-between items-start text-xs text-slate-500">
-              <span className="font-medium text-slate-400">pH</span>
-              <FlaskConical className="w-4 h-4 text-slate-400" />
-            </div>
-            <div className="text-base font-bold text-slate-800">
-              {site.details.physico_chemical.ph}
-            </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-green-600 font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span>Normal</span>
-            </div>
-          </div>
+          {Object.entries(site.details.metrics || {}).map(
+            ([key, metric], index) => {
+              const colors = getStatusColorClasses(metric.status);
+              const isValString = typeof metric.value === "string";
+              const displayValue = isValString
+                ? (metric.value as string).toLowerCase()
+                : (metric.value ?? "");
+              const valueClass = `text-base font-bold text-slate-800 ${isValString ? "capitalize" : ""}`;
+              const borderClass = `${index % 2 === 0 ? "border-r" : ""} ${index < 2 ? "border-b" : ""} border-slate-200`;
 
-          {/* Temperature */}
-          <div className="bg-slate-50/60 p-4 border-b border-slate-200 flex flex-col justify-between h-24">
-            <div className="flex justify-between items-start text-xs text-slate-500">
-              <span className="font-medium text-slate-400">
-                Water temperature
-              </span>
-              <Thermometer className="w-4 h-4 text-slate-400" />
-            </div>
-            <div className="text-base font-bold text-slate-800">
-              {site.details.physico_chemical.temperature}°C
-            </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-green-600 font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span>Normal</span>
-            </div>
-          </div>
-
-          {/* Dissolved Oxygen */}
-          <div className="bg-slate-50/60 p-4 border-r border-slate-200 flex flex-col justify-between h-24">
-            <div className="flex justify-between items-start text-xs text-slate-500">
-              <span className="font-medium text-slate-400">Dissolved O₂</span>
-              <Droplets className="w-4 h-4 text-slate-400" />
-            </div>
-            <div className="text-base font-bold text-slate-800">
-              {site.details.physico_chemical.dissolved_oxygen} mg/L
-            </div>
-            <div
-              className={`flex items-center gap-1.5 text-[10px] font-semibold ${
-                site.details.physico_chemical.dissolved_oxygen < 5
-                  ? "text-amber-600"
-                  : "text-green-600"
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${site.details.physico_chemical.dissolved_oxygen < 5 ? "bg-amber-500" : "bg-green-500"}`}
-              />
-              <span>
-                {site.details.physico_chemical.dissolved_oxygen < 5
-                  ? "Low"
-                  : "Normal"}
-              </span>
-            </div>
-          </div>
-
-          {/* Water Level */}
-          <div className="bg-slate-50/60 p-4 flex flex-col justify-between h-24">
-            <div className="flex justify-between items-start text-xs text-slate-500">
-              <span className="font-medium text-slate-400">Water level</span>
-              <Ruler className="w-4 h-4 text-slate-400" />
-            </div>
-            <div className="text-base font-bold text-slate-800">142 cm</div>
-            <div className="flex items-center gap-1.5 text-[10px] text-green-600 font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span>Stable</span>
-            </div>
-          </div>
+              return (
+                <div
+                  key={key}
+                  className={`bg-slate-50/60 p-4 flex flex-col justify-between h-24 ${borderClass}`}
+                >
+                  <div className="flex justify-between items-start text-xs text-slate-500">
+                    <span className="font-medium text-slate-400">
+                      {metric.label}
+                    </span>
+                    <DynamicIcon
+                      name={metric.icon}
+                      className="w-4 h-4 text-slate-400"
+                    />
+                  </div>
+                  <div className={valueClass}>
+                    {displayValue}
+                    {metric.unit
+                      ? metric.unit.startsWith("°")
+                        ? metric.unit
+                        : ` ${metric.unit}`
+                      : ""}
+                  </div>
+                  <div
+                    className={`flex items-center gap-1.5 text-[10px] font-semibold ${colors.text}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${colors.bg}`} />
+                    <span>{metric.status}</span>
+                  </div>
+                </div>
+              );
+            }
+          )}
         </div>
 
         {/* Score Breakdown Progress Bars */}
@@ -386,8 +402,12 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               </div>
               <div className="grid grid-cols-4 p-3 items-center">
                 <div className="font-semibold text-slate-700">Water level</div>
-                <div className="text-center font-mono text-slate-800">142</div>
-                <div className="text-center text-slate-500">cm</div>
+                <div className="text-center font-mono text-slate-800 capitalize">
+                  {site.details.water_level
+                    ? site.details.water_level.toLowerCase()
+                    : "-"}
+                </div>
+                <div className="text-center text-slate-500">-</div>
                 <div className="text-center text-slate-400">-</div>
               </div>
               <div className="grid grid-cols-4 p-3 items-center">

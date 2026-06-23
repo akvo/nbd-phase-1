@@ -35,11 +35,13 @@ We will reconstruct `SiteDrawer` with the following sections (arranged verticall
 - Displays: **Community signal**: `site.community_signal` formatted as regular text with the title bolded.
 
 ### 2.4 Parameters Grid (2x2 Card Small Grid)
-- Cards for:
-  - **pH**: Shows `site.details.physico_chemical.ph` with health status indicator dot.
-  - **Water Temperature**: Shows `site.details.physico_chemical.temperature` °C.
-  - **Dissolved Oxygen**: Shows `site.details.physico_chemical.dissolved_oxygen` mg/L.
-  - **Water Level**: Shows `site.details.catchment_hydrological.water_level` (defaulting to a mock value or `142 cm` from database).
+- Cards are dynamically populated by iterating over `site.details.metrics`.
+- Support standard metrics such as:
+  - **pH**: Key `"ph"`, shows value with health status indicator dot.
+  - **Water Temperature**: Key `"temperature"`, shows value + unit (°C).
+  - **Dissolved Oxygen**: Key `"dissolved_oxygen"`, shows value + unit (mg/L).
+  - **Water Level**: Key `"water_level"`, shows value + unit.
+- Generically handles dynamic icons, units, labels, and status dot indicators.
 
 ### 2.5 Score Breakdown (Progress Bars)
 - Visual progress bar controls representing:

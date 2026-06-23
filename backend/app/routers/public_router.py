@@ -105,11 +105,81 @@ def list_sites(
 
             traffic_light, color_db = map_class_to_color(h_class)
 
+            # Query the latest SamplingRecord for this site
+            from app.models.sampling_record import SamplingRecord
+
+            latest_sampling = (
+                db.query(SamplingRecord)
+                .filter(SamplingRecord.site_id == db_site.id)
+                .order_by(SamplingRecord.sampled_at.desc())
+                .first()
+            )
+
+            # Construct dynamic metrics map
+            metrics_map = {}
+            if latest_sampling:
+                metrics_map["ph"] = {
+                    "value": float(latest_sampling.ph_value),
+                    "unit": None,
+                    "status": (
+                        "Abnormal"
+                        if (
+                            latest_sampling.ph_value < 6.5
+                            or latest_sampling.ph_value > 8.5
+                        )
+                        else "Normal"
+                    ),
+                    "label": "pH",
+                    "icon": "FlaskConical",
+                }
+                metrics_map["temperature"] = {
+                    "value": float(latest_sampling.temp_value),
+                    "unit": "°C",
+                    "status": (
+                        "Abnormal"
+                        if (
+                            latest_sampling.temp_value < 15
+                            or latest_sampling.temp_value > 30
+                        )
+                        else "Normal"
+                    ),
+                    "label": "Water temperature",
+                    "icon": "Thermometer",
+                }
+                metrics_map["dissolved_oxygen"] = {
+                    "value": float(latest_sampling.do_value),
+                    "unit": "mg/L",
+                    "status": (
+                        "Low" if latest_sampling.do_value < 5.0 else "Normal"
+                    ),
+                    "label": "Dissolved O₂",
+                    "icon": "Droplets",
+                }
+                metrics_map["water_level"] = {
+                    "value": latest_sampling.water_level,
+                    "unit": None,
+                    "status": (
+                        "Flood Risk"
+                        if latest_sampling.water_level == "HIGH"
+                        else (
+                            "Drought Risk"
+                            if latest_sampling.water_level == "LOW"
+                            else "Stable"
+                        )
+                    ),
+                    "label": "Water level",
+                    "icon": "Ruler",
+                }
+
             db_site.status = {
                 "composite_score": float(latest_score.composite_score),
                 "ik_adjusted_score": float(latest_score.adjusted_score),
                 "traffic_light": traffic_light,
                 "health_class": h_class,
+                "sampling_date": (
+                    latest_sampling.sampled_at if latest_sampling else None
+                ),
+                "metrics": metrics_map,
             }
 
             db_site.management_actions = (
@@ -154,11 +224,81 @@ def get_site(request: Request, site_id: str, db: Session = Depends(get_db)):
 
         traffic_light, color_db = map_class_to_color(h_class)
 
+        # Query the latest SamplingRecord for this site
+        from app.models.sampling_record import SamplingRecord
+
+        latest_sampling = (
+            db.query(SamplingRecord)
+            .filter(SamplingRecord.site_id == db_site.id)
+            .order_by(SamplingRecord.sampled_at.desc())
+            .first()
+        )
+
+        # Construct dynamic metrics map
+        metrics_map = {}
+        if latest_sampling:
+            metrics_map["ph"] = {
+                "value": float(latest_sampling.ph_value),
+                "unit": None,
+                "status": (
+                    "Abnormal"
+                    if (
+                        latest_sampling.ph_value < 6.5
+                        or latest_sampling.ph_value > 8.5
+                    )
+                    else "Normal"
+                ),
+                "label": "pH",
+                "icon": "FlaskConical",
+            }
+            metrics_map["temperature"] = {
+                "value": float(latest_sampling.temp_value),
+                "unit": "°C",
+                "status": (
+                    "Abnormal"
+                    if (
+                        latest_sampling.temp_value < 15
+                        or latest_sampling.temp_value > 30
+                    )
+                    else "Normal"
+                ),
+                "label": "Water temperature",
+                "icon": "Thermometer",
+            }
+            metrics_map["dissolved_oxygen"] = {
+                "value": float(latest_sampling.do_value),
+                "unit": "mg/L",
+                "status": (
+                    "Low" if latest_sampling.do_value < 5.0 else "Normal"
+                ),
+                "label": "Dissolved O₂",
+                "icon": "Droplets",
+            }
+            metrics_map["water_level"] = {
+                "value": latest_sampling.water_level,
+                "unit": None,
+                "status": (
+                    "Flood Risk"
+                    if latest_sampling.water_level == "HIGH"
+                    else (
+                        "Drought Risk"
+                        if latest_sampling.water_level == "LOW"
+                        else "Stable"
+                    )
+                ),
+                "label": "Water level",
+                "icon": "Ruler",
+            }
+
         db_site.status = {
             "composite_score": float(latest_score.composite_score),
             "ik_adjusted_score": float(latest_score.adjusted_score),
             "traffic_light": traffic_light,
             "health_class": h_class,
+            "sampling_date": (
+                latest_sampling.sampled_at if latest_sampling else None
+            ),
+            "metrics": metrics_map,
         }
 
         db_site.management_actions = (
