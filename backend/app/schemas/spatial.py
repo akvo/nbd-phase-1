@@ -2,8 +2,20 @@ from typing import Dict, Any
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+    ConfigDict,
+    computed_field,
+)
 from shapely.geometry import shape
+
+# Country constants mapping site code prefixes to countries
+COUNTRIES = {
+    "SIO": "Kenya",
+    "MS1": "Tanzania",
+}
 
 
 class BasinBase(BaseModel):
@@ -190,6 +202,16 @@ class Site(SiteBase):
     status: SiteStatus | None = None
     management_actions: list[ManagementActionResponse] = []
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    @computed_field
+    @property
+    def country(self) -> str:
+        prefix = (
+            self.code.split("-")[0].upper()
+            if "-" in self.code
+            else self.code.upper()
+        )
+        return COUNTRIES.get(prefix, "Tanzania")
 
 
 class SpatialBoundaryBase(BaseModel):
