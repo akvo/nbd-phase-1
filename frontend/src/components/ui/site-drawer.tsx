@@ -457,7 +457,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                   orangeVals: ["occasional"],
                 },
               ].map((item, idx) => {
-                const valLower = item.value
+                const valLower = (item.value || "")
                   .toLowerCase()
                   .replace(/_/g, " ")
                   .trim();
