@@ -130,8 +130,8 @@ export default function MapViewer({
           pingBg = "bg-red-400";
           centerBg = "bg-red-600";
         } else if (status === "Elevated") {
-          pingBg = "bg-orange-400";
-          centerBg = "bg-orange-500";
+          pingBg = "bg-amber-400";
+          centerBg = "bg-amber-500";
         } else {
           pingBg = "bg-yellow-400";
           centerBg = "bg-yellow-500";
