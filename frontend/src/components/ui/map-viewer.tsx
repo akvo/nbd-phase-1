@@ -62,21 +62,26 @@ function GestureHandling() {
     if (!isTouch) return;
 
     // Disable dragging on touch devices by default
-    map.dragging.disable();
+    if (map.dragging) {
+      map.dragging.disable();
+    }
 
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length >= 2) {
-        map.dragging.enable();
+        map.dragging?.enable();
       } else {
-        map.dragging.disable();
+        map.dragging?.disable();
       }
     };
 
     const handleTouchEnd = () => {
-      map.dragging.disable();
+      map.dragging?.disable();
     };
 
+    if (typeof map.getContainer !== "function") return;
     const container = map.getContainer();
+    if (!container) return;
+
     container.addEventListener("touchstart", handleTouchStart, {
       passive: true,
     });

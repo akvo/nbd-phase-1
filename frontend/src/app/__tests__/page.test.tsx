@@ -12,6 +12,8 @@ vi.mock("@/components/ui/map-viewer", () => {
 vi.mock("@/lib/api", () => {
   return {
     getBasins: vi.fn().mockResolvedValue([]),
+    getSites: vi.fn().mockResolvedValue([]),
+    getSubmissions: vi.fn().mockResolvedValue([]),
   };
 });
 
