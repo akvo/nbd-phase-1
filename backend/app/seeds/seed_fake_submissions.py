@@ -14,9 +14,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def seed_fake_submissions(db: Session, num_submissions: int = 3) -> None:
+def seed_fake_submissions(
+    db: Session, num_submissions: int = 3, spread: float = 0.15
+) -> None:
     logger.info(
-        f"Starting fake submission seeding (count target: {num_submissions} per site)..."  # noqa
+        f"Starting fake submission seeding (count target: {num_submissions} per site, fallback spread: {spread})..."  # noqa
     )
 
     # 1. Fetch the Pollution Reporting Form
@@ -229,14 +231,32 @@ def seed_fake_submissions(db: Session, num_submissions: int = 3) -> None:
                         f"Seeded ManagementAction ({color}) '{short_label}' for site: {site.name}"  # noqa
                     )
 
+        # Determine spatial boundaries from parent wetland if available
+        wetland_bounds = None
+        if site.wetland and site.wetland.geom:
+            try:
+                wetland_shape = to_shape(site.wetland.geom)
+                wetland_bounds = (
+                    wetland_shape.bounds
+                )  # (minx, miny, maxx, maxy)
+            except Exception as e:
+                logger.warning(
+                    f"Could not parse wetland geometry for site {site.name}: {e}"  # noqa
+                )
+
         # C. Seed Pollution reports
         # (approved Datapoints) with random coordinates offset
         for idx in range(num_submissions):
             template = incident_templates[idx % len(incident_templates)]
-            # Create a randomized offset
-            # coordinate so markers do not stack on top of each other
-            offset_lon = coords[0] + random.uniform(-0.04, 0.04)
-            offset_lat = coords[1] + random.uniform(-0.04, 0.04)
+            # Scatter coordinates within wetland boundary if available,
+            # else fallback to radius spread
+            if wetland_bounds:
+                min_lon, min_lat, max_lon, max_lat = wetland_bounds
+                offset_lon = random.uniform(min_lon, max_lon)
+                offset_lat = random.uniform(min_lat, max_lat)
+            else:
+                offset_lon = coords[0] + random.uniform(-spread, spread)
+                offset_lat = coords[1] + random.uniform(-spread, spread)
 
             dp = Datapoint(
                 form_id=form.id,
@@ -301,10 +321,18 @@ if __name__ == "__main__":
         default=3,
         help="Number of submissions per site to seed",
     )
+    parser.add_argument(
+        "--spread",
+        type=float,
+        default=0.15,
+        help="Fallback random coordinate offset range (in degrees) around the site center",  # noqa
+    )
     args = parser.parse_args()
 
     dbSession = SessionLocal()
     try:
-        seed_fake_submissions(dbSession, num_submissions=args.count)
+        seed_fake_submissions(
+            dbSession, num_submissions=args.count, spread=args.spread
+        )
     finally:
         dbSession.close()
