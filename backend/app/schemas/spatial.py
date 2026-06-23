@@ -188,6 +188,16 @@ class GroupScoreEntryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class FgdSignalDetails(BaseModel):
+    fish_abundance: str = "Same"
+    water_clarity: str = "Same"
+    vegetation_cover: str = "Same"
+    pollution_events: str = "None"
+    encoded_signal_value: float = 0.0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SiteStatus(BaseModel):
     composite_score: float = Field(
         ...,
@@ -222,6 +232,10 @@ class SiteStatus(BaseModel):
     score_breakdown: dict[str, GroupScoreEntryResponse] = Field(
         default_factory=dict,
         description="Map of dynamic parameter group scores",
+    )
+    ik_signal: FgdSignalDetails | None = Field(
+        default=None,
+        description="Detailed FGD community signal scores",
     )
 
     model_config = ConfigDict(from_attributes=True)

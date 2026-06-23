@@ -221,6 +221,33 @@ def list_sites(
                 },
             }
 
+            # Fetch the latest FgdRecord details
+            from app.services.scoring.handlers.wetland import (
+                get_latest_fgd_record,
+            )
+
+            fgd = get_latest_fgd_record(db, db_site.id)
+            if fgd:
+                ik_signal_map = {
+                    "fish_abundance": fgd.fish_abundance,
+                    "water_clarity": fgd.water_clarity,
+                    "vegetation_cover": fgd.vegetation_cover,
+                    "pollution_events": "None",  # Default template fallback
+                    "encoded_signal_value": float(
+                        latest_score.ik_signal_value
+                    ),
+                }
+            else:
+                ik_signal_map = {
+                    "fish_abundance": "Same",
+                    "water_clarity": "Same",
+                    "vegetation_cover": "Same",
+                    "pollution_events": "None",
+                    "encoded_signal_value": float(
+                        latest_score.ik_signal_value
+                    ),
+                }
+
             db_site.status = {
                 "composite_score": float(latest_score.composite_score),
                 "ik_adjusted_score": float(latest_score.adjusted_score),
@@ -231,6 +258,7 @@ def list_sites(
                 ),
                 "metrics": metrics_map,
                 "score_breakdown": score_breakdown_map,
+                "ik_signal": ik_signal_map,
             }
 
             db_site.management_actions = (
@@ -391,6 +419,29 @@ def get_site(request: Request, site_id: str, db: Session = Depends(get_db)):
             },
         }
 
+        # Fetch the latest FgdRecord details
+        from app.services.scoring.handlers.wetland import (
+            get_latest_fgd_record,
+        )
+
+        fgd = get_latest_fgd_record(db, db_site.id)
+        if fgd:
+            ik_signal_map = {
+                "fish_abundance": fgd.fish_abundance,
+                "water_clarity": fgd.water_clarity,
+                "vegetation_cover": fgd.vegetation_cover,
+                "pollution_events": "None",  # Default template fallback
+                "encoded_signal_value": float(latest_score.ik_signal_value),
+            }
+        else:
+            ik_signal_map = {
+                "fish_abundance": "Same",
+                "water_clarity": "Same",
+                "vegetation_cover": "Same",
+                "pollution_events": "None",
+                "encoded_signal_value": float(latest_score.ik_signal_value),
+            }
+
         db_site.status = {
             "composite_score": float(latest_score.composite_score),
             "ik_adjusted_score": float(latest_score.adjusted_score),
@@ -401,6 +452,7 @@ def get_site(request: Request, site_id: str, db: Session = Depends(get_db)):
             ),
             "metrics": metrics_map,
             "score_breakdown": score_breakdown_map,
+            "ik_signal": ik_signal_map,
         }
 
         db_site.management_actions = (

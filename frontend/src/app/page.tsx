@@ -95,14 +95,61 @@ const mapDbSiteToDrawerSite = (site: any): any => {
         group_score: score_breakdown.ecological?.score ?? compositeScore,
       },
       ik_signal: {
-        encoded_signal_value: site.status?.ik_adjusted_score ?? 0.5,
-        fish_abundance: "Stable",
-        water_clarity: "Stable",
-        vegetation_cover: "Stable",
+        encoded_signal_value:
+          site.status?.ik_signal?.encoded_signal_value ??
+          site.status?.ik_adjusted_score ??
+          0.5,
+        fish_abundance: site.status?.ik_signal?.fish_abundance ?? "Same",
+        water_clarity: site.status?.ik_signal?.water_clarity ?? "Same",
+        vegetation_cover: site.status?.ik_signal?.vegetation_cover ?? "Same",
+        pollution_events: site.status?.ik_signal?.pollution_events ?? "None",
       },
       management_actions,
       water_level: site.status?.metrics?.water_level?.value || "MEDIUM",
-      metrics: site.status?.metrics || {},
+      metrics: {
+        ph: site.status?.metrics?.ph || {
+          value: site.status?.metrics?.ph?.value ?? 7.2,
+          unit: "-",
+          status: "Normal",
+          label: "pH",
+          icon: "FlaskConical",
+        },
+        dissolved_oxygen: site.status?.metrics?.dissolved_oxygen || {
+          value: site.status?.metrics?.dissolved_oxygen?.value ?? 6.5,
+          unit: "mg/L",
+          status: "Normal",
+          label: "Dissolved O₂",
+          icon: "Droplets",
+        },
+        temperature: site.status?.metrics?.temperature || {
+          value: site.status?.metrics?.temperature?.value ?? 22.0,
+          unit: "°C",
+          status: "Normal",
+          label: "Temperature",
+          icon: "Thermometer",
+        },
+        water_level: site.status?.metrics?.water_level || {
+          value: site.status?.metrics?.water_level?.value || "MEDIUM",
+          unit: "-",
+          status: "Normal",
+          label: "Water level",
+          icon: "Waves",
+        },
+        turbidity: site.status?.metrics?.turbidity || {
+          value: 38,
+          unit: "NTU",
+          status: "Normal",
+          label: "Turbidity",
+          icon: "EyeOff",
+        },
+        macroinvertebrate: site.status?.metrics?.macroinvertebrate || {
+          value: 0.48,
+          unit: "index",
+          status: "Normal",
+          label: "Macroinvertebrate",
+          icon: "Bug",
+        },
+      },
     },
   };
 };
