@@ -5,6 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import * as LucideIcons from "lucide-react";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 
 const DynamicIcon = ({
   name,
@@ -71,6 +79,7 @@ interface SiteDetails {
     fish_abundance: string;
     water_clarity: string;
     vegetation_cover: string;
+    pollution_events: string;
   };
   management_actions: Array<{ label: string; description: string }>;
   water_level: string;
@@ -332,72 +341,62 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           </div>
         </div>
 
-        {/* Raw Sampling Method Grid */}
+        {/* Raw Sampling Method Table */}
         <div className="space-y-3">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
             Raw sampling method
           </h3>
-          <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden text-xs">
-            {/* Table Header */}
-            <div className="grid grid-cols-4 bg-slate-100/60 p-3 border-b border-slate-200 font-bold text-slate-500 uppercase tracking-wider text-[10px]">
-              <div>Parameter</div>
-              <div className="text-center">Value</div>
-              <div className="text-center">Unit</div>
-              <div className="text-center">Flag</div>
-            </div>
-
-            {/* Table Rows */}
-            <div className="divide-y divide-slate-100 bg-white">
-              <div className="grid grid-cols-4 p-3 items-center">
-                <div className="font-semibold text-slate-700">pH</div>
-                <div className="text-center font-mono text-slate-800">
-                  {site.details.physico_chemical.ph}
-                </div>
-                <div className="text-center text-slate-400">-</div>
-                <div className="text-center text-slate-400">-</div>
-              </div>
-              <div className="grid grid-cols-4 p-3 items-center">
-                <div className="font-semibold text-slate-700">Dissolved O₂</div>
-                <div className="text-center font-mono text-slate-800">
-                  {site.details.physico_chemical.dissolved_oxygen}
-                </div>
-                <div className="text-center text-slate-500">mg/L</div>
-                <div className="text-center text-slate-400">-</div>
-              </div>
-              <div className="grid grid-cols-4 p-3 items-center">
-                <div className="font-semibold text-slate-700">Temperature</div>
-                <div className="text-center font-mono text-slate-800">
-                  {site.details.physico_chemical.temperature}
-                </div>
-                <div className="text-center text-slate-500">°C</div>
-                <div className="text-center text-slate-400">-</div>
-              </div>
-              <div className="grid grid-cols-4 p-3 items-center">
-                <div className="font-semibold text-slate-700">Water level</div>
-                <div className="text-center font-mono text-slate-800 capitalize">
-                  {site.details.water_level
-                    ? site.details.water_level.toLowerCase()
-                    : "-"}
-                </div>
-                <div className="text-center text-slate-500">-</div>
-                <div className="text-center text-slate-400">-</div>
-              </div>
-              <div className="grid grid-cols-4 p-3 items-center">
-                <div className="font-semibold text-slate-700">Turbidity</div>
-                <div className="text-center font-mono text-slate-800">38</div>
-                <div className="text-center text-slate-500">NTU</div>
-                <div className="text-center text-slate-400">-</div>
-              </div>
-              <div className="grid grid-cols-4 p-3 items-center">
-                <div className="font-semibold text-slate-700">
-                  Macroinvertebrate
-                </div>
-                <div className="text-center font-mono text-slate-800">0.48</div>
-                <div className="text-center text-slate-500">index</div>
-                <div className="text-center text-slate-400">-</div>
-              </div>
-            </div>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs uppercase text-slate-500 font-bold">
+                  Parameter
+                </TableHead>
+                <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
+                  Value
+                </TableHead>
+                <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
+                  Unit
+                </TableHead>
+                <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
+                  Flag
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(site.details.metrics || {}).map(
+                ([key, metric]) => (
+                  <TableRow key={key}>
+                    <TableCell className="text-xs font-semibold text-slate-700">
+                      {metric.label}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-slate-800 text-center">
+                      {typeof metric.value === "string"
+                        ? metric.value
+                        : (metric.value ?? "-")}
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500 text-center">
+                      {metric.unit || "-"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span
+                        className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                          (metric.status || "")
+                            .toLowerCase()
+                            .includes("normal") ||
+                          (metric.status || "").toLowerCase().includes("stable")
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {metric.status || "Normal"}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                )
+              )}
+            </TableBody>
+          </Table>
         </div>
 
         {/* FGD Session Context */}
@@ -420,40 +419,86 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                 value={site.details.ik_signal.encoded_signal_value * 100}
               />
             </div>
-            <div className="grid grid-cols-1 gap-2.5 pt-1 text-xs text-slate-700">
-              <div className="flex items-center gap-2">
-                <span>🐟</span>
-                <span className="font-medium text-slate-500">
-                  Fish Abundance:
-                </span>
-                <span className="font-semibold text-slate-800 capitalize">
-                  {site.details.ik_signal.fish_abundance
-                    .replace(/_/g, " ")
-                    .toLowerCase()}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>💧</span>
-                <span className="font-medium text-slate-500">
-                  Water Clarity:
-                </span>
-                <span className="font-semibold text-slate-800 capitalize">
-                  {site.details.ik_signal.water_clarity
-                    .replace(/_/g, " ")
-                    .toLowerCase()}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>🌱</span>
-                <span className="font-medium text-slate-500">
-                  Vegetation Cover:
-                </span>
-                <span className="font-semibold text-slate-800 capitalize">
-                  {site.details.ik_signal.vegetation_cover
-                    .replace(/_/g, " ")
-                    .toLowerCase()}
-                </span>
-              </div>
+
+            {/* 2x2 Grid of FGD Indicators */}
+            <div className="grid grid-cols-2 gap-3 pt-1 text-xs text-slate-700">
+              {[
+                {
+                  label: "Fish Abundance",
+                  value: site.details.ik_signal.fish_abundance,
+                  icon: "🐟",
+                  redVals: ["severely declined", "severe"],
+                  orangeVals: [
+                    "slightly declined",
+                    "moderately declined",
+                    "slight",
+                    "moderate",
+                  ],
+                },
+                {
+                  label: "Water Quality",
+                  value: site.details.ik_signal.water_clarity,
+                  icon: "💧",
+                  redVals: ["much worse"],
+                  orangeVals: ["somewhat worse"],
+                },
+                {
+                  label: "Vegetation Cover",
+                  value: site.details.ik_signal.vegetation_cover,
+                  icon: "🌱",
+                  redVals: ["severely lost", "severe loss"],
+                  orangeVals: ["partially lost", "partial loss"],
+                },
+                {
+                  label: "Pollution Events",
+                  value: site.details.ik_signal.pollution_events,
+                  icon: "⚠️",
+                  redVals: ["frequent"],
+                  orangeVals: ["occasional"],
+                },
+              ].map((item, idx) => {
+                const valLower = item.value
+                  .toLowerCase()
+                  .replace(/_/g, " ")
+                  .trim();
+                let dotColor = "bg-green-500";
+                if (item.redVals.some((rv) => valLower.includes(rv))) {
+                  dotColor = "bg-red-500";
+                } else if (
+                  item.orangeVals.some((ov) => valLower.includes(ov))
+                ) {
+                  dotColor = "bg-amber-500";
+                }
+
+                return (
+                  <div
+                    key={idx}
+                    className="bg-white/80 p-2.5 rounded-lg border border-slate-100 flex flex-col justify-between gap-1 shadow-sm"
+                  >
+                    <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
+                      {item.label}
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-1 font-semibold text-slate-800 capitalize">
+                      <span className="text-sm leading-none shrink-0">
+                        {item.icon}
+                      </span>
+                      <span className="truncate">{valLower}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-500 mt-1">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${dotColor}`}
+                      />
+                      <span>
+                        {dotColor === "bg-red-500"
+                          ? "Critical"
+                          : dotColor === "bg-amber-500"
+                            ? "Warning"
+                            : "Healthy"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
