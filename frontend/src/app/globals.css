@@ -228,3 +228,76 @@
   border-bottom: 1px solid #f0f0f0 !important;
 }
 /* End Akvo React Form styles */
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@page {
+  size: auto;
+  margin: 0mm;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide all siblings of the site drawer print wrapper inside main */
+  main > :not(#site-drawer-print-area) {
+    display: none !important;
+  }
+
+  /* Hide print-unfriendly elements */
+  .no-print,
+  .leaflet-control-zoom,
+  .leaflet-control-attribution,
+  button[aria-label="Close"] {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Reset layout constraints of the drawer container to act as a regular page element */
+  html,
+  body,
+  main,
+  #site-drawer-print-area,
+  .flex-1,
+  .overflow-y-auto {
+    position: static !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Give body physical page padding since margin is 0 to hide headers/footers */
+  body {
+    padding: 1.5cm !important;
+  }
+
+  /* Avoid page breaks inside layout sections */
+  .space-y-6 > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force Leaflet map container to fit print page width cleanly */
+  .leaflet-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}

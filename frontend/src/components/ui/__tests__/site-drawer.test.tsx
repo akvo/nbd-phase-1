@@ -16,6 +16,9 @@ const mockSite = {
   is_approved: true,
   is_ik_adjusted: true,
   details: {
+    score_breakdown: {},
+    water_level: "Normal",
+    metrics: {},
     physico_chemical: {
       group_score: 0.88,
       ph: 7.2,
@@ -30,6 +33,7 @@ const mockSite = {
       fish_abundance: "HIGH",
       water_clarity: "CLEAR",
       vegetation_cover: "STABLE",
+      pollution_events: "None",
     },
     management_actions: [
       { label: "Revegetation", description: "Plant native reeds." },
@@ -54,4 +58,16 @@ test("renders site drawer details", () => {
 test("returns null when site is null", () => {
   const { container } = render(<SiteDrawer site={null} onClose={vi.fn()} />);
   expect(container.firstChild).toBeNull();
+});
+
+test("renders PDF export button and calls window.print when clicked", () => {
+  const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+  render(<SiteDrawer site={mockSite} onClose={vi.fn()} />);
+
+  const exportButton = screen.getByText("Export detailed report (PDF)");
+  expect(exportButton).toBeInTheDocument();
+
+  fireEvent.click(exportButton);
+  expect(printSpy).toHaveBeenCalled();
+  printSpy.mockRestore();
 });

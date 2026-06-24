@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import * as LucideIcons from "lucide-react";
+import dynamic from "next/dynamic";
 import {
   Table,
   TableHeader,
@@ -13,6 +14,15 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+
+const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-slate-50 text-xs text-slate-400">
+      Loading map...
+    </div>
+  ),
+});
 
 const DynamicIcon = ({
   name,
@@ -110,6 +120,19 @@ interface SiteDrawerProps {
 export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   if (!site) return null;
 
+  const handlePrint = () => {
+    if (typeof document !== "undefined") {
+      const originalTitle = document.title;
+      document.title = `${site.site_name}_Detailed_Report`;
+      window.print();
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 500);
+    } else {
+      window.print();
+    }
+  };
+
   const isCritical = ["D", "E"].includes(site.current_health_class);
   const isAtRisk = site.current_health_class === "C";
 
@@ -140,7 +163,10 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   );
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
+    <div
+      id="site-drawer-print-area"
+      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in"
+    >
       {/* Drawer Header */}
       <div className="p-6 border-b border-slate-200 flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
@@ -529,6 +555,43 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               No interventions triggered for this level.
             </div>
           )}
+        </div>
+
+        {/* Location Map */}
+        {site.coordinates && (
+          <div className="space-y-3 print-only">
+            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+              Location Map
+            </h3>
+            <div className="h-48 w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm relative z-10">
+              <MapViewer
+                center={site.coordinates}
+                zoom={12}
+                markers={[
+                  {
+                    position: site.coordinates,
+                    popupText: site.site_name,
+                    type: "site",
+                    name: site.site_name,
+                    status: site.current_health_class,
+                    score: site.current_score,
+                  },
+                ]}
+                className="h-full w-full"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* PDF Export Button */}
+        <div className="pt-4 no-print pb-6">
+          <Button
+            onClick={handlePrint}
+            className="w-full bg-[#38B1DD] hover:bg-[#27A0CD] text-white py-6 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
+          >
+            <LucideIcons.Printer className="w-5 h-5" />
+            Export detailed report (PDF)
+          </Button>
         </div>
       </div>
     </div>
