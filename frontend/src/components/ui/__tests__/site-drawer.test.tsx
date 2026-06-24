@@ -66,7 +66,7 @@ test("renders PDF export button and calls window.print when clicked", () => {
 
   // Mock Image constructor in jsdom to trigger onload automatically
   const originalImage = window.Image;
-  // @ts-expect-error
+  // @ts-expect-error - Mocking Image constructor for jsdom
   window.Image = class {
     onload: () => void = () => {};
     onerror: () => void = () => {};
