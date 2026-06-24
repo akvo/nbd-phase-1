@@ -247,7 +247,7 @@
 /* ── Page setup: A4 with margins prevents browser header/footer ── */
 @page {
   size: A4 portrait;
-  margin: 10mm 15mm;
+  margin: 12mm 12mm;
 }
 
 @media print {
@@ -307,7 +307,10 @@
 
   /* Badges line */
   #site-drawer-print-area > div.px-6.py-3 {
-    display: block !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    align-items: center !important;
     padding: 4px 16px !important;
   }
 
@@ -358,19 +361,42 @@
   }
 
   /* ─── 10. Prevent mid-card page breaks ───────────── */
+  /* Force the wrapper itself to be a plain block box, even if it
+     normally uses flex/grid — Chrome's print engine frequently
+     ignores break-inside on flex/grid containers and their items,
+     so the outer breakable unit must be a block to be respected. */
   #site-drawer-print-area .print-avoid-break {
-    page-break-inside: avoid !important;
-    break-inside: avoid-page !important;
-    break-inside: avoid !important;
+    page-break-inside: avoid !important; /* legacy property for older browsers */
+    break-inside: avoid !important; /* modern standard property */
     display: block !important;
     position: relative !important;
+    /* Belt-and-suspenders: some engines only honor break-inside
+       reliably when the box also isn't allowed to be treated as
+       an independent fragmentation context. */
+    break-before: auto !important;
+    -webkit-column-break-inside: avoid !important;
+  }
+
+  /* If a heading sits as a sibling immediately before a card inside
+     a .print-avoid-break wrapper, glue it to what follows so it
+     can never be orphaned at the bottom of a page on its own. */
+  #site-drawer-print-area .print-avoid-break > h3,
+  #site-drawer-print-area .print-avoid-break > h4 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Inner flex/grid layouts inside a print-avoid-break card are fine
+     to keep as flex/grid — only the OUTER wrapper above is forced
+     to block. This row stays flex for visual layout. */
+  #site-drawer-print-area .print-avoid-break .flex {
+    break-inside: avoid !important;
   }
 
   /* Cards: keep overflow-hidden intact so rounded corners clip correctly */
   #site-drawer-print-area .rounded-2xl,
   #site-drawer-print-area .rounded-xl {
     page-break-inside: avoid !important;
-    break-inside: avoid-page !important;
     break-inside: avoid !important;
   }
 
@@ -393,7 +419,6 @@
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     page-break-inside: avoid !important;
-    break-inside: avoid-page !important;
     break-inside: avoid !important;
   }
 
