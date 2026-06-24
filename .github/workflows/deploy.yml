@@ -42,7 +42,7 @@ jobs:
             --workdir "/app" \
             --entrypoint /bin/sh \
             -e NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }} \
-            akvo/akvo-node-20-alpine:20250923.063900.7ce4b53 \
+            akvo/akvo-node-21-alpine:20260624.115613.6d21a95 \
             -c "yarn install --no-progress --frozen-lockfile && yarn build"
 
       - name: Docker Build Nginx
