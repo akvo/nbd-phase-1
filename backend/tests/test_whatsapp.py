@@ -376,7 +376,10 @@ class TestConsentState:
         ):
             _post_webhook(_wa_payload(phone, "skip"))
 
-        # Verify session is now in CONFIRMATION state and not deleted yet
+        # Verify summary contains "Skipped" and is in CONFIRMATION state
+        last_msg = mock_send.call_args[0][1]
+        assert "Skipped" in last_msg
+
         db_session.expire_all()
         sess = (
             db_session.query(WhatsAppSession)
@@ -421,12 +424,23 @@ class TestConsentState:
         new_callable=AsyncMock,
     )
     def test_whatsapp_redo(self, mock_send, db_session):
+        from app.models.form import Question
+
+        q_img = (
+            db_session.query(Question).filter(Question.type == "image").first()
+        )
+        assert q_img is not None
+
         phone = "+254700001005"
         sess = WhatsAppSession(
             phone_number=phone,
             state="CONFIRMATION",
             language="en",
-            answers={"incident_type": "2", "location_id": "1"},
+            answers={
+                "incident_type": "2",
+                "location_id": "1",
+                str(q_img.id): "media/whatsapp/test.jpg",
+            },
         )
         db_session.add(sess)
         db_session.commit()
@@ -435,8 +449,11 @@ class TestConsentState:
         with patch(
             "app.services.whatsapp_service.SessionLocal",
             return_value=db_session,
-        ):
+        ), patch(
+            "app.services.whatsapp_service.StorageService.delete_file"
+        ) as mock_delete:
             _post_webhook(_wa_payload(phone, "2"))
+            mock_delete.assert_called_once_with("media/whatsapp/test.jpg")
 
         db_session.expire_all()
         updated_sess = (

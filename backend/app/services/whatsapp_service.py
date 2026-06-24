@@ -270,7 +270,7 @@ def _save_report(
     # Save answers dynamically
     for q in active_questions:
         ans_val = answers.get(str(q.id))
-        if ans_val is not None and ans_val != "UPLOAD_FAILED":
+        if ans_val is not None and ans_val not in ("UPLOAD_FAILED", "SKIPPED"):
             # If it's a list, save it as a list, else wrap in a list
             ans_opts = ans_val if isinstance(ans_val, list) else [str(ans_val)]
             ans = Answer(
@@ -303,6 +303,8 @@ def _build_whatsapp_summary(
             val_label = "Media Uploaded" if lang == "en" else "Picha Imepakiwa"
             if val == "UPLOAD_FAILED":
                 val_label = "Failed" if lang == "en" else "Haikufaulu"
+            elif val == "SKIPPED":
+                val_label = "Skipped" if lang == "en" else "Imerukwa"
         elif q.type == "option":
             opt = (
                 db.query(Option)
@@ -659,7 +661,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 elif msg_type == "text":
                     skip_text = (msg.get("text") or {}).get("body", "").strip()
                     if skip_text.lower() == "skip":
-                        parsed_val = "UPLOAD_FAILED"
+                        parsed_val = "SKIPPED"
                         valid = True
                     else:
                         prompt = (
@@ -743,6 +745,14 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 await _send_message(phone, thank_msg)
 
             elif text_body == "2":
+                # Delete any uploaded media before clearing the session answers
+                storage = StorageService()
+                for q in active_questions:
+                    if q.type in ("image", "attachment"):
+                        val = session_answers.get(str(q.id))
+                        if val and val not in ("UPLOAD_FAILED", "SKIPPED"):
+                            storage.delete_file(val)
+
                 session.answers = {}
                 session.state = "DYNAMIC_QUESTION"
                 from sqlalchemy.orm.attributes import flag_modified
