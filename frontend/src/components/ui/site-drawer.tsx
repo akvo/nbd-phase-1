@@ -160,7 +160,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         12
       );
       let loadedCount = 0;
-      const totalTiles = 3;
+      const totalTiles = 15;
       const onTileLoad = () => {
         loadedCount++;
         if (loadedCount === totalTiles) {
@@ -168,11 +168,13 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         }
       };
 
-      for (let dx = -1; dx <= 1; dx++) {
-        const img = new window.Image();
-        img.onload = onTileLoad;
-        img.onerror = onTileLoad;
-        img.src = `https://tile.openstreetmap.org/12/${x + dx}/${y}.png`;
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const img = new window.Image();
+          img.onload = onTileLoad;
+          img.onerror = onTileLoad;
+          img.src = `https://tile.openstreetmap.org/12/${x + dx}/${y + dy}.png`;
+        }
       }
     } else {
       doPrint();
@@ -314,24 +316,28 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               12
             );
             const tiles = [];
-            for (let dx = -1; dx <= 1; dx++) {
-              const tileX = x + dx;
-              const leftPos = (dx + 1) * 256;
-              tiles.push(
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={`${tileX}-${y}`}
-                  src={`https://tile.openstreetmap.org/12/${tileX}/${y}.png`}
-                  alt=""
-                  style={{
-                    position: "absolute",
-                    left: `${leftPos}px`,
-                    top: "0px",
-                    width: "256px",
-                    height: "256px",
-                  }}
-                />
-              );
+            for (let dx = -2; dx <= 2; dx++) {
+              for (let dy = -1; dy <= 1; dy++) {
+                const tileX = x + dx;
+                const tileY = y + dy;
+                const leftPos = (dx + 2) * 256;
+                const topPos = (dy + 1) * 256;
+                tiles.push(
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={`${tileX}-${tileY}`}
+                    src={`https://tile.openstreetmap.org/12/${tileX}/${tileY}.png`}
+                    alt=""
+                    style={{
+                      position: "absolute",
+                      left: `${leftPos}px`,
+                      top: `${topPos}px`,
+                      width: "256px",
+                      height: "256px",
+                    }}
+                  />
+                );
+              }
             }
 
             return (
@@ -340,14 +346,14 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                   Location Map
                 </h3>
                 <div className="w-full rounded-xl border border-slate-200 shadow-sm relative map-container-overflow">
-                  {/* 3x1 Tile Container centered around coordinate */}
+                  {/* 5x3 Tile Container centered around coordinate */}
                   <div
                     style={{
                       position: "absolute",
-                      width: "768px",
-                      height: "256px",
-                      left: `calc(50% - ${256 + xOffset}px)`,
-                      top: `calc(50% - ${yOffset}px)`,
+                      width: "1280px",
+                      height: "768px",
+                      left: `calc(50% - ${512 + xOffset}px)`,
+                      top: `calc(50% - ${256 + yOffset}px)`,
                     }}
                   >
                     {tiles}
