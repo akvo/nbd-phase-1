@@ -5,3 +5,9 @@ declare module "akvo-react-form" {
   const content: any;
   export default content;
 }
+
+declare module "akvo-react-form-editor" {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const content: any;
+  export default content;
+}

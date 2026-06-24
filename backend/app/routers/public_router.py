@@ -190,7 +190,7 @@ def list_sites(
 
             if latest_sampling:
                 eco_raw = latest_sampling.invasive_macrophytes
-                ecological_val = float(1.0 - (eco_raw / 100.0))
+                ecological_val = float(1.0 - (float(eco_raw) / 100.0))
             else:
                 ecological_val = 1.0
             ecological_val = max(0.00, min(1.00, ecological_val))
@@ -388,7 +388,7 @@ def get_site(request: Request, site_id: str, db: Session = Depends(get_db)):
 
         if latest_sampling:
             eco_raw = latest_sampling.invasive_macrophytes
-            ecological_val = float(1.0 - (eco_raw / 100.0))
+            ecological_val = float(1.0 - (float(eco_raw) / 100.0))
         else:
             ecological_val = 1.0
         ecological_val = max(0.00, min(1.00, ecological_val))
