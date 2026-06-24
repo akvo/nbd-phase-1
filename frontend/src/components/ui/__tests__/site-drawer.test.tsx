@@ -61,13 +61,40 @@ test("returns null when site is null", () => {
 });
 
 test("renders PDF export button and calls window.print when clicked", () => {
+  vi.useFakeTimers();
   const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+
+  // Mock Image constructor in jsdom to trigger onload automatically
+  const originalImage = window.Image;
+  // @ts-expect-error
+  window.Image = class {
+    onload: () => void = () => {};
+    onerror: () => void = () => {};
+    _src: string = "";
+    set src(value: string) {
+      this._src = value;
+      setTimeout(() => {
+        if (this.onload) this.onload();
+      }, 0);
+    }
+    get src() {
+      return this._src;
+    }
+  };
+
   render(<SiteDrawer site={mockSite} onClose={vi.fn()} />);
 
   const exportButton = screen.getByText("Export detailed report (PDF)");
   expect(exportButton).toBeInTheDocument();
 
   fireEvent.click(exportButton);
+
+  // Run all timers (image preload timeouts + print preparation timeouts)
+  vi.runAllTimers();
+
   expect(printSpy).toHaveBeenCalled();
+
   printSpy.mockRestore();
+  window.Image = originalImage;
+  vi.useRealTimers();
 });
