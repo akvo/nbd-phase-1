@@ -234,85 +234,178 @@
     position: absolute !important;
     left: -9999px !important;
     top: -9999px !important;
+    /* Wide enough so Leaflet initializes properly off-screen */
     width: 600px !important;
-    height: 300px !important;
+    height: 250px !important;
     overflow: hidden !important;
   }
 }
 
+/* ── Page setup: A4 with margins prevents browser header/footer ── */
 @page {
-  size: auto;
-  margin: 0mm;
+  size: A4 portrait;
+  margin: 10mm 15mm;
 }
 
 @media print {
+  /* ─── 1. Color fidelity ─────────────────────────── */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Hide all siblings of the site drawer print wrapper inside main */
+  /* ─── 2. Isolate the drawer as the only printed content ── */
   main > :not(#site-drawer-print-area) {
     display: none !important;
   }
 
-  /* Hide print-unfriendly elements */
+  /* ─── 3. Hide UI chrome ──────────────────────────── */
   .no-print,
   .leaflet-control-zoom,
-  .leaflet-control-attribution,
-  button[aria-label="Close"] {
+  .leaflet-control-attribution {
     display: none !important;
   }
 
-  .print-only {
+  /* ─── 4. Root page reset ────────────────────────── */
+  html,
+  body {
+    position: static !important;
+    overflow: visible !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* ─── 5. Drawer container becomes the page document ─ */
+  #site-drawer-print-area {
     position: static !important;
     display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
     height: auto !important;
     overflow: visible !important;
-  }
-
-  /* Reset layout constraints of the drawer container to act as a regular page element */
-  html,
-  body,
-  main,
-  #site-drawer-print-area,
-  .flex-1,
-  .overflow-y-auto {
-    position: static !important;
-    height: auto !important;
-    min-height: 100% !important;
-    overflow: visible !important;
-    background: white !important;
     box-shadow: none !important;
     border: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: white !important;
+  }
+
+  /* Reduce drawer header padding in print */
+  #site-drawer-print-area > div:first-child {
+    padding: 10px 16px !important;
+  }
+
+  /* Reduce badges line padding in print */
+  #site-drawer-print-area > div.px-6.py-3 {
+    padding: 4px 16px !important;
+  }
+
+  /* ─── 6. Scrollable drawer body → normal document flow ── */
+  #site-drawer-print-area > div.flex-1 {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 10px 16px !important;
+    margin: 0 !important;
+  }
+
+  /* ─── 7. Reveal print-only map section ──────────── */
+  .print-only {
+    position: static !important;
+    display: block !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* ─── 8. Map fills full page width ──────────────── */
+  #site-drawer-print-area .print-only > div,
+  #site-drawer-print-area .print-only .leaflet-container {
     width: 100% !important;
     max-width: 100% !important;
+    height: 80px !important;
+    box-sizing: border-box !important;
+  }
+
+  #site-drawer-print-area .print-only img {
+    max-width: none !important;
+    max-height: none !important;
     display: block !important;
   }
 
-  /* Give body physical page padding since margin is 0 to hide headers/footers */
-  body {
-    padding: 2cm 1.5cm !important;
+  /* ─── 9. Section spacing ────────────────────────── */
+  #site-drawer-print-area .space-y-6 > * {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
   }
 
-  /* Avoid page breaks inside layout sections and card wrappers */
-  .space-y-6 > div,
-  .space-y-3,
-  .border,
-  table,
-  tr {
+  /* ─── 10. Prevent mid-card page breaks ───────────── */
+  #site-drawer-print-area .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    break-inside: avoid !important;
+    display: block !important;
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  #site-drawer-print-area .rounded-2xl,
+  #site-drawer-print-area .rounded-xl {
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    break-inside: avoid !important;
+    overflow: visible !important;
+  }
+
+  #site-drawer-print-area .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  #site-drawer-print-area table,
+  #site-drawer-print-area tr {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin-bottom: 1.5rem !important;
   }
 
-  /* Force Leaflet map container to fit print page width cleanly */
-  .leaflet-container {
-    width: 100% !important;
-    max-width: 100% !important;
+  /* ─── 11. Headers stay glued to their section ────── */
+  #site-drawer-print-area h3,
+  #site-drawer-print-area h4 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* ─── 12. Preserve 2-column grid ─────────────────── */
+  #site-drawer-print-area .grid-cols-2 {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    break-inside: avoid !important;
+  }
+
+  #site-drawer-print-area .grid-cols-2 > * {
+    width: 50% !important;
     box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* ─── 13. Keep flex rows intact ──────────────────── */
+  #site-drawer-print-area .flex {
+    display: flex !important;
+  }
+
+  /* ─── 14. Kill animations ────────────────────────── */
+  #site-drawer-print-area * {
+    animation: none !important;
+    transition: none !important;
   }
 }
