@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Database, Users, MapPin, ArrowRight } from "lucide-react";
+import { Database, MapPin, ArrowRight } from "lucide-react";
 
 export default function AdminLandingPage() {
   const cards = [
@@ -15,15 +15,7 @@ export default function AdminLandingPage() {
       color: "text-sky-500 bg-sky-50 border-sky-100",
     },
     {
-      title: "User Administration",
-      description:
-        "Manage administrator accounts, curate reviewer roles, and invite organizational partners via SSO.",
-      href: "/admin/users",
-      icon: Users,
-      color: "text-emerald-500 bg-emerald-50 border-emerald-100",
-    },
-    {
-      title: "Site Configurations",
+      title: "Resource Management",
       description:
         "Define monitoring sites, check boundaries, and configure PostGIS-referenced basins and wetlands.",
       href: "/admin/sites",
@@ -56,7 +48,7 @@ export default function AdminLandingPage() {
       </div>
 
       {/* Admin Modules Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
