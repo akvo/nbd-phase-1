@@ -178,7 +178,7 @@ export default function FormManagementPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          router.push(`/admin/sites/forms/${form.id}`)
+                          router.push(`/admin/resources/forms/${form.id}`)
                         }
                         className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-medium transition-colors cursor-pointer"
                       >

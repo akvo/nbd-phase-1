@@ -7,7 +7,7 @@ export default function SitesIndexPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/admin/sites/users");
+    router.replace("/admin/resources/users");
   }, [router]);
 
   return null;

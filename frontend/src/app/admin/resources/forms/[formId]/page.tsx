@@ -182,7 +182,7 @@ export default function FormEditPage() {
     try {
       console.log("Saving form:", values);
       await apiClient.put(`/forms/${formId}`, values);
-      router.push("/admin/sites/forms");
+      router.push("/admin/resources/forms");
     } catch (err) {
       console.error("Failed to save form:", err);
       setError("Failed to save form. Please try again.");
@@ -192,7 +192,7 @@ export default function FormEditPage() {
   };
 
   const handleBack = () => {
-    router.push("/admin/sites/forms");
+    router.push("/admin/resources/forms");
   };
 
   if (loading) {

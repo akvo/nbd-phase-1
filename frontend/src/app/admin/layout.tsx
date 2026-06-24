@@ -33,7 +33,7 @@ export default function AdminLayout({
     if (!authLoading && user) {
       const adminOnlyRoutes = [
         "/admin/users",
-        "/admin/sites",
+        "/admin/resources",
         "/admin/audit-logs",
       ];
       if (
@@ -91,8 +91,8 @@ export default function AdminLayout({
     showBadge = true;
     isTabbedRoute = true;
   } else if (
-    pathname === "/admin/sites" ||
-    pathname.startsWith("/admin/sites/")
+    pathname === "/admin/resources" ||
+    pathname.startsWith("/admin/resources/")
   ) {
     title = "Resource management";
     subtitle = "Manage forms, users, and platform settings";
@@ -130,7 +130,7 @@ export default function AdminLayout({
           </div>
 
           {/* Action buttons - Site Management page */}
-          {pathname === "/admin/sites/documents" && (
+          {pathname === "/admin/resources/sites" && (
             <div className="flex items-center space-x-3">
               <button
                 type="button"
@@ -147,7 +147,7 @@ export default function AdminLayout({
           )}
 
           {/* Action buttons - User Management page */}
-          {pathname === "/admin/sites/users" && (
+          {pathname === "/admin/resources/users" && (
             <div className="flex items-center space-x-3">
               <button
                 type="button"
