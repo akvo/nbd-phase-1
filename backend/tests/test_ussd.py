@@ -138,6 +138,20 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
         },
     )
     assert response.status_code == 200
+    assert response.text.startswith("CON Confirm your details")
+    assert "Confirm" in response.text
+
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_complete",
+            "phoneNumber": "+255700000000",
+            "networkCode": "64004",
+            "serviceCode": "*123#",
+            "text": "1*1*2*3*1*1",  # Confirm & Submit
+        },
+    )
+    assert response.status_code == 200
     assert response.text.startswith("END")
     assert "received" in response.text
 
@@ -243,6 +257,19 @@ def test_ussd_terminal_submission_registered_citizen(db_session: Session):
         },
     )
     assert response.status_code == 200
+    assert response.text.startswith("CON Confirm your details")
+
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_registered",
+            "phoneNumber": registered_phone,
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*1*2*1*2*1",  # Confirm
+        },
+    )
+    assert response.status_code == 200
     assert response.text.startswith("END")
 
     # 4. Verify database state
@@ -259,3 +286,38 @@ def test_ussd_terminal_submission_registered_citizen(db_session: Session):
     # Verify geometry matches the site's coordinates
     site_point = to_shape(site.geom)
     assert dp.geo["coordinates"] == [site_point.x, site_point.y]
+
+
+def test_ussd_redo_restores_session_loop(db_session: Session):
+    # Send inputs that answer all questions (review screen)
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_redo",
+            "phoneNumber": "+255700000000",
+            "networkCode": "64004",
+            "serviceCode": "*123#",
+            "text": "1*1*2*3*1",
+        },
+    )
+    assert response.status_code == 200
+    assert response.text.startswith("CON Confirm your details")
+
+    # Send '2' to redo (discard and relaunch form)
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_redo",
+            "phoneNumber": "+255700000000",
+            "networkCode": "64004",
+            "serviceCode": "*123#",
+            "text": "1*1*2*3*1*2",
+        },
+    )
+    assert response.status_code == 200
+    # Should show the incident selection screen again
+    # (since consent and lang are kept)
+    assert (
+        response.text.startswith("CON Choose Location")
+        or "Report a change" in response.text
+    )

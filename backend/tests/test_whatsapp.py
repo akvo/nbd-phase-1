@@ -369,12 +369,32 @@ class TestConsentState:
             sess.location,
         )
 
-        # Step 5: Skip image upload (reply "skip")
+        # Step 5: Skip image upload (reply "skip") -> CONFIRMATION state
         with patch(
             "app.services.whatsapp_service.SessionLocal",
             return_value=db_session,
         ):
             _post_webhook(_wa_payload(phone, "skip"))
+
+        # Verify summary contains "Skipped" and is in CONFIRMATION state
+        last_msg = mock_send.call_args[0][1]
+        assert "Skipped" in last_msg
+
+        db_session.expire_all()
+        sess = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        assert sess is not None
+        assert sess.state == "CONFIRMATION"
+
+        # Step 6: Reply "1" to confirm and submit
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "1"))
 
         # Verify session is cleaned up and data is saved
         db_session.expire_all()
@@ -383,7 +403,7 @@ class TestConsentState:
             .filter(WhatsAppSession.phone_number == phone)
             .count()
         )
-        print("=== STEP 5 SESS COUNT:", sess_count)
+        print("=== STEP 6 SESS COUNT:", sess_count)
         assert sess_count == 0
 
         dp = (
@@ -398,6 +418,53 @@ class TestConsentState:
             db_session.query(Answer).filter(Answer.datapoint_id == dp.id).all()
         )
         assert len(answers) >= 2
+
+    @patch(
+        "app.services.whatsapp_service._send_message",
+        new_callable=AsyncMock,
+    )
+    def test_whatsapp_redo(self, mock_send, db_session):
+        from app.models.form import Question
+
+        q_img = (
+            db_session.query(Question).filter(Question.type == "image").first()
+        )
+        assert q_img is not None
+
+        phone = "+254700001005"
+        sess = WhatsAppSession(
+            phone_number=phone,
+            state="CONFIRMATION",
+            language="en",
+            answers={
+                "incident_type": "2",
+                "location_id": "1",
+                str(q_img.id): "media/whatsapp/test.jpg",
+            },
+        )
+        db_session.add(sess)
+        db_session.commit()
+
+        # Reply "2" to Redo (reset)
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ), patch(
+            "app.services.whatsapp_service.StorageService.delete_file"
+        ) as mock_delete:
+            _post_webhook(_wa_payload(phone, "2"))
+            mock_delete.assert_called_once_with("media/whatsapp/test.jpg")
+
+        db_session.expire_all()
+        updated_sess = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        assert updated_sess is not None
+        assert updated_sess.state == "DYNAMIC_QUESTION"
+        # answers must be empty dictionary
+        assert updated_sess.answers == {}
 
 
 # ---------------------------------------------------------------------------

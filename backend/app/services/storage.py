@@ -143,3 +143,12 @@ class StorageService:
                     f.write(chunk)
 
         await asyncio.to_thread(write_file)
+
+    def delete_file(self, blob_name: str) -> None:
+        """Delete a file from the filesystem if it exists."""
+        file_path = self.get_file_path(blob_name)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass

@@ -378,3 +378,24 @@ def test_api_signature_invalid_403():
     )
     assert response.status_code == 403
     assert response.json()["detail"] == "Invalid request signature"
+
+
+def test_storage_delete_file():
+    from app.services.storage import StorageService
+    import os
+
+    service = StorageService()
+    blob_name = "media/whatsapp/temp_to_delete.txt"
+    content = b"delete me"
+
+    # Write file
+    service.upload_file(content, blob_name, "text/plain")
+    file_path = service.get_file_path(blob_name)
+    assert os.path.exists(file_path)
+
+    # Delete file
+    service.delete_file(blob_name)
+    assert not os.path.exists(file_path)
+
+    # Deleting non-existent file passes silently without exception
+    service.delete_file(blob_name)

@@ -270,7 +270,7 @@ def _save_report(
     # Save answers dynamically
     for q in active_questions:
         ans_val = answers.get(str(q.id))
-        if ans_val is not None and ans_val != "UPLOAD_FAILED":
+        if ans_val is not None and ans_val not in ("UPLOAD_FAILED", "SKIPPED"):
             # If it's a list, save it as a list, else wrap in a list
             ans_opts = ans_val if isinstance(ans_val, list) else [str(ans_val)]
             ans = Answer(
@@ -283,6 +283,51 @@ def _save_report(
             db.add(ans)
 
     db.commit()
+
+
+def _build_whatsapp_summary(
+    db: Session,
+    active_questions: List[Question],
+    answers: Dict[str, Any],
+    lang: str,
+) -> str:
+    from app.services.translation import get_translation
+
+    lines = []
+    for q in active_questions:
+        val = answers.get(str(q.id))
+        if val is None:
+            continue
+        q_label = get_translation(q.translations, lang, q.label)
+        if q.type in ("image", "attachment"):
+            val_label = "Media Uploaded" if lang == "en" else "Picha Imepakiwa"
+            if val == "UPLOAD_FAILED":
+                val_label = "Failed" if lang == "en" else "Haikufaulu"
+            elif val == "SKIPPED":
+                val_label = "Skipped" if lang == "en" else "Imerukwa"
+        elif q.type == "option":
+            opt = (
+                db.query(Option)
+                .filter(Option.question_id == q.id, Option.value == str(val))
+                .first()
+            )
+            val_label = (
+                get_translation(opt.translations, lang, opt.label)
+                if opt
+                else str(val)
+            )
+        elif q.type == "cascade":
+            sb = (
+                db.query(SpatialBoundary)
+                .filter(SpatialBoundary.id == str(val))
+                .first()
+            )
+            val_label = sb.name if sb else str(val)
+        else:
+            val_label = str(val)
+
+        lines.append(f"• *{q_label}*: {val_label}")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -616,7 +661,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                 elif msg_type == "text":
                     skip_text = (msg.get("text") or {}).get("body", "").strip()
                     if skip_text.lower() == "skip":
-                        parsed_val = "UPLOAD_FAILED"
+                        parsed_val = "SKIPPED"
                         valid = True
                     else:
                         prompt = (
@@ -654,17 +699,101 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     await _prompt_question(phone, next_q, lang, db)
                 else:
                     # All completed!
-                    _save_report(
-                        db, phone, session, session_answers, active_questions
+                    # Set state to CONFIRMATION and prompt review
+                    session.state = "CONFIRMATION"
+                    db.commit()
+
+                    summary = _build_whatsapp_summary(
+                        db, active_questions, session_answers, lang
                     )
+                    if lang == "sw":
+                        confirm_msg = (
+                            "Tafadhali hakikisha maelezo ya ripoti yako:\n"
+                            f"{summary}\n\n"
+                            "Jibu *1* kuthibitisha\n"
+                            "Jibu *2* kuanza tena"
+                        )
+                    else:
+                        confirm_msg = (
+                            "Please review your report details:\n"
+                            f"{summary}\n\n"
+                            "Reply *1* to Confirm\n"
+                            "Reply *2* to Redo"
+                        )
+                    await _send_message(phone, confirm_msg)
+            return
+
+        # ------------------------------------------------------------------
+        # STATE: CONFIRMATION
+        # ------------------------------------------------------------------
+        if state == "CONFIRMATION":
+            lang = session.language
+            text_body = (msg.get("text") or {}).get("body", "").strip()
+
+            if text_body == "1":
+                _save_report(
+                    db, phone, session, session_answers, active_questions
+                )
+                db.delete(session)
+                db.commit()
+
+                thank_msg = (
+                    "✅ Asante! Ripoti yako imepokelewa na NBD Wetland Watch."
+                    if lang == "sw"
+                    else "✅ Thank you! Your report has been received by NBD Wetland Watch."  # noqa
+                )
+                await _send_message(phone, thank_msg)
+
+            elif text_body == "2":
+                # Delete any uploaded media before clearing the session answers
+                storage = StorageService()
+                for q in active_questions:
+                    if q.type in ("image", "attachment"):
+                        val = session_answers.get(str(q.id))
+                        if val and val not in ("UPLOAD_FAILED", "SKIPPED"):
+                            storage.delete_file(val)
+
+                session.answers = {}
+                session.state = "DYNAMIC_QUESTION"
+                from sqlalchemy.orm.attributes import flag_modified
+
+                flag_modified(session, "answers")
+
+                first_q = _get_next_active_question(active_questions, {}, None)
+                if first_q:
+                    session.current_question_id = first_q.id
+                    db.commit()
+                    reset_msg = (
+                        "Kazi imefutwa. Tuanze tena tangu mwanzo."
+                        if lang == "sw"
+                        else "Report reset. Let's start again from the beginning."  # noqa
+                    )
+                    await _send_message(phone, reset_msg)
+                    await _prompt_question(phone, first_q, lang, db)
+                else:
                     db.delete(session)
                     db.commit()
-                    thank_msg = (
-                        "\u2705 Asante! Ripoti yako imepokelewa na NBD Wetland Watch."  # noqa
-                        if lang == "sw"
-                        else "\u2705 Thank you! Your report has been received by NBD Wetland Watch."  # noqa
+            else:
+                summary = _build_whatsapp_summary(
+                    db, active_questions, session_answers, lang
+                )
+                if lang == "sw":
+                    confirm_msg = (
+                        "Tafadhali jibu kwa nambari sahihi.\n\n"
+                        "Tafadhali hakikisha maelezo ya ripoti yako:\n"
+                        f"{summary}\n\n"
+                        "Jibu *1* kuthibitisha\n"
+                        "Jibu *2* kuanza tena"
                     )
-                    await _send_message(phone, thank_msg)
+                else:
+                    confirm_msg = (
+                        "Please reply with a valid number.\n\n"
+                        "Please review your report details:\n"
+                        f"{summary}\n\n"
+                        "Reply *1* to Confirm\n"
+                        "Reply *2* to Redo"
+                    )
+                await _send_message(phone, confirm_msg)
             return
 
     except Exception as exc:
