@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, Paperclip, History, Users } from "lucide-react";
+import { FileText, MapPin, History, Users } from "lucide-react";
 
 const sidebarItems = [
   { name: "User Management", href: "/admin/sites/users", icon: Users },
   { name: "Form Management", href: "/admin/sites/forms", icon: FileText },
-  { name: "Site Documents", href: "/admin/sites/documents", icon: Paperclip },
+  { name: "Site Management", href: "/admin/sites/documents", icon: MapPin },
   { name: "Activity Log", href: "/admin/sites/activity", icon: History },
 ];
 

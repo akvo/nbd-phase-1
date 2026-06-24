@@ -4,7 +4,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Header from "@/components/admin/header";
 import Tabs from "@/components/admin/tabs";
-import { Download, Plus, ChevronDown, ClipboardList } from "lucide-react";
+import {
+  Download,
+  Plus,
+  ChevronDown,
+  ClipboardList,
+  MapPin,
+  UserPlus,
+} from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -121,6 +128,41 @@ export default function AdminLayout({
             </div>
             <p className="text-slate-500 text-sm">{subtitle}</p>
           </div>
+
+          {/* Action buttons - Site Management page */}
+          {pathname === "/admin/sites/documents" && (
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("open-add-site-modal"));
+                }}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors shadow-sm cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <MapPin className="w-4 h-4" />
+                <span>Add site</span>
+              </button>
+            </div>
+          )}
+
+          {/* Action buttons - User Management page */}
+          {pathname === "/admin/sites/users" && (
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent("open-invite-user-modal")
+                  );
+                }}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors shadow-sm cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Invite user</span>
+              </button>
+            </div>
+          )}
 
           {/* Action buttons (CSV Download & Add new) - Only on Data overview page */}
           {pathname === "/admin/data" && (
