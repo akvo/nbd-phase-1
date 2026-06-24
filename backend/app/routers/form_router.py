@@ -76,6 +76,260 @@ def get_form(
     return db_form
 
 
+@router.put(
+    "/forms/{form_id}",
+    response_model=schemas.FormBlueprintResponse,
+    dependencies=[Depends(RoleChecker(["Admin"]))],
+)
+def update_form(
+    form_id: int,
+    payload: schemas.FormBlueprintUpdate,
+    db: Session = Depends(get_db),
+):
+    """Update a form and its question groups, questions, and options."""
+    db_form = db.query(Form).filter(Form.id == form_id).first()
+    if not db_form:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Form not found"
+        )
+
+    try:
+        # Update form basic info
+        db_form.name = payload.name
+        db_form.type = payload.type
+        db_form.languages = payload.languages
+        db_form.translations = payload.translations
+
+        # Get existing active groups
+        existing_groups = (
+            db.query(QuestionGroup)
+            .filter(
+                QuestionGroup.form_id == form_id,
+                QuestionGroup.deleted_at.is_(None),
+            )
+            .all()
+        )
+        existing_group_ids = {g.id for g in existing_groups}
+
+        # Track which group IDs are in the payload
+        payload_group_ids = set()
+        groups_data = payload.question_group or []
+
+        for g_order, g_data in enumerate(groups_data):
+            questions_data = g_data.question or []
+
+            if g_data.id and g_data.id in existing_group_ids:
+                # Update existing group
+                payload_group_ids.add(g_data.id)
+                db_group = (
+                    db.query(QuestionGroup)
+                    .filter(QuestionGroup.id == g_data.id)
+                    .first()
+                )
+                db_group.name = g_data.name
+                db_group.label = g_data.label or g_data.description
+                db_group.order = g_data.order if g_data.order else g_order
+                db_group.repeatable = g_data.repeatable
+                db_group.repeat_text = g_data.repeat_text
+                db_group.translations = g_data.translations
+            else:
+                # Create new group
+                db_group = QuestionGroup(
+                    form_id=form_id,
+                    name=g_data.name,
+                    label=g_data.label or g_data.description,
+                    order=g_data.order if g_data.order else g_order,
+                    repeatable=g_data.repeatable,
+                    repeat_text=g_data.repeat_text,
+                    translations=g_data.translations,
+                )
+                db.add(db_group)
+                db.flush()  # Get the ID
+
+            # Sync questions within this group
+            existing_questions = (
+                db.query(Question)
+                .filter(
+                    Question.question_group_id == db_group.id,
+                    Question.deleted_at.is_(None),
+                )
+                .all()
+            )
+            existing_q_ids = {q.id for q in existing_questions}
+            payload_q_ids = set()
+
+            for q_order, q_data in enumerate(questions_data):
+                options_data = q_data.option or []
+                # Handle string option (cascade reference)
+                if isinstance(options_data, str):
+                    options_data = []
+
+                # Build extra dict for special fields
+                extra = q_data.extra or {}
+                if q_data.hidden_string:
+                    extra["hiddenString"] = True
+                if q_data.required_double_entry:
+                    extra["requiredDoubleEntry"] = True
+                if q_data.required_sign:
+                    extra["requiredSign"] = q_data.required_sign
+
+                if q_data.id and q_data.id in existing_q_ids:
+                    # Update existing question
+                    payload_q_ids.add(q_data.id)
+                    db_q = (
+                        db.query(Question)
+                        .filter(Question.id == q_data.id)
+                        .first()
+                    )
+                    db_q.name = q_data.name
+                    db_q.label = q_data.label
+                    db_q.short_label = q_data.short_label
+                    db_q.type = q_data.type
+                    db_q.required = q_data.required
+                    db_q.order = q_data.order if q_data.order else q_order
+                    db_q.meta = q_data.meta
+                    db_q.rule = q_data.rule
+                    db_q.dependency = q_data.dependency
+                    db_q.dependency_rule = q_data.dependency_rule
+                    db_q.api = q_data.api
+                    db_q.extra = extra if extra else q_data.extra
+                    db_q.tooltip = q_data.tooltip
+                    db_q.fn = q_data.fn
+                    db_q.pre = q_data.pre
+                    db_q.display_only = q_data.display_only
+                    db_q.translations = q_data.translations
+                else:
+                    # Create new question
+                    db_q = Question(
+                        form_id=form_id,
+                        question_group_id=db_group.id,
+                        name=q_data.name,
+                        label=q_data.label,
+                        short_label=q_data.short_label,
+                        type=q_data.type,
+                        required=q_data.required,
+                        order=q_data.order if q_data.order else q_order,
+                        meta=q_data.meta,
+                        rule=q_data.rule,
+                        dependency=q_data.dependency,
+                        dependency_rule=q_data.dependency_rule,
+                        api=q_data.api,
+                        extra=extra if extra else q_data.extra,
+                        tooltip=q_data.tooltip,
+                        fn=q_data.fn,
+                        pre=q_data.pre,
+                        display_only=q_data.display_only,
+                        translations=q_data.translations,
+                    )
+                    db.add(db_q)
+                    db.flush()
+
+                # Sync options within this question
+                existing_options = (
+                    db.query(Option)
+                    .filter(Option.question_id == db_q.id)
+                    .all()
+                )
+                existing_opt_ids = {o.id for o in existing_options}
+                payload_opt_ids = set()
+
+                for o_order, o_data in enumerate(options_data):
+                    if isinstance(o_data, dict):
+                        o_id = o_data.get("id")
+                        o_label = o_data.get("label") or o_data.get("name")
+                        o_value = o_data.get("value")
+                        o_order_val = o_data.get("order", o_order)
+                        o_other = o_data.get("other", False)
+                        o_color = o_data.get("color")
+                        o_translations = o_data.get("translations", [])
+                    else:
+                        # OptionUpdate object
+                        o_id = o_data.id
+                        o_label = o_data.label or o_data.name
+                        o_value = o_data.value
+                        o_order_val = (
+                            o_data.order if o_data.order else o_order
+                        )
+                        o_other = o_data.other
+                        o_color = o_data.color
+                        o_translations = o_data.translations
+
+                    if o_id and o_id in existing_opt_ids:
+                        # Update existing option
+                        payload_opt_ids.add(o_id)
+                        db_opt = (
+                            db.query(Option)
+                            .filter(Option.id == o_id)
+                            .first()
+                        )
+                        db_opt.label = o_label
+                        db_opt.value = o_value
+                        db_opt.order = o_order_val
+                        db_opt.other = o_other
+                        db_opt.color = o_color
+                        db_opt.translations = o_translations
+                    else:
+                        # Create new option
+                        db_opt = Option(
+                            question_id=db_q.id,
+                            label=o_label,
+                            value=o_value,
+                            order=o_order_val,
+                            other=o_other,
+                            color=o_color,
+                            translations=o_translations,
+                        )
+                        db.add(db_opt)
+
+                # Delete removed options
+                for opt_id in existing_opt_ids - payload_opt_ids:
+                    db.query(Option).filter(Option.id == opt_id).delete()
+
+            # Soft-delete removed questions
+            for q_id in existing_q_ids - payload_q_ids:
+                db.query(Question).filter(Question.id == q_id).update(
+                    {Question.deleted_at: datetime.utcnow()},
+                    synchronize_session="fetch",
+                )
+
+        # Soft-delete removed groups
+        for g_id in existing_group_ids - payload_group_ids:
+            db.query(QuestionGroup).filter(QuestionGroup.id == g_id).update(
+                {QuestionGroup.deleted_at: datetime.utcnow()},
+                synchronize_session="fetch",
+            )
+            # Also soft-delete questions in removed groups
+            db.query(Question).filter(
+                Question.question_group_id == g_id
+            ).update(
+                {Question.deleted_at: datetime.utcnow()},
+                synchronize_session="fetch",
+            )
+
+        db.commit()
+
+        # Return updated blueprint
+        active_groups = (
+            db.query(QuestionGroup)
+            .filter(
+                QuestionGroup.form_id == form_id,
+                QuestionGroup.deleted_at.is_(None),
+            )
+            .order_by(QuestionGroup.order.asc().nullslast())
+            .all()
+        )
+
+        return schemas.FormBlueprintResponse.from_orm_model(
+            db_form, active_groups
+        )
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        )
+
+
 @router.get(
     "/forms/{form_id}/blueprint", response_model=schemas.FormBlueprintResponse
 )

@@ -15,7 +15,7 @@ const navItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Moderation", href: "/admin/moderation", icon: ShieldAlert },
   { name: "User Management", href: "/admin/users", icon: Users },
-  { name: "Site Management", href: "/admin/sites", icon: MapPin },
+  { name: "Resource Management", href: "/admin/sites", icon: MapPin },
   { name: "Data Ingestion", href: "/admin/ingestion", icon: Database },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: History },
 ];

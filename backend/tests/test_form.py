@@ -169,4 +169,4 @@ def test_publish_form_snapshot(db_session):
     assert res_data["version"] == 1
     assert "schema" in res_data
     # The snapshot contains the dynamic layout
-    assert len(res_data["schema"]["question_groups"]) == 1
+    assert len(res_data["schema"]["question_group"]) == 1

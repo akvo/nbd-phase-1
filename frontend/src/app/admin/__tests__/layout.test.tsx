@@ -93,10 +93,7 @@ describe("Admin Top-Nav Layout", () => {
     // Verify secondary sub-navigation tabs
     expect(screen.getByRole("link", { name: "Data" })).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "User management" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Site management" })
+      screen.getByRole("link", { name: "Resource management" })
     ).toBeInTheDocument();
 
     // Verify active tab matching

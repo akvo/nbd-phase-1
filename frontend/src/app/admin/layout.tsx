@@ -83,19 +83,12 @@ export default function AdminLayout({
       "Search and filter across all submitted data • Click a row to review";
     showBadge = true;
     isTabbedRoute = true;
-  } else if (pathname === "/admin/users") {
-    title = "User administration";
-    subtitle = "Manage staff members, roles, and OIDC sign-in invitations";
-    isTabbedRoute = true;
-  } else if (pathname === "/admin/sites") {
-    title = "Site configuration";
-    subtitle =
-      "Manage basin details, sub-county bounds, and fixed monitoring points";
-    isTabbedRoute = true;
-  } else if (pathname === "/admin/audit-logs") {
-    title = "Activity log";
-    subtitle =
-      "Immutable registry of administrative events and moderation actions";
+  } else if (
+    pathname === "/admin/sites" ||
+    pathname.startsWith("/admin/sites/")
+  ) {
+    title = "Resource management";
+    subtitle = "Manage forms, users, and platform settings";
     isTabbedRoute = true;
   }
 
@@ -114,7 +107,7 @@ export default function AdminLayout({
       <Header />
 
       {/* Main Administrative Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-8 py-8 space-y-6">
+      <div className="flex-1 w-full px-8 py-8 space-y-6">
         {/* Title, Badges, and Action Buttons Row */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-1">
@@ -129,8 +122,8 @@ export default function AdminLayout({
             <p className="text-slate-500 text-sm">{subtitle}</p>
           </div>
 
-          {/* Action buttons (CSV Download & Add new) - Only on tabbed data pages */}
-          {isTabbedRoute && (
+          {/* Action buttons (CSV Download & Add new) - Only on Data overview page */}
+          {pathname === "/admin/data" && (
             <div
               className="flex items-center space-x-3 relative"
               ref={dropdownRef}
