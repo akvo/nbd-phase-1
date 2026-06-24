@@ -7,7 +7,8 @@ declare module "akvo-react-form" {
 }
 
 declare module "akvo-react-form-editor" {
+  import { ComponentType } from "react";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const content: any;
-  export default content;
+  const WebformEditor: ComponentType<any>;
+  export default WebformEditor;
 }
