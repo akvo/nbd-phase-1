@@ -1,9 +1,32 @@
 import uuid
+import jwt
+import pytest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
 from app.main import app
+from app.models.user import User
+from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
 client = TestClient(app)
+
+
+def create_admin_token(email: str = "admin_spatial@nbd.org") -> str:
+    return jwt.encode({"email": email}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+@pytest.fixture
+def setup_admin_user(db_session: Session):
+    """Create an admin user for tests that require authentication."""
+    admin = User(
+        email="admin_spatial@nbd.org",
+        role="Admin",
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.flush()  # Use flush instead of commit for test isolation
+    return admin
 
 
 def test_create_and_get_basin():
@@ -148,7 +171,10 @@ def test_create_wetland_missing_basin():
     assert "Parent Basin" in response.json()["detail"]
 
 
-def test_create_site_success_and_fail():
+def test_create_site_success_and_fail(setup_admin_user):
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
     # 1. Create parent basin & wetland
     basin_data = {
         "code": "TEST-BASIN-3",
@@ -191,14 +217,14 @@ def test_create_site_success_and_fail():
     res_wetland = client.post("/api/v1/wetlands", json=wetland_data)
     wetland_uuid = res_wetland.json()["id"]
 
-    # 2. Create Site (Success)
+    # 2. Create Site (Success) - requires Admin auth
     site_data = {
         "code": "TEST-SITE-1",
         "wetland_id": wetland_uuid,
         "name": "Test Site 1",
         "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
     }
-    response = client.post("/api/v1/sites", json=site_data)
+    response = client.post("/api/v1/sites", json=site_data, headers=headers)
     assert response.status_code == 201
     assert response.json()["code"] == "TEST-SITE-1"
     assert response.json()["wetland_id"] == wetland_uuid
@@ -211,12 +237,17 @@ def test_create_site_success_and_fail():
         "name": "Test Site 2",
         "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
     }
-    response = client.post("/api/v1/sites", json=site_data_invalid)
+    response = client.post(
+        "/api/v1/sites", json=site_data_invalid, headers=headers
+    )
     assert response.status_code == 400
     assert "Parent Wetland" in response.json()["detail"]
 
 
-def test_spatial_duplicates_and_404s():
+def test_spatial_duplicates_and_404s(setup_admin_user):
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
     # 1. Duplicate Basin Check
     basin_data = {
         "code": "DUP-BASIN",
@@ -276,16 +307,16 @@ def test_spatial_duplicates_and_404s():
     res_w_404 = client.get(f"/api/v1/wetlands/{uuid.uuid4()}")
     assert res_w_404.status_code == 404
 
-    # 3. Duplicate Site Check
+    # 3. Duplicate Site Check - requires Admin auth
     site_data = {
         "code": "DUP-SITE",
         "wetland_id": wetland_uuid,
         "name": "Site",
         "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
     }
-    res_s1 = client.post("/api/v1/sites", json=site_data)
+    res_s1 = client.post("/api/v1/sites", json=site_data, headers=headers)
     assert res_s1.status_code == 201
-    res_s2 = client.post("/api/v1/sites", json=site_data)
+    res_s2 = client.post("/api/v1/sites", json=site_data, headers=headers)
     assert res_s2.status_code == 400
     assert "already exists" in res_s2.json()["detail"]
 
@@ -295,7 +326,7 @@ def test_spatial_duplicates_and_404s():
 
 
 @patch("app.routers.spatial_router.from_shape")
-def test_router_exceptions(mock_from_shape):
+def test_router_exceptions(mock_from_shape, db_session: Session):
     from geoalchemy2.shape import from_shape as real_from_shape
 
     mock_from_shape.side_effect = Exception("DB error mock")
@@ -354,7 +385,19 @@ def test_router_exceptions(mock_from_shape):
     res_w = client.post("/api/v1/wetlands", json=wetland_data)
     wetland_uuid = res_w.json()["id"]
 
-    # Site Create exception
+    # Create admin user AFTER basin/wetland setup (in current tx state)
+    admin = User(
+        email="admin_spatial@nbd.org",
+        role="Admin",
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.flush()
+
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # Site Create exception - requires Admin auth
     mock_from_shape.side_effect = Exception("DB error mock")
     site_data = {
         "code": "EXC-SITE",
@@ -362,5 +405,5 @@ def test_router_exceptions(mock_from_shape):
         "name": "Site",
         "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
     }
-    res = client.post("/api/v1/sites", json=site_data)
+    res = client.post("/api/v1/sites", json=site_data, headers=headers)
     assert res.status_code == 400
