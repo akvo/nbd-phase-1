@@ -239,6 +239,9 @@
     height: 250px !important;
     overflow: hidden !important;
   }
+  .map-container-overflow {
+    overflow: hidden !important;
+  }
 }
 
 /* ── Page setup: A4 with margins prevents browser header/footer ── */
@@ -291,15 +294,20 @@
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
+    /* Reset flex layout so children stack as blocks */
+    flex-direction: unset !important;
   }
 
-  /* Reduce drawer header padding in print */
+  /* Drawer header: compact and block */
   #site-drawer-print-area > div:first-child {
+    display: block !important;
     padding: 10px 16px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
   }
 
-  /* Reduce badges line padding in print */
+  /* Badges line */
   #site-drawer-print-area > div.px-6.py-3 {
+    display: block !important;
     padding: 4px 16px !important;
   }
 
@@ -316,32 +324,35 @@
 
   /* ─── 7. Reveal print-only map section ──────────── */
   .print-only {
-    position: static !important;
+    position: relative !important;
     display: block !important;
     left: auto !important;
     top: auto !important;
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
+    margin-bottom: 12px !important;
   }
 
-  /* ─── 8. Map fills full page width ──────────────── */
-  #site-drawer-print-area .print-only > div,
-  #site-drawer-print-area .print-only .leaflet-container {
+  /* ─── 8. Map container: strict paint containment clips overflow ── */
+  .map-container-overflow {
+    display: block !important;
+    position: relative !important;
     width: 100% !important;
-    max-width: 100% !important;
-    height: 80px !important;
+    height: 130px !important;
+    overflow: hidden !important;
+    contain: paint !important;
     box-sizing: border-box !important;
   }
 
-  #site-drawer-print-area .print-only img {
+  .print-only img {
     max-width: none !important;
     max-height: none !important;
     display: block !important;
   }
 
   /* ─── 9. Section spacing ────────────────────────── */
-  #site-drawer-print-area .space-y-6 > * {
+  #site-drawer-print-area > div.flex-1 > .space-y-6 > * {
     margin-top: 0.5rem !important;
     margin-bottom: 0.5rem !important;
   }
@@ -353,19 +364,14 @@
     break-inside: avoid !important;
     display: block !important;
     position: relative !important;
-    overflow: visible !important;
   }
 
+  /* Cards: keep overflow-hidden intact so rounded corners clip correctly */
   #site-drawer-print-area .rounded-2xl,
   #site-drawer-print-area .rounded-xl {
     page-break-inside: avoid !important;
     break-inside: avoid-page !important;
     break-inside: avoid !important;
-    overflow: visible !important;
-  }
-
-  #site-drawer-print-area .overflow-hidden {
-    overflow: visible !important;
   }
 
   #site-drawer-print-area table,
@@ -382,30 +388,39 @@
     margin-bottom: 0.5rem !important;
   }
 
-  /* ─── 12. Preserve 2-column grid ─────────────────── */
+  /* ─── 12. Preserve 2-column grid (keep as grid, not flex) ──── */
   #site-drawer-print-area .grid-cols-2 {
-    display: flex !important;
-    flex-wrap: wrap !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
     page-break-inside: avoid !important;
     break-inside: avoid-page !important;
     break-inside: avoid !important;
   }
 
-  #site-drawer-print-area .grid-cols-2 > * {
-    width: 50% !important;
-    box-sizing: border-box !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  /* ─── 13. Keep flex rows intact ──────────────────── */
-  #site-drawer-print-area .flex {
-    display: flex !important;
+  /* ─── 13. FGD 2x2 grid inside the score cards ────── */
+  #site-drawer-print-area .grid {
+    display: grid !important;
   }
 
   /* ─── 14. Kill animations ────────────────────────── */
   #site-drawer-print-area * {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* ─── 15. Flex rows in cards stay flex ───────────── */
+  #site-drawer-print-area .flex.items-center,
+  #site-drawer-print-area .flex.justify-between,
+  #site-drawer-print-area .flex.flex-wrap,
+  #site-drawer-print-area .flex.items-start,
+  #site-drawer-print-area .flex.gap-2,
+  #site-drawer-print-area .flex.gap-3,
+  #site-drawer-print-area .flex.flex-col {
+    display: flex !important;
+  }
+
+  /* ─── 16. Progress bar: preserve background ──────── */
+  #site-drawer-print-area .bg-slate-100 {
+    background-color: #f1f5f9 !important;
   }
 }

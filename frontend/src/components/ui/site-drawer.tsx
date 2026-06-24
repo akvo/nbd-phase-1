@@ -15,9 +15,6 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
-
-
-
 const DynamicIcon = ({
   name,
   className,
@@ -157,7 +154,11 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
 
     // Preload all 3 tiles so they are in the browser cache before print fires
     if (site.coordinates) {
-      const { x, y } = getTileCoords(site.coordinates[0], site.coordinates[1], 12);
+      const { x, y } = getTileCoords(
+        site.coordinates[0],
+        site.coordinates[1],
+        12
+      );
       let loadedCount = 0;
       const totalTiles = 3;
       const onTileLoad = () => {
@@ -305,68 +306,72 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         )}
 
         {/* Location Map – static image shown ONLY in print output */}
-        {site.coordinates && (() => {
-          const { x, y, xOffset, yOffset } = getTileCoords(site.coordinates[0], site.coordinates[1], 12);
-          const tiles = [];
-          for (let dx = -1; dx <= 1; dx++) {
-            const tileX = x + dx;
-            const leftPos = (dx + 1) * 256;
-            tiles.push(
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={`${tileX}-${y}`}
-                src={`https://tile.openstreetmap.org/12/${tileX}/${y}.png`}
-                alt=""
-                style={{
-                  position: "absolute",
-                  left: `${leftPos}px`,
-                  top: "0px",
-                  width: "256px",
-                  height: "256px",
-                }}
-              />
+        {site.coordinates &&
+          (() => {
+            const { x, y, xOffset, yOffset } = getTileCoords(
+              site.coordinates[0],
+              site.coordinates[1],
+              12
             );
-          }
-
-          return (
-            <div className="space-y-3 print-only print-avoid-break">
-              <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                Location Map
-              </h3>
-              <div
-                style={{ height: "80px" }}
-                className="w-full rounded-xl border border-slate-200 shadow-sm relative overflow-hidden"
-              >
-                {/* 3x1 Tile Container centered around coordinate */}
-                <div
+            const tiles = [];
+            for (let dx = -1; dx <= 1; dx++) {
+              const tileX = x + dx;
+              const leftPos = (dx + 1) * 256;
+              tiles.push(
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={`${tileX}-${y}`}
+                  src={`https://tile.openstreetmap.org/12/${tileX}/${y}.png`}
+                  alt=""
                   style={{
                     position: "absolute",
-                    width: "768px",
+                    left: `${leftPos}px`,
+                    top: "0px",
+                    width: "256px",
                     height: "256px",
-                    left: `calc(50% - ${256 + xOffset}px)`,
-                    top: `calc(50% - ${yOffset}px)`,
                   }}
-                >
-                  {tiles}
-                </div>
-                {/* Centered red marker representing location */}
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "50%",
-                    top: "50%",
-                    transform: "translate(-50%, -100%)",
-                    zIndex: 10,
-                    fontSize: "24px",
-                    lineHeight: "1",
-                  }}
-                >
-                  📍
+                />
+              );
+            }
+
+            return (
+              <div className="space-y-3 print-only print-avoid-break">
+                <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+                  Location Map
+                </h3>
+                <div className="w-full rounded-xl border border-slate-200 shadow-sm relative map-container-overflow">
+                  {/* 3x1 Tile Container centered around coordinate */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      width: "768px",
+                      height: "256px",
+                      left: `calc(50% - ${256 + xOffset}px)`,
+                      top: `calc(50% - ${yOffset}px)`,
+                    }}
+                  >
+                    {tiles}
+                  </div>
+                  {/* Centered red dot marker representing location */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: "50%",
+                      transform: "translate(-50%, -50%)",
+                      zIndex: 10,
+                      width: "14px",
+                      height: "14px",
+                      backgroundColor: "#ef4444",
+                      borderRadius: "50%",
+                      border: "2px solid white",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.35)",
+                    }}
+                  />
                 </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
 
         {/* Required Interventions */}
         <div className="space-y-3 print-avoid-break">
@@ -434,7 +439,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                     <div
                       className={`flex items-center gap-1.5 text-[10px] font-semibold ${colors.text}`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${colors.bg}`} />
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${colors.bg}`}
+                      />
                       <span>{metric.status}</span>
                     </div>
                   </div>
@@ -669,10 +676,6 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             </div>
           </div>
         </div>
-
-
-
-
 
         {/* PDF Export Button */}
         <div className="pt-4 no-print pb-6">
