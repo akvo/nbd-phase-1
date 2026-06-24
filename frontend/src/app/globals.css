@@ -231,7 +231,12 @@
 
 @media screen {
   .print-only {
-    display: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    width: 600px !important;
+    height: 300px !important;
+    overflow: hidden !important;
   }
 }
 
@@ -260,7 +265,11 @@
   }
 
   .print-only {
+    position: static !important;
     display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   /* Reset layout constraints of the drawer container to act as a regular page element */
@@ -281,17 +290,23 @@
     padding: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
+    display: block !important;
   }
 
   /* Give body physical page padding since margin is 0 to hide headers/footers */
   body {
-    padding: 1.5cm !important;
+    padding: 2cm 1.5cm !important;
   }
 
-  /* Avoid page breaks inside layout sections */
-  .space-y-6 > div {
+  /* Avoid page breaks inside layout sections and card wrappers */
+  .space-y-6 > div,
+  .space-y-3,
+  .border,
+  table,
+  tr {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    margin-bottom: 1.5rem !important;
   }
 
   /* Force Leaflet map container to fit print page width cleanly */
