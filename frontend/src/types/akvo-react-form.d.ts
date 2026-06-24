@@ -11,4 +11,3 @@ declare module "akvo-react-form-editor" {
   const content: any;
   export default content;
 }
-
