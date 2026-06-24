@@ -281,13 +281,11 @@ class BlueprintQuestionSchema(BaseModel):
     id: int
     name: Optional[str] = None
     label: str
-    short_label: Optional[str] = None
     shortLabel: Optional[str] = None
     type: str
     required: bool = True
     rule: Optional[Dict[str, Any]] = None
     dependency: Optional[List[Dict[str, Any]]] = None
-    dependency_rule: Optional[str] = None
     dependencyRule: Optional[str] = None
     api: Optional[Dict[str, Any]] = None
     extra: Optional[Dict[str, Any]] = None
@@ -295,31 +293,37 @@ class BlueprintQuestionSchema(BaseModel):
     fn: Optional[Dict[str, Any]] = None
     pre: Optional[Dict[str, Any]] = None
     displayOnly: bool = False
-    display_only: bool = False
     hiddenString: bool = False
-    hidden_string: bool = False
     requiredDoubleEntry: bool = False
-    required_double_entry: bool = False
     requiredSign: Optional[str] = None
-    required_sign: Optional[str] = None
     meta: bool = False
     translations: List[Dict[str, Any]] = []
     option: Optional[Any] = None
-    options: Optional[List[BlueprintOptionSchema]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode='before')
     @classmethod
-    def normalize_options(cls, data: Any) -> Any:
+    def normalize_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            opt = data.get("option")
-            opts = data.get("options")
-            if opt is None and opts is not None:
-                data["option"] = opts
-            elif opt is not None and opts is None:
-                if isinstance(opt, list):
-                    data["options"] = opt
+            # Normalize snake_case to camelCase for output consistency
+            if "short_label" in data and "shortLabel" not in data:
+                data["shortLabel"] = data.pop("short_label")
+            if "dependency_rule" in data and "dependencyRule" not in data:
+                data["dependencyRule"] = data.pop("dependency_rule")
+            if "display_only" in data and "displayOnly" not in data:
+                data["displayOnly"] = data.pop("display_only")
+            if "hidden_string" in data and "hiddenString" not in data:
+                data["hiddenString"] = data.pop("hidden_string")
+            if "required_double_entry" in data:
+                if "requiredDoubleEntry" not in data:
+                    val = data.pop("required_double_entry")
+                    data["requiredDoubleEntry"] = val
+            if "required_sign" in data and "requiredSign" not in data:
+                data["requiredSign"] = data.pop("required_sign")
+            # Normalize options to option
+            if "options" in data and "option" not in data:
+                data["option"] = data.pop("options")
         return data
 
     @classmethod
@@ -341,13 +345,11 @@ class BlueprintQuestionSchema(BaseModel):
             id=q.id,
             name=q.name,
             label=q.label,
-            short_label=q.short_label,
             shortLabel=q.short_label,
             type=q_type_str,
             required=q.required,
             rule=q.rule,
             dependency=q.dependency,
-            dependency_rule=q.dependency_rule,
             dependencyRule=q.dependency_rule,
             api=q.api,
             extra=q.extra,
@@ -355,17 +357,12 @@ class BlueprintQuestionSchema(BaseModel):
             fn=q.fn,
             pre=q.pre,
             displayOnly=q.display_only or False,
-            display_only=q.display_only or False,
             hiddenString=extra.get("hiddenString", False),
-            hidden_string=extra.get("hiddenString", False),
             requiredDoubleEntry=extra.get("requiredDoubleEntry", False),
-            required_double_entry=extra.get("requiredDoubleEntry", False),
             requiredSign=extra.get("requiredSign"),
-            required_sign=extra.get("requiredSign"),
             meta=q.meta,
             translations=q.translations or [],
             option=opt_val,
-            options=opts if opts else None,
         )
 
 
@@ -377,24 +374,22 @@ class BlueprintQuestionGroupSchema(BaseModel):
     order: Optional[int] = None
     repeatable: bool = False
     repeatText: Optional[str] = None
-    repeat_text: Optional[str] = None
     repeatButtonPlacement: Optional[str] = None
     translations: List[Dict[str, Any]] = []
     question: List[BlueprintQuestionSchema] = []
-    questions: List[BlueprintQuestionSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode='before')
     @classmethod
-    def normalize_questions(cls, data: Any) -> Any:
+    def normalize_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            q = data.get("question")
-            qs = data.get("questions")
-            if not q and qs:
-                data["question"] = qs
-            elif q and not qs:
-                data["questions"] = q
+            # Normalize questions to question
+            if "questions" in data and "question" not in data:
+                data["question"] = data.pop("questions")
+            # Normalize repeat_text to repeatText
+            if "repeat_text" in data and "repeatText" not in data:
+                data["repeatText"] = data.pop("repeat_text")
         return data
 
     @classmethod
@@ -416,11 +411,9 @@ class BlueprintQuestionGroupSchema(BaseModel):
             order=g.order,
             repeatable=g.repeatable,
             repeatText=g.repeat_text,
-            repeat_text=g.repeat_text,
             repeatButtonPlacement=None,
             translations=g.translations or [],
             question=qs,
-            questions=qs,
         )
 
 
@@ -433,7 +426,6 @@ class FormBlueprintResponse(BaseModel):
     defaultLanguage: str = "en"
     translations: List[Dict[str, Any]] = []
     question_group: List[BlueprintQuestionGroupSchema] = []
-    question_groups: List[BlueprintQuestionGroupSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -441,12 +433,9 @@ class FormBlueprintResponse(BaseModel):
     @classmethod
     def normalize_groups(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            q_group = data.get("question_group")
-            q_groups = data.get("question_groups")
-            if not q_group and q_groups:
-                data["question_group"] = q_groups
-            elif q_group and not q_groups:
-                data["question_groups"] = q_group
+            # Normalize question_groups to question_group
+            if "question_groups" in data and "question_group" not in data:
+                data["question_group"] = data.pop("question_groups")
         return data
 
     @classmethod
@@ -464,7 +453,6 @@ class FormBlueprintResponse(BaseModel):
             defaultLanguage="en",
             translations=db_form.translations or [],
             question_group=groups,
-            question_groups=groups,
         )
 
 
@@ -487,7 +475,6 @@ class QuestionUpdate(BaseModel):
     name: Optional[str] = None
     label: str
     short_label: Optional[str] = None
-    shortLabel: Optional[str] = None
     type: str
     required: bool = True
     order: Optional[int] = None
@@ -495,45 +482,40 @@ class QuestionUpdate(BaseModel):
     rule: Optional[Dict[str, Any]] = None
     dependency: Optional[List[Dict[str, Any]]] = None
     dependency_rule: Optional[str] = None
-    dependencyRule: Optional[str] = None
     api: Optional[Dict[str, Any]] = None
     extra: Optional[Dict[str, Any]] = None
     tooltip: Optional[Dict[str, Any]] = None
     fn: Optional[Dict[str, Any]] = None
     pre: Optional[Dict[str, Any]] = None
-    displayOnly: bool = False
     display_only: bool = False
-    hiddenString: bool = False
     hidden_string: bool = False
-    requiredDoubleEntry: bool = False
     required_double_entry: bool = False
-    requiredSign: Optional[str] = None
     required_sign: Optional[str] = None
     translations: List[Dict[str, Any]] = []
-    option: Optional[Any] = None
-    options: Optional[List[OptionUpdate]] = None
+    option: Optional[List[OptionUpdate]] = None
 
     @model_validator(mode='before')
     @classmethod
     def normalize_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            # Normalize options
-            opt = data.get("option")
-            opts = data.get("options")
-            if opt is None and opts is not None:
-                data["option"] = opts
-            elif opt is not None and opts is None:
-                if isinstance(opt, list):
-                    data["options"] = opt
-            # Normalize shortLabel to short_label
-            if data.get("shortLabel") and not data.get("short_label"):
-                data["short_label"] = data["shortLabel"]
-            # Normalize dependencyRule to dependency_rule
-            if data.get("dependencyRule") and not data.get("dependency_rule"):
-                data["dependency_rule"] = data["dependencyRule"]
-            # Normalize displayOnly to display_only
-            if data.get("displayOnly") and not data.get("display_only"):
-                data["display_only"] = data["displayOnly"]
+            # Normalize camelCase to snake_case
+            if "shortLabel" in data and "short_label" not in data:
+                data["short_label"] = data.pop("shortLabel")
+            if "dependencyRule" in data and "dependency_rule" not in data:
+                data["dependency_rule"] = data.pop("dependencyRule")
+            if "displayOnly" in data and "display_only" not in data:
+                data["display_only"] = data.pop("displayOnly")
+            if "hiddenString" in data and "hidden_string" not in data:
+                data["hidden_string"] = data.pop("hiddenString")
+            if "requiredDoubleEntry" in data:
+                if "required_double_entry" not in data:
+                    val = data.pop("requiredDoubleEntry")
+                    data["required_double_entry"] = val
+            if "requiredSign" in data and "required_sign" not in data:
+                data["required_sign"] = data.pop("requiredSign")
+            # Normalize options to option
+            if "options" in data and "option" not in data:
+                data["option"] = data.pop("options")
         return data
 
 
@@ -544,27 +526,20 @@ class QuestionGroupUpdate(BaseModel):
     description: Optional[str] = None
     order: Optional[int] = None
     repeatable: bool = False
-    repeatText: Optional[str] = None
     repeat_text: Optional[str] = None
-    repeatButtonPlacement: Optional[str] = None
     translations: List[Dict[str, Any]] = []
     question: List[QuestionUpdate] = []
-    questions: List[QuestionUpdate] = []
 
     @model_validator(mode='before')
     @classmethod
     def normalize_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            # Normalize questions
-            q = data.get("question")
-            qs = data.get("questions")
-            if not q and qs:
-                data["question"] = qs
-            elif q and not qs:
-                data["questions"] = q
+            # Normalize questions to question
+            if "questions" in data and "question" not in data:
+                data["question"] = data.pop("questions")
             # Normalize repeatText to repeat_text
-            if data.get("repeatText") and not data.get("repeat_text"):
-                data["repeat_text"] = data["repeatText"]
+            if "repeatText" in data and "repeat_text" not in data:
+                data["repeat_text"] = data.pop("repeatText")
         return data
 
 
@@ -575,16 +550,12 @@ class FormBlueprintUpdate(BaseModel):
     defaultLanguage: str = "en"
     translations: List[Dict[str, Any]] = []
     question_group: List[QuestionGroupUpdate] = []
-    question_groups: List[QuestionGroupUpdate] = []
 
     @model_validator(mode='before')
     @classmethod
     def normalize_groups(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            q_group = data.get("question_group")
-            q_groups = data.get("question_groups")
-            if not q_group and q_groups:
-                data["question_group"] = q_groups
-            elif q_group and not q_groups:
-                data["question_groups"] = q_group
+            # Normalize question_groups to question_group
+            if "question_groups" in data and "question_group" not in data:
+                data["question_group"] = data.pop("question_groups")
         return data

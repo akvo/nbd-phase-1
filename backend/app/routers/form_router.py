@@ -113,10 +113,10 @@ def update_form(
 
         # Track which group IDs are in the payload
         payload_group_ids = set()
-        groups_data = payload.question_group or payload.question_groups or []
+        groups_data = payload.question_group or []
 
         for g_order, g_data in enumerate(groups_data):
-            questions_data = g_data.question or g_data.questions or []
+            questions_data = g_data.question or []
 
             if g_data.id and g_data.id in existing_group_ids:
                 # Update existing group
@@ -130,7 +130,7 @@ def update_form(
                 db_group.label = g_data.label or g_data.description
                 db_group.order = g_data.order if g_data.order else g_order
                 db_group.repeatable = g_data.repeatable
-                db_group.repeat_text = g_data.repeat_text or g_data.repeatText
+                db_group.repeat_text = g_data.repeat_text
                 db_group.translations = g_data.translations
             else:
                 # Create new group
@@ -140,7 +140,7 @@ def update_form(
                     label=g_data.label or g_data.description,
                     order=g_data.order if g_data.order else g_order,
                     repeatable=g_data.repeatable,
-                    repeat_text=g_data.repeat_text or g_data.repeatText,
+                    repeat_text=g_data.repeat_text,
                     translations=g_data.translations,
                 )
                 db.add(db_group)
@@ -159,21 +159,19 @@ def update_form(
             payload_q_ids = set()
 
             for q_order, q_data in enumerate(questions_data):
-                options_data = q_data.option or q_data.options or []
+                options_data = q_data.option or []
                 # Handle string option (cascade reference)
                 if isinstance(options_data, str):
                     options_data = []
 
                 # Build extra dict for special fields
                 extra = q_data.extra or {}
-                if q_data.hiddenString or q_data.hidden_string:
+                if q_data.hidden_string:
                     extra["hiddenString"] = True
-                if q_data.requiredDoubleEntry or q_data.required_double_entry:
+                if q_data.required_double_entry:
                     extra["requiredDoubleEntry"] = True
-                if q_data.requiredSign or q_data.required_sign:
-                    extra["requiredSign"] = (
-                        q_data.requiredSign or q_data.required_sign
-                    )
+                if q_data.required_sign:
+                    extra["requiredSign"] = q_data.required_sign
 
                 if q_data.id and q_data.id in existing_q_ids:
                     # Update existing question
@@ -185,24 +183,20 @@ def update_form(
                     )
                     db_q.name = q_data.name
                     db_q.label = q_data.label
-                    db_q.short_label = q_data.short_label or q_data.shortLabel
+                    db_q.short_label = q_data.short_label
                     db_q.type = q_data.type
                     db_q.required = q_data.required
                     db_q.order = q_data.order if q_data.order else q_order
                     db_q.meta = q_data.meta
                     db_q.rule = q_data.rule
                     db_q.dependency = q_data.dependency
-                    db_q.dependency_rule = (
-                        q_data.dependency_rule or q_data.dependencyRule
-                    )
+                    db_q.dependency_rule = q_data.dependency_rule
                     db_q.api = q_data.api
                     db_q.extra = extra if extra else q_data.extra
                     db_q.tooltip = q_data.tooltip
                     db_q.fn = q_data.fn
                     db_q.pre = q_data.pre
-                    db_q.display_only = (
-                        q_data.display_only or q_data.displayOnly
-                    )
+                    db_q.display_only = q_data.display_only
                     db_q.translations = q_data.translations
                 else:
                     # Create new question
@@ -211,24 +205,20 @@ def update_form(
                         question_group_id=db_group.id,
                         name=q_data.name,
                         label=q_data.label,
-                        short_label=q_data.short_label or q_data.shortLabel,
+                        short_label=q_data.short_label,
                         type=q_data.type,
                         required=q_data.required,
                         order=q_data.order if q_data.order else q_order,
                         meta=q_data.meta,
                         rule=q_data.rule,
                         dependency=q_data.dependency,
-                        dependency_rule=(
-                            q_data.dependency_rule or q_data.dependencyRule
-                        ),
+                        dependency_rule=q_data.dependency_rule,
                         api=q_data.api,
                         extra=extra if extra else q_data.extra,
                         tooltip=q_data.tooltip,
                         fn=q_data.fn,
                         pre=q_data.pre,
-                        display_only=(
-                            q_data.display_only or q_data.displayOnly
-                        ),
+                        display_only=q_data.display_only,
                         translations=q_data.translations,
                     )
                     db.add(db_q)
