@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.spatial import SpatialBoundary, Basin
-from app.models.form import Form, Question, QuestionGroup, Option, FormNames
+from app.models.form import (
+    Form,
+    Question,
+    QuestionGroup,
+    Option,
+    FormNames,
+    QuestionType,
+)
 from app.models.submission import Datapoint, Answer
 from app.models.citizen import Citizen
 
@@ -515,11 +522,50 @@ def _handle_ussd_core(
     for q in active_questions:
         ans_val = current_answers.get(q.id)
         if ans_val is not None:
+            name = None
+            value = None
+            option = None
+
+            if q.type in (
+                QuestionType.geo,
+                QuestionType.option,
+                QuestionType.multiple_option,
+            ):
+                option = [str(ans_val)]
+            elif q.type in (
+                QuestionType.input,
+                QuestionType.text,
+                QuestionType.image,
+                QuestionType.date,
+                QuestionType.autofield,
+                QuestionType.attachment,
+                QuestionType.signature,
+            ):
+                name = str(ans_val)
+            elif q.type == QuestionType.cascade:
+                option = [str(ans_val)]
+                boundary = (
+                    db.query(SpatialBoundary)
+                    .filter(SpatialBoundary.id == ans_val)
+                    .first()
+                )
+                if boundary:
+                    name = boundary.name
+                else:
+                    name = str(ans_val)
+            else:
+                # Fallback or numeric types
+                try:
+                    value = float(ans_val)
+                except (ValueError, TypeError):
+                    name = str(ans_val)
+
             ans = Answer(
                 datapoint_id=dp.id,
                 question_id=q.id,
-                name=None,
-                options=[str(ans_val)],
+                name=name,
+                options=option,
+                value=value,
             )
             db.add(ans)
 

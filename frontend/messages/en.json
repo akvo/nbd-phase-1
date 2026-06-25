@@ -16,7 +16,8 @@
       "all": "All",
       "critical": "Critical",
       "atRisk": "At risk",
-      "healthy": "Healthy"
+      "healthy": "Healthy",
+      "elevated": "Elevated"
     },
     "searchPlaceholder": "Search field, area, water source",
     "monitoringSites": "Monitoring Sites",

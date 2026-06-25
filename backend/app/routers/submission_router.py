@@ -7,7 +7,7 @@ from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.audit_log import AuditLog
 from app.models.submission import Datapoint, Answer
-from app.models.form import Form
+from app.models.form import Form, Question, QuestionType
 from app.models.user import User
 from app.schemas import submission as schemas
 from app.services.storage import StorageService
@@ -49,14 +49,91 @@ def create_submission(
         db.add(db_datapoint)
         db.flush()  # Generate ID for answers
 
+        # Fetch questions to identify types
+        questions = (
+            db.query(Question)
+            .filter(Question.form_id == payload.form_id)
+            .all()
+        )
+        q_map = {q.id: q for q in questions}
+
         # Add answers
         for ans in payload.answers:
+            q = q_map.get(ans.question_id)
+            name = None
+            value = None
+            option = None
+
+            if q:
+                if q.type in (
+                    QuestionType.geo,
+                    QuestionType.option,
+                    QuestionType.multiple_option,
+                ):
+                    if ans.options is not None:
+                        option = ans.options
+                    elif ans.value is not None:
+                        option = (
+                            ans.options
+                            if isinstance(ans.options, list)
+                            else [ans.value]
+                        )
+                elif q.type in (
+                    QuestionType.input,
+                    QuestionType.text,
+                    QuestionType.image,
+                    QuestionType.date,
+                    QuestionType.autofield,
+                    QuestionType.attachment,
+                    QuestionType.signature,
+                ):
+                    name = (
+                        str(ans.value) if ans.value is not None else ans.name
+                    )
+                elif q.type == QuestionType.cascade:
+                    val_id = (
+                        ans.value
+                        if ans.value is not None
+                        else (ans.options[0] if ans.options else None)
+                    )
+                    option = [str(val_id)] if val_id else None
+                    from app.models.spatial import SpatialBoundary
+
+                    boundary = None
+                    if val_id:
+                        boundary = (
+                            db.query(SpatialBoundary)
+                            .filter(SpatialBoundary.id == val_id)
+                            .first()
+                        )
+                    if boundary:
+                        name = boundary.name
+                    else:
+                        name = ans.name
+                else:
+                    value = str(ans.value) if ans.value is not None else None
+            else:
+                # Fallback if question not found
+                if ans.options is not None:
+                    option = ans.options
+                else:
+                    try:
+                        value = (
+                            float(ans.value) if ans.value is not None else None
+                        )
+                    except (ValueError, TypeError):
+                        name = (
+                            str(ans.value)
+                            if ans.value is not None
+                            else ans.name
+                        )
+
             db_answer = Answer(
                 datapoint_id=db_datapoint.id,
                 question_id=ans.question_id,
-                name=ans.name,
-                value=ans.value,
-                options=ans.options,
+                name=name,
+                value=value,
+                options=option,
                 index=ans.index,
             )
             db.add(db_answer)

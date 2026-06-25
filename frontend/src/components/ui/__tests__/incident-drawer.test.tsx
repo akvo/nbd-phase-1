@@ -79,3 +79,33 @@ test("calls onClose when close button is clicked", () => {
   fireEvent.click(screen.getByText("✕"));
   expect(onClose).toHaveBeenCalled();
 });
+
+test("renders image from media_attachment when read_url is provided", () => {
+  const incidentWithMediaAttachment: IncidentSummary = {
+    ...mockIncident,
+    answers: [
+      {
+        question_id: 2,
+        name: "incident_type",
+        value: "Fish kill",
+        options: [3],
+      },
+      {
+        question_id: 3,
+        name: "media_attachment",
+        value: undefined,
+        options: ["media/whatsapp/5d67145a-9f94-4997-a9a6-8b5bcd8bca23.jpeg"],
+        read_url:
+          "/api/v1/storage/files/media/whatsapp/5d67145a-9f94-4997-a9a6-8b5bcd8bca23.jpeg",
+      },
+    ],
+  };
+  renderWithIntl(
+    <IncidentDrawer incident={incidentWithMediaAttachment} onClose={() => {}} />
+  );
+  const img = screen.getByRole("img");
+  expect(img).toHaveAttribute(
+    "src",
+    "/api/v1/storage/files/media/whatsapp/5d67145a-9f94-4997-a9a6-8b5bcd8bca23.jpeg"
+  );
+});

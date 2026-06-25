@@ -27,18 +27,54 @@ class AnswerResponse(AnswerBase):
     @classmethod
     def resolve_fields(cls, data: Any) -> Any:
         if hasattr(data, "question"):
+            from app.models.form import QuestionType
+
             q_type = data.question.type if data.question else None
             resolved_value = None
 
-            if q_type in ("option", "multiple_option", "cascade"):
-                if hasattr(data, "_resolved_value"):
+            if q_type in (
+                QuestionType.option,
+                QuestionType.multiple_option,
+                QuestionType.cascade,
+            ):
+                if getattr(data, "_resolved_value", None) is not None:
                     resolved_value = data._resolved_value
-            elif q_type in ("image", "attachment"):
-                resolved_value = data.name
+                elif getattr(data, "options", None) is not None:
+                    resolved_value = (
+                        ", ".join(str(x) for x in data.options)
+                        if isinstance(data.options, list)
+                        else str(data.options)
+                    )
+                elif getattr(data, "name", None) is not None:
+                    resolved_value = data.name
+                else:
+                    resolved_value = data.value
+            elif q_type in (
+                QuestionType.image,
+                QuestionType.attachment,
+                QuestionType.signature,
+            ):
+                if getattr(data, "name", None) is not None:
+                    resolved_value = data.name
+                elif getattr(data, "value", None) is not None:
+                    resolved_value = str(data.value)
+                elif (
+                    getattr(data, "options", None)
+                    and isinstance(data.options, list)
+                    and len(data.options) > 0
+                ):
+                    resolved_value = str(data.options[0])
             else:
-                resolved_value = (
-                    data.name if data.name is not None else data.value
-                )
+                if getattr(data, "name", None) is not None:
+                    resolved_value = data.name
+                elif getattr(data, "value", None) is not None:
+                    resolved_value = data.value
+                elif getattr(data, "options", None) is not None:
+                    resolved_value = (
+                        ", ".join(str(x) for x in data.options)
+                        if isinstance(data.options, list)
+                        else str(data.options)
+                    )
 
             return {
                 "id": data.id,

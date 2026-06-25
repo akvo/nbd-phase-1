@@ -16,7 +16,8 @@
       "all": "Zote",
       "critical": "Hatari",
       "atRisk": "Hatarini",
-      "healthy": "Afya njema"
+      "healthy": "Afya njema",
+      "elevated": "Juu"
     },
     "searchPlaceholder": "Tafuta eneo, chanzo cha maji",
     "monitoringSites": "Vituo vya Ufuatiliaji",

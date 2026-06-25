@@ -205,6 +205,7 @@ export default function Home() {
     Critical: t("filters.critical"),
     "At risk": t("filters.atRisk"),
     Healthy: t("filters.healthy"),
+    Elevated: t("filters.elevated"),
   };
 
   useEffect(() => {
