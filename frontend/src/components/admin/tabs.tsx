@@ -13,7 +13,7 @@ interface TabItem {
 
 const tabItems: TabItem[] = [
   { name: "Data", href: "/admin/data" },
-  { name: "Resource management", href: "/admin/sites", adminOnly: true },
+  { name: "Resource management", href: "/admin/resources", adminOnly: true },
 ];
 
 export default function Tabs() {

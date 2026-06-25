@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { UserPlus, Mail, ChevronDown, Check, X, Edit2 } from "lucide-react";
+import { Mail, ChevronDown, Check, X, Edit2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import {
   Table,
@@ -108,6 +108,17 @@ export default function UsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
+  // Listen for invite user event from layout header
+  useEffect(() => {
+    const handleInviteEvent = () => {
+      setShowInviteModal(true);
+    };
+    window.addEventListener("open-invite-user-modal", handleInviteEvent);
+    return () => {
+      window.removeEventListener("open-invite-user-modal", handleInviteEvent);
+    };
+  }, []);
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteLoading(true);
@@ -187,7 +198,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       {/* Filtering Row Controls */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Role Filter */}
           <div className="relative">
             <select
@@ -222,16 +233,6 @@ export default function UsersPage() {
             </select>
             <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
-
-          {/* Invite button in filter row */}
-          <button
-            type="button"
-            onClick={() => setShowInviteModal(true)}
-            className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors shadow-sm cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Invite user</span>
-          </button>
         </div>
 
         <button

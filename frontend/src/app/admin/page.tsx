@@ -18,7 +18,7 @@ export default function AdminLandingPage() {
       title: "Resource Management",
       description:
         "Define monitoring sites, check boundaries, and configure PostGIS-referenced basins and wetlands.",
-      href: "/admin/sites",
+      href: "/admin/resources",
       icon: MapPin,
       color: "text-purple-500 bg-purple-50 border-purple-100",
     },

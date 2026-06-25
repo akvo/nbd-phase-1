@@ -155,6 +155,60 @@ class SiteCreate(SiteBase):
     pass
 
 
+class SiteUpdate(BaseModel):
+    code: str | None = Field(
+        default=None,
+        max_length=50,
+        description=(
+            "Unique alphanumeric identifier code for the monitoring site"
+        ),
+    )
+    wetland_id: uuid.UUID | None = Field(
+        default=None, description="Unique identifier of the associated wetland"
+    )
+    name: str | None = Field(
+        default=None,
+        max_length=150,
+        description="Human-readable name of the monitoring site",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Optional text description of the monitoring site",
+    )
+    geom: Dict[str, Any] | None = Field(
+        default=None,
+        description="GeoJSON Point geometry representation of the site",
+    )
+
+    @field_validator("geom", mode="before")
+    @classmethod
+    def preprocess_geom(cls, v: Any) -> Any:
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            return v
+        try:
+            from geoalchemy2.shape import to_shape
+            from shapely.geometry import mapping
+
+            return mapping(to_shape(v))
+        except Exception:
+            return v
+
+    @field_validator("geom")
+    @classmethod
+    def validate_geom(cls, v: Dict[str, Any] | None) -> Dict[str, Any] | None:
+        if v is None:
+            return None
+        try:
+            s = shape(v)
+            if s.geom_type != "Point":
+                raise ValueError("Geometry must be a Point")
+        except Exception as e:
+            raise ValueError(f"Invalid geometry: {str(e)}")
+        return v
+
+
 class ManagementActionResponse(BaseModel):
     label: str = Field(
         ...,
