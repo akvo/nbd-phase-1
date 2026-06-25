@@ -30,7 +30,7 @@ export default function AdminLandingPage() {
       <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-slate-900">
-            Welcome to Nile Basin Discourse Admin Portal
+            Welcome to Nile Voice Admin Portal
           </h2>
           <p className="text-slate-500 text-sm max-w-xl">
             This workspace provides tools to moderate citizen science ingestion

@@ -20,10 +20,10 @@
           "id": "incident_type",
           "order": 1,
           "type": "option",
-          "name": "Report a change in water",
+          "name": "Report an incident",
           "translations": [
-            { "name": "Report a change in water", "language": "en" },
-            { "name": "Ripoti mabadiliko katika maji", "language": "sw" }
+            { "name": "Report an incident", "language": "en" },
+            { "name": "Ripoti tukio", "language": "sw" }
           ],
           "required": true,
           "option": [

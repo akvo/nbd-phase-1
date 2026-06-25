@@ -12,8 +12,8 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Nbd Pilot",
-  description: "Multi-service pilot platform",
+  title: "Nile Voice - Citizen-led Data Platform",
+  description: "Citizen-led data generation and management platform for the Nile Basin",
 };
 
 export default async function RootLayout({
