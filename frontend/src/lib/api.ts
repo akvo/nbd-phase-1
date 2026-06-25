@@ -103,3 +103,24 @@ export const getSiteScores = async (
   const response = await apiClient.get(`/sites/${siteId}/scores`, { params });
   return response.data;
 };
+
+export type MonitoringDomain = "wetland" | "pollution";
+
+export interface IncidentSummary {
+  id: string | number;
+  form_name: string;
+  basin_id?: string;
+  site_id?: string;
+  geo?: { type: string; coordinates: [number, number] };
+  submitted_at?: string;
+  status: string;
+  description?: string;
+  name?: string;
+  answers: Array<{
+    name?: string;
+    question_id?: number;
+    value?: string;
+    options?: Array<string | number>;
+    read_url?: string;
+  }>;
+}
