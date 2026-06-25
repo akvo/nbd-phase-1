@@ -216,20 +216,53 @@ def seed_fake_submissions(
             db.add(health_score)
 
             # Seed SamplingRecord history
-            # Map parameters dynamically to database fields:
-            # ph_value (2.0 - 10.0), temp_value (5.0 - 50.0),
-            # do_value (0.5 - 35.0)
+            # Map parameters dynamically matching SDD expectations:
+            # pH (2-10), Temp (5-50), DO (0.5-35), CPUE.
+            # Make parameters align with health class for realistic data.
+            if selected_class == "A":
+                ph = 7.2 + random.uniform(-0.3, 0.3)
+                temp = 22.0 + random.uniform(-1.0, 1.0)
+                do = 8.0 + random.uniform(-0.5, 0.5)
+                macrophytes = max(0.0, 2.0 + random.uniform(-1.0, 1.0))
+                cpue = 15.0 + random.uniform(-2.0, 2.0)
+                w_level = "MEDIUM"
+            elif selected_class == "B":
+                ph = 7.5 + random.uniform(-0.5, 0.5)
+                temp = 23.0 + random.uniform(-1.5, 1.5)
+                do = 7.0 + random.uniform(-0.8, 0.8)
+                macrophytes = max(0.0, 10.0 + random.uniform(-3.0, 3.0))
+                cpue = 12.0 + random.uniform(-2.0, 2.0)
+                w_level = "MEDIUM"
+            elif selected_class == "C":
+                ph = 6.5 + random.uniform(-0.8, 0.8)
+                temp = 25.0 + random.uniform(-2.0, 2.0)
+                do = 5.5 + random.uniform(-1.0, 1.0)
+                macrophytes = 25.0 + random.uniform(-5.0, 5.0)
+                cpue = 8.0 + random.uniform(-1.5, 1.5)
+                w_level = "HIGH"
+            elif selected_class == "D":
+                ph = 5.8 + random.uniform(-1.0, 1.0)
+                temp = 26.0 + random.uniform(-3.0, 3.0)
+                do = 3.5 + random.uniform(-1.2, 1.2)
+                macrophytes = 55.0 + random.uniform(-10.0, 10.0)
+                cpue = 4.0 + random.uniform(-1.0, 1.0)
+                w_level = "LOW"
+            else:  # E
+                ph = 4.5 + random.uniform(-1.5, 1.5)
+                temp = 28.0 + random.uniform(-4.0, 4.0)
+                do = 1.5 + random.uniform(-1.0, 1.0)
+                macrophytes = 85.0 + random.uniform(-10.0, 10.0)
+                cpue = 1.0 + random.uniform(-0.5, 0.5)
+                w_level = "LOW"
+
             sampling_rec = SamplingRecord(
                 site_id=site.id,
-                ph_value=max(4.0, min(9.0, 7.0 + random.uniform(-1.5, 1.5))),
-                temp_value=max(
-                    15.0, min(35.0, 24.0 + random.uniform(-6.0, 6.0))
-                ),
-                do_value=max(3.0, min(12.0, 6.5 + random.uniform(-2.5, 2.5))),
-                invasive_macrophytes=max(
-                    0.0, min(100.0, 25.0 + random.uniform(-20.0, 20.0))
-                ),
-                water_level=random.choice(["HIGH", "MEDIUM", "LOW"]),
+                ph_value=max(2.0, min(10.0, ph)),
+                temp_value=max(5.0, min(50.0, temp)),
+                do_value=max(0.5, min(35.0, do)),
+                invasive_macrophytes=max(0.0, min(100.0, macrophytes)),
+                cpue_value=max(0.0, cpue),
+                water_level=w_level,
                 sampled_at=record_time,
             )
             db.add(sampling_rec)
