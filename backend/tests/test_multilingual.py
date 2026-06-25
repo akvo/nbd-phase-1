@@ -170,7 +170,7 @@ def test_ussd_multilingual_flow(db_session: Session):
         },
     )
     assert resp.status_code == 200
-    assert "Ripoti mabadiliko katika" in resp.text
+    assert "Ripoti tukio" in resp.text
 
 
 @pytest.mark.asyncio

@@ -13,7 +13,8 @@ const inter = Inter({
 
 export const metadata = {
   title: "Nile Voice - Citizen-led Data Platform",
-  description: "Citizen-led data generation and management platform for the Nile Basin",
+  description:
+    "Citizen-led data generation and management platform for the Nile Basin",
 };
 
 export default async function RootLayout({
