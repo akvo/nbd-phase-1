@@ -1,10 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import * as LucideIcons from "lucide-react";
+import { CollapsibleChartContainer } from "./collapsible-chart-container";
+import {
+  getSiteSamplings,
+  getSiteScores,
+  GenericSamplingHistory,
+  GenericScoreHistory,
+} from "@/lib/api";
 
 import {
   Table,
@@ -127,6 +134,30 @@ function getTileCoords(lat: number, lon: number, zoom: number) {
 export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   // Hooks must be called unconditionally — before any early returns
   const [isPrinting, setIsPrinting] = useState(false);
+  const [samplingsHistory, setSamplingsHistory] = useState<
+    GenericSamplingHistory[]
+  >([]);
+  const [scoresHistory, setScoresHistory] = useState<GenericScoreHistory[]>([]);
+
+  useEffect(() => {
+    if (!site?.site_id) {
+      setSamplingsHistory([]);
+      setScoresHistory([]);
+      return;
+    }
+
+    const dateFrom = new Date();
+    dateFrom.setDate(dateFrom.getDate() - 30);
+    const dateFromStr = dateFrom.toISOString();
+
+    getSiteSamplings(site.site_id, { date_from: dateFromStr })
+      .then(setSamplingsHistory)
+      .catch(console.error);
+
+    getSiteScores(site.site_id, { date_from: dateFromStr })
+      .then(setScoresHistory)
+      .catch(console.error);
+  }, [site?.site_id]);
 
   if (!site) return null;
 
@@ -341,7 +372,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             }
 
             return (
-              <div className="space-y-3 print-only print-avoid-break">
+              <div className="space-y-3 hidden print:block print-avoid-break">
                 <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
                   Location Map
                 </h3>
@@ -469,28 +500,47 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               </p>
             </div>
             <div className="p-4.5 space-y-4 bg-white">
-              {scoreBreakdownEntries.map(([key, group]) => (
-                <div key={key} className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold text-slate-700">
-                    <div className="flex items-center gap-1.5">
-                      <DynamicIcon
-                        name={group.icon}
-                        className="w-3.5 h-3.5 text-slate-400"
-                      />
-                      <span>{group.label}</span>
+              {scoreBreakdownEntries.map(([key, group]) => {
+                const groupHistory = scoresHistory
+                  .filter((h) => h.breakdown && h.breakdown[key] !== undefined)
+                  .map((h) => ({
+                    date: h.calculated_at,
+                    value:
+                      typeof h.breakdown[key] === "object" &&
+                      h.breakdown[key] !== null
+                        ? (h.breakdown[key] as Record<string, unknown>).score !== undefined
+                          ? Number((h.breakdown[key] as Record<string, unknown>).score)
+                          : 0
+                        : Number(h.breakdown[key] ?? 0),
+                  }));
+
+                return (
+                  <div key={key} className="space-y-2">
+                    <div className="flex justify-between text-xs font-semibold text-slate-700">
+                      <div className="flex items-center gap-1.5">
+                        <DynamicIcon
+                          name={group.icon}
+                          className="w-3.5 h-3.5 text-slate-400"
+                        />
+                        <span>{group.label}</span>
+                      </div>
+                      <span>{group.score.toFixed(2)}</span>
                     </div>
-                    <span>{group.score.toFixed(2)}</span>
-                  </div>
-                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(group.score)}`}
-                      style={{
-                        width: `${group.score * 100}%`,
-                      }}
+                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(group.score)}`}
+                        style={{
+                          width: `${group.score * 100}%`,
+                        }}
+                      />
+                    </div>
+                    <CollapsibleChartContainer
+                      label={group.label}
+                      data={groupHistory}
                     />
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Bottom adjustment score panel */}
@@ -545,35 +595,73 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             </TableHeader>
             <TableBody>
               {Object.entries(site.details.metrics || {}).map(
-                ([key, metric]) => (
-                  <TableRow key={key}>
-                    <TableCell className="text-xs font-semibold text-slate-700">
-                      {metric.label}
-                    </TableCell>
-                    <TableCell className="text-xs font-mono text-slate-800 text-center">
-                      {typeof metric.value === "string"
-                        ? metric.value
-                        : (metric.value ?? "-")}
-                    </TableCell>
-                    <TableCell className="text-xs text-slate-500 text-center">
-                      {metric.unit || "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span
-                        className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                          (metric.status || "")
-                            .toLowerCase()
-                            .includes("normal") ||
-                          (metric.status || "").toLowerCase().includes("stable")
-                            ? "bg-green-100 text-green-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {metric.status || "Normal"}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                )
+                ([key, metric]) => {
+                  const metricHistory = samplingsHistory
+                    .filter(
+                      (h) => h.parameters && h.parameters[key] !== undefined
+                    )
+                    .map((h) => {
+                      const val = h.parameters[key];
+                      let numericVal = 0;
+                      if (typeof val === "number") {
+                        numericVal = val;
+                      } else if (typeof val === "string") {
+                        if (val.toUpperCase() === "HIGH") numericVal = 3;
+                        else if (val.toUpperCase() === "MEDIUM") numericVal = 2;
+                        else if (val.toUpperCase() === "LOW") numericVal = 1;
+                        else numericVal = Number(val) || 0;
+                      }
+                      return {
+                        date: h.sampled_at,
+                        value: numericVal,
+                      };
+                    });
+
+                  return (
+                    <React.Fragment key={key}>
+                      <TableRow>
+                        <TableCell className="text-xs font-semibold text-slate-700">
+                          {metric.label}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono text-slate-800 text-center">
+                          {typeof metric.value === "string"
+                            ? metric.value
+                            : (metric.value ?? "-")}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-500 text-center">
+                          {metric.unit || "-"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span
+                            className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                              (metric.status || "")
+                                .toLowerCase()
+                                .includes("normal") ||
+                              (metric.status || "")
+                                .toLowerCase()
+                                .includes("stable")
+                                ? "bg-green-100 text-green-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {metric.status || "Normal"}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow className="hover:bg-transparent no-print">
+                        <TableCell
+                          colSpan={4}
+                          className="py-0 px-2 border-b border-slate-100"
+                        >
+                          <CollapsibleChartContainer
+                            label={metric.label}
+                            data={metricHistory}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
+                  );
+                }
               )}
             </TableBody>
           </Table>
