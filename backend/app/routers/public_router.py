@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_, desc
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from app.limiter import limiter
 from app.database import get_db
 from app.models.spatial import Site, Wetland, Basin, SpatialBoundary
 from app.models.health_score import HealthScore
+from app.models.sampling_record import SamplingRecord
 from app.models.management_action import ManagementAction
 from app.models.form import Form, Question, FormNames
 from app.models.submission import Datapoint, Answer
@@ -508,6 +509,51 @@ def get_site_scores(
         .all()
     )
     return scores
+
+
+@router.get(
+    "/sites/{site_id}/samplings",
+    response_model=List[schemas.GenericSamplingHistory],
+)
+@limiter.limit("60/minute")
+def get_site_samplings(
+    request: Request,
+    site_id: str,
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        val = uuid.UUID(site_id)
+        db_site = db.query(Site).filter(Site.id == val).first()
+    except ValueError:
+        db_site = db.query(Site).filter(Site.code == site_id).first()
+
+    if not db_site:
+        raise HTTPException(
+            status_code=404, detail=f"Site '{site_id}' not found."
+        )
+
+    query = db.query(SamplingRecord).filter(
+        SamplingRecord.site_id == db_site.id
+    )
+
+    if not date_from:
+        date_from = datetime.utcnow() - timedelta(days=30)
+    query = query.filter(SamplingRecord.sampled_at >= date_from)
+
+    if date_to:
+        query = query.filter(SamplingRecord.sampled_at <= date_to)
+
+    samplings = (
+        query.order_by(SamplingRecord.sampled_at.asc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    return samplings
 
 
 @router.get("/sites/{site_id}/external/{source}")

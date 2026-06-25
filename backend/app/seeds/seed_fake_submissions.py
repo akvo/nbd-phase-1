@@ -8,6 +8,7 @@ from app.models.form import Form, Question
 from app.models.spatial import Site
 from app.models.submission import Datapoint, Answer
 from app.models.health_score import HealthScore
+from app.models.sampling_record import SamplingRecord
 from app.models.management_action import ManagementAction
 
 logging.basicConfig(level=logging.INFO)
@@ -168,29 +169,41 @@ def seed_fake_submissions(
         else:
             coords = [34.5678, -1.2345]
 
-        # A. Seed HealthScore to show the correct A-E status on dashboard
-        existing_health = (
-            db.query(HealthScore)
-            .filter(HealthScore.site_id == site.id)
-            .first()
+        # Seed HealthScore and SamplingRecord history (past 30 days)
+        from datetime import timedelta
+
+        # Clear existing history for this site first to prevent duplicate runs
+        db.query(HealthScore).filter(HealthScore.site_id == site.id).delete(
+            synchronize_session=False
         )
+        db.query(SamplingRecord).filter(
+            SamplingRecord.site_id == site.id
+        ).delete(synchronize_session=False)
 
-        if not existing_health:
-            selected_class = health_classes_distribution[
-                idx_site % len(health_classes_distribution)
-            ]
-            # Map score ranges based on class
-            if selected_class == "A":
-                score = 0.92
-            elif selected_class == "B":
-                score = 0.74
-            elif selected_class == "C":
-                score = 0.52
-            elif selected_class == "D":
-                score = 0.31
-            else:
-                score = 0.12
+        selected_class = health_classes_distribution[
+            idx_site % len(health_classes_distribution)
+        ]
+        # Map base score ranges based on class
+        if selected_class == "A":
+            base_score = 0.92
+        elif selected_class == "B":
+            base_score = 0.74
+        elif selected_class == "C":
+            base_score = 0.52
+        elif selected_class == "D":
+            base_score = 0.31
+        else:
+            base_score = 0.12
 
+        # Generate 5 historical records spanning 30 days back
+        now = datetime.utcnow()
+        for offset_days in [30, 22, 15, 8, 0]:
+            record_time = now - timedelta(days=offset_days)
+            # Add distinct variance to scores to display line graphs clearly
+            variance = random.uniform(-0.18, 0.18)
+            score = max(0.05, min(0.98, base_score + variance))
+
+            # Seed HealthScore history
             health_score = HealthScore(
                 site_id=site.id,
                 wqi_score=score,
@@ -198,12 +211,33 @@ def seed_fake_submissions(
                 ik_signal_value=score,
                 adjusted_score=score,
                 health_class=selected_class,
-                calculated_at=datetime.utcnow(),
+                calculated_at=record_time,
             )
             db.add(health_score)
-            logger.info(
-                f"Seeded HealthScore class {selected_class} for site: {site.name}"  # noqa
+
+            # Seed SamplingRecord history
+            # Map parameters dynamically to database fields:
+            # ph_value (2.0 - 10.0), temp_value (5.0 - 50.0),
+            # do_value (0.5 - 35.0)
+            sampling_rec = SamplingRecord(
+                site_id=site.id,
+                ph_value=max(4.0, min(9.0, 7.0 + random.uniform(-1.5, 1.5))),
+                temp_value=max(
+                    15.0, min(35.0, 24.0 + random.uniform(-6.0, 6.0))
+                ),
+                do_value=max(3.0, min(12.0, 6.5 + random.uniform(-2.5, 2.5))),
+                invasive_macrophytes=max(
+                    0.0, min(100.0, 25.0 + random.uniform(-20.0, 20.0))
+                ),
+                water_level=random.choice(["HIGH", "MEDIUM", "LOW"]),
+                sampled_at=record_time,
             )
+            db.add(sampling_rec)
+
+        logger.info(
+            f"Seeded 5 historical scores & samplings (class {selected_class}) "
+            f"for site: {site.name}"
+        )
 
         # B. Seed Management Actions templates for
         # GREEN, YELLOW, RED status colors

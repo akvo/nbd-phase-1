@@ -344,3 +344,80 @@ class SiteScoreHistory(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class GenericSamplingHistory(BaseModel):
+    id: uuid.UUID = Field(
+        ..., description="Unique identifier of the sampling record"
+    )
+    sampled_at: datetime = Field(
+        ..., description="Timestamp when the sample was taken"
+    )
+    ph_value: Decimal = Field(..., exclude=True)
+    temp_value: Decimal = Field(..., exclude=True)
+    do_value: Decimal = Field(..., exclude=True)
+    invasive_macrophytes: Decimal = Field(..., exclude=True)
+    water_level: str = Field(..., exclude=True)
+
+    @computed_field
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return {
+            "ph": {
+                "value": float(self.ph_value),
+                "unit": "",
+                "status": "Normal",
+                "label": "pH Level",
+            },
+            "temperature": {
+                "value": float(self.temp_value),
+                "unit": "°C",
+                "status": "Normal",
+                "label": "Water Temperature",
+            },
+            "dissolved_oxygen": {
+                "value": float(self.do_value),
+                "unit": "mg/L",
+                "status": "Normal",
+                "label": "Dissolved Oxygen",
+            },
+            "invasive_macrophytes": {
+                "value": float(self.invasive_macrophytes),
+                "unit": "%",
+                "status": "Normal",
+                "label": "Invasive Macrophytes",
+            },
+            "water_level": {
+                "value": self.water_level,
+                "unit": "",
+                "status": "Normal",
+                "label": "Water Level",
+            },
+        }
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GenericScoreHistory(BaseModel):
+    id: uuid.UUID = Field(
+        ..., description="Unique identifier of the health score"
+    )
+    calculated_at: datetime = Field(
+        ..., description="Timestamp when the score was calculated"
+    )
+    composite_score: Decimal = Field(
+        ..., description="Pre-adjustment composite score"
+    )
+    ik_signal_value: Decimal = Field(
+        ..., description="Indigenous knowledge signal value"
+    )
+    adjusted_score: Decimal = Field(
+        ..., description="Fuzzy-adjusted composite score"
+    )
+    health_class: str = Field(..., description="Wetland health class (A-E)")
+    breakdown: Dict[str, Any] = Field(
+        ...,
+        description="Domain-specific score breakdown key-value pairs",
+    )
+
+    model_config = ConfigDict(from_attributes=True)
