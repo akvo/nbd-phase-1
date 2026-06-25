@@ -11,6 +11,10 @@ vi.mock("@/components/ui/map-viewer", () => {
 
 vi.mock("@/lib/api", () => {
   return {
+    apiClient: {
+      get: vi.fn().mockRejectedValue({ response: { status: 401 } }),
+      post: vi.fn().mockResolvedValue({}),
+    },
     getBasins: vi.fn().mockResolvedValue([]),
     getSites: vi.fn().mockResolvedValue([]),
     getSubmissions: vi.fn().mockResolvedValue([]),

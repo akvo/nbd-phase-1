@@ -157,6 +157,12 @@ export default function Header() {
       {/* Left Navigation Links */}
       <div className="flex items-center space-x-1">
         <Link
+          href="/"
+          className="px-4 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+        >
+          Dashboard
+        </Link>
+        <Link
           href="/admin"
           className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             isAdminViewActive
@@ -166,7 +172,7 @@ export default function Header() {
         >
           Admin view
         </Link>
-        <Link
+        {/* <Link
           href="/admin/projects-placeholder"
           className="px-4 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
         >
@@ -177,7 +183,7 @@ export default function Header() {
           className="px-4 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
         >
           Tasks
-        </Link>
+        </Link> */}
       </div>
 
       {/* Right User Utility Actions */}
