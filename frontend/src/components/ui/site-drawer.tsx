@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import * as LucideIcons from "lucide-react";
+
 import {
   Table,
   TableHeader,
@@ -107,8 +108,78 @@ interface SiteDrawerProps {
   onClose: () => void;
 }
 
+function getTileCoords(lat: number, lon: number, zoom: number) {
+  const latRad = (lat * Math.PI) / 180;
+  const n = Math.pow(2, zoom);
+  const xDouble = ((lon + 180) / 360) * n;
+  const yDouble =
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
+
+  const x = Math.floor(xDouble);
+  const y = Math.floor(yDouble);
+
+  const xOffset = (xDouble - x) * 256;
+  const yOffset = (yDouble - y) * 256;
+
+  return { x, y, xOffset, yOffset };
+}
+
 export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
+  // Hooks must be called unconditionally — before any early returns
+  const [isPrinting, setIsPrinting] = useState(false);
+
   if (!site) return null;
+
+  const handlePrint = () => {
+    if (typeof document === "undefined") {
+      window.print();
+      return;
+    }
+
+    setIsPrinting(true);
+
+    const doPrint = () => {
+      const originalTitle = document.title;
+      document.title = `${site.site_name.replace(/\s+/g, "_")}_Detailed_Report`;
+      // Wait 2.5 s after image loads — gives the browser time to paint it into the
+      // print-only DOM section before window.print() captures the layout.
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          document.title = originalTitle;
+          setIsPrinting(false);
+        }, 1000);
+      }, 2500);
+    };
+
+    // Preload all 3 tiles so they are in the browser cache before print fires
+    if (site.coordinates) {
+      const { x, y } = getTileCoords(
+        site.coordinates[0],
+        site.coordinates[1],
+        12
+      );
+      let loadedCount = 0;
+      const totalTiles = 15;
+      const onTileLoad = () => {
+        loadedCount++;
+        if (loadedCount === totalTiles) {
+          doPrint();
+        }
+      };
+
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const img = new window.Image();
+          img.onload = onTileLoad;
+          img.onerror = onTileLoad;
+          img.src = `https://tile.openstreetmap.org/12/${x + dx}/${y + dy}.png`;
+        }
+      }
+    } else {
+      doPrint();
+    }
+  };
 
   const isCritical = ["D", "E"].includes(site.current_health_class);
   const isAtRisk = site.current_health_class === "C";
@@ -140,7 +211,10 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   );
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
+    <div
+      id="site-drawer-print-area"
+      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in"
+    >
       {/* Drawer Header */}
       <div className="p-6 border-b border-slate-200 flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
@@ -233,116 +307,222 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           </div>
         )}
 
-        {/* 2x2 Key Metrics Card Small Grid (Figma Node 8237:1345) */}
-        <div className="border border-slate-200 rounded-2xl overflow-hidden grid grid-cols-2 bg-slate-50/50">
-          {Object.entries(site.details.metrics || {}).map(
-            ([key, metric], index) => {
-              const colors = getStatusColorClasses(metric.status);
-              const isValString = typeof metric.value === "string";
-              const displayValue = isValString
-                ? (metric.value as string).toLowerCase()
-                : (metric.value ?? "");
-              const valueClass = `text-base font-bold text-slate-800 ${isValString ? "capitalize" : ""}`;
-              const borderClass = `${index % 2 === 0 ? "border-r" : ""} ${index < 2 ? "border-b" : ""} border-slate-200`;
-
-              return (
-                <div
-                  key={key}
-                  className={`bg-slate-50/60 p-4 flex flex-col justify-between h-24 ${borderClass}`}
-                >
-                  <div className="flex justify-between items-start text-xs text-slate-500">
-                    <span className="font-medium text-slate-400">
-                      {metric.label}
-                    </span>
-                    <DynamicIcon
-                      name={metric.icon}
-                      className="w-4 h-4 text-slate-400"
-                    />
-                  </div>
-                  <div className={valueClass}>
-                    {displayValue}
-                    {metric.unit
-                      ? metric.unit.startsWith("°")
-                        ? metric.unit
-                        : ` ${metric.unit}`
-                      : ""}
-                  </div>
-                  <div
-                    className={`flex items-center gap-1.5 text-[10px] font-semibold ${colors.text}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${colors.bg}`} />
-                    <span>{metric.status}</span>
-                  </div>
-                </div>
-              );
-            }
-          )}
-        </div>
-
-        {/* Score Breakdown Progress Bars */}
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="bg-white border-b border-slate-200 px-4.5 py-3.5">
-            <h4 className="font-bold text-sm text-slate-800">
-              Score breakdown
-            </h4>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Parameter group scores (May 2026 sampling)
-            </p>
-          </div>
-          <div className="p-4.5 space-y-4 bg-white">
-            {scoreBreakdownEntries.map(([key, group]) => (
-              <div key={key} className="space-y-2">
-                <div className="flex justify-between text-xs font-semibold text-slate-700">
-                  <div className="flex items-center gap-1.5">
-                    <DynamicIcon
-                      name={group.icon}
-                      className="w-3.5 h-3.5 text-slate-400"
-                    />
-                    <span>{group.label}</span>
-                  </div>
-                  <span>{group.score.toFixed(2)}</span>
-                </div>
-                <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(group.score)}`}
+        {/* Location Map – static image shown ONLY in print output */}
+        {site.coordinates &&
+          (() => {
+            const { x, y, xOffset, yOffset } = getTileCoords(
+              site.coordinates[0],
+              site.coordinates[1],
+              12
+            );
+            const tiles = [];
+            for (let dx = -2; dx <= 2; dx++) {
+              for (let dy = -1; dy <= 1; dy++) {
+                const tileX = x + dx;
+                const tileY = y + dy;
+                const leftPos = (dx + 2) * 256;
+                const topPos = (dy + 1) * 256;
+                tiles.push(
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={`${tileX}-${tileY}`}
+                    src={`https://tile.openstreetmap.org/12/${tileX}/${tileY}.png`}
+                    alt=""
                     style={{
-                      width: `${group.score * 100}%`,
+                      position: "absolute",
+                      left: `${leftPos}px`,
+                      top: `${topPos}px`,
+                      width: "256px",
+                      height: "256px",
+                    }}
+                  />
+                );
+              }
+            }
+
+            return (
+              <div className="space-y-3 print-only print-avoid-break">
+                <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+                  Location Map
+                </h3>
+                <div className="w-full rounded-xl border border-slate-200 shadow-sm relative map-container-overflow">
+                  {/* 5x3 Tile Container centered around coordinate */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      width: "1280px",
+                      height: "768px",
+                      left: `calc(50% - ${512 + xOffset}px)`,
+                      top: `calc(50% - ${256 + yOffset}px)`,
+                    }}
+                  >
+                    {tiles}
+                  </div>
+                  {/* Centered red dot marker representing location */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: "50%",
+                      transform: "translate(-50%, -50%)",
+                      zIndex: 10,
+                      width: "14px",
+                      height: "14px",
+                      backgroundColor: "#ef4444",
+                      borderRadius: "50%",
+                      border: "2px solid white",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.35)",
                     }}
                   />
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })()}
 
-          {/* Bottom adjustment score panel */}
-          <div className="bg-slate-50 p-4 border-t border-slate-200 space-y-2 text-xs font-medium text-slate-700">
-            <div className="flex justify-between">
-              <span>Composite (pre-adjustment)</span>
-              <span className="font-semibold text-slate-800">
-                {rawComposite}
-              </span>
+        {/* Required Interventions */}
+        <div className="space-y-3 print-avoid-break">
+          <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+            Required Interventions
+          </h3>
+          {site.details.management_actions.length > 0 ? (
+            <div className="space-y-3">
+              {site.details.management_actions.map((action, i) => (
+                <div
+                  key={i}
+                  className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 shadow-sm"
+                >
+                  <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="text-amber-500">⚠️</span> {action.label}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                    {action.description}
+                  </div>
+                </div>
+              ))}
             </div>
-            {site.is_ik_adjusted && (
+          ) : (
+            <div className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center border border-dashed border-slate-200">
+              No interventions triggered for this level.
+            </div>
+          )}
+        </div>
+
+        {/* 2x2 Key Metrics Card Small Grid (Figma Node 8237:1345) */}
+        <div className="print-avoid-break">
+          <div className="border border-slate-200 rounded-2xl overflow-hidden grid grid-cols-2 bg-slate-50/50">
+            {Object.entries(site.details.metrics || {}).map(
+              ([key, metric], index) => {
+                const colors = getStatusColorClasses(metric.status);
+                const isValString = typeof metric.value === "string";
+                const displayValue = isValString
+                  ? (metric.value as string).toLowerCase()
+                  : (metric.value ?? "");
+                const valueClass = `text-base font-bold text-slate-800 ${isValString ? "capitalize" : ""}`;
+                const borderClass = `${index % 2 === 0 ? "border-r" : ""} ${index < 2 ? "border-b" : ""} border-slate-200`;
+
+                return (
+                  <div
+                    key={key}
+                    className={`bg-slate-50/60 p-4 flex flex-col justify-between h-24 ${borderClass}`}
+                  >
+                    <div className="flex justify-between items-start text-xs text-slate-500">
+                      <span className="font-medium text-slate-400">
+                        {metric.label}
+                      </span>
+                      <DynamicIcon
+                        name={metric.icon}
+                        className="w-4 h-4 text-slate-400"
+                      />
+                    </div>
+                    <div className={valueClass}>
+                      {displayValue}
+                      {metric.unit
+                        ? metric.unit.startsWith("°")
+                          ? metric.unit
+                          : ` ${metric.unit}`
+                        : ""}
+                    </div>
+                    <div
+                      className={`flex items-center gap-1.5 text-[10px] font-semibold ${colors.text}`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${colors.bg}`}
+                      />
+                      <span>{metric.status}</span>
+                    </div>
+                  </div>
+                );
+              }
+            )}
+          </div>
+        </div>
+
+        {/* Score Breakdown Progress Bars */}
+        <div className="print-avoid-break">
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-white border-b border-slate-200 px-4.5 py-3.5">
+              <h4 className="font-bold text-sm text-slate-800">
+                Score breakdown
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Parameter group scores (May 2026 sampling)
+              </p>
+            </div>
+            <div className="p-4.5 space-y-4 bg-white">
+              {scoreBreakdownEntries.map(([key, group]) => (
+                <div key={key} className="space-y-2">
+                  <div className="flex justify-between text-xs font-semibold text-slate-700">
+                    <div className="flex items-center gap-1.5">
+                      <DynamicIcon
+                        name={group.icon}
+                        className="w-3.5 h-3.5 text-slate-400"
+                      />
+                      <span>{group.label}</span>
+                    </div>
+                    <span>{group.score.toFixed(2)}</span>
+                  </div>
+                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(group.score)}`}
+                      style={{
+                        width: `${group.score * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom adjustment score panel */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 space-y-2 text-xs font-medium text-slate-700">
               <div className="flex justify-between">
-                <span>IK health signal (FGD)</span>
+                <span>Composite (pre-adjustment)</span>
                 <span className="font-semibold text-slate-800">
-                  {site.details.ik_signal.encoded_signal_value.toFixed(2)}
+                  {rawComposite}
                 </span>
               </div>
-            )}
-            <div
-              className={`flex justify-between font-bold border-t border-slate-200/60 pt-2 mt-1 ${gradeTextClass}`}
-            >
-              <span>Adjusted score - Class {site.current_health_class}</span>
-              <span className="text-sm font-extrabold">
-                {site.current_score.toFixed(2)}
-              </span>
+              {site.is_ik_adjusted && (
+                <div className="flex justify-between">
+                  <span>IK health signal (FGD)</span>
+                  <span className="font-semibold text-slate-800">
+                    {site.details.ik_signal.encoded_signal_value.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div
+                className={`flex justify-between font-bold border-t border-slate-200/60 pt-2 mt-1 ${gradeTextClass}`}
+              >
+                <span>Adjusted score - Class {site.current_health_class}</span>
+                <span className="text-sm font-extrabold">
+                  {site.current_score.toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Raw Sampling Method Table */}
-        <div className="space-y-3">
+        <div className="space-y-3 print-avoid-break">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
             Raw sampling method
           </h3>
@@ -400,7 +580,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         </div>
 
         {/* FGD Session Context */}
-        <div className="space-y-3">
+        <div className="space-y-3 print-avoid-break">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
             FGD Session (Indigenous Knowledge)
           </h3>
@@ -503,32 +683,25 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           </div>
         </div>
 
-        {/* Interventions triggered */}
-        <div className="space-y-3 pb-6">
-          <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-            Required Interventions
-          </h3>
-          {site.details.management_actions.length > 0 ? (
-            <div className="space-y-3">
-              {site.details.management_actions.map((action, i) => (
-                <div
-                  key={i}
-                  className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 shadow-sm"
-                >
-                  <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="text-amber-500">⚠️</span> {action.label}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                    {action.description}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center border border-dashed border-slate-200">
-              No interventions triggered for this level.
-            </div>
-          )}
+        {/* PDF Export Button */}
+        <div className="pt-4 no-print pb-6">
+          <Button
+            onClick={handlePrint}
+            disabled={isPrinting}
+            className="w-full bg-[#38B1DD] hover:bg-[#27A0CD] disabled:opacity-70 text-white py-6 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
+          >
+            {isPrinting ? (
+              <>
+                <LucideIcons.Loader2 className="w-5 h-5 animate-spin" />
+                Preparing PDF...
+              </>
+            ) : (
+              <>
+                <LucideIcons.Printer className="w-5 h-5" />
+                Export detailed report (PDF)
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </div>

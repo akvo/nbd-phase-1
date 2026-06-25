@@ -229,6 +229,227 @@
 }
 /* End Akvo React Form styles */
 
+@media screen {
+  .print-only {
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    /* Wide enough so Leaflet initializes properly off-screen */
+    width: 600px !important;
+    height: 250px !important;
+    overflow: hidden !important;
+  }
+  .map-container-overflow {
+    overflow: hidden !important;
+  }
+}
+
+/* ── Page setup: A4 with margins prevents browser header/footer ── */
+@page {
+  size: A4 portrait;
+  margin: 12mm 12mm;
+}
+
+@media print {
+  /* ─── 1. Color fidelity ─────────────────────────── */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ─── 2. Isolate the drawer as the only printed content ── */
+  main > :not(#site-drawer-print-area) {
+    display: none !important;
+  }
+
+  /* ─── 3. Hide UI chrome ──────────────────────────── */
+  .no-print,
+  .leaflet-control-zoom,
+  .leaflet-control-attribution {
+    display: none !important;
+  }
+
+  /* ─── 4. Root page reset ────────────────────────── */
+  html,
+  body {
+    position: static !important;
+    overflow: visible !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* ─── 5. Drawer container becomes the page document ─ */
+  #site-drawer-print-area {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    /* Reset flex layout so children stack as blocks */
+    flex-direction: unset !important;
+  }
+
+  /* Drawer header: compact and block */
+  #site-drawer-print-area > div:first-child {
+    display: block !important;
+    padding: 10px 16px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  /* Badges line */
+  #site-drawer-print-area > div.px-6.py-3 {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    align-items: center !important;
+    padding: 4px 16px !important;
+  }
+
+  /* ─── 6. Scrollable drawer body → normal document flow ── */
+  #site-drawer-print-area > div.flex-1 {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 10px 16px !important;
+    margin: 0 !important;
+  }
+
+  /* ─── 7. Reveal print-only map section ──────────── */
+  .print-only {
+    position: relative !important;
+    display: block !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* ─── 8. Map container: strict paint containment clips overflow ── */
+  .map-container-overflow {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 130px !important;
+    overflow: hidden !important;
+    contain: paint !important;
+    box-sizing: border-box !important;
+  }
+
+  .print-only img {
+    max-width: none !important;
+    max-height: none !important;
+    display: block !important;
+  }
+
+  /* ─── 9. Section spacing ────────────────────────── */
+  #site-drawer-print-area > div.flex-1 > .space-y-6 > * {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* ─── 10. Prevent mid-card page breaks ───────────── */
+  /* Force the wrapper itself to be a plain block box, even if it
+     normally uses flex/grid — Chrome's print engine frequently
+     ignores break-inside on flex/grid containers and their items,
+     so the outer breakable unit must be a block to be respected. */
+  #site-drawer-print-area .print-avoid-break {
+    page-break-inside: avoid !important; /* legacy property for older browsers */
+    break-inside: avoid !important; /* modern standard property */
+    display: block !important;
+    position: relative !important;
+    /* Belt-and-suspenders: some engines only honor break-inside
+       reliably when the box also isn't allowed to be treated as
+       an independent fragmentation context. */
+    break-before: auto !important;
+    -webkit-column-break-inside: avoid !important;
+  }
+
+  /* If a heading sits as a sibling immediately before a card inside
+     a .print-avoid-break wrapper, glue it to what follows so it
+     can never be orphaned at the bottom of a page on its own. */
+  #site-drawer-print-area .print-avoid-break > h3,
+  #site-drawer-print-area .print-avoid-break > h4 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Inner flex/grid layouts inside a print-avoid-break card are fine
+     to keep as flex/grid — only the OUTER wrapper above is forced
+     to block. This row stays flex for visual layout. */
+  #site-drawer-print-area .print-avoid-break .flex {
+    break-inside: avoid !important;
+  }
+
+  /* Cards: keep overflow-hidden intact so rounded corners clip correctly */
+  #site-drawer-print-area .rounded-2xl,
+  #site-drawer-print-area .rounded-xl {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #site-drawer-print-area table,
+  #site-drawer-print-area tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* ─── 11. Headers stay glued to their section ────── */
+  #site-drawer-print-area h3,
+  #site-drawer-print-area h4 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* ─── 12. Preserve 2-column grid (keep as grid, not flex) ──── */
+  #site-drawer-print-area .grid-cols-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* ─── 13. FGD 2x2 grid inside the score cards ────── */
+  #site-drawer-print-area .grid {
+    display: grid !important;
+  }
+
+  /* ─── 14. Kill animations ────────────────────────── */
+  #site-drawer-print-area * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* ─── 15. Flex rows in cards stay flex ───────────── */
+  #site-drawer-print-area .flex.items-center,
+  #site-drawer-print-area .flex.justify-between,
+  #site-drawer-print-area .flex.flex-wrap,
+  #site-drawer-print-area .flex.items-start,
+  #site-drawer-print-area .flex.gap-2,
+  #site-drawer-print-area .flex.gap-3,
+  #site-drawer-print-area .flex.flex-col {
+    display: flex !important;
+  }
+
+  /* ─── 16. Progress bar: preserve background ──────── */
+  #site-drawer-print-area .bg-slate-100 {
+    background-color: #f1f5f9 !important;
+  }
+}
+
 /* Akvo React Form Editor - match host styles */
 .arfe-editor-wrapper {
   font-family: var(--font-sans);

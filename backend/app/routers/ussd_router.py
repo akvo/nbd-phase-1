@@ -23,6 +23,7 @@ def build_ussd_summary(
     from app.services.translation import get_translation
 
     lines = []
+    q_counter = 1
     for q in active_questions:
         if q.type in ("image", "attachment"):
             continue
@@ -52,7 +53,8 @@ def build_ussd_summary(
         else:
             val_label = str(val)
 
-        lines.append(f"{q_label}: {val_label}")
+        lines.append(f"Q{q_counter}. {q_label}: {val_label}")
+        q_counter += 1
     return "\n".join(lines)
 
 
