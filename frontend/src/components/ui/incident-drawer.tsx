@@ -3,6 +3,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { IncidentSummary } from "@/lib/api";
+import { useTranslations } from "next-intl";
 import {
   AlertTriangle,
   Calendar,
@@ -45,6 +46,9 @@ export function IncidentDrawer({
   basinName,
   onClose,
 }: IncidentDrawerProps) {
+  const t = useTranslations("incidentDrawer");
+  const tLanding = useTranslations("landing");
+
   if (!incident) return null;
 
   // Resolve severity
@@ -60,10 +64,10 @@ export function IncidentDrawer({
   }
 
   const styles = SEVERITY_STYLES[severity];
-  const incidentTypeName = qIncidentAns?.value || "Pollution Report";
+  const incidentTypeName = qIncidentAns?.value || tLanding("pollutionReport");
   const formattedDate = incident.created_at
     ? new Date(incident.created_at).toLocaleString()
-    : "Unknown date";
+    : tLanding("unknownDate");
 
   const qDetailAns = incident.answers?.find(
     (a) =>
@@ -72,7 +76,7 @@ export function IncidentDrawer({
       a.question_id === 3
   );
   const description =
-    qDetailAns?.value || incident.description || "No details recorded.";
+    qDetailAns?.value || incident.description || tLanding("noDetails");
 
   // Find image answers
   const imageAnswers =
@@ -88,7 +92,7 @@ export function IncidentDrawer({
         <div className="flex-1 min-w-0 pr-4">
           <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider flex items-center gap-1">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            Pollution Incident
+            {t("title")}
           </span>
           <h2 className="text-lg font-bold text-slate-800 truncate mt-0.5">
             {incidentTypeName}
@@ -98,7 +102,7 @@ export function IncidentDrawer({
           <span
             className={`text-xs font-bold tracking-wide uppercase px-2.5 py-1 rounded-md border shrink-0 ${styles.badge}`}
           >
-            {severity}
+            {t(severity.toLowerCase() as "moderate" | "critical" | "elevated")}
           </span>
           <Button
             variant="ghost"
@@ -118,7 +122,7 @@ export function IncidentDrawer({
             <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
             <div>
               <span className="font-semibold block text-slate-500">
-                Reported At
+                {t("reportedAt")}
               </span>
               <span>{formattedDate}</span>
             </div>
@@ -127,9 +131,9 @@ export function IncidentDrawer({
             <User className="w-4 h-4 text-slate-400 shrink-0" />
             <div>
               <span className="font-semibold block text-slate-500">
-                Reporter
+                {t("reporter")}
               </span>
-              <span>{incident.name || "Anonymous citizen"}</span>
+              <span>{incident.name || t("anonymousCitizen")}</span>
             </div>
           </div>
           {basinName && (
@@ -137,7 +141,7 @@ export function IncidentDrawer({
               <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
               <div>
                 <span className="font-semibold block text-slate-500">
-                  River Basin
+                  {t("riverBasin")}
                 </span>
                 <span>{basinName}</span>
               </div>
@@ -148,7 +152,7 @@ export function IncidentDrawer({
               <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
               <div>
                 <span className="font-semibold block text-slate-500">
-                  GPS Coordinates
+                  {t("gpsCoordinates")}
                 </span>
                 <span className="font-mono">
                   {coords[1].toFixed(5)}, {coords[0].toFixed(5)}
@@ -161,7 +165,7 @@ export function IncidentDrawer({
         {/* Description section */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Description
+            {t("description")}
           </h3>
           <p className="text-sm text-slate-600 bg-slate-50/50 p-4 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-line">
             {description}
@@ -173,7 +177,7 @@ export function IncidentDrawer({
           <div className="space-y-2">
             <h3 className="font-bold text-slate-800 uppercase tracking-wider text-xs flex items-center gap-1.5">
               <ImageIcon className="w-4 h-4 text-slate-500" />
-              Attached Media ({imageAnswers.length})
+              {t("attachedMedia", { count: imageAnswers.length })}
             </h3>
             <div className="grid grid-cols-1 gap-4">
               {imageAnswers.map((img, i) => (
@@ -198,7 +202,7 @@ export function IncidentDrawer({
         {incident.answers && incident.answers.length > 0 && (
           <div className="space-y-2">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Questionnaire Answers
+              {t("questionnaireAnswers")}
             </h3>
             <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
               {incident.answers

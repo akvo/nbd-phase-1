@@ -532,7 +532,13 @@ export default function Home() {
               <div className="mt-3 space-y-3 overflow-y-auto pr-1 flex-1">
                 {loading ? (
                   <div className="py-8 flex justify-center">
-                    <Loader message={selectedDomain === "wetland" ? t("loadingWetland") : "Loading data..."} />
+                    <Loader
+                      message={
+                        selectedDomain === "wetland"
+                          ? t("loadingWetland")
+                          : "Loading data..."
+                      }
+                    />
                   </div>
                 ) : selectedDomain === "wetland" ? (
                   filteredSites.length > 0 ? (
@@ -727,7 +733,7 @@ export default function Home() {
                   })
                 ) : (
                   <div className="text-sm text-slate-400 italic py-8 text-center">
-                    No pollution incidents reported in this basin.
+                    {t("noIncidents")}
                   </div>
                 )}
               </div>

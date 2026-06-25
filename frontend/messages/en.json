@@ -38,7 +38,11 @@
     "severityElevated": "Elevated",
     "noStations": "No active stations matching filters.",
     "loadingWetland": "Loading wetland data...",
-    "loadingMap": "Loading Regional Map..."
+    "loadingMap": "Loading Regional Map...",
+    "noIncidents": "No pollution incidents reported in this basin.",
+    "wetlandMonitoring": "Wetland Monitoring",
+    "pollutionReports": "Pollution Reports",
+    "switchDomain": "Switch to {domain}"
   },
   "legend": {
     "title": "Legend",
@@ -104,5 +108,19 @@
     "catchmentHydrological": "Catchment / hydro",
     "ecological": "Ecological",
     "governance": "Governance"
+  },
+  "incidentDrawer": {
+    "title": "Pollution Incident",
+    "reportedAt": "Reported At",
+    "reporter": "Reporter",
+    "anonymousCitizen": "Anonymous citizen",
+    "riverBasin": "River Basin",
+    "gpsCoordinates": "GPS Coordinates",
+    "description": "Description",
+    "attachedMedia": "Attached Media ({count})",
+    "questionnaireAnswers": "Questionnaire Answers",
+    "moderate": "Moderate",
+    "critical": "Critical",
+    "elevated": "Elevated"
   }
 }

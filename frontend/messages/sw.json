@@ -38,7 +38,11 @@
     "severityElevated": "Juu",
     "noStations": "Hakuna vituo vinavyofanya kazi vinavyolingana na vichujio.",
     "loadingWetland": "Inapakia data ya eneo oevu...",
-    "loadingMap": "Inapakia Ramani ya Mkoa..."
+    "loadingMap": "Inapakia Ramani ya Mkoa...",
+    "noIncidents": "Hakuna matukio ya uchafuzi yaliyoripotiwa katika bonde hili.",
+    "wetlandMonitoring": "Ufuatiliaji wa Eneo Oevu",
+    "pollutionReports": "Ripoti za Uchafuzi",
+    "switchDomain": "Badilisha hadi {domain}"
   },
   "legend": {
     "title": "Ufafanuzi",
@@ -104,5 +108,19 @@
     "catchmentHydrological": "Maji ya Mfereji",
     "ecological": "Kiikolojia",
     "governance": "Utawala"
+  },
+  "incidentDrawer": {
+    "title": "Tukio la Uchafuzi",
+    "reportedAt": "Iliripotiwa Mnamo",
+    "reporter": "Mtoa Ripoti",
+    "anonymousCitizen": "Mwananchi Asiyejulikana",
+    "riverBasin": "Bonde la Mto",
+    "gpsCoordinates": "Kuratibu za GPS",
+    "description": "Maelezo",
+    "attachedMedia": "Media Zilizowekwa ({count})",
+    "questionnaireAnswers": "Majibu ya Maswali",
+    "moderate": "Wastani",
+    "critical": "Hatari",
+    "elevated": "Juu"
   }
 }

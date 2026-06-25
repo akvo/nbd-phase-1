@@ -1,13 +1,15 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { IncidentDrawer } from "../incident-drawer";
 import { vi, test, expect } from "vitest";
 import { IncidentSummary } from "@/lib/api";
+import messages from "../../../../messages/en.json";
 
 const mockIncident: IncidentSummary = {
   id: 42,
   form_name: "Pollution Reporting Form",
   status: "APPROVED",
-  submitted_at: "2026-06-25T12:00:00Z",
+  created_at: "2026-06-25T12:00:00Z",
   name: "wa-+256****321",
   answers: [
     { question_id: 2, name: "incident_type", value: "Fish kill", options: [3] },
@@ -26,15 +28,23 @@ const mockIncident: IncidentSummary = {
   geo: { type: "Point", coordinates: [32.5, 0.3] as [number, number] },
 };
 
+const renderWithIntl = (ui: React.ReactElement) => {
+  return render(
+    <NextIntlClientProvider messages={messages} locale="en">
+      {ui}
+    </NextIntlClientProvider>
+  );
+};
+
 test("renders null when no incident is passed", () => {
-  const { container } = render(
+  const { container } = renderWithIntl(
     <IncidentDrawer incident={null} onClose={() => {}} />
   );
   expect(container.firstChild).toBeNull();
 });
 
 test("renders incident details correctly", () => {
-  render(
+  renderWithIntl(
     <IncidentDrawer
       incident={mockIncident}
       basinName="Victoria Basin"
@@ -44,7 +54,9 @@ test("renders incident details correctly", () => {
   expect(
     screen.getByRole("heading", { name: "Fish kill" })
   ).toBeInTheDocument();
-  expect(screen.getByText("Critical")).toBeInTheDocument();
+  expect(
+    screen.getByText(messages.incidentDrawer.critical)
+  ).toBeInTheDocument();
   expect(screen.getByText("Victoria Basin")).toBeInTheDocument();
   expect(
     screen.getAllByText("Lots of dead fish floating.")[0]
@@ -53,7 +65,7 @@ test("renders incident details correctly", () => {
 });
 
 test("renders incident image correctly when read_url is provided", () => {
-  render(<IncidentDrawer incident={mockIncident} onClose={() => {}} />);
+  renderWithIntl(<IncidentDrawer incident={mockIncident} onClose={() => {}} />);
   const img = screen.getByRole("img");
   expect(img).toHaveAttribute(
     "src",
@@ -63,7 +75,7 @@ test("renders incident image correctly when read_url is provided", () => {
 
 test("calls onClose when close button is clicked", () => {
   const onClose = vi.fn();
-  render(<IncidentDrawer incident={mockIncident} onClose={onClose} />);
+  renderWithIntl(<IncidentDrawer incident={mockIncident} onClose={onClose} />);
   fireEvent.click(screen.getByText("✕"));
   expect(onClose).toHaveBeenCalled();
 });
