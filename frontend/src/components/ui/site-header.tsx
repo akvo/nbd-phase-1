@@ -38,7 +38,6 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
           >
             Log in
           </Button>
-          <Button variant="primary">Sign up</Button>
         </div>
       ) : (
         <button
