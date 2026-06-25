@@ -16,6 +16,7 @@
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "akvo-react-form": "^2.7.8",
+    "akvo-react-form-editor": "^2.0.4",
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

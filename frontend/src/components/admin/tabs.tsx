@@ -13,9 +13,7 @@ interface TabItem {
 
 const tabItems: TabItem[] = [
   { name: "Data", href: "/admin/data" },
-  { name: "User management", href: "/admin/users", adminOnly: true },
-  { name: "Site management", href: "/admin/sites", adminOnly: true },
-  { name: "Activity log", href: "/admin/audit-logs", adminOnly: true },
+  { name: "Resource management", href: "/admin/sites", adminOnly: true },
 ];
 
 export default function Tabs() {
@@ -25,7 +23,8 @@ export default function Tabs() {
   return (
     <div className="flex border border-slate-200 rounded-lg p-0.5 bg-slate-100/50 w-fit">
       {tabItems.map((tab) => {
-        const isActive = pathname === tab.href;
+        const isActive =
+          pathname === tab.href || pathname.startsWith(tab.href + "/");
         const isLocked = tab.adminOnly && !isAdmin;
 
         if (isLocked) {

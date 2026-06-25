@@ -449,3 +449,63 @@
     background-color: #f1f5f9 !important;
   }
 }
+
+/* Akvo React Form Editor - match host styles */
+.arfe-editor-wrapper {
+  font-family: var(--font-sans);
+}
+
+.arfe-editor-wrapper .arfe-container {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+}
+
+.arfe-editor-wrapper .arfe-tabs-wrapper {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+}
+
+.arfe-editor-wrapper .arfe-tabs-wrapper .arfe-right-tabs {
+  font-family: var(--font-sans);
+}
+
+.arfe-editor-wrapper .arfe-question-group-title {
+  font-family: var(--font-sans);
+  color: #0f172a;
+}
+
+/* Scope Ant Design button overrides to editor only */
+.arfe-editor-wrapper .ant-btn-primary {
+  background-color: #0ea5e9;
+  border-color: #0ea5e9;
+}
+
+.arfe-editor-wrapper .ant-btn-primary:hover {
+  background-color: #0284c7;
+  border-color: #0284c7;
+}
+
+.arfe-editor-wrapper .ant-btn-default {
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.arfe-editor-wrapper .ant-btn-default:hover {
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+/* End Akvo React Form Editor styles */
+
+/* Protect app buttons from Ant Design global styles */
+/* These selectors target our Tailwind-styled buttons */
+button:where([class*="rounded-lg"]),
+button:where([class*="transition-colors"]) {
+  font-family: var(--font-sans) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* Ensure our styled buttons keep their appearance */
+button:where(.cursor-pointer) {
+  font-family: var(--font-sans) !important;
+}

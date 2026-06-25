@@ -70,7 +70,7 @@ flowchart TD
 - Runs on pushes to `main`.
 - Invokes `test-reusable.yml` first, then:
   1. Checks out source repo and composite actions (ref: `0.0.10`).
-  2. Executes frontend build inside a Node 20 Docker container.
+  2. Executes frontend build inside a Node 24 Docker container.
   3. Builds, pushes, and rolls out images for `nginx`, `frontend`, `backend`, and `worker` to GCR and `nbd-namespace` namespace.
 
 ---
