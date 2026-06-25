@@ -65,7 +65,7 @@ def test_ussd_step_1_incident_selection():
     )
     assert response.status_code == 200
     assert response.text.startswith("CON")
-    assert "Report a change in" in response.text
+    assert "Report an incident" in response.text
     assert "colour" in response.text.lower()
     assert "smell" in response.text.lower()
 
@@ -319,5 +319,5 @@ def test_ussd_redo_restores_session_loop(db_session: Session):
     # (since consent and lang are kept)
     assert (
         response.text.startswith("CON Choose Location")
-        or "Report a change" in response.text
+        or "Report an incident" in response.text
     )

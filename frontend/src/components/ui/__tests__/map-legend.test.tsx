@@ -12,10 +12,28 @@ const renderWithIntl = (ui: React.ReactElement) => {
   );
 };
 
-test("renders map legend details", () => {
-  renderWithIntl(<MapLegend />);
+test("renders map legend details for wetland domain", () => {
+  renderWithIntl(<MapLegend domain="wetland" />);
   expect(screen.getByText(messages.legend.title)).toBeInTheDocument();
   expect(screen.getByText(messages.legend.healthy)).toBeInTheDocument();
   expect(screen.getByText(messages.legend.atRisk)).toBeInTheDocument();
   expect(screen.getByText(messages.legend.critical)).toBeInTheDocument();
+  expect(
+    screen.queryByText(messages.legend.criticalSeverity)
+  ).not.toBeInTheDocument();
+});
+
+test("renders map legend details for pollution domain", () => {
+  renderWithIntl(<MapLegend domain="pollution" />);
+  expect(screen.getByText(messages.legend.title)).toBeInTheDocument();
+  expect(screen.queryByText(messages.legend.healthy)).not.toBeInTheDocument();
+  expect(
+    screen.getByText(messages.legend.criticalSeverity)
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(messages.legend.elevatedSeverity)
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(messages.legend.moderateSeverity)
+  ).toBeInTheDocument();
 });

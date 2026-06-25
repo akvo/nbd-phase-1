@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 class AnswerBase(BaseModel):
     question_id: int
     name: Optional[str] = None
-    value: Optional[float] = None
+    value: Optional[Any] = None
     options: Optional[List[Any]] = None
     index: int = 0
 
@@ -19,8 +19,220 @@ class AnswerCreate(AnswerBase):
 class AnswerResponse(AnswerBase):
     id: int
     datapoint_id: int
+    read_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_fields(cls, data: Any) -> Any:
+        is_dict = isinstance(data, dict)
+
+        # Get question
+        question = (
+            data.get("question")
+            if is_dict
+            else getattr(data, "question", None)
+        )
+
+        # Extract variables dynamically
+        name = data.get("name") if is_dict else getattr(data, "name", None)
+        value = data.get("value") if is_dict else getattr(data, "value", None)
+        options = (
+            data.get("options") if is_dict else getattr(data, "options", None)
+        )
+        read_url = (
+            data.get("read_url")
+            if is_dict
+            else getattr(data, "read_url", None)
+        )
+        if not read_url:
+            read_url = (
+                data.get("_read_url")
+                if is_dict
+                else getattr(data, "_read_url", None)
+            )
+
+        index = data.get("index", 0) if is_dict else getattr(data, "index", 0)
+        id_val = data.get("id") if is_dict else getattr(data, "id", None)
+        datapoint_id = (
+            data.get("datapoint_id")
+            if is_dict
+            else getattr(data, "datapoint_id", None)
+        )
+        question_id = (
+            data.get("question_id")
+            if is_dict
+            else getattr(data, "question_id", None)
+        )
+
+        from app.models.form import QuestionType
+
+        # Get q_type
+        q_type = None
+        if question:
+            if isinstance(question, dict):
+                q_type = question.get("type")
+            else:
+                q_type = getattr(question, "type", None)
+
+        resolved_value = None
+
+        if q_type in (
+            QuestionType.option.value,
+            QuestionType.multiple_option.value,
+            QuestionType.cascade.value,
+        ):
+            resolved_value = (
+                data.get("_resolved_value")
+                if is_dict
+                else getattr(data, "_resolved_value", None)
+            )
+            if resolved_value is None:
+                if options is not None:
+                    resolved_value = (
+                        ", ".join(str(x) for x in options)
+                        if isinstance(options, list)
+                        else str(options)
+                    )
+                elif name is not None:
+                    resolved_value = name
+                else:
+                    resolved_value = value
+        elif q_type in (
+            QuestionType.image.value,
+            QuestionType.attachment.value,
+            QuestionType.signature.value,
+        ):
+            if name is not None:
+                resolved_value = name
+            elif value is not None:
+                resolved_value = str(value)
+            elif options and isinstance(options, list) and len(options) > 0:
+                resolved_value = str(options[0])
+        else:
+            if name is not None:
+                resolved_value = name
+            elif value is not None:
+                resolved_value = value
+            elif options is not None:
+                resolved_value = (
+                    ", ".join(str(x) for x in options)
+                    if isinstance(options, list)
+                    else str(options)
+                )
+
+        if not read_url:
+            is_media = False
+            blob_name = None
+
+            # Standard forms with image/attachment/signature types
+            is_type_match = False
+            if q_type:
+                if q_type in (
+                    QuestionType.image,
+                    QuestionType.attachment,
+                    QuestionType.signature,
+                ):
+                    is_type_match = True
+                elif hasattr(q_type, "value") and q_type.value in (
+                    "image",
+                    "attachment",
+                    "signature",
+                ):
+                    is_type_match = True
+                elif str(q_type) in ("image", "attachment", "signature"):
+                    is_type_match = True
+                elif isinstance(q_type, str) and (
+                    "image" in q_type
+                    or "attachment" in q_type
+                    or "signature" in q_type
+                ):
+                    is_type_match = True
+
+            if is_type_match:
+                is_media = True
+                if name and (
+                    name.startswith("media/") or name.startswith("webforms/")
+                ):
+                    blob_name = name
+                elif (
+                    options
+                    and isinstance(options, list)
+                    and len(options) > 0
+                    and isinstance(options[0], str)
+                ):
+                    blob_name = options[0]
+                elif isinstance(value, str) and (
+                    value.startswith("media/") or value.startswith("webforms/")
+                ):
+                    blob_name = value
+
+            # WhatsApp / generic media_attachment fallback
+            elif (
+                name == "media_attachment"
+                and options
+                and isinstance(options, list)
+                and len(options) > 0
+                and isinstance(options[0], str)
+            ):
+                is_media = True
+                blob_name = options[0]
+
+            # Direct media path in value fallback
+            elif isinstance(value, str) and (
+                value.startswith("media/") or value.startswith("webforms/")
+            ):
+                is_media = True
+                blob_name = value
+
+            # Direct media path in name fallback
+            elif isinstance(name, str) and (
+                name.startswith("media/") or name.startswith("webforms/")
+            ):
+                is_media = True
+                blob_name = name
+
+            if (
+                is_media
+                and blob_name
+                and not blob_name.startswith("data:")
+                and not blob_name.startswith("http")
+            ):
+                from app.services.storage import StorageService
+
+                try:
+                    read_url = StorageService().generate_read_signed_url(
+                        blob_name
+                    )
+                except Exception as sig_err:
+                    try:
+                        with open("/app/debug_resolve_fields.log", "a") as f:
+                            f.write(f"ERROR generating signature: {sig_err}\n")
+                    except Exception:
+                        pass
+
+        # Return dict representation
+        question_name = None
+        if question:
+            question_name = (
+                question.get("name")
+                if isinstance(question, dict)
+                else getattr(question, "name", None)
+            )
+
+        res_dict = {
+            "id": id_val,
+            "datapoint_id": datapoint_id,
+            "question_id": question_id,
+            "name": name if name else question_name,
+            "value": resolved_value,
+            "options": options,
+            "index": index,
+            "read_url": read_url,
+        }
+
+        return res_dict
 
 
 class DatapointBase(BaseModel):

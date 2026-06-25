@@ -78,11 +78,7 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
           onClick={() => (window.location.href = "/")}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.svg"
-            alt={t("header.brand")}
-            className="h-10 w-10"
-          />
+          <img src="/logo.svg" alt={t("header.brand")} className="h-10 w-10" />
           <div className="flex flex-col">
             <span className="text-base font-bold text-[#4a90c4] leading-tight">
               {t("header.brand")}

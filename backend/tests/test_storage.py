@@ -399,3 +399,35 @@ def test_storage_delete_file():
 
     # Deleting non-existent file passes silently without exception
     service.delete_file(blob_name)
+
+
+def test_populate_answers_read_urls_media_attachment():
+    from app.services.storage import StorageService
+
+    class MockAnswer:
+        def __init__(self, name, options=None, question=None):
+            self.name = name
+            self.options = options
+            self.question = question
+            self.read_url = None
+
+    class MockDatapoint:
+        def __init__(self, answers):
+            self.answers = answers
+
+    service = StorageService()
+
+    # Create mock datapoint with a media_attachment answer
+    ans = MockAnswer(
+        name="media_attachment",
+        options=["media/whatsapp/5d67145a-9f94-4997-a9a6-8b5bcd8bca23.jpeg"],
+    )
+    dp = MockDatapoint(answers=[ans])
+
+    service.populate_answers_read_urls([dp])
+
+    assert ans.read_url is not None
+    assert (
+        "/api/v1/storage/files/media/whatsapp/5d67145a-9f94-4997-a9a6-8b5bcd8bca23.jpeg"  # noqa
+        in ans.read_url
+    )

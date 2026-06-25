@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,18 @@ import { SiteDrawer } from "@/components/ui/site-drawer";
 import { SiteHeader } from "@/components/ui/site-header";
 import { Loader } from "@/components/ui/loader";
 import { MapLegend } from "@/components/ui/map-legend";
+import { DomainSelector } from "@/components/ui/domain-selector";
+import { IncidentCard } from "@/components/ui/incident-card";
+import { IncidentDrawer } from "@/components/ui/incident-drawer";
 import { useTranslations } from "next-intl";
 
-import { getBasins, getSites, getSubmissions } from "@/lib/api";
+import {
+  getBasins,
+  getSites,
+  getSubmissions,
+  MonitoringDomain,
+  IncidentSummary,
+} from "@/lib/api";
 
 const SHOW_BASIN_SELECTOR = true;
 
@@ -156,13 +165,16 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
 
 export default function Home() {
   const t = useTranslations("landing");
-  const tc = useTranslations("common");
 
   const [selectedBasin, setSelectedBasin] = useState("MARA");
   const [selectedHealthFilter, setSelectedHealthFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSite, setSelectedSite] = useState<any>(null);
+  const [selectedDomain, setSelectedDomain] =
+    useState<MonitoringDomain>("wetland");
+  const [selectedIncident, setSelectedIncident] =
+    useState<IncidentSummary | null>(null);
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [basinGeometries, setBasinGeometries] = useState<Record<string, any>>(
@@ -175,9 +187,17 @@ export default function Home() {
   const [basins, setBasins] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dbSites, setDbSites] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [dbIncidents, setDbIncidents] = useState<any[]>([]);
+  const [dbIncidents, setDbIncidents] = useState<IncidentSummary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const handleDomainChange = (domain: MonitoringDomain) => {
+    setSelectedDomain(domain);
+    setSelectedHealthFilter("All");
+    setSelectedIncident(null);
+    if (domain === "pollution") {
+      setSelectedSite(null);
+    }
+  };
 
   // Filter labels mapping (key -> translated label)
   const filterLabels: Record<string, string> = {
@@ -185,6 +205,7 @@ export default function Home() {
     Critical: t("filters.critical"),
     "At risk": t("filters.atRisk"),
     Healthy: t("filters.healthy"),
+    Elevated: t("filters.elevated"),
   };
 
   useEffect(() => {
@@ -220,23 +241,18 @@ export default function Home() {
     setLoading(true);
     Promise.all([
       getSites({ basin: selectedBasin }),
-      getSubmissions({ status: "APPROVED" }),
+      getSubmissions({ status: "APPROVED", domain: selectedDomain }),
     ])
       .then(([sitesData, subsData]) => {
         setDbSites(sitesData);
-        // Filter submissions to only include "Pollution Reporting Form"
-        const filteredSubs = subsData.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (sub: any) => sub.form_name === "Pollution Reporting Form"
-        );
-        setDbIncidents(filteredSubs);
+        setDbIncidents(subsData as unknown as IncidentSummary[]);
         setLoading(false);
       })
       .catch((err) => {
         console.error("Error loading database map data:", err);
         setLoading(false);
       });
-  }, [selectedBasin]);
+  }, [selectedBasin, selectedDomain]);
 
   // 1. Filtered sites based on health and search
   const filteredSites = dbSites.filter((site) => {
@@ -295,6 +311,8 @@ export default function Home() {
     if (selectedHealthFilter !== "All") {
       if (selectedHealthFilter === "Critical" && severity !== "Critical")
         return false;
+      if (selectedHealthFilter === "Elevated" && severity !== "Elevated")
+        return false;
       if (selectedHealthFilter === "At risk" && severity !== "Elevated")
         return false;
       if (selectedHealthFilter === "Healthy" && severity !== "Moderate")
@@ -304,27 +322,31 @@ export default function Home() {
     return true;
   });
 
-  // 3. Map markers configuration combining sites and incidents
-  const mapMarkers = [
-    ...filteredSites.map((site) => {
-      const coords = site.geom?.coordinates;
-      const position: [number, number] = coords
-        ? [coords[1], coords[0]]
-        : [0, 0];
-      const ikAdjustedScore = site.status?.ik_adjusted_score ?? 0.5;
-      const progressPercent = Math.round(ikAdjustedScore * 100);
-      return {
-        position,
-        popupText: `${site.name} (${site.status?.health_class || "N/A"})`,
-        type: "site" as const,
-        status: site.status?.health_class,
-        code: site.code,
-        name: site.name,
-        score: progressPercent,
-        description: site.description || t("noSignal"),
-      };
-    }),
-    ...filteredIncidents.map((incident) => {
+  // 3. Map markers configuration combining sites and incidents based on selectedDomain
+  const mapMarkers = useMemo(() => {
+    if (selectedDomain === "wetland") {
+      return filteredSites.map((site) => {
+        const coords = site.geom?.coordinates;
+        const position: [number, number] = coords
+          ? [coords[1], coords[0]]
+          : [0, 0];
+        const ikAdjustedScore = site.status?.ik_adjusted_score ?? 0.5;
+        const progressPercent = Math.round(ikAdjustedScore * 100);
+        return {
+          position,
+          popupText: `${site.name} (${site.status?.health_class || "N/A"})`,
+          type: "site" as const,
+          status: site.status?.health_class,
+          code: site.code,
+          name: site.name,
+          score: progressPercent,
+          description: site.description || t("noSignal"),
+        };
+      });
+    }
+
+    // Pollution Reports domain
+    return filteredIncidents.map((incident) => {
       const coords = incident.geo?.coordinates;
       const position: [number, number] = coords
         ? [coords[1], coords[0]]
@@ -361,8 +383,8 @@ export default function Home() {
       const descText =
         qDetailAns?.value || incident.description || t("noDetails");
       const incidentTypeName = qIncidentAns?.value || t("pollutionReport");
-      const formattedDate = incident.submitted_at
-        ? new Date(incident.submitted_at).toLocaleDateString()
+      const formattedDate = incident.created_at
+        ? new Date(incident.created_at).toLocaleDateString()
         : t("unknownDate");
 
       return {
@@ -374,8 +396,8 @@ export default function Home() {
         description: descText,
         additionalInfo: `${t("reportedOn")}: ${formattedDate}`,
       };
-    }),
-  ];
+    });
+  }, [selectedDomain, filteredSites, filteredIncidents, t]);
 
   // Map center logic (center of Mara or Sio depending on selection)
   const mapCenter: [number, number] =
@@ -416,8 +438,13 @@ export default function Home() {
             aria-label="Toggle panel collapse"
           />
 
-          {/* Basin selector */}
+          {/* Domain and Basin selector */}
           <div className="p-4 border-b border-slate-100 space-y-4 shrink-0">
+            <DomainSelector
+              value={selectedDomain}
+              onChange={handleDomainChange}
+            />
+
             {SHOW_BASIN_SELECTOR && (
               <Dropdown
                 label={t("basinRegion")}
@@ -426,13 +453,17 @@ export default function Home() {
                 onChange={(val) => {
                   setSelectedBasin(val);
                   setSelectedSite(null);
+                  setSelectedIncident(null);
                 }}
               />
             )}
 
-            {/* Health filter toggles */}
+            {/* Health / Severity filter toggles */}
             <div className="flex bg-slate-100 p-1 rounded-lg w-full text-xs font-semibold">
-              {["All", "Critical", "At risk", "Healthy"].map((filter) => (
+              {(selectedDomain === "wetland"
+                ? ["All", "Critical", "At risk", "Healthy"]
+                : ["All", "Critical", "Elevated"]
+              ).map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setSelectedHealthFilter(filter)}
@@ -467,15 +498,18 @@ export default function Home() {
             >
               <div className="flex items-center w-full justify-between gap-2">
                 <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">
-                  {t("monitoringSites")} ({filteredSites.length})
-                  {filteredIncidents.length > 0 && (
-                    <span className="text-red-500 normal-case font-medium ml-2">
-                      • {filteredIncidents.length}{" "}
-                      {filteredIncidents.length > 1
-                        ? t("incidentsPlural")
-                        : t("incidents")}
-                    </span>
-                  )}
+                  {selectedDomain === "wetland"
+                    ? `${t("monitoringSites")} (${filteredSites.length})`
+                    : `Pollution Incidents (${filteredIncidents.length})`}
+                  {selectedDomain === "wetland" &&
+                    filteredIncidents.length > 0 && (
+                      <span className="text-red-500 normal-case font-medium ml-2">
+                        • {filteredIncidents.length}{" "}
+                        {filteredIncidents.length > 1
+                          ? t("incidentsPlural")
+                          : t("incidents")}
+                      </span>
+                    )}
                 </span>
                 <svg
                   className={`w-3.5 h-3.5 transform transition-transform duration-200 ${
@@ -499,155 +533,208 @@ export default function Home() {
               <div className="mt-3 space-y-3 overflow-y-auto pr-1 flex-1">
                 {loading ? (
                   <div className="py-8 flex justify-center">
-                    <Loader message={t("loadingWetland")} />
+                    <Loader
+                      message={
+                        selectedDomain === "wetland"
+                          ? t("loadingWetland")
+                          : "Loading data..."
+                      }
+                    />
                   </div>
-                ) : filteredSites.length > 0 ? (
-                  filteredSites.map((site) => {
-                    const hClass = site.status?.health_class || "C";
-                    const isCritical = ["D", "E"].includes(hClass);
-                    const isAtRisk = hClass === "C";
-                    const ikAdjustedScore =
-                      site.status?.ik_adjusted_score ?? 0.5;
-                    const progressPercent = Math.round(ikAdjustedScore * 100);
-                    const isIkAdjusted =
-                      site.status?.ik_adjusted_score !==
-                      site.status?.composite_score;
-                    const country =
-                      site.country ||
-                      (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
+                ) : selectedDomain === "wetland" ? (
+                  filteredSites.length > 0 ? (
+                    filteredSites.map((site) => {
+                      const hClass = site.status?.health_class || "C";
+                      const isCritical = ["D", "E"].includes(hClass);
+                      const isAtRisk = hClass === "C";
+                      const ikAdjustedScore =
+                        site.status?.ik_adjusted_score ?? 0.5;
+                      const progressPercent = Math.round(ikAdjustedScore * 100);
+                      const isIkAdjusted =
+                        site.status?.ik_adjusted_score !==
+                        site.status?.composite_score;
+                      const country =
+                        site.country ||
+                        (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
+
+                      return (
+                        <Card
+                          key={site.code}
+                          onClick={() => setSelectedSite(site)}
+                          className="p-4 hover:shadow-md transition-all border border-slate-100 hover:border-teal-100 cursor-pointer flex flex-col gap-3 relative overflow-hidden group"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-bold text-slate-800 text-sm group-hover:text-teal-600 transition-colors">
+                                {site.name}
+                              </h4>
+                              <span className="text-xs text-slate-400 font-mono">
+                                {site.code}
+                              </span>
+                            </div>
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${
+                                isCritical
+                                  ? "bg-red-50 text-red-700 border-red-200"
+                                  : isAtRisk
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-green-50 text-green-700 border-green-200"
+                              }`}
+                            >
+                              {hClass}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="text-xs text-slate-500 font-medium">
+                              Community Signal:{" "}
+                              {site.description ||
+                                "No signal details recorded."}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    isCritical
+                                      ? "bg-red-500"
+                                      : isAtRisk
+                                        ? "bg-amber-500"
+                                        : "bg-green-500"
+                                  }`}
+                                  style={{ width: `${progressPercent}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-600">
+                                {progressPercent}%
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm flex items-center gap-1">
+                              Approved
+                            </span>
+                            <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200/80 shadow-sm flex items-center gap-1 shrink-0">
+                              <svg
+                                className="w-3 h-3 text-slate-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                              </svg>
+                              {country}
+                            </span>
+                            {isIkAdjusted && (
+                              <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-100 shadow-sm flex items-center gap-1 shrink-0">
+                                IK-adjusted
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Action Warning Banners for sites requiring intervention */}
+                          {(isCritical || isAtRisk) && (
+                            <div
+                              className={`p-2.5 rounded-lg flex items-start gap-2 text-xs border ${
+                                isCritical
+                                  ? "bg-red-50/80 border-red-100 text-red-700"
+                                  : "bg-amber-50/80 border-amber-100 text-amber-700"
+                              }`}
+                            >
+                              <svg
+                                className="w-4 h-4 mt-0.5 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                />
+                              </svg>
+                              <div className="flex-1 font-semibold leading-relaxed">
+                                {site.management_actions &&
+                                site.management_actions.length > 0 ? (
+                                  <span>
+                                    Action:{" "}
+                                    <span className="font-bold">
+                                      {site.management_actions[0].label}
+                                    </span>{" "}
+                                    — {site.management_actions[0].description}
+                                  </span>
+                                ) : (
+                                  <span>
+                                    {isCritical
+                                      ? "Action: Critical degradation detected. Immediate intervention recommended."
+                                      : "Action: Water quality declining. Preventive intervention recommended."}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </Card>
+                      );
+                    })
+                  ) : (
+                    <div className="text-sm text-slate-400 italic py-8 text-center">
+                      No active stations matching filters.
+                    </div>
+                  )
+                ) : filteredIncidents.length > 0 ? (
+                  filteredIncidents.map((incident, idx) => {
+                    const qIncidentAns = incident.answers?.find(
+                      (a) => a.name === "incident_type" || a.question_id === 2
+                    );
+                    const optionVal = qIncidentAns?.options?.[0];
+                    let severity: "Critical" | "Elevated" | "Moderate" =
+                      "Moderate";
+                    if (optionVal !== undefined) {
+                      const valStr = String(optionVal);
+                      if (valStr === "3") severity = "Critical";
+                      else if (["1", "2"].includes(valStr))
+                        severity = "Elevated";
+                    }
+
+                    const qDetailAns = incident.answers?.find(
+                      (a) =>
+                        a.name === "incident_description" ||
+                        a.name === "details" ||
+                        a.question_id === 3
+                    );
+                    const descText =
+                      qDetailAns?.value ||
+                      incident.description ||
+                      "No details recorded.";
+                    const incidentTypeName =
+                      qIncidentAns?.value || "Pollution Report";
 
                     return (
-                      <Card
-                        key={site.code}
-                        onClick={() => setSelectedSite(site)}
-                        className="p-4 hover:shadow-md transition-all border border-slate-100 hover:border-teal-100 cursor-pointer flex flex-col gap-3 relative overflow-hidden group"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-sm group-hover:text-teal-600 transition-colors">
-                              {site.name}
-                            </h4>
-                            <span className="text-xs text-slate-400 font-mono">
-                              {site.code}
-                            </span>
-                          </div>
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${
-                              isCritical
-                                ? "bg-red-50 text-red-700 border-red-200"
-                                : isAtRisk
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                  : "bg-green-50 text-green-700 border-green-200"
-                            }`}
-                          >
-                            {hClass}
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="text-xs text-slate-500 font-medium">
-                            {t("communitySignal")}:{" "}
-                            {site.description || t("noSignal")}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${
-                                  isCritical
-                                    ? "bg-red-500"
-                                    : isAtRisk
-                                      ? "bg-amber-500"
-                                      : "bg-green-500"
-                                }`}
-                                style={{ width: `${progressPercent}%` }}
-                              />
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-600">
-                              {progressPercent}%
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm flex items-center gap-1">
-                            {tc("approved")}
-                          </span>
-                          <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200/80 shadow-sm flex items-center gap-1 shrink-0">
-                            <svg
-                              className="w-3 h-3 text-slate-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                            </svg>
-                            {country}
-                          </span>
-                          {isIkAdjusted && (
-                            <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-100 shadow-sm flex items-center gap-1 shrink-0">
-                              {t("ikAdjusted")}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Action Warning Banners for sites requiring intervention */}
-                        {(isCritical || isAtRisk) && (
-                          <div
-                            className={`p-2.5 rounded-lg flex items-start gap-2 text-xs border ${
-                              isCritical
-                                ? "bg-red-50/80 border-red-100 text-red-700"
-                                : "bg-amber-50/80 border-amber-100 text-amber-700"
-                            }`}
-                          >
-                            <svg
-                              className="w-4 h-4 mt-0.5 shrink-0"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                              />
-                            </svg>
-                            <div className="flex-1 font-semibold leading-relaxed">
-                              {site.management_actions &&
-                              site.management_actions.length > 0 ? (
-                                <span>
-                                  {t("actionPrefix")}{" "}
-                                  <span className="font-bold">
-                                    {site.management_actions[0].label}
-                                  </span>{" "}
-                                  — {site.management_actions[0].description}
-                                </span>
-                              ) : (
-                                <span>
-                                  {isCritical
-                                    ? t("actionCritical")
-                                    : t("actionAtRisk")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </Card>
+                      <IncidentCard
+                        key={incident.id ?? idx}
+                        incidentTypeName={incidentTypeName}
+                        severity={severity}
+                        dateReported={incident.created_at || ""}
+                        description={descText}
+                        basinName={activeBasin?.name}
+                        onClick={() => setSelectedIncident(incident)}
+                      />
                     );
                   })
                 ) : (
                   <div className="text-sm text-slate-400 italic py-8 text-center">
-                    {t("noStations")}
+                    {t("noIncidents")}
                   </div>
                 )}
               </div>
@@ -657,12 +744,19 @@ export default function Home() {
       </div>
 
       {/* Floating Side Info Overlay of Legend */}
-      <MapLegend />
+      <MapLegend domain={selectedDomain} />
 
       {/* Site granular details Drawer panel */}
       <SiteDrawer
         site={mapDbSiteToDrawerSite(selectedSite, t("noSignal"))}
         onClose={() => setSelectedSite(null)}
+      />
+
+      {/* Incident details Drawer panel */}
+      <IncidentDrawer
+        incident={selectedIncident}
+        basinName={activeBasin?.name}
+        onClose={() => setSelectedIncident(null)}
       />
     </main>
   );
