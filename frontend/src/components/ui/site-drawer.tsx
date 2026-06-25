@@ -508,8 +508,12 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                     value:
                       typeof h.breakdown[key] === "object" &&
                       h.breakdown[key] !== null
-                        ? (h.breakdown[key] as Record<string, unknown>).score !== undefined
-                          ? Number((h.breakdown[key] as Record<string, unknown>).score)
+                        ? (h.breakdown[key] as Record<string, unknown>)
+                            .score !== undefined
+                          ? Number(
+                              (h.breakdown[key] as Record<string, unknown>)
+                                .score
+                            )
                           : 0
                         : Number(h.breakdown[key] ?? 0),
                   }));
@@ -603,7 +607,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                     .map((h) => {
                       const rawVal = h.parameters[key];
                       const val =
-                        rawVal && typeof rawVal === "object" && "value" in rawVal
+                        rawVal &&
+                        typeof rawVal === "object" &&
+                        "value" in rawVal
                           ? (rawVal as Record<string, unknown>).value
                           : rawVal;
                       let numericVal = 0;
