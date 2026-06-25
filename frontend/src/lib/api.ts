@@ -69,3 +69,37 @@ export const getSubmissions = async (params?: {
   const response = await apiClient.get("/submissions", { params });
   return response.data;
 };
+
+export interface GenericSamplingHistory {
+  id: string;
+  sampled_at: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface GenericScoreHistory {
+  id: string;
+  calculated_at: string;
+  composite_score: number;
+  ik_signal_value: number;
+  adjusted_score: number;
+  health_class: string;
+  breakdown: Record<string, unknown>;
+}
+
+export const getSiteSamplings = async (
+  siteId: string,
+  params?: { date_from?: string; date_to?: string }
+): Promise<GenericSamplingHistory[]> => {
+  const response = await apiClient.get(`/sites/${siteId}/samplings`, {
+    params,
+  });
+  return response.data;
+};
+
+export const getSiteScores = async (
+  siteId: string,
+  params?: { date_from?: string; date_to?: string }
+): Promise<GenericScoreHistory[]> => {
+  const response = await apiClient.get(`/sites/${siteId}/scores`, { params });
+  return response.data;
+};
