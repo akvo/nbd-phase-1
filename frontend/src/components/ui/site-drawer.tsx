@@ -138,11 +138,13 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
     GenericSamplingHistory[]
   >([]);
   const [scoresHistory, setScoresHistory] = useState<GenericScoreHistory[]>([]);
+  const [scoresError, setScoresError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!site?.site_id) {
       setSamplingsHistory([]);
       setScoresHistory([]);
+      setScoresError(null);
       return;
     }
 
@@ -155,8 +157,14 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
       .catch(console.error);
 
     getSiteScores(site.site_id, { date_from: dateFromStr })
-      .then(setScoresHistory)
-      .catch(console.error);
+      .then((data) => {
+        setScoresError(null);
+        setScoresHistory(data);
+      })
+      .catch((err) => {
+        console.error(err);
+        setScoresError("Could not load score history. Check backend logs.");
+      });
   }, [site?.site_id]);
 
   if (!site) return null;
@@ -500,6 +508,11 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               </p>
             </div>
             <div className="p-4.5 space-y-4 bg-white">
+              {scoresError && (
+                <div className="text-[10px] text-red-400 italic px-1">
+                  ⚠ {scoresError}
+                </div>
+              )}
               {scoreBreakdownEntries.map(([key, group]) => {
                 const groupHistory = scoresHistory
                   .filter((h) => h.breakdown && h.breakdown[key] !== undefined)
