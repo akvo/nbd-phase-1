@@ -2,6 +2,11 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { SiteDrawer } from "../site-drawer";
 import { expect, test, vi } from "vitest";
 
+vi.mock("@/lib/api", () => ({
+  getSiteSamplings: vi.fn(() => Promise.resolve([])),
+  getSiteScores: vi.fn(() => Promise.resolve([])),
+}));
+
 const mockSite = {
   site_id: "SITE-001",
   site_name: "Gulu Wetland",
