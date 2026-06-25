@@ -721,7 +721,7 @@ export default function Home() {
       </div>
 
       {/* Floating Side Info Overlay of Legend */}
-      <MapLegend />
+      <MapLegend domain={selectedDomain} />
 
       {/* Site granular details Drawer panel */}
       <SiteDrawer
