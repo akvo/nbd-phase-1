@@ -237,9 +237,9 @@ def seed_fake_submissions(
         else:
             base_score = 0.12
 
-        # 1. Generate 5 historical records spanning 30 days back
+        # 1. Generate 5 historical records spanning 28 days back (weekly)
         now = datetime.utcnow()
-        for offset_days in [30, 22, 15, 8, 0]:
+        for offset_days in [28, 21, 14, 7, 0]:
             record_time = now - timedelta(days=offset_days)
             variance = random.uniform(-0.18, 0.18)
             score = max(0.05, min(0.98, base_score + variance))
@@ -256,6 +256,11 @@ def seed_fake_submissions(
             )
             db.add(health_score)
 
+            # Cycle through water levels to prevent flat lines
+            w_levels = ["MEDIUM", "HIGH", "LOW", "MEDIUM", "HIGH"]
+            w_idx = {28: 0, 21: 1, 14: 2, 7: 3, 0: 4}[offset_days]
+            w_level = w_levels[w_idx]
+
             # SamplingRecord parameters
             # conforming to SDD ranges per health class
             if selected_class == "A":
@@ -264,35 +269,30 @@ def seed_fake_submissions(
                 do = 8.0 + random.uniform(-0.5, 0.5)
                 macrophytes = max(0.0, 2.0 + random.uniform(-1.0, 1.0))
                 cpue = 15.0 + random.uniform(-2.0, 2.0)
-                w_level = "MEDIUM"
             elif selected_class == "B":
                 ph = 7.5 + random.uniform(-0.5, 0.5)
                 temp = 23.0 + random.uniform(-1.5, 1.5)
                 do = 7.0 + random.uniform(-0.8, 0.8)
                 macrophytes = max(0.0, 10.0 + random.uniform(-3.0, 3.0))
                 cpue = 12.0 + random.uniform(-2.0, 2.0)
-                w_level = "MEDIUM"
             elif selected_class == "C":
                 ph = 6.5 + random.uniform(-0.8, 0.8)
                 temp = 25.0 + random.uniform(-2.0, 2.0)
                 do = 5.5 + random.uniform(-1.0, 1.0)
                 macrophytes = 25.0 + random.uniform(-5.0, 5.0)
                 cpue = 8.0 + random.uniform(-1.5, 1.5)
-                w_level = "HIGH"
             elif selected_class == "D":
                 ph = 5.8 + random.uniform(-1.0, 1.0)
                 temp = 26.0 + random.uniform(-3.0, 3.0)
                 do = 3.5 + random.uniform(-1.2, 1.2)
                 macrophytes = 55.0 + random.uniform(-10.0, 10.0)
                 cpue = 4.0 + random.uniform(-1.0, 1.0)
-                w_level = "LOW"
             else:  # E
                 ph = 4.5 + random.uniform(-1.5, 1.5)
                 temp = 28.0 + random.uniform(-4.0, 4.0)
                 do = 1.5 + random.uniform(-1.0, 1.0)
                 macrophytes = 85.0 + random.uniform(-10.0, 10.0)
                 cpue = 1.0 + random.uniform(-0.5, 0.5)
-                w_level = "LOW"
 
             sampling_rec = SamplingRecord(
                 site_id=site.id,
@@ -312,7 +312,6 @@ def seed_fake_submissions(
                 db=db,
                 form_id=sampling_form.id,
                 site_id=site.id,
-                basin_id=site.wetland.basin_id if site.wetland else None,
                 submitter="System Test Seeder",
                 status="APPROVED",
                 created_at=record_time,
@@ -337,7 +336,6 @@ def seed_fake_submissions(
             db=db,
             form_id=sampling_form.id,
             site_id=site.id,
-            basin_id=site.wetland.basin_id if site.wetland else None,
             submitter="System Test Seeder",
             status="PENDING",
             created_at=now,
@@ -361,7 +359,6 @@ def seed_fake_submissions(
                 db=db,
                 form_id=lab_qa_form.id,
                 site_id=site.id,
-                basin_id=site.wetland.basin_id if site.wetland else None,
                 submitter="System Test Seeder",
                 status="APPROVED",
                 created_at=now - timedelta(days=15 * (lab_idx + 1)),
@@ -385,7 +382,6 @@ def seed_fake_submissions(
             db=db,
             form_id=lab_qa_form.id,
             site_id=site.id,
-            basin_id=site.wetland.basin_id if site.wetland else None,
             submitter="System Test Seeder",
             status="PENDING",
             created_at=now,
@@ -453,7 +449,6 @@ def seed_fake_submissions(
                 db=db,
                 form_id=pollution_form.id,
                 site_id=site.id,
-                basin_id=site.wetland.basin_id if site.wetland else None,
                 submitter="System Test Seeder",
                 status="APPROVED",
                 created_at=now - timedelta(days=idx),
@@ -477,7 +472,6 @@ def seed_fake_submissions(
             db=db,
             form_id=pollution_form.id,
             site_id=site.id,
-            basin_id=site.wetland.basin_id if site.wetland else None,
             submitter="System Test Seeder",
             status="PENDING",
             created_at=now,
@@ -535,7 +529,6 @@ def seed_fake_submissions(
                 db=db,
                 form_id=ik_form.id,
                 wetland_id=wetland.id,
-                basin_id=wetland.basin_id,
                 submitter="System Test Seeder",
                 status="APPROVED",
                 created_at=record_time,
@@ -577,7 +570,6 @@ def seed_fake_submissions(
             db=db,
             form_id=ik_form.id,
             wetland_id=wetland.id,
-            basin_id=wetland.basin_id,
             submitter="System Test Seeder",
             status="PENDING",
             created_at=now,

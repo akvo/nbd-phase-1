@@ -147,7 +147,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
     }
 
     const dateFrom = new Date();
-    dateFrom.setDate(dateFrom.getDate() - 30);
+    dateFrom.setDate(dateFrom.getDate() - 35);
     const dateFromStr = dateFrom.toISOString();
 
     getSiteSamplings(site.site_id, { date_from: dateFromStr })
@@ -601,7 +601,11 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                       (h) => h.parameters && h.parameters[key] !== undefined
                     )
                     .map((h) => {
-                      const val = h.parameters[key];
+                      const rawVal = h.parameters[key];
+                      const val =
+                        rawVal && typeof rawVal === "object" && "value" in rawVal
+                          ? (rawVal as Record<string, unknown>).value
+                          : rawVal;
                       let numericVal = 0;
                       if (typeof val === "number") {
                         numericVal = val;
