@@ -12,6 +12,7 @@ import {
   GenericSamplingHistory,
   GenericScoreHistory,
 } from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 import {
   Table,
@@ -131,8 +132,45 @@ function getTileCoords(lat: number, lon: number, zoom: number) {
   return { x, y, xOffset, yOffset };
 }
 
+// Map score breakdown keys to translation keys
+const scoreKeyToTranslation: Record<string, string> = {
+  physico_chemical: "physicoChemical",
+  catchment_hydrological: "catchmentHydrological",
+  ecological: "ecological",
+  governance: "governance",
+};
+
+// Map metric keys to translation keys
+const metricKeyToTranslation: Record<string, string> = {
+  ph: "ph",
+  dissolved_oxygen: "dissolvedOxygen",
+  temperature: "temperature",
+  water_level: "waterLevel",
+  turbidity: "turbidity",
+  macroinvertebrate: "macroinvertebrate",
+};
+
+// Map status values to translation keys (case-insensitive matching)
+const statusToTranslation: Record<string, string> = {
+  normal: "normal",
+  "flood risk": "floodRisk",
+  drought: "drought",
+  "abnormal low": "abnormalLow",
+  stable: "stable",
+};
+
+// Map FGD indicator values to translation keys
+const fgdValueToTranslation: Record<string, string> = {
+  same: "same",
+  none: "none",
+};
+
 export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   // Hooks must be called unconditionally — before any early returns
+  const t = useTranslations("drawer");
+  const tc = useTranslations("common");
+  const ts = useTranslations("scores");
+  const tm = useTranslations("metrics");
   const [isPrinting, setIsPrinting] = useState(false);
   const [samplingsHistory, setSamplingsHistory] = useState<
     GenericSamplingHistory[]
@@ -163,7 +201,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
       })
       .catch((err) => {
         console.error(err);
-        setScoresError("Could not load score history. Check backend logs.");
+        setScoresError("scoreHistoryError");
       });
   }, [site?.site_id]);
 
@@ -258,7 +296,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
       <div className="p-6 border-b border-slate-200 flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
           <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-            Monitoring Station
+            {t("monitoringStation")}
           </span>
           <h2 className="text-lg font-bold text-slate-800 truncate mt-0.5">
             {site.site_name}
@@ -307,9 +345,11 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           <span>{site.country}</span>
         </div>
         <Badge variant={site.is_approved ? "success" : "warning"}>
-          {site.is_approved ? "Approved" : "Pending"}
+          {site.is_approved ? tc("approved") : tc("pending")}
         </Badge>
-        {site.is_ik_adjusted && <Badge variant="primary">IK-adjusted</Badge>}
+        {site.is_ik_adjusted && (
+          <Badge variant="primary">{t("ikAdjusted")}</Badge>
+        )}
       </div>
 
       {/* Drawer Body */}
@@ -331,9 +371,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               />
             </svg>
             <p className="text-xs text-amber-700 leading-relaxed font-medium">
-              Wetland health is currently at risk or degraded (Class{" "}
-              {site.current_health_class}). Management interventions are highly
-              recommended to prevent further ecological decline.
+              {t("warningMessage", { healthClass: site.current_health_class })}
             </p>
           </div>
         )}
@@ -341,7 +379,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         {/* Community Signal Section */}
         {site.community_signal && (
           <div className="text-sm text-slate-700 leading-relaxed border-l-4 border-teal-500 pl-3.5 py-1 bg-teal-50/30 rounded-r-lg">
-            <span className="font-bold text-slate-800">Community signal: </span>
+            <span className="font-bold text-slate-800">
+              {t("communitySignal")}:{" "}
+            </span>
             <span className="italic">&quot;{site.community_signal}&quot;</span>
           </div>
         )}
@@ -382,7 +422,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             return (
               <div className="space-y-3 hidden print:block print-avoid-break">
                 <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                  Location Map
+                  {t("locationMap")}
                 </h3>
                 <div className="w-full rounded-xl border border-slate-200 shadow-sm relative map-container-overflow">
                   {/* 5x3 Tile Container centered around coordinate */}
@@ -421,7 +461,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         {/* Required Interventions */}
         <div className="space-y-3 print-avoid-break">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-            Required Interventions
+            {t("requiredInterventions")}
           </h3>
           {site.details.management_actions.length > 0 ? (
             <div className="space-y-3">
@@ -441,7 +481,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             </div>
           ) : (
             <div className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center border border-dashed border-slate-200">
-              No interventions triggered for this level.
+              {t("noInterventions")}
             </div>
           )}
         </div>
@@ -459,6 +499,19 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                 const valueClass = `text-base font-bold text-slate-800 ${isValString ? "capitalize" : ""}`;
                 const borderClass = `${index % 2 === 0 ? "border-r" : ""} ${index < 2 ? "border-b" : ""} border-slate-200`;
 
+                // Translate metric label
+                const metricTranslationKey = metricKeyToTranslation[key];
+                const translatedMetricLabel = metricTranslationKey
+                  ? tm(metricTranslationKey)
+                  : metric.label;
+
+                // Translate status
+                const statusLower = (metric.status || "").toLowerCase();
+                const statusTranslationKey = statusToTranslation[statusLower];
+                const translatedStatus = statusTranslationKey
+                  ? t(statusTranslationKey)
+                  : metric.status;
+
                 return (
                   <div
                     key={key}
@@ -466,7 +519,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                   >
                     <div className="flex justify-between items-start text-xs text-slate-500">
                       <span className="font-medium text-slate-400">
-                        {metric.label}
+                        {translatedMetricLabel}
                       </span>
                       <DynamicIcon
                         name={metric.icon}
@@ -487,7 +540,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                       <span
                         className={`w-1.5 h-1.5 rounded-full ${colors.bg}`}
                       />
-                      <span>{metric.status}</span>
+                      <span>{translatedStatus}</span>
                     </div>
                   </div>
                 );
@@ -501,16 +554,16 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="bg-white border-b border-slate-200 px-4.5 py-3.5">
               <h4 className="font-bold text-sm text-slate-800">
-                Score breakdown
+                {t("scoreBreakdown")}
               </h4>
               <p className="text-xs text-slate-500 mt-0.5">
-                Parameter group scores (May 2026 sampling)
+                {t("parameterGroupScores")}
               </p>
             </div>
             <div className="p-4.5 space-y-4 bg-white">
               {scoresError && (
                 <div className="text-[10px] text-red-400 italic px-1">
-                  ⚠ {scoresError}
+                  ⚠ {t(scoresError)}
                 </div>
               )}
               {scoreBreakdownEntries.map(([key, group]) => {
@@ -531,6 +584,12 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                         : Number(h.breakdown[key] ?? 0),
                   }));
 
+                // Use translated label based on key, fallback to backend label
+                const translationKey = scoreKeyToTranslation[key];
+                const translatedLabel = translationKey
+                  ? ts(translationKey)
+                  : group.label;
+
                 return (
                   <div key={key} className="space-y-2">
                     <div className="flex justify-between text-xs font-semibold text-slate-700">
@@ -539,7 +598,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                           name={group.icon}
                           className="w-3.5 h-3.5 text-slate-400"
                         />
-                        <span>{group.label}</span>
+                        <span>{translatedLabel}</span>
                       </div>
                       <span>{group.score.toFixed(2)}</span>
                     </div>
@@ -552,7 +611,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                       />
                     </div>
                     <CollapsibleChartContainer
-                      label={group.label}
+                      label={translatedLabel}
                       data={groupHistory}
                     />
                   </div>
@@ -563,14 +622,14 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             {/* Bottom adjustment score panel */}
             <div className="bg-slate-50 p-4 border-t border-slate-200 space-y-2 text-xs font-medium text-slate-700">
               <div className="flex justify-between">
-                <span>Composite (pre-adjustment)</span>
+                <span>{t("compositePreAdjustment")}</span>
                 <span className="font-semibold text-slate-800">
                   {rawComposite}
                 </span>
               </div>
               {site.is_ik_adjusted && (
                 <div className="flex justify-between">
-                  <span>IK health signal (FGD)</span>
+                  <span>{t("ikHealthSignal")}</span>
                   <span className="font-semibold text-slate-800">
                     {site.details.ik_signal.encoded_signal_value.toFixed(2)}
                   </span>
@@ -579,7 +638,11 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               <div
                 className={`flex justify-between font-bold border-t border-slate-200/60 pt-2 mt-1 ${gradeTextClass}`}
               >
-                <span>Adjusted score - Class {site.current_health_class}</span>
+                <span>
+                  {t("adjustedScore", {
+                    healthClass: site.current_health_class,
+                  })}
+                </span>
                 <span className="text-sm font-extrabold">
                   {site.current_score.toFixed(2)}
                 </span>
@@ -591,22 +654,22 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         {/* Raw Sampling Method Table */}
         <div className="space-y-3 print-avoid-break">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-            Raw sampling method
+            {t("rawSamplingMethod")}
           </h3>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="text-xs uppercase text-slate-500 font-bold">
-                  Parameter
+                  {t("parameter")}
                 </TableHead>
                 <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
-                  Value
+                  {t("value")}
                 </TableHead>
                 <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
-                  Unit
+                  {t("unit")}
                 </TableHead>
                 <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
-                  Flag
+                  {t("flag")}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -640,11 +703,24 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                       };
                     });
 
+                  // Translate metric label
+                  const metricTranslationKey = metricKeyToTranslation[key];
+                  const translatedMetricLabel = metricTranslationKey
+                    ? tm(metricTranslationKey)
+                    : metric.label;
+
+                  // Translate status
+                  const statusLower = (metric.status || "").toLowerCase();
+                  const statusTranslationKey = statusToTranslation[statusLower];
+                  const translatedStatus = statusTranslationKey
+                    ? t(statusTranslationKey)
+                    : metric.status || t("normal");
+
                   return (
                     <React.Fragment key={key}>
                       <TableRow>
                         <TableCell className="text-xs font-semibold text-slate-700">
-                          {metric.label}
+                          {translatedMetricLabel}
                         </TableCell>
                         <TableCell className="text-xs font-mono text-slate-800 text-center">
                           {typeof metric.value === "string"
@@ -657,17 +733,13 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                         <TableCell className="text-center">
                           <span
                             className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                              (metric.status || "")
-                                .toLowerCase()
-                                .includes("normal") ||
-                              (metric.status || "")
-                                .toLowerCase()
-                                .includes("stable")
+                              statusLower.includes("normal") ||
+                              statusLower.includes("stable")
                                 ? "bg-green-100 text-green-700"
                                 : "bg-amber-100 text-amber-700"
                             }`}
                           >
-                            {metric.status || "Normal"}
+                            {translatedStatus}
                           </span>
                         </TableCell>
                       </TableRow>
@@ -677,7 +749,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                           className="py-0 px-2 border-b border-slate-100"
                         >
                           <CollapsibleChartContainer
-                            label={metric.label}
+                            label={translatedMetricLabel}
                             data={metricHistory}
                           />
                         </TableCell>
@@ -693,12 +765,12 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         {/* FGD Session Context */}
         <div className="space-y-3 print-avoid-break">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-            FGD Session (Indigenous Knowledge)
+            {t("fgdSession")}
           </h3>
           <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4.5 space-y-3.5">
             <div className="space-y-2">
               <div className="flex justify-between text-xs text-slate-500">
-                <span>IK Signal Strength:</span>
+                <span>{t("ikSignalStrength")}:</span>
                 <span className="font-semibold text-blue-700">
                   {(site.details.ik_signal.encoded_signal_value * 100).toFixed(
                     0
@@ -715,7 +787,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             <div className="grid grid-cols-2 gap-3 pt-1 text-xs text-slate-700">
               {[
                 {
-                  label: "Fish Abundance",
+                  labelKey: "fishAbundance" as const,
                   value: site.details.ik_signal.fish_abundance,
                   icon: "🐟",
                   redVals: ["severely declined", "severe"],
@@ -727,21 +799,21 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                   ],
                 },
                 {
-                  label: "Water Quality",
+                  labelKey: "waterQuality" as const,
                   value: site.details.ik_signal.water_clarity,
                   icon: "💧",
                   redVals: ["much worse"],
                   orangeVals: ["somewhat worse"],
                 },
                 {
-                  label: "Vegetation Cover",
+                  labelKey: "vegetationCover" as const,
                   value: site.details.ik_signal.vegetation_cover,
                   icon: "🌱",
                   redVals: ["severely lost", "severe loss"],
                   orangeVals: ["partially lost", "partial loss"],
                 },
                 {
-                  label: "Pollution Events",
+                  labelKey: "pollutionEvents" as const,
                   value: site.details.ik_signal.pollution_events,
                   icon: "⚠️",
                   redVals: ["frequent"],
@@ -753,13 +825,25 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                   .replace(/_/g, " ")
                   .trim();
                 let dotColor = "bg-green-500";
+                let statusKey:
+                  | "statusCritical"
+                  | "statusWarning"
+                  | "statusHealthy" = "statusHealthy";
                 if (item.redVals.some((rv) => valLower.includes(rv))) {
                   dotColor = "bg-red-500";
+                  statusKey = "statusCritical";
                 } else if (
                   item.orangeVals.some((ov) => valLower.includes(ov))
                 ) {
                   dotColor = "bg-amber-500";
+                  statusKey = "statusWarning";
                 }
+
+                // Translate FGD indicator value
+                const fgdTranslationKey = fgdValueToTranslation[valLower];
+                const translatedValue = fgdTranslationKey
+                  ? t(fgdTranslationKey)
+                  : valLower;
 
                 return (
                   <div
@@ -767,25 +851,19 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                     className="bg-white/80 p-2.5 rounded-lg border border-slate-100 flex flex-col justify-between gap-1 shadow-sm"
                   >
                     <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
-                      {item.label}
+                      {t(item.labelKey)}
                     </span>
                     <div className="flex items-center gap-1.5 mt-1 font-semibold text-slate-800 capitalize">
                       <span className="text-sm leading-none shrink-0">
                         {item.icon}
                       </span>
-                      <span className="truncate">{valLower}</span>
+                      <span className="truncate">{translatedValue}</span>
                     </div>
                     <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-500 mt-1">
                       <span
                         className={`w-1.5 h-1.5 rounded-full ${dotColor}`}
                       />
-                      <span>
-                        {dotColor === "bg-red-500"
-                          ? "Critical"
-                          : dotColor === "bg-amber-500"
-                            ? "Warning"
-                            : "Healthy"}
-                      </span>
+                      <span>{t(statusKey)}</span>
                     </div>
                   </div>
                 );
@@ -804,12 +882,12 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
             {isPrinting ? (
               <>
                 <LucideIcons.Loader2 className="w-5 h-5 animate-spin" />
-                Preparing PDF...
+                {t("preparingPdf")}
               </>
             ) : (
               <>
                 <LucideIcons.Printer className="w-5 h-5" />
-                Export detailed report (PDF)
+                {t("exportReport")}
               </>
             )}
           </Button>

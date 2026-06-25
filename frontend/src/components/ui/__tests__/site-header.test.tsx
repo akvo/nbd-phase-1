@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { SiteHeader } from "../site-header";
 import { expect, test, vi, beforeEach } from "vitest";
 import * as api from "@/lib/api";
+import messages from "../../../../messages/en.json";
 
 // Mock apiClient to simulate unauthenticated state by default
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -15,6 +17,14 @@ vi.mock("@/lib/api", async (importOriginal) => {
   };
 });
 
+const renderWithIntl = (ui: React.ReactElement) => {
+  return render(
+    <NextIntlClientProvider messages={messages} locale="en">
+      {ui}
+    </NextIntlClientProvider>
+  );
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   // Default: unauthenticated
@@ -24,14 +34,18 @@ beforeEach(() => {
 });
 
 test("renders logo", async () => {
-  render(<SiteHeader showActions={true} />);
-  expect(screen.getByText("Logoipsum")).toBeInTheDocument();
+  renderWithIntl(<SiteHeader showActions={true} />);
+  expect(screen.getByText(messages.header.brand)).toBeInTheDocument();
 });
 
 test("shows Log in button when unauthenticated", async () => {
-  render(<SiteHeader showActions={true} />);
+  renderWithIntl(<SiteHeader showActions={true} />);
   await waitFor(() => {
-    expect(screen.getByRole("button", { name: /log in/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(messages.common.login, "i"),
+      })
+    ).toBeInTheDocument();
   });
 });
 
@@ -45,7 +59,7 @@ test("shows user menu button when authenticated", async () => {
     },
   });
 
-  render(<SiteHeader showActions={true} />);
+  renderWithIntl(<SiteHeader showActions={true} />);
   await waitFor(() => {
     expect(
       screen.getByRole("button", { name: /user menu/i })
@@ -54,7 +68,7 @@ test("shows user menu button when authenticated", async () => {
 });
 
 test("renders toggle menu when actions are disabled", () => {
-  render(<SiteHeader showActions={false} />);
+  renderWithIntl(<SiteHeader showActions={false} />);
   expect(
     screen.getByRole("button", { name: /toggle menu/i })
   ).toBeInTheDocument();

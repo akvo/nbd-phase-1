@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { apiClient } from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 interface SiteHeaderProps {
   showActions?: boolean;
@@ -17,6 +19,7 @@ interface AuthUser {
 }
 
 export function SiteHeader({ showActions = true }: SiteHeaderProps) {
+  const t = useTranslations();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -82,13 +85,14 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
           </svg>
           <span className="font-extrabold text-lg text-nbd-text-dark tracking-tight">
-            Logoipsum
+            {t("header.brand")}
           </span>
         </div>
       </div>
 
       {showActions ? (
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           {userLoading ? null : user ? (
             /* ── Authenticated: avatar + dropdown ── */
             <div className="relative" ref={dropdownRef}>
@@ -168,7 +172,7 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
                           d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                         />
                       </svg>
-                      Admin panel
+                      {t("common.adminPanel")}
                     </a>
                   )}
 
@@ -192,7 +196,7 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
                         d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                       />
                     </svg>
-                    Sign out
+                    {t("common.signOut")}
                   </button>
                 </div>
               )}
@@ -203,7 +207,7 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
               variant="ghost"
               onClick={() => (window.location.href = "/login")}
             >
-              Log in
+              {t("common.login")}
             </Button>
           )}
         </div>

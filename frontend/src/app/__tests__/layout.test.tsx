@@ -31,15 +31,32 @@ vi.mock("@/lib/api", () => {
   };
 });
 
+// Mock next-intl server functions
+vi.mock("next-intl/server", () => ({
+  getLocale: vi.fn(() => Promise.resolve("en")),
+  getMessages: vi.fn(() =>
+    Promise.resolve({
+      common: { login: "Log in", signOut: "Sign out" },
+    })
+  ),
+}));
+
+// Mock next-intl client provider
+vi.mock("next-intl", () => ({
+  NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
+
 // Import after mocks
 import RootLayout from "../layout";
 
-test("renders root layout with children", () => {
-  render(
-    <RootLayout>
-      <div data-testid="layout-child">Child Element</div>
-    </RootLayout>
-  );
+test("renders root layout with children", async () => {
+  const layout = await RootLayout({
+    children: <div data-testid="layout-child">Child Element</div>,
+  });
+
+  render(layout);
 
   expect(screen.getByTestId("layout-child")).toBeInTheDocument();
   expect(screen.getByText("Child Element")).toBeInTheDocument();

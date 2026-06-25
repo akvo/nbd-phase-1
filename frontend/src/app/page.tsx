@@ -9,6 +9,7 @@ import { SiteDrawer } from "@/components/ui/site-drawer";
 import { SiteHeader } from "@/components/ui/site-header";
 import { Loader } from "@/components/ui/loader";
 import { MapLegend } from "@/components/ui/map-legend";
+import { useTranslations } from "next-intl";
 
 import { getBasins, getSites, getSubmissions } from "@/lib/api";
 
@@ -16,11 +17,10 @@ const SHOW_BASIN_SELECTOR = true;
 
 const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
   ssr: false,
-  loading: () => <Loader message="Loading Regional Map..." />,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapDbSiteToDrawerSite = (site: any): any => {
+const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
   if (!site) return null;
   const coords = site.geom?.coordinates;
   const healthClass = site.status?.health_class || "C";
@@ -73,7 +73,7 @@ const mapDbSiteToDrawerSite = (site: any): any => {
     current_score: ikAdjustedScore,
     last_updated: site.status?.sampling_date || new Date().toISOString(),
     coordinates: coords ? [coords[1], coords[0]] : [0, 0],
-    community_signal: site.description || "No signal details recorded.",
+    community_signal: site.description || noSignalText,
     progress_percent: Math.round(ikAdjustedScore * 100),
     is_approved: true,
     is_ik_adjusted:
@@ -155,6 +155,9 @@ const mapDbSiteToDrawerSite = (site: any): any => {
 };
 
 export default function Home() {
+  const t = useTranslations("landing");
+  const tc = useTranslations("common");
+
   const [selectedBasin, setSelectedBasin] = useState("MARA");
   const [selectedHealthFilter, setSelectedHealthFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,6 +178,14 @@ export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dbIncidents, setDbIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filter labels mapping (key -> translated label)
+  const filterLabels: Record<string, string> = {
+    All: t("filters.all"),
+    Critical: t("filters.critical"),
+    "At risk": t("filters.atRisk"),
+    Healthy: t("filters.healthy"),
+  };
 
   useEffect(() => {
     getBasins()
@@ -310,7 +321,7 @@ export default function Home() {
         code: site.code,
         name: site.name,
         score: progressPercent,
-        description: site.description || "No signal details recorded.",
+        description: site.description || t("noSignal"),
       };
     }),
     ...filteredIncidents.map((incident) => {
@@ -324,17 +335,21 @@ export default function Home() {
         (a: any) => a.name === "incident_type" || a.question_id === 2
       );
       const optionVal = qIncidentAns?.options?.[0];
-      let severity = "Moderate";
+      let severityKey:
+        | "severityModerate"
+        | "severityCritical"
+        | "severityElevated" = "severityModerate";
       if (optionVal === 3 || optionVal === "3") {
-        severity = "Critical";
+        severityKey = "severityCritical";
       } else if (
         optionVal === 1 ||
         optionVal === "1" ||
         optionVal === 2 ||
         optionVal === "2"
       ) {
-        severity = "Elevated";
+        severityKey = "severityElevated";
       }
+      const severity = t(severityKey);
 
       const qDetailAns = incident.answers.find(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -344,20 +359,20 @@ export default function Home() {
           a.question_id === 3
       );
       const descText =
-        qDetailAns?.value || incident.description || "No details recorded.";
-      const incidentTypeName = qIncidentAns?.value || "Pollution Report";
+        qDetailAns?.value || incident.description || t("noDetails");
+      const incidentTypeName = qIncidentAns?.value || t("pollutionReport");
       const formattedDate = incident.submitted_at
         ? new Date(incident.submitted_at).toLocaleDateString()
-        : "Unknown date";
+        : t("unknownDate");
 
       return {
         position,
-        popupText: `Incident: ${incidentTypeName} (${severity})`,
+        popupText: `${t("incident")}: ${incidentTypeName} (${severity})`,
         type: "incident" as const,
         status: severity,
         name: incidentTypeName,
         description: descText,
-        additionalInfo: `Reported on: ${formattedDate}`,
+        additionalInfo: `${t("reportedOn")}: ${formattedDate}`,
       };
     }),
   ];
@@ -405,7 +420,7 @@ export default function Home() {
           <div className="p-4 border-b border-slate-100 space-y-4 shrink-0">
             {SHOW_BASIN_SELECTOR && (
               <Dropdown
-                label="Basin Region"
+                label={t("basinRegion")}
                 options={dropdownOptions}
                 value={selectedBasin}
                 onChange={(val) => {
@@ -427,7 +442,7 @@ export default function Home() {
                       : "text-slate-400 hover:text-slate-600"
                   }`}
                 >
-                  {filter}
+                  {filterLabels[filter]}
                 </button>
               ))}
             </div>
@@ -435,7 +450,7 @@ export default function Home() {
             {/* Search Input */}
             <Input
               type="text"
-              placeholder="Search field, area, water source"
+              placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 border-slate-200 focus:bg-white text-sm"
@@ -452,11 +467,13 @@ export default function Home() {
             >
               <div className="flex items-center w-full justify-between gap-2">
                 <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">
-                  Monitoring Sites ({filteredSites.length})
+                  {t("monitoringSites")} ({filteredSites.length})
                   {filteredIncidents.length > 0 && (
                     <span className="text-red-500 normal-case font-medium ml-2">
-                      • {filteredIncidents.length} Incident
-                      {filteredIncidents.length > 1 ? "s" : ""}
+                      • {filteredIncidents.length}{" "}
+                      {filteredIncidents.length > 1
+                        ? t("incidentsPlural")
+                        : t("incidents")}
                     </span>
                   )}
                 </span>
@@ -482,7 +499,7 @@ export default function Home() {
               <div className="mt-3 space-y-3 overflow-y-auto pr-1 flex-1">
                 {loading ? (
                   <div className="py-8 flex justify-center">
-                    <Loader message="Loading wetland data..." />
+                    <Loader message={t("loadingWetland")} />
                   </div>
                 ) : filteredSites.length > 0 ? (
                   filteredSites.map((site) => {
@@ -529,8 +546,8 @@ export default function Home() {
 
                         <div className="space-y-1">
                           <div className="text-xs text-slate-500 font-medium">
-                            Community Signal:{" "}
-                            {site.description || "No signal details recorded."}
+                            {t("communitySignal")}:{" "}
+                            {site.description || t("noSignal")}
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -553,7 +570,7 @@ export default function Home() {
 
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm flex items-center gap-1">
-                            Approved
+                            {tc("approved")}
                           </span>
                           <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200/80 shadow-sm flex items-center gap-1 shrink-0">
                             <svg
@@ -578,7 +595,7 @@ export default function Home() {
                           </span>
                           {isIkAdjusted && (
                             <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-100 shadow-sm flex items-center gap-1 shrink-0">
-                              IK-adjusted
+                              {t("ikAdjusted")}
                             </span>
                           )}
                         </div>
@@ -609,7 +626,7 @@ export default function Home() {
                               {site.management_actions &&
                               site.management_actions.length > 0 ? (
                                 <span>
-                                  Action:{" "}
+                                  {t("actionPrefix")}{" "}
                                   <span className="font-bold">
                                     {site.management_actions[0].label}
                                   </span>{" "}
@@ -618,8 +635,8 @@ export default function Home() {
                               ) : (
                                 <span>
                                   {isCritical
-                                    ? "Action: Critical degradation detected. Immediate intervention recommended."
-                                    : "Action: Water quality declining. Preventive intervention recommended."}
+                                    ? t("actionCritical")
+                                    : t("actionAtRisk")}
                                 </span>
                               )}
                             </div>
@@ -630,7 +647,7 @@ export default function Home() {
                   })
                 ) : (
                   <div className="text-sm text-slate-400 italic py-8 text-center">
-                    No active stations matching filters.
+                    {t("noStations")}
                   </div>
                 )}
               </div>
@@ -644,7 +661,7 @@ export default function Home() {
 
       {/* Site granular details Drawer panel */}
       <SiteDrawer
-        site={mapDbSiteToDrawerSite(selectedSite)}
+        site={mapDbSiteToDrawerSite(selectedSite, t("noSignal"))}
         onClose={() => setSelectedSite(null)}
       />
     </main>
