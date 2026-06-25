@@ -56,7 +56,14 @@ def list_admin_submissions(
             Basin.name.ilike(f"%{basin}%")
         )
 
-    return query.all()
+    results = query.all()
+    try:
+        from app.services.storage import StorageService
+
+        StorageService().populate_answers_read_urls(results)
+    except Exception:
+        pass
+    return results
 
 
 @router.patch("/submissions/{id}/status")

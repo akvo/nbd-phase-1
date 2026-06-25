@@ -1,3 +1,4 @@
+from typing import Optional
 import uuid
 from datetime import datetime
 from sqlalchemy import (
@@ -118,6 +119,14 @@ class Answer(Base):
     datapoint = relationship("Datapoint", back_populates="answers")
     question = relationship("Question")
     created_by = relationship("User")
+
+    @property
+    def read_url(self) -> Optional[str]:
+        return getattr(self, "_read_url", None)
+
+    @read_url.setter
+    def read_url(self, value: str):
+        self._read_url = value
 
     __table_args__ = (
         UniqueConstraint(

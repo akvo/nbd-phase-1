@@ -10,6 +10,7 @@ from app.models.submission import Datapoint, Answer
 from app.models.form import Form
 from app.models.user import User
 from app.schemas import submission as schemas
+from app.services.storage import StorageService
 
 router = APIRouter(prefix="/api/v1/submissions", tags=["submissions"])
 
@@ -62,6 +63,10 @@ def create_submission(
 
         db.commit()
         db.refresh(db_datapoint)
+        try:
+            StorageService().populate_answers_read_urls([db_datapoint])
+        except Exception:
+            pass
         return db_datapoint
     except Exception as e:
         db.rollback()
@@ -91,7 +96,12 @@ def list_submissions(
         query = query.filter(Datapoint.site_id == site_id)
     if status is not None:
         query = query.filter(Datapoint.status == status)
-    return query.all()
+    results = query.all()
+    try:
+        StorageService().populate_answers_read_urls(results)
+    except Exception:
+        pass
+    return results
 
 
 @router.patch("/{id}/status")

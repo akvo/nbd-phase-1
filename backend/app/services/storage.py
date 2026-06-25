@@ -101,6 +101,22 @@ class StorageService:
             f"?expires={expires_at}&signature={sig}"
         )
 
+    def populate_answers_read_urls(self, datapoints: list) -> None:
+        """Populate read_url on image/attachment/signature answers.
+
+        Iterate answers and add signed URLs.
+        """
+        for dp in datapoints:
+            for ans in getattr(dp, "answers", []):
+                question = getattr(ans, "question", None)
+                if (
+                    question
+                    and getattr(question, "type", None)
+                    in ("image", "signature", "attachment")
+                    and ans.name
+                ):
+                    ans.read_url = self.generate_read_signed_url(ans.name)
+
     # ------------------------------------------------------------------
     # IO Operations
     # ------------------------------------------------------------------

@@ -19,6 +19,7 @@ class AnswerCreate(AnswerBase):
 class AnswerResponse(AnswerBase):
     id: int
     datapoint_id: int
+    read_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
