@@ -2,10 +2,13 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 type MapLegendProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function MapLegend({ className, ...props }: MapLegendProps) {
+  const t = useTranslations("legend");
+
   return (
     <div
       className={cn(
@@ -14,40 +17,42 @@ export function MapLegend({ className, ...props }: MapLegendProps) {
       )}
       {...props}
     >
-      <div className="font-bold border-b border-slate-700/60 pb-1">Legend</div>
+      <div className="font-bold border-b border-slate-700/60 pb-1">
+        {t("title")}
+      </div>
       <div className="flex items-center gap-2">
         <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-        <span>Healthy (A / B)</span>
+        <span>{t("healthy")}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-        <span>At Risk (C)</span>
+        <span>{t("atRisk")}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-        <span>Critical (D / E)</span>
+        <span>{t("critical")}</span>
       </div>
       <div className="flex flex-col gap-1 border-t border-slate-700/60 pt-1.5">
         <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
-          Pollution Incidents
+          {t("pollutionIncidents")}
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded bg-red-600 flex items-center justify-center text-[8px] font-bold text-white">
             !
           </span>
-          <span>Critical Severity</span>
+          <span>{t("criticalSeverity")}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded bg-amber-500 flex items-center justify-center text-[8px] font-bold text-white">
             !
           </span>
-          <span>Elevated Severity</span>
+          <span>{t("elevatedSeverity")}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded bg-yellow-500 flex items-center justify-center text-[8px] font-bold text-white">
             !
           </span>
-          <span>Moderate Severity</span>
+          <span>{t("moderateSeverity")}</span>
         </div>
       </div>
     </div>
