@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { expect, test, vi } from "vitest";
+import messages from "../../../../messages/en.json";
 
 // Mock Next.js navigation
 vi.mock("next/navigation", () => {
@@ -31,8 +33,16 @@ vi.mock("@/lib/api", () => {
 // Import after mocks
 import LoginPage from "../page";
 
+const renderWithIntl = (ui: React.ReactElement) => {
+  return render(
+    <NextIntlClientProvider messages={messages} locale="en">
+      {ui}
+    </NextIntlClientProvider>
+  );
+};
+
 test("renders login page elements and validations", () => {
-  render(<LoginPage />);
+  renderWithIntl(<LoginPage />);
 
   // Verify page title
   expect(screen.getByText("Log in to your account")).toBeInTheDocument();

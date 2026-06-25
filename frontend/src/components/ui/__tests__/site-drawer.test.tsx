@@ -1,11 +1,21 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { SiteDrawer } from "../site-drawer";
 import { expect, test, vi } from "vitest";
+import messages from "../../../../messages/en.json";
 
 vi.mock("@/lib/api", () => ({
   getSiteSamplings: vi.fn(() => Promise.resolve([])),
   getSiteScores: vi.fn(() => Promise.resolve([])),
 }));
+
+const renderWithIntl = (ui: React.ReactElement) => {
+  return render(
+    <NextIntlClientProvider messages={messages} locale="en">
+      {ui}
+    </NextIntlClientProvider>
+  );
+};
 
 const mockSite = {
   site_id: "SITE-001",
@@ -48,7 +58,7 @@ const mockSite = {
 
 test("renders site drawer details", () => {
   const handleClose = vi.fn();
-  render(<SiteDrawer site={mockSite} onClose={handleClose} />);
+  renderWithIntl(<SiteDrawer site={mockSite} onClose={handleClose} />);
 
   expect(screen.getByText("Gulu Wetland")).toBeInTheDocument();
   expect(screen.getByText("Uganda")).toBeInTheDocument();
@@ -61,7 +71,9 @@ test("renders site drawer details", () => {
 });
 
 test("returns null when site is null", () => {
-  const { container } = render(<SiteDrawer site={null} onClose={vi.fn()} />);
+  const { container } = renderWithIntl(
+    <SiteDrawer site={null} onClose={vi.fn()} />
+  );
   expect(container.firstChild).toBeNull();
 });
 
@@ -87,9 +99,9 @@ test("renders PDF export button and calls window.print when clicked", () => {
     }
   };
 
-  render(<SiteDrawer site={mockSite} onClose={vi.fn()} />);
+  renderWithIntl(<SiteDrawer site={mockSite} onClose={vi.fn()} />);
 
-  const exportButton = screen.getByText("Export detailed report (PDF)");
+  const exportButton = screen.getByText(messages.drawer.exportReport);
   expect(exportButton).toBeInTheDocument();
 
   fireEvent.click(exportButton);

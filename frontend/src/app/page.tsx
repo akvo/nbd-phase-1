@@ -12,6 +12,7 @@ import { MapLegend } from "@/components/ui/map-legend";
 import { DomainSelector } from "@/components/ui/domain-selector";
 import { IncidentCard } from "@/components/ui/incident-card";
 import { IncidentDrawer } from "@/components/ui/incident-drawer";
+import { useTranslations } from "next-intl";
 
 import {
   getBasins,
@@ -25,11 +26,10 @@ const SHOW_BASIN_SELECTOR = true;
 
 const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
   ssr: false,
-  loading: () => <Loader message="Loading Regional Map..." />,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapDbSiteToDrawerSite = (site: any): any => {
+const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
   if (!site) return null;
   const coords = site.geom?.coordinates;
   const healthClass = site.status?.health_class || "C";
@@ -82,7 +82,7 @@ const mapDbSiteToDrawerSite = (site: any): any => {
     current_score: ikAdjustedScore,
     last_updated: site.status?.sampling_date || new Date().toISOString(),
     coordinates: coords ? [coords[1], coords[0]] : [0, 0],
-    community_signal: site.description || "No signal details recorded.",
+    community_signal: site.description || noSignalText,
     progress_percent: Math.round(ikAdjustedScore * 100),
     is_approved: true,
     is_ik_adjusted:
@@ -164,6 +164,8 @@ const mapDbSiteToDrawerSite = (site: any): any => {
 };
 
 export default function Home() {
+  const t = useTranslations("landing");
+
   const [selectedBasin, setSelectedBasin] = useState("MARA");
   const [selectedHealthFilter, setSelectedHealthFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,6 +197,14 @@ export default function Home() {
     if (domain === "pollution") {
       setSelectedSite(null);
     }
+  };
+
+  // Filter labels mapping (key -> translated label)
+  const filterLabels: Record<string, string> = {
+    All: t("filters.all"),
+    Critical: t("filters.critical"),
+    "At risk": t("filters.atRisk"),
+    Healthy: t("filters.healthy"),
   };
 
   useEffect(() => {
@@ -329,7 +339,7 @@ export default function Home() {
           code: site.code,
           name: site.name,
           score: progressPercent,
-          description: site.description || "No signal details recorded.",
+          description: site.description || t("noSignal"),
         };
       });
     }
@@ -346,17 +356,21 @@ export default function Home() {
         (a: any) => a.name === "incident_type" || a.question_id === 2
       );
       const optionVal = qIncidentAns?.options?.[0];
-      let severity = "Moderate";
+      let severityKey:
+        | "severityModerate"
+        | "severityCritical"
+        | "severityElevated" = "severityModerate";
       if (optionVal === 3 || optionVal === "3") {
-        severity = "Critical";
+        severityKey = "severityCritical";
       } else if (
         optionVal === 1 ||
         optionVal === "1" ||
         optionVal === 2 ||
         optionVal === "2"
       ) {
-        severity = "Elevated";
+        severityKey = "severityElevated";
       }
+      const severity = t(severityKey);
 
       const qDetailAns = incident.answers.find(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -366,23 +380,23 @@ export default function Home() {
           a.question_id === 3
       );
       const descText =
-        qDetailAns?.value || incident.description || "No details recorded.";
-      const incidentTypeName = qIncidentAns?.value || "Pollution Report";
+        qDetailAns?.value || incident.description || t("noDetails");
+      const incidentTypeName = qIncidentAns?.value || t("pollutionReport");
       const formattedDate = incident.created_at
         ? new Date(incident.created_at).toLocaleDateString()
-        : "Unknown date";
+        : t("unknownDate");
 
       return {
         position,
-        popupText: `Incident: ${incidentTypeName} (${severity})`,
+        popupText: `${t("incident")}: ${incidentTypeName} (${severity})`,
         type: "incident" as const,
         status: severity,
         name: incidentTypeName,
         description: descText,
-        additionalInfo: `Reported on: ${formattedDate}`,
+        additionalInfo: `${t("reportedOn")}: ${formattedDate}`,
       };
     });
-  }, [selectedDomain, filteredSites, filteredIncidents]);
+  }, [selectedDomain, filteredSites, filteredIncidents, t]);
 
   // Map center logic (center of Mara or Sio depending on selection)
   const mapCenter: [number, number] =
@@ -432,7 +446,7 @@ export default function Home() {
 
             {SHOW_BASIN_SELECTOR && (
               <Dropdown
-                label="Basin Region"
+                label={t("basinRegion")}
                 options={dropdownOptions}
                 value={selectedBasin}
                 onChange={(val) => {
@@ -458,7 +472,7 @@ export default function Home() {
                       : "text-slate-400 hover:text-slate-600"
                   }`}
                 >
-                  {filter}
+                  {filterLabels[filter]}
                 </button>
               ))}
             </div>
@@ -466,7 +480,7 @@ export default function Home() {
             {/* Search Input */}
             <Input
               type="text"
-              placeholder="Search field, area, water source"
+              placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 border-slate-200 focus:bg-white text-sm"
@@ -484,13 +498,15 @@ export default function Home() {
               <div className="flex items-center w-full justify-between gap-2">
                 <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">
                   {selectedDomain === "wetland"
-                    ? `Monitoring Sites (${filteredSites.length})`
+                    ? `${t("monitoringSites")} (${filteredSites.length})`
                     : `Pollution Incidents (${filteredIncidents.length})`}
                   {selectedDomain === "wetland" &&
                     filteredIncidents.length > 0 && (
                       <span className="text-red-500 normal-case font-medium ml-2">
-                        • {filteredIncidents.length} Incident
-                        {filteredIncidents.length > 1 ? "s" : ""}
+                        • {filteredIncidents.length}{" "}
+                        {filteredIncidents.length > 1
+                          ? t("incidentsPlural")
+                          : t("incidents")}
                       </span>
                     )}
                 </span>
@@ -516,7 +532,7 @@ export default function Home() {
               <div className="mt-3 space-y-3 overflow-y-auto pr-1 flex-1">
                 {loading ? (
                   <div className="py-8 flex justify-center">
-                    <Loader message="Loading data..." />
+                    <Loader message={selectedDomain === "wetland" ? t("loadingWetland") : "Loading data..."} />
                   </div>
                 ) : selectedDomain === "wetland" ? (
                   filteredSites.length > 0 ? (
@@ -725,7 +741,7 @@ export default function Home() {
 
       {/* Site granular details Drawer panel */}
       <SiteDrawer
-        site={mapDbSiteToDrawerSite(selectedSite)}
+        site={mapDbSiteToDrawerSite(selectedSite, t("noSignal"))}
         onClose={() => setSelectedSite(null)}
       />
 
