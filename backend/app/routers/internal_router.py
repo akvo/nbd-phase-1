@@ -108,13 +108,15 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
             continue
 
         q_id = q_def.id
-        q_type = q_def.type.value
+        from app.models.form import QuestionType
+
+        q_type = q_def.type
         val_name = None
         val_num = None
         val_opts = None
 
         # Resolve spatial anchors on the fly for cascade select
-        if q_type == "cascade":
+        if q_type == QuestionType.cascade:
             opt = q_def.extra.get("option") if q_def.extra else None
             if not opt and hasattr(q_def, "option"):
                 opt = q_def.option
@@ -131,23 +133,61 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
                     resolved_basin_id = terminal_val
 
         # Map type specific values
-        if q_type == "number":
+        if q_type == QuestionType.number:
             try:
                 val_num = float(val)
             except (ValueError, TypeError):
                 pass
-        elif q_type == "cascade":
+        elif q_type == QuestionType.cascade:
             if isinstance(val, list):
                 val_opts = [str(x) for x in val]
-                val_name = str(val[-1]) if val else None
+                # Also resolve terminal boundary label
+                from app.models.spatial import SpatialBoundary
+
+                terminal_val = val[-1] if val else None
+                boundary = None
+                if terminal_val:
+                    try:
+                        if isinstance(terminal_val, UUID):
+                            uuid_val = terminal_val
+                        else:
+                            uuid_val = UUID(str(terminal_val))
+                        boundary = (
+                            db.query(SpatialBoundary)
+                            .filter(SpatialBoundary.id == uuid_val)
+                            .first()
+                        )
+                    except ValueError:
+                        pass
+                val_name = boundary.name if boundary else str(terminal_val)
             else:
-                val_name = str(val)
-        elif q_type == "multiple_option":
+                from app.models.spatial import SpatialBoundary
+
+                boundary = None
+                try:
+                    if isinstance(val, UUID):
+                        uuid_val = val
+                    else:
+                        uuid_val = UUID(str(val))
+                    boundary = (
+                        db.query(SpatialBoundary)
+                        .filter(SpatialBoundary.id == uuid_val)
+                        .first()
+                    )
+                except ValueError:
+                    pass
+                val_opts = [str(val)]
+                val_name = boundary.name if boundary else str(val)
+        elif q_type in (QuestionType.option, QuestionType.multiple_option):
             if isinstance(val, list):
                 val_opts = [str(x) for x in val]
             else:
                 val_opts = [str(val)]
-        elif q_type in ("image", "signature", "attachment"):
+        elif q_type in (
+            QuestionType.image,
+            QuestionType.signature,
+            QuestionType.attachment,
+        ):
             if isinstance(val, str) and val.startswith("data:"):
                 try:
                     header, base64_data = val.split(";base64,")

@@ -69,17 +69,7 @@ export function IncidentDrawer({
     ? new Date(incident.created_at).toLocaleString()
     : tLanding("unknownDate");
 
-  const qDetailAns = incident.answers?.find(
-    (a) =>
-      a.name === "incident_description" ||
-      a.name === "details" ||
-      a.question_id === 3
-  );
-  const description = qDetailAns?.value || incident.description || null;
-
   // Find image answers
-  console.log(incident.answers, "incident answer");
-
   const imageAnswers =
     incident.answers?.filter((a) => a.read_url && a.read_url.trim() !== "") ||
     [];
@@ -162,18 +152,6 @@ export function IncidentDrawer({
             </div>
           )}
         </div>
-
-        {/* Description section */}
-        {description && (
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              {t("description")}
-            </h3>
-            <p className="text-sm text-slate-600 bg-slate-50/50 p-4 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-line">
-              {description || tLanding("noDetails")}
-            </p>
-          </div>
-        )}
 
         {/* Photos section */}
         {imageAnswers.length > 0 && (
