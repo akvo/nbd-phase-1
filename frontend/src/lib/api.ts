@@ -65,6 +65,7 @@ export const getSites = async (params?: {
 export const getSubmissions = async (params?: {
   status?: string;
   form_id?: number;
+  domain?: string;
 }): Promise<Record<string, unknown>[]> => {
   const response = await apiClient.get("/submissions", { params });
   return response.data;
@@ -112,7 +113,7 @@ export interface IncidentSummary {
   basin_id?: string;
   site_id?: string;
   geo?: { type: string; coordinates: [number, number] };
-  submitted_at?: string;
+  created_at?: string;
   status: string;
   description?: string;
   name?: string;

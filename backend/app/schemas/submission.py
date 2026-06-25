@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 class AnswerBase(BaseModel):
     question_id: int
     name: Optional[str] = None
-    value: Optional[float] = None
+    value: Optional[Any] = None
     options: Optional[List[Any]] = None
     index: int = 0
 
@@ -22,6 +22,35 @@ class AnswerResponse(AnswerBase):
     read_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_fields(cls, data: Any) -> Any:
+        if hasattr(data, "question"):
+            q_type = data.question.type if data.question else None
+            resolved_value = None
+
+            if q_type in ("option", "multiple_option", "cascade"):
+                if hasattr(data, "_resolved_value"):
+                    resolved_value = data._resolved_value
+            elif q_type in ("image", "attachment"):
+                resolved_value = data.name
+            else:
+                resolved_value = (
+                    data.name if data.name is not None else data.value
+                )
+
+            return {
+                "id": data.id,
+                "datapoint_id": data.datapoint_id,
+                "question_id": data.question_id,
+                "name": data.question.name if data.question else None,
+                "value": resolved_value,
+                "options": data.options,
+                "index": data.index,
+                "read_url": getattr(data, "_read_url", None),
+            }
+        return data
 
 
 class DatapointBase(BaseModel):

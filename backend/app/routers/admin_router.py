@@ -59,8 +59,12 @@ def list_admin_submissions(
     results = query.all()
     try:
         from app.services.storage import StorageService
+        from app.services.option_resolver import (
+            populate_answers_option_labels,
+        )
 
         StorageService().populate_answers_read_urls(results)
+        populate_answers_option_labels(results, db)
     except Exception:
         pass
     return results

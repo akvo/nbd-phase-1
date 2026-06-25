@@ -61,8 +61,8 @@ export function IncidentDrawer({
 
   const styles = SEVERITY_STYLES[severity];
   const incidentTypeName = qIncidentAns?.value || "Pollution Report";
-  const formattedDate = incident.submitted_at
-    ? new Date(incident.submitted_at).toLocaleString()
+  const formattedDate = incident.created_at
+    ? new Date(incident.created_at).toLocaleString()
     : "Unknown date";
 
   const qDetailAns = incident.answers?.find(
@@ -93,9 +93,6 @@ export function IncidentDrawer({
           <h2 className="text-lg font-bold text-slate-800 truncate mt-0.5">
             {incidentTypeName}
           </h2>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">
-            ID: {incident.id}
-          </p>
         </div>
         <div className="flex items-center gap-3">
           <span

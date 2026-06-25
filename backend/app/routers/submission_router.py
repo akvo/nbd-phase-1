@@ -65,6 +65,11 @@ def create_submission(
         db.refresh(db_datapoint)
         try:
             StorageService().populate_answers_read_urls([db_datapoint])
+            from app.services.option_resolver import (
+                populate_answers_option_labels,
+            )
+
+            populate_answers_option_labels([db_datapoint], db)
         except Exception:
             pass
         return db_datapoint
@@ -79,6 +84,7 @@ def create_submission(
 )
 def list_submissions(
     form_id: Optional[int] = None,
+    domain: Optional[str] = None,
     basin_id: Optional[uuid.UUID] = None,
     wetland_id: Optional[uuid.UUID] = None,
     site_id: Optional[uuid.UUID] = None,
@@ -88,6 +94,17 @@ def list_submissions(
     query = db.query(Datapoint)
     if form_id is not None:
         query = query.filter(Datapoint.form_id == form_id)
+    if domain is not None:
+        from app.models.form import Form, FormNames
+
+        form_name = None
+        if domain == "pollution":
+            form_name = FormNames.POLLUTION_REPORTING
+        elif domain == "wetland":
+            form_name = FormNames.WETLAND_SAMPLING
+
+        if form_name:
+            query = query.join(Form).filter(Form.name == form_name)
     if basin_id is not None:
         query = query.filter(Datapoint.basin_id == basin_id)
     if wetland_id is not None:
@@ -99,6 +116,11 @@ def list_submissions(
     results = query.all()
     try:
         StorageService().populate_answers_read_urls(results)
+        from app.services.option_resolver import (
+            populate_answers_option_labels,
+        )
+
+        populate_answers_option_labels(results, db)
     except Exception:
         pass
     return results

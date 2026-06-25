@@ -599,3 +599,121 @@ def test_submission_name_pii_masking(db_session: Session):
     admin_dp = next((d for d in res_json if d["uuid"] == str(dp.uuid)), None)
     assert admin_dp is not None
     assert admin_dp["name"] == "wa-+254712345678"
+
+
+def test_submission_answers_option_labels_resolution(db_session: Session):
+    # 1. Setup Form, Question Group, and Question of type "option"
+    form = Form(name="Pollution Reporting Form", type=1)
+    db_session.add(form)
+    db_session.flush()
+
+    group = QuestionGroup(
+        form_id=form.id, name="incident_details", label="Details"
+    )
+    db_session.add(group)
+    db_session.flush()
+
+    question = Question(
+        form_id=form.id,
+        question_group_id=group.id,
+        name="incident_type",
+        label="Incident Type",
+        type="option",
+    )
+    db_session.add(question)
+    db_session.flush()
+
+    # 2. Add an Option for the Question
+    from app.models.form import Option
+
+    option = Option(
+        question_id=question.id,
+        label="Fish kill",
+        value="3",
+        order=1,
+    )
+    db_session.add(option)
+    db_session.flush()
+
+    # 3. Setup Basin, SpatialBoundary and Datapoint
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="TB",
+        name="Test Basin",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    from app.models.spatial import SpatialBoundary
+
+    boundary = SpatialBoundary(
+        id=uuid.uuid4(),
+        name="Test Sub-Location",
+        level=1,
+        basin_id=basin.id,
+    )
+    db_session.add(boundary)
+    db_session.flush()
+
+    cascade_question = Question(
+        form_id=form.id,
+        question_group_id=group.id,
+        name="location_id",
+        label="Location",
+        type="cascade",
+    )
+    db_session.add(cascade_question)
+    db_session.flush()
+
+    dp = Datapoint(
+        uuid=uuid.uuid4(),
+        form_id=form.id,
+        basin_id=basin.id,
+        submitter="WHATSAPP",
+        status="APPROVED",
+        name="wa-+254712345678",
+    )
+    db_session.add(dp)
+    db_session.flush()
+
+    # 4. Add Answers referring to Option ID and Boundary UUID
+    answer1 = Answer(
+        datapoint_id=dp.id,
+        question_id=question.id,
+        name=None,
+        value=None,
+        options=[option.id],
+    )
+    answer2 = Answer(
+        datapoint_id=dp.id,
+        question_id=cascade_question.id,
+        name=None,
+        value=None,
+        options=[str(boundary.id)],
+    )
+    db_session.add_all([answer1, answer2])
+    db_session.commit()
+
+    # 5. Query public GET /api/v1/submissions
+    response = client.get(
+        f"/api/v1/submissions?basin_id={basin.id}&domain=pollution"
+    )
+    assert response.status_code == 200
+    res_json = response.json()
+    assert len(res_json) == 1
+
+    answers = res_json[0]["answers"]
+    assert len(answers) == 2
+
+    ans_type = next(a for a in answers if a["question_id"] == question.id)
+    assert ans_type["name"] == "incident_type"
+    assert ans_type["value"] == "Fish kill"
+    assert ans_type["options"] == [option.id]
+
+    ans_loc = next(
+        a for a in answers if a["question_id"] == cascade_question.id
+    )
+    assert ans_loc["name"] == "location_id"
+    assert ans_loc["value"] == "Test Sub-Location"
+    assert ans_loc["options"] == [str(boundary.id)]

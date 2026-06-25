@@ -230,23 +230,18 @@ export default function Home() {
     setLoading(true);
     Promise.all([
       getSites({ basin: selectedBasin }),
-      getSubmissions({ status: "APPROVED" }),
+      getSubmissions({ status: "APPROVED", domain: selectedDomain }),
     ])
       .then(([sitesData, subsData]) => {
         setDbSites(sitesData);
-        // Filter submissions to only include "Pollution Reporting Form"
-        const filteredSubs = subsData.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (sub: any) => sub.form_name === "Pollution Reporting Form"
-        );
-        setDbIncidents(filteredSubs as unknown as IncidentSummary[]);
+        setDbIncidents(subsData as unknown as IncidentSummary[]);
         setLoading(false);
       })
       .catch((err) => {
         console.error("Error loading database map data:", err);
         setLoading(false);
       });
-  }, [selectedBasin]);
+  }, [selectedBasin, selectedDomain]);
 
   // 1. Filtered sites based on health and search
   const filteredSites = dbSites.filter((site) => {
@@ -373,8 +368,8 @@ export default function Home() {
       const descText =
         qDetailAns?.value || incident.description || "No details recorded.";
       const incidentTypeName = qIncidentAns?.value || "Pollution Report";
-      const formattedDate = incident.submitted_at
-        ? new Date(incident.submitted_at).toLocaleDateString()
+      const formattedDate = incident.created_at
+        ? new Date(incident.created_at).toLocaleDateString()
         : "Unknown date";
 
       return {
@@ -707,7 +702,7 @@ export default function Home() {
                         key={incident.id ?? idx}
                         incidentTypeName={incidentTypeName}
                         severity={severity}
-                        dateReported={incident.submitted_at || ""}
+                        dateReported={incident.created_at || ""}
                         description={descText}
                         basinName={activeBasin?.name}
                         onClick={() => setSelectedIncident(incident)}
