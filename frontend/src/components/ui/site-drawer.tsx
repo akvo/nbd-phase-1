@@ -15,7 +15,6 @@ import {
 import { useTranslations } from "next-intl";
 
 import {
-  Table,
   TableHeader,
   TableBody,
   TableRow,
@@ -36,26 +35,6 @@ const DynamicIcon = ({
     | undefined;
   if (!IconComponent) return null;
   return <IconComponent className={className} />;
-};
-
-const getStatusColorClasses = (status: string) => {
-  const s = status.toLowerCase();
-  if (s.includes("flood")) {
-    return {
-      text: "text-blue-600",
-      bg: "bg-blue-500",
-    };
-  }
-  if (s.includes("abnormal") || s.includes("low") || s.includes("drought")) {
-    return {
-      text: "text-amber-600",
-      bg: "bg-amber-500",
-    };
-  }
-  return {
-    text: "text-green-600",
-    bg: "bg-green-500",
-  };
 };
 
 interface MetricEntry {
@@ -165,10 +144,13 @@ const fgdValueToTranslation: Record<string, string> = {
   none: "none",
 };
 
+const hideFGD = true;
+const hideFuzzy = true;
+const hideCommunitySignal = true;
+
 export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   // Hooks must be called unconditionally — before any early returns
   const t = useTranslations("drawer");
-  const tc = useTranslations("common");
   const ts = useTranslations("scores");
   const tm = useTranslations("metrics");
   const [isPrinting, setIsPrinting] = useState(false);
@@ -309,7 +291,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm border ${gradeCircleClass}`}
           >
-            {site.current_health_class}
+            &nbsp;
           </div>
           <Button
             variant="ghost"
@@ -344,10 +326,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           </svg>
           <span>{site.country}</span>
         </div>
-        <Badge variant={site.is_approved ? "success" : "warning"}>
-          {site.is_approved ? tc("approved") : tc("pending")}
-        </Badge>
-        {site.is_ik_adjusted && (
+        {site.is_ik_adjusted && !hideFuzzy && (
           <Badge variant="primary">{t("ikAdjusted")}</Badge>
         )}
       </div>
@@ -377,7 +356,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         )}
 
         {/* Community Signal Section */}
-        {site.community_signal && (
+        {site.community_signal && !hideCommunitySignal && (
           <div className="text-sm text-slate-700 leading-relaxed border-l-4 border-teal-500 pl-3.5 py-1 bg-teal-50/30 rounded-r-lg">
             <span className="font-bold text-slate-800">
               {t("communitySignal")}:{" "}
@@ -486,66 +465,145 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           )}
         </div>
 
-        {/* 2x2 Key Metrics Card Small Grid (Figma Node 8237:1345) */}
-        <div className="print-avoid-break">
-          <div className="border border-slate-200 rounded-2xl overflow-hidden grid grid-cols-2 bg-slate-50/50">
-            {Object.entries(site.details.metrics || {}).map(
-              ([key, metric], index) => {
-                const colors = getStatusColorClasses(metric.status);
-                const isValString = typeof metric.value === "string";
-                const displayValue = isValString
-                  ? (metric.value as string).toLowerCase()
-                  : (metric.value ?? "");
-                const valueClass = `text-base font-bold text-slate-800 ${isValString ? "capitalize" : ""}`;
-                const borderClass = `${index % 2 === 0 ? "border-r" : ""} ${index < 2 ? "border-b" : ""} border-slate-200`;
+        <div className="space-y-3 print-avoid-break">
+          <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+            {t("parameter")}
+          </h3>
+          <div className="relative w-full overflow-visible rounded-lg border border-slate-200 bg-white shadow-sm">
+            <table className="w-full caption-bottom text-sm">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs uppercase text-slate-500 font-bold">
+                    {t("parameter")}
+                  </TableHead>
+                  <TableHead className="text-xs uppercase text-slate-500 font-bold">
+                    {t("value")}
+                  </TableHead>
+                  <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
+                    {t("flag")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Object.entries(site.details.metrics || {}).map(
+                  ([key, metric]) => {
+                    const metricHistory = samplingsHistory
+                      .filter(
+                        (h) => h.parameters && h.parameters[key] !== undefined
+                      )
+                      .map((h) => {
+                        const rawVal = h.parameters[key];
+                        const val =
+                          rawVal &&
+                          typeof rawVal === "object" &&
+                          "value" in rawVal
+                            ? (rawVal as Record<string, unknown>).value
+                            : rawVal;
+                        let numericVal = 0;
+                        if (typeof val === "number") {
+                          numericVal = val;
+                        } else if (typeof val === "string") {
+                          if (val.toUpperCase() === "HIGH") numericVal = 3;
+                          else if (val.toUpperCase() === "MEDIUM")
+                            numericVal = 2;
+                          else if (val.toUpperCase() === "LOW") numericVal = 1;
+                          else numericVal = Number(val) || 0;
+                        }
+                        return {
+                          date: h.sampled_at,
+                          value: numericVal,
+                        };
+                      });
 
-                // Translate metric label
-                const metricTranslationKey = metricKeyToTranslation[key];
-                const translatedMetricLabel = metricTranslationKey
-                  ? tm(metricTranslationKey)
-                  : metric.label;
+                    // Translate metric label
+                    const metricTranslationKey = metricKeyToTranslation[key];
+                    const translatedMetricLabel = metricTranslationKey
+                      ? tm(metricTranslationKey)
+                      : metric.label;
 
-                // Translate status
-                const statusLower = (metric.status || "").toLowerCase();
-                const statusTranslationKey = statusToTranslation[statusLower];
-                const translatedStatus = statusTranslationKey
-                  ? t(statusTranslationKey)
-                  : metric.status;
+                    const translatedMetricDesc = metricTranslationKey
+                      ? tm(`${metricTranslationKey}_desc`)
+                      : "";
 
-                return (
-                  <div
-                    key={key}
-                    className={`bg-slate-50/60 p-4 flex flex-col justify-between h-24 ${borderClass}`}
-                  >
-                    <div className="flex justify-between items-start text-xs text-slate-500">
-                      <span className="font-medium text-slate-400">
-                        {translatedMetricLabel}
-                      </span>
-                      <DynamicIcon
-                        name={metric.icon}
-                        className="w-4 h-4 text-slate-400"
-                      />
-                    </div>
-                    <div className={valueClass}>
-                      {displayValue}
-                      {metric.unit
-                        ? metric.unit.startsWith("°")
-                          ? metric.unit
-                          : ` ${metric.unit}`
-                        : ""}
-                    </div>
-                    <div
-                      className={`flex items-center gap-1.5 text-[10px] font-semibold ${colors.text}`}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${colors.bg}`}
-                      />
-                      <span>{translatedStatus}</span>
-                    </div>
-                  </div>
-                );
-              }
-            )}
+                    // Translate status
+                    const statusLower = (metric.status || "").toLowerCase();
+                    const statusTranslationKey =
+                      statusToTranslation[statusLower];
+                    const translatedStatus = statusTranslationKey
+                      ? t(statusTranslationKey)
+                      : metric.status || t("normal");
+
+                    return (
+                      <React.Fragment key={key}>
+                        <TableRow>
+                          <TableCell className="text-xs font-semibold text-slate-700 h-11 cursor-help">
+                            <div
+                              className="relative group flex items-center gap-1.5 h-full w-full focus:outline-none"
+                              tabIndex={0}
+                            >
+                              <DynamicIcon
+                                name={metric.icon}
+                                className="w-3.5 h-3.5 text-slate-400 shrink-0"
+                              />
+                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-2">
+                                {translatedMetricLabel}
+                              </span>
+                              {translatedMetricDesc && (
+                                <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-1.5 invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 transition-all duration-200 max-w-50 w-max rounded bg-slate-900 p-2 text-[10px] font-normal leading-normal text-white shadow-lg whitespace-normal wrap-break-word">
+                                  {translatedMetricDesc}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-slate-800">
+                            {metric.value !== null &&
+                            metric.value !== undefined ? (
+                              <>
+                                {metric.value}
+                                {metric.unit ? (
+                                  <span className="text-slate-400 font-normal">
+                                    {metric.unit.startsWith("°")
+                                      ? metric.unit
+                                      : ` ${metric.unit}`}
+                                  </span>
+                                ) : (
+                                  ""
+                                )}
+                              </>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span
+                              className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                                statusLower.includes("normal") ||
+                                statusLower.includes("stable")
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {translatedStatus}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow className="hover:bg-transparent no-print">
+                          <TableCell
+                            colSpan={3}
+                            className="py-0 px-2 border-b border-slate-100"
+                          >
+                            <CollapsibleChartContainer
+                              label={translatedMetricLabel}
+                              data={metricHistory}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  }
+                )}
+              </TableBody>
+            </table>
           </div>
         </div>
 
@@ -621,13 +679,15 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
 
             {/* Bottom adjustment score panel */}
             <div className="bg-slate-50 p-4 border-t border-slate-200 space-y-2 text-xs font-medium text-slate-700">
-              <div className="flex justify-between">
-                <span>{t("compositePreAdjustment")}</span>
-                <span className="font-semibold text-slate-800">
-                  {rawComposite}
-                </span>
-              </div>
-              {site.is_ik_adjusted && (
+              {!hideFuzzy && (
+                <div className="flex justify-between">
+                  <span>{t("compositePreAdjustment")}</span>
+                  <span className="font-semibold text-slate-800">
+                    {rawComposite}
+                  </span>
+                </div>
+              )}
+              {site.is_ik_adjusted && !hideFuzzy && (
                 <div className="flex justify-between">
                   <span>{t("ikHealthSignal")}</span>
                   <span className="font-semibold text-slate-800">
@@ -636,12 +696,16 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                 </div>
               )}
               <div
-                className={`flex justify-between font-bold border-t border-slate-200/60 pt-2 mt-1 ${gradeTextClass}`}
+                className={`flex justify-between font-bold ${
+                  !hideFuzzy ? "border-t border-slate-200/60 pt-2 mt-1" : ""
+                } ${gradeTextClass}`}
               >
                 <span>
-                  {t("adjustedScore", {
-                    healthClass: site.current_health_class,
-                  })}
+                  {hideFuzzy
+                    ? `Score - Class ${site.current_health_class}`
+                    : t("adjustedScore", {
+                        healthClass: site.current_health_class,
+                      })}
                 </span>
                 <span className="text-sm font-extrabold">
                   {site.current_score.toFixed(2)}
@@ -651,226 +715,117 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           </div>
         </div>
 
-        {/* Raw Sampling Method Table */}
-        <div className="space-y-3 print-avoid-break">
-          <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-            {t("rawSamplingMethod")}
-          </h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-xs uppercase text-slate-500 font-bold">
-                  {t("parameter")}
-                </TableHead>
-                <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
-                  {t("value")}
-                </TableHead>
-                <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
-                  {t("unit")}
-                </TableHead>
-                <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
-                  {t("flag")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Object.entries(site.details.metrics || {}).map(
-                ([key, metric]) => {
-                  const metricHistory = samplingsHistory
-                    .filter(
-                      (h) => h.parameters && h.parameters[key] !== undefined
-                    )
-                    .map((h) => {
-                      const rawVal = h.parameters[key];
-                      const val =
-                        rawVal &&
-                        typeof rawVal === "object" &&
-                        "value" in rawVal
-                          ? (rawVal as Record<string, unknown>).value
-                          : rawVal;
-                      let numericVal = 0;
-                      if (typeof val === "number") {
-                        numericVal = val;
-                      } else if (typeof val === "string") {
-                        if (val.toUpperCase() === "HIGH") numericVal = 3;
-                        else if (val.toUpperCase() === "MEDIUM") numericVal = 2;
-                        else if (val.toUpperCase() === "LOW") numericVal = 1;
-                        else numericVal = Number(val) || 0;
-                      }
-                      return {
-                        date: h.sampled_at,
-                        value: numericVal,
-                      };
-                    });
+        {/* FGD Session Context */}
+        {!hideFGD && (
+          <div className="space-y-3 print-avoid-break">
+            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+              {t("fgdSession")}
+            </h3>
+            <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4.5 space-y-3.5">
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>{t("ikSignalStrength")}:</span>
+                  <span className="font-semibold text-blue-700">
+                    {(
+                      site.details.ik_signal.encoded_signal_value * 100
+                    ).toFixed(0)}
+                    %
+                  </span>
+                </div>
+                <Progress
+                  value={site.details.ik_signal.encoded_signal_value * 100}
+                />
+              </div>
 
-                  // Translate metric label
-                  const metricTranslationKey = metricKeyToTranslation[key];
-                  const translatedMetricLabel = metricTranslationKey
-                    ? tm(metricTranslationKey)
-                    : metric.label;
+              {/* 2x2 Grid of FGD Indicators */}
+              <div className="grid grid-cols-2 gap-3 pt-1 text-xs text-slate-700">
+                {[
+                  {
+                    labelKey: "fishAbundance" as const,
+                    value: site.details.ik_signal.fish_abundance,
+                    icon: "🐟",
+                    redVals: ["severely declined", "severe"],
+                    orangeVals: [
+                      "slightly declined",
+                      "moderately declined",
+                      "slight",
+                      "moderate",
+                    ],
+                  },
+                  {
+                    labelKey: "waterQuality" as const,
+                    value: site.details.ik_signal.water_clarity,
+                    icon: "💧",
+                    redVals: ["much worse"],
+                    orangeVals: ["somewhat worse"],
+                  },
+                  {
+                    labelKey: "vegetationCover" as const,
+                    value: site.details.ik_signal.vegetation_cover,
+                    icon: "🌱",
+                    redVals: ["severely lost", "severe loss"],
+                    orangeVals: ["partially lost", "partial loss"],
+                  },
+                  {
+                    labelKey: "pollutionEvents" as const,
+                    value: site.details.ik_signal.pollution_events,
+                    icon: "⚠️",
+                    redVals: ["frequent"],
+                    orangeVals: ["occasional"],
+                  },
+                ].map((item, idx) => {
+                  const valLower = (item.value || "")
+                    .toLowerCase()
+                    .replace(/_/g, " ")
+                    .trim();
+                  let dotColor = "bg-green-500";
+                  let statusKey:
+                    | "statusCritical"
+                    | "statusWarning"
+                    | "statusHealthy" = "statusHealthy";
+                  if (item.redVals.some((rv) => valLower.includes(rv))) {
+                    dotColor = "bg-red-500";
+                    statusKey = "statusCritical";
+                  } else if (
+                    item.orangeVals.some((ov) => valLower.includes(ov))
+                  ) {
+                    dotColor = "bg-amber-500";
+                    statusKey = "statusWarning";
+                  }
 
-                  // Translate status
-                  const statusLower = (metric.status || "").toLowerCase();
-                  const statusTranslationKey = statusToTranslation[statusLower];
-                  const translatedStatus = statusTranslationKey
-                    ? t(statusTranslationKey)
-                    : metric.status || t("normal");
+                  // Translate FGD indicator value
+                  const fgdTranslationKey = fgdValueToTranslation[valLower];
+                  const translatedValue = fgdTranslationKey
+                    ? t(fgdTranslationKey)
+                    : valLower;
 
                   return (
-                    <React.Fragment key={key}>
-                      <TableRow>
-                        <TableCell className="text-xs font-semibold text-slate-700">
-                          {translatedMetricLabel}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono text-slate-800 text-center">
-                          {typeof metric.value === "string"
-                            ? metric.value
-                            : (metric.value ?? "-")}
-                        </TableCell>
-                        <TableCell className="text-xs text-slate-500 text-center">
-                          {metric.unit || "-"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span
-                            className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                              statusLower.includes("normal") ||
-                              statusLower.includes("stable")
-                                ? "bg-green-100 text-green-700"
-                                : "bg-amber-100 text-amber-700"
-                            }`}
-                          >
-                            {translatedStatus}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow className="hover:bg-transparent no-print">
-                        <TableCell
-                          colSpan={4}
-                          className="py-0 px-2 border-b border-slate-100"
-                        >
-                          <CollapsibleChartContainer
-                            label={translatedMetricLabel}
-                            data={metricHistory}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    </React.Fragment>
-                  );
-                }
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* FGD Session Context */}
-        <div className="space-y-3 print-avoid-break">
-          <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-            {t("fgdSession")}
-          </h3>
-          <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4.5 space-y-3.5">
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>{t("ikSignalStrength")}:</span>
-                <span className="font-semibold text-blue-700">
-                  {(site.details.ik_signal.encoded_signal_value * 100).toFixed(
-                    0
-                  )}
-                  %
-                </span>
-              </div>
-              <Progress
-                value={site.details.ik_signal.encoded_signal_value * 100}
-              />
-            </div>
-
-            {/* 2x2 Grid of FGD Indicators */}
-            <div className="grid grid-cols-2 gap-3 pt-1 text-xs text-slate-700">
-              {[
-                {
-                  labelKey: "fishAbundance" as const,
-                  value: site.details.ik_signal.fish_abundance,
-                  icon: "🐟",
-                  redVals: ["severely declined", "severe"],
-                  orangeVals: [
-                    "slightly declined",
-                    "moderately declined",
-                    "slight",
-                    "moderate",
-                  ],
-                },
-                {
-                  labelKey: "waterQuality" as const,
-                  value: site.details.ik_signal.water_clarity,
-                  icon: "💧",
-                  redVals: ["much worse"],
-                  orangeVals: ["somewhat worse"],
-                },
-                {
-                  labelKey: "vegetationCover" as const,
-                  value: site.details.ik_signal.vegetation_cover,
-                  icon: "🌱",
-                  redVals: ["severely lost", "severe loss"],
-                  orangeVals: ["partially lost", "partial loss"],
-                },
-                {
-                  labelKey: "pollutionEvents" as const,
-                  value: site.details.ik_signal.pollution_events,
-                  icon: "⚠️",
-                  redVals: ["frequent"],
-                  orangeVals: ["occasional"],
-                },
-              ].map((item, idx) => {
-                const valLower = (item.value || "")
-                  .toLowerCase()
-                  .replace(/_/g, " ")
-                  .trim();
-                let dotColor = "bg-green-500";
-                let statusKey:
-                  | "statusCritical"
-                  | "statusWarning"
-                  | "statusHealthy" = "statusHealthy";
-                if (item.redVals.some((rv) => valLower.includes(rv))) {
-                  dotColor = "bg-red-500";
-                  statusKey = "statusCritical";
-                } else if (
-                  item.orangeVals.some((ov) => valLower.includes(ov))
-                ) {
-                  dotColor = "bg-amber-500";
-                  statusKey = "statusWarning";
-                }
-
-                // Translate FGD indicator value
-                const fgdTranslationKey = fgdValueToTranslation[valLower];
-                const translatedValue = fgdTranslationKey
-                  ? t(fgdTranslationKey)
-                  : valLower;
-
-                return (
-                  <div
-                    key={idx}
-                    className="bg-white/80 p-2.5 rounded-lg border border-slate-100 flex flex-col justify-between gap-1 shadow-sm"
-                  >
-                    <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
-                      {t(item.labelKey)}
-                    </span>
-                    <div className="flex items-center gap-1.5 mt-1 font-semibold text-slate-800 capitalize">
-                      <span className="text-sm leading-none shrink-0">
-                        {item.icon}
+                    <div
+                      key={idx}
+                      className="bg-white/80 p-2.5 rounded-lg border border-slate-100 flex flex-col justify-between gap-1 shadow-sm"
+                    >
+                      <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
+                        {t(item.labelKey)}
                       </span>
-                      <span className="truncate">{translatedValue}</span>
+                      <div className="flex items-center gap-1.5 mt-1 font-semibold text-slate-800 capitalize">
+                        <span className="text-sm leading-none shrink-0">
+                          {item.icon}
+                        </span>
+                        <span className="truncate">{translatedValue}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-500 mt-1">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${dotColor}`}
+                        />
+                        <span>{t(statusKey)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-[9px] font-semibold text-slate-500 mt-1">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${dotColor}`}
-                      />
-                      <span>{t(statusKey)}</span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* PDF Export Button */}
         <div className="pt-4 no-print pb-6">

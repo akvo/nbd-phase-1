@@ -59,9 +59,9 @@
   },
   "legend": {
     "title": "Legend",
-    "healthy": "Healthy (A / B)",
-    "atRisk": "At Risk (C)",
-    "critical": "Critical (D / E)",
+    "healthy": "Healthy",
+    "atRisk": "At Risk",
+    "critical": "Critical",
     "pollutionIncidents": "Pollution Incidents",
     "criticalSeverity": "Critical Severity",
     "elevatedSeverity": "Elevated Severity",
@@ -110,11 +110,17 @@
   },
   "metrics": {
     "ph": "pH",
+    "ph_desc": "Measure of acidity or alkalinity of the water (range 0-14).",
     "dissolvedOxygen": "Dissolved O₂",
+    "dissolvedOxygen_desc": "The amount of oxygen dissolved in the water, essential for aquatic life.",
     "temperature": "Temperature",
+    "temperature_desc": "The temperature of the water, affecting chemical and biological processes.",
     "waterLevel": "Water level",
+    "waterLevel_desc": "The height of the water level relative to a baseline reference point.",
     "turbidity": "Turbidity",
-    "macroinvertebrate": "Macroinvertebrate"
+    "turbidity_desc": "The cloudiness or haziness of water caused by suspended particles.",
+    "macroinvertebrate": "Macroinvertebrate",
+    "macroinvertebrate_desc": "Presence of small organisms used as bioindicators of water quality."
   },
   "scores": {
     "physicoChemical": "Physico-chemical",

@@ -110,11 +110,17 @@
   },
   "metrics": {
     "ph": "pH",
+    "ph_desc": "Kipimo cha asidi au alkali ya maji (kati ya 0 na 14).",
     "dissolvedOxygen": "O₂ Iliyoyeyuka",
+    "dissolvedOxygen_desc": "Kiasi cha oksijeni iliyoyeyushwa katika maji, muhimu kwa viumbe vya majini.",
     "temperature": "Joto",
+    "temperature_desc": "Kiwango cha joto cha maji, kinachoathiri michakato ya kemikali na biolojia.",
     "waterLevel": "Kiwango cha maji",
+    "waterLevel_desc": "Urefu wa kiwango cha maji ikilinganishwa na alama ya kumbukumbu.",
     "turbidity": "Ukungu wa maji",
-    "macroinvertebrate": "Macroinvertebrate"
+    "turbidity_desc": "Hali ya uchafu au mawingu kwenye maji yanayosababishwa na chembechembe zilizosimamishwa.",
+    "macroinvertebrate": "Macroinvertebrate",
+    "macroinvertebrate_desc": "Uwepo wa viumbe wadogo wanaotumika kama viashiria vya ubora wa maji."
   },
   "scores": {
     "physicoChemical": "Fisikokemikali",
