@@ -58,7 +58,7 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
     }
     setUser(null);
     setDropdownOpen(false);
-    window.location.href = "/login";
+    window.location.href = "/";
   };
 
   const initials = user?.display_name
@@ -204,7 +204,7 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
           ) : (
             /* ── Unauthenticated: Log in button ── */
             <Button
-              variant="ghost"
+              variant="outline"
               onClick={() => (window.location.href = "/login")}
             >
               {t("common.login")}

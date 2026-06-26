@@ -9,9 +9,28 @@ from app.models.citizen import Citizen
 from app.models.sampling_record import SamplingRecord
 from app.models.reconciliation import ReconciliationLog
 
+import jwt
+from app.models.user import User
+from app.config.auth import JWT_SECRET, JWT_ALGORITHM
+
 
 def test_reconciliation_flow(db_session):
     client = TestClient(app)
+
+    # Create admin user for auth
+    admin = User(
+        email="recon_admin_flow@nbd.org",
+        role="Admin",
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.flush()
+    token = jwt.encode(
+        {"email": "recon_admin_flow@nbd.org"},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+    headers = {"Authorization": f"Bearer {token}"}
 
     # 1. Create a Basin, Wetland, and a Site
     basin = Basin(
@@ -133,7 +152,9 @@ def test_reconciliation_flow(db_session):
         ],
     }
 
-    response = client.post("/api/v1/internal/lab-qa", json=payload)
+    response = client.post(
+        "/api/v1/internal/lab-qa", json=payload, headers=headers
+    )
     assert response.status_code == 200
 
     # Verify reconciliation log has been written
@@ -237,6 +258,20 @@ def test_reconciliation_zero_division(db_session):
     db_session.add(q_ph)
     db_session.commit()
 
+    admin = User(
+        email="recon_admin_zero@nbd.org",
+        role="Admin",
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.flush()
+    token = jwt.encode(
+        {"email": "recon_admin_zero@nbd.org"},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+
     # Submit Lab QA with 0.0 value for pH
     payload = {
         "form_id": form.id,
@@ -245,7 +280,9 @@ def test_reconciliation_zero_division(db_session):
         "answers": [{"question_id": q_ph.id, "value": 0.0}],
     }
 
-    response = client.post("/api/v1/internal/lab-qa", json=payload)
+    response = client.post(
+        "/api/v1/internal/lab-qa", json=payload, headers=headers
+    )
     assert response.status_code == 200
 
     # Verification: should skip comparison to prevent division by zero
@@ -337,6 +374,20 @@ def test_reconciliation_multiple_citizens(db_session):
     db_session.add(q_ph)
     db_session.commit()
 
+    admin = User(
+        email="recon_admin_multi@nbd.org",
+        role="Admin",
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.flush()
+    token = jwt.encode(
+        {"email": "recon_admin_multi@nbd.org"},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+
     # 5. Submit Lab QA (pH=7.0)
     payload = {
         "form_id": form.id,
@@ -347,7 +398,9 @@ def test_reconciliation_multiple_citizens(db_session):
         ],
     }
 
-    response = client.post("/api/v1/internal/lab-qa", json=payload)
+    response = client.post(
+        "/api/v1/internal/lab-qa", json=payload, headers=headers
+    )
     assert response.status_code == 200
 
     # Verify reconciliation log has been written for BOTH citizens

@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.submission import Datapoint, Answer
 from app.models.user import User
+from app.dependencies.auth import get_current_user
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -271,9 +273,10 @@ class GenericPayload(BaseModel):
 def submit_fgd(
     payload: FgdPayload,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        user = db.query(User).first()
+        user = current_user
         user_id = user.id if user else None
 
         answers, wetland_id, site_id, basin_id = resolve_answers_and_anchors(
@@ -349,9 +352,10 @@ def submit_fgd(
 def submit_lab_qa(
     payload: LabQaPayload,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        user = db.query(User).first()
+        user = current_user
         user_id = user.id if user else None
 
         answers, wetland_id, site_id, basin_id = resolve_answers_and_anchors(
@@ -429,9 +433,10 @@ def submit_lab_qa(
 def submit_generic(
     payload: GenericPayload,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        user = db.query(User).first()
+        user = current_user
         user_id = user.id if user else None
 
         answers, wetland_id, site_id, basin_id = resolve_answers_and_anchors(

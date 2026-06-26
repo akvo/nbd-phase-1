@@ -51,6 +51,7 @@ def test_create_submission_success(db_session):
                 ],
             },
         },
+        headers=headers,
     )
     assert basin_resp.status_code == 201
 
@@ -106,7 +107,9 @@ def test_create_submission_success(db_session):
             {"question_id": q2_id, "name": "Observer Notes"},
         ],
     }
-    response = client.post("/api/v1/submissions", json=payload)
+    response = client.post(
+        "/api/v1/submissions", json=payload, headers=headers
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["form_id"] == form_id
@@ -114,20 +117,26 @@ def test_create_submission_success(db_session):
     assert len(data["answers"]) == 2
 
 
-def test_create_submission_multiple_anchors_rejected():
+def test_create_submission_multiple_anchors_rejected(db_session):
+    headers = get_auth_headers(db_session, email="admin_sub_multi@nbd.org")
     payload = {
         "form_id": 1,
         "basin_id": str(uuid.uuid4()),
         "site_id": str(uuid.uuid4()),
         "answers": [],
     }
-    response = client.post("/api/v1/submissions", json=payload)
+    response = client.post(
+        "/api/v1/submissions", json=payload, headers=headers
+    )
     assert response.status_code == 422
 
 
-def test_create_submission_no_anchors_rejected():
+def test_create_submission_no_anchors_rejected(db_session):
+    headers = get_auth_headers(db_session, email="admin_sub_none@nbd.org")
     payload = {"form_id": 1, "answers": []}
-    response = client.post("/api/v1/submissions", json=payload)
+    response = client.post(
+        "/api/v1/submissions", json=payload, headers=headers
+    )
     assert response.status_code == 422
 
 
