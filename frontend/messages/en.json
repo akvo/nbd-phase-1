@@ -106,7 +106,8 @@
     "showTrend": "Show Trend",
     "hideTrend": "Hide Trend",
     "noHistoricalData": "No historical data for this period",
-    "scoreHistoryError": "Could not load score history"
+    "scoreHistoryError": "Could not load score history",
+    "lastReported": "Last reported"
   },
   "metrics": {
     "ph": "pH",

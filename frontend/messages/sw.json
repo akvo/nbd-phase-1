@@ -106,7 +106,8 @@
     "showTrend": "Onyesha Mwenendo",
     "hideTrend": "Ficha Mwenendo",
     "noHistoricalData": "Hakuna data ya historia kwa kipindi hiki",
-    "scoreHistoryError": "Imeshindwa kupakia historia ya alama"
+    "scoreHistoryError": "Imeshindwa kupakia historia ya alama",
+    "lastReported": "Ripoti ya mwisho"
   },
   "metrics": {
     "ph": "pH",

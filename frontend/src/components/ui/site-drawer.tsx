@@ -12,7 +12,7 @@ import {
   GenericSamplingHistory,
   GenericScoreHistory,
 } from "@/lib/api";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 import {
   TableHeader,
@@ -151,6 +151,7 @@ const hideCommunitySignal = true;
 export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   // Hooks must be called unconditionally — before any early returns
   const t = useTranslations("drawer");
+  const locale = useLocale();
   const ts = useTranslations("scores");
   const tm = useTranslations("metrics");
   const [isPrinting, setIsPrinting] = useState(false);
@@ -326,6 +327,31 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           </svg>
           <span>{site.country}</span>
         </div>
+        {site.last_updated && (
+          <div className="flex items-center gap-1 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm">
+            <svg
+              className="w-3.5 h-3.5 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            <span>
+              {t("lastReported")}:{" "}
+              {new Date(site.last_updated).toLocaleDateString(locale, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          </div>
+        )}
         {site.is_ik_adjusted && !hideFuzzy && (
           <Badge variant="primary">{t("ikAdjusted")}</Badge>
         )}
