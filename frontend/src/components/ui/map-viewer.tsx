@@ -31,22 +31,31 @@ interface MapViewerProps {
   zoomOffsetClass?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   basinGeometry?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wetlandGeometry?: any;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function MapController({ basinGeometry }: { basinGeometry: any }) {
+function MapController({
+  basinGeometry,
+  wetlandGeometry,
+}: {
+  basinGeometry: any;
+  wetlandGeometry: any;
+}) {
   const map = useMap();
 
   useEffect(() => {
-    if (basinGeometry) {
+    const targetGeom = wetlandGeometry || basinGeometry;
+    if (targetGeom) {
       try {
-        const layer = L.geoJSON(basinGeometry);
+        const layer = L.geoJSON(targetGeom);
         map.fitBounds(layer.getBounds(), { padding: [30, 30] });
       } catch (err) {
-        console.error("Failed to fit bounds to basin geometry:", err);
+        console.error("Failed to fit bounds to geometry:", err);
       }
     }
-  }, [basinGeometry, map]);
+  }, [basinGeometry, wetlandGeometry, map]);
 
   return null;
 }
@@ -58,6 +67,7 @@ export default function MapViewer({
   className,
   zoomOffsetClass,
   basinGeometry,
+  wetlandGeometry,
 }: MapViewerProps) {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -68,10 +78,25 @@ export default function MapViewer({
   const icons = useMemo(() => {
     if (!isMounted || typeof window === "undefined" || !L) return null;
 
-    const createIcon = (type: "site" | "incident", status?: string) => {
+    const createIcon = (
+      type: "site" | "incident" | "siteDefault",
+      status?: string
+    ) => {
       let pingBg: string;
       let centerBg: string;
       let isWarningIcon = false;
+
+      if (type === "siteDefault") {
+        return L.divIcon({
+          html: `<div class="relative flex items-center justify-center w-6 h-6">
+              <span class="absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-60 animate-ping"></span>
+              <div class="relative rounded-full h-4.5 w-4.5 bg-teal-600 border border-white shadow"></div>
+            </div>`,
+          className: "custom-leaflet-icon",
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+      }
 
       if (type === "site") {
         if (status === "A" || status === "B") {
@@ -117,6 +142,7 @@ export default function MapViewer({
     };
 
     return {
+      siteDefault: createIcon("siteDefault"),
       siteA: createIcon("site", "A"),
       siteB: createIcon("site", "B"),
       siteC: createIcon("site", "C"),
@@ -147,12 +173,36 @@ export default function MapViewer({
         style={{ width: "100%", height: "100%" }}
         key={`nbd-map-${center[0]}-${center[1]}`}
       >
-        <MapController basinGeometry={basinGeometry} />
+        <TileLayer
+          attribution="&copy; Google Maps"
+          url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+        />
+        <ZoomControl position="bottomright" />
+        <MapController
+          basinGeometry={basinGeometry}
+          wetlandGeometry={wetlandGeometry}
+        />
+
+        {wetlandGeometry && (
+          <GeoJSON
+            key={JSON.stringify(wetlandGeometry)}
+            data={wetlandGeometry}
+            interactive={false}
+            style={{
+              color: "#14b8a6",
+              weight: 2,
+              opacity: 0.9,
+              fillColor: "#14b8a6",
+              fillOpacity: 0.12,
+            }}
+          />
+        )}
 
         {basinGeometry && (
           <GeoJSON
             key={JSON.stringify(basinGeometry)}
             data={basinGeometry}
+            interactive={false}
             style={{
               color: "#0d9488",
               weight: 2,
@@ -162,15 +212,11 @@ export default function MapViewer({
             }}
           />
         )}
-        <TileLayer
-          attribution="&copy; Google Maps"
-          url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-        />
-        <ZoomControl position="bottomright" />
         {markers.map((marker, index) => {
           let icon;
           if (marker.type === "site") {
-            if (marker.status === "A") icon = icons.siteA;
+            if (!marker.status) icon = icons.siteDefault;
+            else if (marker.status === "A") icon = icons.siteA;
             else if (marker.status === "B") icon = icons.siteB;
             else if (marker.status === "C") icon = icons.siteC;
             else if (marker.status === "D") icon = icons.siteD;

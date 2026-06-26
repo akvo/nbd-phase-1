@@ -180,6 +180,8 @@ export default function Home() {
   );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [wetlandGeometry, setWetlandGeometry] = useState<any>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [basins, setBasins] = useState<any[]>([]);
@@ -187,6 +189,28 @@ export default function Home() {
   const [dbSites, setDbSites] = useState<any[]>([]);
   const [dbIncidents, setDbIncidents] = useState<IncidentSummary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Fetch wetland GeoJSON when in wetland domain
+  useEffect(() => {
+    if (selectedDomain === "wetland") {
+      const fileName =
+        selectedBasin === "SIO_SITEKO"
+          ? "sio-siteko-wetland.geojson"
+          : "mara-wetland.geojson";
+      fetch(`/spatial/${fileName}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load wetland GeoJSON");
+          return res.json();
+        })
+        .then((data) => setWetlandGeometry(data))
+        .catch((err) => {
+          console.error("Error loading wetland geometry:", err);
+          setWetlandGeometry(null);
+        });
+    } else {
+      setWetlandGeometry(null);
+    }
+  }, [selectedDomain, selectedBasin]);
 
   // Synchronize filter resets whenever selectedDomain changes
   useEffect(() => {
@@ -462,6 +486,7 @@ export default function Home() {
             zoom={mapZoom}
             markers={mapMarkers}
             basinGeometry={activeGeometry}
+            wetlandGeometry={wetlandGeometry}
             className="h-full w-full"
           />
         </div>
