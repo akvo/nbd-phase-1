@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import Home from "../page";
 import { expect, test, vi } from "vitest";
 import messages from "../../../messages/en.json";
-import { DomainProvider } from "@/context/domain-context";
+import { DomainProvider, useDomain } from "@/context/domain-context";
 
 // Mock the MapViewer component to bypass leaflet loading in jsdom
 vi.mock("@/components/ui/map-viewer", () => {
@@ -33,9 +33,53 @@ const renderWithContextAndIntl = (ui: React.ReactElement) => {
   );
 };
 
+const TestDomainToggler = () => {
+  const { selectedDomain, setSelectedDomain } = useDomain();
+  return (
+    <div>
+      <span data-testid="current-domain">{selectedDomain}</span>
+      <button
+        data-testid="toggle-domain-btn"
+        onClick={() =>
+          setSelectedDomain(
+            selectedDomain === "wetland" ? "pollution" : "wetland"
+          )
+        }
+      >
+        Toggle Domain
+      </button>
+    </div>
+  );
+};
+
+const renderWithToggler = () => {
+  return render(
+    <NextIntlClientProvider messages={messages} locale="en">
+      <DomainProvider>
+        <TestDomainToggler />
+        <Home />
+      </DomainProvider>
+    </NextIntlClientProvider>
+  );
+};
+
 test("renders Home page elements and handles filtering", () => {
   renderWithContextAndIntl(<Home />);
 
   // Verify Logoipsum exists in header
   expect(screen.getByText(messages.header.brand)).toBeInTheDocument();
+});
+
+test("updates domain state and page when domain context changes", () => {
+  renderWithToggler();
+
+  // Initial domain should be wetland
+  expect(screen.getByTestId("current-domain").textContent).toBe("wetland");
+
+  // Toggle domain to pollution
+  const toggleBtn = screen.getByTestId("toggle-domain-btn");
+  fireEvent.click(toggleBtn);
+
+  // Current domain should now be pollution
+  expect(screen.getByTestId("current-domain").textContent).toBe("pollution");
 });

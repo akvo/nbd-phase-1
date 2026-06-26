@@ -18,7 +18,7 @@ export function MapLegend({
   return (
     <div
       className={cn(
-        "absolute left-4 md:left-100 right-auto top-20 z-20 pointer-events-none bg-slate-900/60 backdrop-blur-none text-white px-3 py-2 rounded-lg text-xs flex flex-col gap-1.5 shadow-lg border border-slate-700/50",
+        "absolute left-4 md:left-100 right-auto top-32 z-20 pointer-events-none bg-slate-900/60 backdrop-blur-none text-white px-3 py-2 rounded-lg text-xs flex flex-col gap-1.5 shadow-lg border border-slate-700/50",
         className
       )}
       {...props}

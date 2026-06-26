@@ -77,9 +77,19 @@ test("renders MapFilter for Pollution domain", () => {
     screen.queryByRole("button", { name: "Healthy" })
   ).not.toBeInTheDocument();
 
-  // Date input should be present
-  const dateFromInput = screen.getByDisplayValue("2026-06-01");
+  // Click date picker trigger to open inputs
+  const triggerBtn = screen.getByTestId("date-range-picker-trigger");
+  fireEvent.click(triggerBtn);
+
+  // Date input should be present inside the popover
+  const dateFromInput = screen.getByTestId("date-picker-start-input");
   expect(dateFromInput).toBeInTheDocument();
+  expect(dateFromInput).toHaveValue("2026-06-01");
+
+  // Change input and click apply
   fireEvent.change(dateFromInput, { target: { value: "2026-06-15" } });
+  const applyBtn = screen.getByTestId("date-range-picker-apply");
+  fireEvent.click(applyBtn);
+
   expect(onDateFromChange).toHaveBeenCalledWith("2026-06-15");
 });

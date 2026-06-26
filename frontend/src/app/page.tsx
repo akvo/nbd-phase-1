@@ -11,12 +11,12 @@ import { IncidentCard } from "@/components/ui/incident-card";
 import { IncidentDrawer } from "@/components/ui/incident-drawer";
 import { MapFilter } from "@/components/ui/map-filter";
 import { useTranslations } from "next-intl";
+import { useDomain } from "@/context/domain-context";
 
 import {
   getBasins,
   getSites,
   getSubmissions,
-  MonitoringDomain,
   IncidentSummary,
 } from "@/lib/api";
 
@@ -170,8 +170,7 @@ export default function Home() {
   const [selectedDateTo, setSelectedDateTo] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSite, setSelectedSite] = useState<any>(null);
-  const [selectedDomain, setSelectedDomain] =
-    useState<MonitoringDomain>("wetland");
+  const { selectedDomain } = useDomain();
   const [selectedIncident, setSelectedIncident] =
     useState<IncidentSummary | null>(null);
   const [isListCollapsed, setIsListCollapsed] = useState(false);
@@ -189,27 +188,18 @@ export default function Home() {
   const [dbIncidents, setDbIncidents] = useState<IncidentSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const handleDomainChange = (domain: MonitoringDomain) => {
-    setSelectedDomain(domain);
+  // Synchronize filter resets whenever selectedDomain changes
+  useEffect(() => {
     setSelectedHealthFilter("All");
     setSelectedIncident(null);
     setSelectedWetland("");
     setSelectedIncidentType("");
     setSelectedDateFrom("");
     setSelectedDateTo("");
-    if (domain === "pollution") {
+    if (selectedDomain === "pollution") {
       setSelectedSite(null);
     }
-  };
-
-  // Filter labels mapping (key -> translated label)
-  const filterLabels: Record<string, string> = {
-    All: t("filters.all"),
-    Critical: t("filters.critical"),
-    "At risk": t("filters.atRisk"),
-    Healthy: t("filters.healthy"),
-    Elevated: t("filters.elevated"),
-  };
+  }, [selectedDomain]);
 
   useEffect(() => {
     getBasins()
@@ -302,7 +292,7 @@ export default function Home() {
 
     // Filter by Date From
     if (selectedDateFrom !== "") {
-      if (new Date(incident.created_at) < new Date(selectedDateFrom))
+      if (new Date(incident.created_at || "") < new Date(selectedDateFrom))
         return false;
     }
 
@@ -310,7 +300,7 @@ export default function Home() {
     if (selectedDateTo !== "") {
       const endOfDay = new Date(selectedDateTo);
       endOfDay.setHours(23, 59, 59, 999);
-      if (new Date(incident.created_at) > endOfDay) return false;
+      if (new Date(incident.created_at || "") > endOfDay) return false;
     }
 
     let severity = "Moderate";
@@ -435,7 +425,7 @@ export default function Home() {
   }, [dbSites]);
 
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col font-sans relative overflow-hidden">
+    <main className="min-h-screen bg-slate-50 flex flex-col font-sans relative md:overflow-hidden">
       {/* Header Navigation */}
       <SiteHeader showActions={true} />
 
@@ -480,13 +470,6 @@ export default function Home() {
         <section
           className={`relative ${isListCollapsed ? "flex-initial" : "flex-1"} md:absolute md:bottom-auto md:left-auto md:right-auto md:w-96 md:h-full bg-white/95 backdrop-blur-sm border-t md:border-t-0 md:border-r border-slate-200 z-10 flex flex-col shadow-2xl md:shadow-lg rounded-t-2xl md:rounded-t-none`}
         >
-          {/* Drag indicator for mobile - clickable toggle */}
-          <button
-            onClick={() => setIsListCollapsed(!isListCollapsed)}
-            className="w-12 h-1.5 bg-slate-300 hover:bg-slate-400 rounded-full mx-auto my-2.5 shrink-0 md:hidden cursor-pointer active:scale-95 transition-all focus:outline-none"
-            aria-label="Toggle panel collapse"
-          />
-
           {/* Site cards list */}
           <div
             className={`p-4 flex flex-col min-h-0 ${isListCollapsed ? "shrink-0" : "flex-1 overflow-y-auto"}`}

@@ -66,4 +66,3 @@ test("shows user menu button when authenticated", async () => {
     ).toBeInTheDocument();
   });
 });
-

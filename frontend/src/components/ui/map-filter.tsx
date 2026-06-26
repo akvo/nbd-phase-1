@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Dropdown } from "@/components/ui/dropdown";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { SlidersHorizontal } from "lucide-react";
 
 export type MonitoringDomain = "wetland" | "pollution";
 
@@ -74,8 +76,8 @@ export function MapFilter({
       {/* Desktop view / Mobile Row 1 */}
       <div className="max-w-full md:max-w-7xl w-full px-4 py-2 flex flex-col md:flex-row md:items-center justify-start gap-3">
         {/* Left Side / Always Visible on Mobile */}
-        <div className="flex items-center justify-between md:justify-start gap-3">
-          <div className="w-48 md:w-56 shrink-0">
+        <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
+          <div className="flex-1 md:w-56 md:flex-none">
             <Dropdown
               options={basins}
               value={selectedBasin}
@@ -86,22 +88,15 @@ export function MapFilter({
           {/* Toggle for remaining filters on mobile */}
           <button
             onClick={() => setIsMobileExpanded((p) => !p)}
-            className="md:hidden flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors"
+            className={`md:hidden flex items-center justify-center h-9 w-9 rounded-lg border transition-colors shrink-0 ${
+              isMobileExpanded
+                ? "bg-nbd-primary/10 border-nbd-primary/30 text-nbd-primary"
+                : "bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-700"
+            }`}
+            aria-label="Toggle Filters"
+            data-testid="mobile-filter-toggle"
           >
-            Filters
-            <svg
-              className={`w-3 h-3 transition-transform ${isMobileExpanded ? "rotate-180" : ""}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
+            <SlidersHorizontal className="w-4 h-4" />
           </button>
         </div>
 
@@ -144,7 +139,6 @@ export function MapFilter({
               {/* Incident type filter */}
               <div className="w-full md:w-60">
                 <Dropdown
-                  label="Incident Type"
                   options={INCIDENT_TYPES}
                   value={selectedIncidentType}
                   onChange={onIncidentTypeChange}
@@ -152,30 +146,13 @@ export function MapFilter({
               </div>
 
               {/* Date pickers */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                <div className="flex flex-col gap-0.5 w-full sm:w-auto">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-                    Date From
-                  </span>
-                  <input
-                    type="date"
-                    value={selectedDateFrom}
-                    onChange={(e) => onDateFromChange(e.target.value)}
-                    className="h-9 px-3 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-nbd-primary/50 focus:bg-white rounded-lg text-xs font-medium text-slate-700 transition-all outline-none"
-                  />
-                </div>
-                <div className="flex flex-col gap-0.5 w-full sm:w-auto">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-                    Date To
-                  </span>
-                  <input
-                    type="date"
-                    value={selectedDateTo}
-                    onChange={(e) => onDateToChange(e.target.value)}
-                    className="h-9 px-3 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-nbd-primary/50 focus:bg-white rounded-lg text-xs font-medium text-slate-700 transition-all outline-none"
-                  />
-                </div>
-              </div>
+              <DateRangePicker
+                showLabel={false}
+                startDate={selectedDateFrom}
+                endDate={selectedDateTo}
+                onStartDateChange={onDateFromChange}
+                onEndDateChange={onDateToChange}
+              />
             </>
           )}
         </div>
