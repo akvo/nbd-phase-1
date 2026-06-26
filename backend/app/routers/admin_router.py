@@ -56,6 +56,7 @@ def list_admin_submissions(
             Basin.name.ilike(f"%{basin}%")
         )
 
+    query = query.order_by(Datapoint.created_at.asc())
     results = query.all()
     try:
         from app.services.storage import StorageService
@@ -68,6 +69,34 @@ def list_admin_submissions(
     except Exception:
         pass
     return results
+
+
+@router.get(
+    "/submissions/{id}",
+    response_model=schemas.DatapointResponse,
+)
+def get_submission(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    dp = db.query(Datapoint).filter(Datapoint.id == id).first()
+    if not dp:
+        raise HTTPException(
+            status_code=404, detail=f"Submission with ID {id} not found."
+        )
+
+    try:
+        from app.services.storage import StorageService
+        from app.services.option_resolver import (
+            populate_answers_option_labels,
+        )
+
+        StorageService().populate_answers_read_urls([dp])
+        populate_answers_option_labels([dp], db)
+    except Exception:
+        pass
+    return dp
 
 
 @router.patch("/submissions/{id}/status")
@@ -185,6 +214,143 @@ def delete_submission(
         )
         db.add(audit_log)
         db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/submissions/{id}")
+def edit_submission(
+    id: int,
+    payload: schemas.SubmissionEditPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.models.form import Question, QuestionType
+
+    dp = db.query(Datapoint).filter(Datapoint.id == id).first()
+    if not dp:
+        raise HTTPException(
+            status_code=404, detail=f"Submission with ID {id} not found."
+        )
+
+    # Fetch questions to identify types
+    questions = db.query(Question).filter(Question.form_id == dp.form_id).all()
+    q_map = {q.id: q for q in questions}
+
+    # Update or insert answers
+    for ans_data in payload.answers:
+        q = q_map.get(ans_data.question_id)
+        name = None
+        value = None
+        option = None
+
+        if q:
+            if q.type in (
+                QuestionType.geo,
+                QuestionType.option,
+                QuestionType.multiple_option,
+            ):
+                if ans_data.options is not None:
+                    option = ans_data.options
+                elif ans_data.value is not None:
+                    option = (
+                        ans_data.options
+                        if isinstance(ans_data.options, list)
+                        else [ans_data.value]
+                    )
+            elif q.type in (
+                QuestionType.input,
+                QuestionType.text,
+                QuestionType.image,
+                QuestionType.date,
+                QuestionType.autofield,
+                QuestionType.attachment,
+                QuestionType.signature,
+            ):
+                name = (
+                    str(ans_data.value)
+                    if ans_data.value is not None
+                    else ans_data.name
+                )
+            elif q.type == QuestionType.cascade:
+                val_id = (
+                    ans_data.value
+                    if ans_data.value is not None
+                    else (ans_data.options[0] if ans_data.options else None)
+                )
+                option = [str(val_id)] if val_id else None
+                from app.models.spatial import SpatialBoundary
+
+                boundary = None
+                if val_id:
+                    boundary = (
+                        db.query(SpatialBoundary)
+                        .filter(SpatialBoundary.id == val_id)
+                        .first()
+                    )
+                if boundary:
+                    name = boundary.name
+                else:
+                    name = ans_data.name
+            else:
+                value = (
+                    str(ans_data.value) if ans_data.value is not None else None
+                )
+        else:
+            # Fallback if question not found
+            if ans_data.options is not None:
+                option = ans_data.options
+            else:
+                try:
+                    value = (
+                        float(ans_data.value)
+                        if ans_data.value is not None
+                        else None
+                    )
+                except (ValueError, TypeError):
+                    name = (
+                        str(ans_data.value)
+                        if ans_data.value is not None
+                        else ans_data.name
+                    )
+
+        # Check if answer already exists
+        ans = (
+            db.query(Answer)
+            .filter(
+                Answer.datapoint_id == dp.id,
+                Answer.question_id == ans_data.question_id,
+                Answer.index == ans_data.index,
+            )
+            .first()
+        )
+        if ans:
+            ans.name = name
+            ans.value = value
+            ans.options = option
+        else:
+            ans = Answer(
+                datapoint_id=dp.id,
+                question_id=ans_data.question_id,
+                name=name,
+                value=value,
+                options=option,
+                index=ans_data.index,
+            )
+            db.add(ans)
+
+    try:
+        # Log edit action
+        audit_log = AuditLog(
+            actor_id=current_user.id,
+            action="EDIT",
+            entity_type="submission",
+            entity_id=str(id),
+        )
+        db.add(audit_log)
+        db.commit()
+        return {"id": dp.id, "message": "Submission updated successfully"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))

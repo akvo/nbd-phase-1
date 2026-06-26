@@ -306,3 +306,7 @@ class PublicDatapointResponse(DatapointResponse):
                 else:
                     self.name = "***"
         return self
+
+
+class SubmissionEditPayload(BaseModel):
+    answers: List[AnswerCreate]
