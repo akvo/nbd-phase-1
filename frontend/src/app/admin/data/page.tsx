@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import { adminApiClient } from "@/lib/api";
 import {
@@ -366,42 +367,75 @@ export default function DataOverviewPage() {
                               Edit Answers
                             </a>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 border border-slate-150 rounded-lg">
-                            {sub.answers.map((ans) => (
-                              <div
-                                key={ans.id}
-                                className="border-b border-slate-50 pb-2 last:border-0"
-                              >
-                                <span className="text-xs font-semibold text-slate-400 block mb-0.5">
-                                  {ans.name}
-                                </span>
-                                {ans.read_url ? (
-                                  <div className="mt-1 flex items-center space-x-2">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={ans.read_url}
-                                      alt={ans.name}
-                                      className="w-16 h-16 object-cover rounded-lg border border-slate-100 shadow-sm"
-                                    />
-                                    <a
-                                      href={ans.read_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-xs text-sky-500 font-bold underline"
+                          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-slate-50 border-b border-slate-200">
+                                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide w-2/5">
+                                    Question
+                                  </th>
+                                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                                    Answer
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sub.answers.map((ans) => (
+                                  <tr
+                                    key={ans.id}
+                                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors"
+                                  >
+                                    <td className="px-4 py-2.5 text-xs font-medium text-slate-500 align-top">
+                                      {ans.question_label}
+                                    </td>
+                                    <td className="px-4 py-2.5 align-top">
+                                      {ans.read_url ? (
+                                        <div className="flex items-center space-x-2">
+                                          <Image
+                                            src={ans.read_url}
+                                            alt={
+                                              ans.question_name ||
+                                              ans.name ||
+                                              "photo"
+                                            }
+                                            width={48}
+                                            height={48}
+                                            unoptimized
+                                            className="object-cover rounded border border-slate-100 shadow-sm"
+                                          />
+                                          <a
+                                            href={ans.read_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-sky-500 font-bold underline"
+                                          >
+                                            Open image
+                                          </a>
+                                        </div>
+                                      ) : (
+                                        <span className="text-sm font-semibold text-slate-800">
+                                          {ans.value !== null &&
+                                          ans.value !== undefined &&
+                                          ans.value !== ""
+                                            ? String(ans.value)
+                                            : "—"}
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                                {sub.answers.length === 0 && (
+                                  <tr>
+                                    <td
+                                      colSpan={2}
+                                      className="px-4 py-4 text-center text-xs text-slate-400"
                                     >
-                                      Open in New Tab
-                                    </a>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm font-bold text-slate-800">
-                                    {ans.value !== null &&
-                                    ans.value !== undefined
-                                      ? String(ans.value)
-                                      : ans.name || "-"}
-                                  </span>
+                                      No answers recorded.
+                                    </td>
+                                  </tr>
                                 )}
-                              </div>
-                            ))}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       </TableCell>
