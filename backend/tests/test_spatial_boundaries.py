@@ -1,10 +1,28 @@
+import jwt
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 from app.main import app
+from app.models.user import User
+from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
 client = TestClient(app)
 
 
-def test_create_and_get_spatial_boundary():
+@pytest.fixture
+def auth_headers(db_session: Session):
+    admin = User(email="admin_sb_test@nbd.org", role="Admin", is_active=True)
+    db_session.add(admin)
+    db_session.commit()
+    token = jwt.encode(
+        {"email": "admin_sb_test@nbd.org"},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_create_and_get_spatial_boundary(auth_headers):
     # 1. Create parent basin first
     basin_data = {
         "code": "TEST-MARA-SB",
@@ -24,7 +42,9 @@ def test_create_and_get_spatial_boundary():
             ],
         },
     }
-    res_basin = client.post("/api/v1/basins", json=basin_data)
+    res_basin = client.post(
+        "/api/v1/basins", json=basin_data, headers=auth_headers
+    )
     assert res_basin.status_code == 201
     basin_uuid = res_basin.json()["id"]
 
@@ -40,7 +60,9 @@ def test_create_and_get_spatial_boundary():
         },
     }
     response_reg = client.post(
-        "/api/v1/reference/sub-counties", json=sb_region_data
+        "/api/v1/reference/sub-counties",
+        json=sb_region_data,
+        headers=auth_headers,
     )
     assert response_reg.status_code == 201
     res_reg_data = response_reg.json()
@@ -61,7 +83,9 @@ def test_create_and_get_spatial_boundary():
         },
     }
     response_dist = client.post(
-        "/api/v1/reference/sub-counties", json=sb_district_data
+        "/api/v1/reference/sub-counties",
+        json=sb_district_data,
+        headers=auth_headers,
     )
     assert response_dist.status_code == 201
     res_dist_data = response_dist.json()
@@ -70,7 +94,9 @@ def test_create_and_get_spatial_boundary():
     assert res_dist_data["parent_id"] == region_uuid
 
     # 4. Get all sub-counties
-    response = client.get("/api/v1/reference/sub-counties")
+    response = client.get(
+        "/api/v1/reference/sub-counties", headers=auth_headers
+    )
     assert response.status_code == 200
     res_list = response.json()
     assert len(res_list) >= 2
@@ -81,7 +107,7 @@ def test_create_and_get_spatial_boundary():
     assert found[0]["parent_id"] == region_uuid
 
 
-def test_create_spatial_boundary_null_centroid():
+def test_create_spatial_boundary_null_centroid(auth_headers):
     # 1. Create parent basin first
     basin_data = {
         "code": "TEST-MARA-SB-NULL",
@@ -101,7 +127,9 @@ def test_create_spatial_boundary_null_centroid():
             ],
         },
     }
-    res_basin = client.post("/api/v1/basins", json=basin_data)
+    res_basin = client.post(
+        "/api/v1/basins", json=basin_data, headers=auth_headers
+    )
     assert res_basin.status_code == 201
     basin_uuid = res_basin.json()["id"]
 
@@ -114,7 +142,9 @@ def test_create_spatial_boundary_null_centroid():
         "centroid_geom": None,
     }
     response_reg = client.post(
-        "/api/v1/reference/sub-counties", json=sb_region_data
+        "/api/v1/reference/sub-counties",
+        json=sb_region_data,
+        headers=auth_headers,
     )
     print(response_reg.json(), "---AAA")
     assert response_reg.status_code == 201

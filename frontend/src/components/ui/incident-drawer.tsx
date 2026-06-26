@@ -199,7 +199,7 @@ export function IncidentDrawer({
                     className="p-3 bg-white flex justify-between gap-4"
                   >
                     <span className="text-slate-500 font-medium shrink-0">
-                      {ans.name || `Question ${ans.question_id}`}
+                      {ans.question_label || `Question ${ans.question_id}`}
                     </span>
                     <span className="text-slate-800 text-right">
                       {String(ans.value)}

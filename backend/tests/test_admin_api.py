@@ -297,3 +297,103 @@ def test_manual_fgd_submission(db_session):
     dp = db_session.query(Datapoint).filter(Datapoint.id == dp_id).first()
     assert dp is not None
     assert dp.status == "APPROVED"
+
+
+def test_edit_submission(db_session):
+    headers = get_auth_headers(db_session)
+    basin = create_mock_basin(db_session, "Mara")
+    form = create_mock_form(db_session, 1, "Reporter Form")
+    group = QuestionGroup(form_id=form.id, name="g")
+    db_session.add(group)
+    db_session.commit()
+
+    q = Question(
+        form_id=form.id,
+        question_group_id=group.id,
+        name="q1",
+        type="text",
+        label="q1",
+    )
+    db_session.add(q)
+    db_session.commit()
+
+    dp = Datapoint(form_id=form.id, basin_id=basin.id, status="PENDING")
+    db_session.add(dp)
+    db_session.commit()
+
+    ans = Answer(datapoint_id=dp.id, question_id=q.id, name="old value")
+    db_session.add(ans)
+    db_session.commit()
+
+    # Edit answer value
+    payload = {
+        "answers": [{"question_id": q.id, "name": "new value", "index": 0}]
+    }
+    resp = client.put(
+        f"/api/v1/admin/submissions/{dp.id}",
+        json=payload,
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Submission updated successfully"
+
+    db_session.refresh(ans)
+    assert ans.name == "new value"
+
+
+def test_list_submissions_order_asc(db_session):
+    from datetime import datetime, timedelta
+
+    headers = get_auth_headers(db_session)
+    basin = create_mock_basin(db_session, "Mara")
+    form = create_mock_form(db_session, 1, "Reporter Form")
+
+    # Create datapoints with different created_at times
+    dp1 = Datapoint(
+        form_id=form.id,
+        basin_id=basin.id,
+        status="PENDING",
+        created_at=datetime.utcnow() - timedelta(days=2),
+    )
+    dp2 = Datapoint(
+        form_id=form.id,
+        basin_id=basin.id,
+        status="PENDING",
+        created_at=datetime.utcnow() - timedelta(days=1),
+    )
+    dp3 = Datapoint(
+        form_id=form.id,
+        basin_id=basin.id,
+        status="PENDING",
+        created_at=datetime.utcnow(),
+    )
+
+    db_session.add_all([dp1, dp2, dp3])
+    db_session.commit()
+
+    resp = client.get(
+        "/api/v1/admin/submissions?status=PENDING", headers=headers
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+
+    # We want chronological ascending (oldest first, i.e., dp1 -> dp2 -> dp3)
+    indices = [d["id"] for d in data if d["id"] in (dp1.id, dp2.id, dp3.id)]
+    assert indices == [dp1.id, dp2.id, dp3.id]
+
+
+def test_get_submission(db_session):
+    headers = get_auth_headers(db_session)
+    basin = create_mock_basin(db_session, "Mara")
+    form = create_mock_form(db_session, 1, "Reporter Form")
+
+    dp = Datapoint(form_id=form.id, basin_id=basin.id, status="PENDING")
+    db_session.add(dp)
+    db_session.commit()
+
+    resp = client.get(
+        f"/api/v1/admin/submissions/{dp.id}",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["id"] == dp.id

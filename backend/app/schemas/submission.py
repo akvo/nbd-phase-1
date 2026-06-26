@@ -18,6 +18,7 @@ class AnswerCreate(AnswerBase):
 
 class AnswerResponse(AnswerBase):
     id: int
+    question_label: str
     datapoint_id: int
     read_url: Optional[str] = None
 
@@ -213,6 +214,14 @@ class AnswerResponse(AnswerBase):
                         pass
 
         # Return dict representation
+        question_label = None
+        if question:
+            question_label = (
+                question.get("label")
+                if isinstance(question, dict)
+                else getattr(question, "label", None)
+            )
+
         question_name = None
         if question:
             question_name = (
@@ -225,7 +234,8 @@ class AnswerResponse(AnswerBase):
             "id": id_val,
             "datapoint_id": datapoint_id,
             "question_id": question_id,
-            "name": name if name else question_name,
+            "question_label": question_label,
+            "name": name or question_name,
             "value": resolved_value,
             "options": options,
             "index": index,
@@ -306,3 +316,7 @@ class PublicDatapointResponse(DatapointResponse):
                 else:
                     self.name = "***"
         return self
+
+
+class SubmissionEditPayload(BaseModel):
+    answers: List[AnswerCreate]

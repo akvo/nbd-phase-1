@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.spatial import Basin, Wetland, Site
 from app.models.form import Form, QuestionGroup, Question
 from app.models.submission import Datapoint, Answer
+from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
 client = TestClient(app)
 
@@ -19,7 +20,9 @@ def auth_header(db_session: Session):
     db_session.add(admin)
     db_session.commit()
     token = jwt.encode(
-        {"email": "internal_admin@nbd.org"}, "test_secret", algorithm="HS256"
+        {"email": "internal_admin@nbd.org"},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
     )
     return {"Authorization": f"Bearer {token}"}
 

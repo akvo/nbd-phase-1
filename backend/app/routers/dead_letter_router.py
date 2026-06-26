@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.dead_letter import DeadLetter
 from app.schemas import dead_letter as schemas
+from app.models.user import User
+from app.dependencies.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/dead-letters", tags=["dead-letters"])
 
@@ -16,7 +18,9 @@ router = APIRouter(prefix="/api/v1/dead-letters", tags=["dead-letters"])
     status_code=status.HTTP_201_CREATED,
 )
 def create_dead_letter(
-    payload: schemas.DeadLetterCreate, db: Session = Depends(get_db)
+    payload: schemas.DeadLetterCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     db_dead_letter = DeadLetter(
         source_system=payload.source_system,
@@ -68,6 +72,7 @@ def update_dead_letter(
     dead_letter_id: UUID,
     payload: schemas.DeadLetterUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     db_dead_letter = (
         db.query(DeadLetter).filter(DeadLetter.id == dead_letter_id).first()

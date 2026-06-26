@@ -120,6 +120,7 @@ export interface IncidentSummary {
   answers: Array<{
     name?: string;
     question_id?: number;
+    question_label?: string;
     value?: string;
     options?: Array<string | number>;
     read_url?: string;

@@ -4,6 +4,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from tests.conftest import make_auth_headers
 
 client = TestClient(app)
 
@@ -285,9 +286,10 @@ def test_api_presigned_read_non_admin_forbidden(db_session):
     assert response.status_code == 403
 
 
-def test_api_upload_file_endpoint():
+def test_api_upload_file_endpoint(db_session):
     from app.services.storage import StorageService
 
+    auth_headers = make_auth_headers(db_session)
     service = StorageService()
     blob_name = "media/whatsapp/photo_upload.jpg"
     expires_at = int(time.time()) + 900
@@ -300,7 +302,7 @@ def test_api_upload_file_endpoint():
         f"/api/v1/storage/upload/{blob_name}"
         f"?expires={expires_at}&signature={signature}",
         content=content,
-        headers={"Content-Type": "image/jpeg"},
+        headers={**auth_headers, "Content-Type": "image/jpeg"},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}

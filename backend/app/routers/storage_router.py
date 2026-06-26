@@ -77,6 +77,7 @@ async def upload_file_binary(
     expires: int = Query(..., description="Expiration epoch timestamp"),
     signature: str = Query(..., description="HMAC-SHA256 signature"),
     service: StorageService = Depends(get_storage_service),
+    current_user: User = Depends(RoleChecker(["Admin"])),
 ):
     # Verify HMAC signature and expiration
     import time

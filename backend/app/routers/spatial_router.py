@@ -199,7 +199,11 @@ def compute_site_status(db: Session, db_site: Site) -> None:
     response_model=schemas.Basin,
     status_code=status.HTTP_201_CREATED,
 )
-def create_basin(basin: schemas.BasinCreate, db: Session = Depends(get_db)):
+def create_basin(
+    basin: schemas.BasinCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(admin_only),
+):
     # Check if already exists by slug
     existing = db.query(Basin).filter(Basin.code == basin.code).first()
     if existing:
@@ -249,7 +253,9 @@ def get_basin(basin_id: str, db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
 )
 def create_wetland(
-    wetland: schemas.WetlandCreate, db: Session = Depends(get_db)
+    wetland: schemas.WetlandCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(admin_only),
 ):
     # Check if parent basin exists
     parent_basin = db.query(Basin).filter(Basin.id == wetland.basin_id).first()
@@ -476,7 +482,9 @@ def delete_site(
     status_code=status.HTTP_201_CREATED,
 )
 def create_sub_county(
-    sb: schemas.SpatialBoundaryCreate, db: Session = Depends(get_db)
+    sb: schemas.SpatialBoundaryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(admin_only),
 ):
     # Check if parent basin exists
     parent_basin = db.query(Basin).filter(Basin.id == sb.basin_id).first()

@@ -29,7 +29,9 @@ def setup_admin_user(db_session: Session):
     return admin
 
 
-def test_create_and_get_basin():
+def test_create_and_get_basin(setup_admin_user):
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
     # Create
     basin_data = {
         "code": "TEST-MARA",
@@ -49,7 +51,7 @@ def test_create_and_get_basin():
             ],
         },
     }
-    response = client.post("/api/v1/basins", json=basin_data)
+    response = client.post("/api/v1/basins", json=basin_data, headers=headers)
     assert response.status_code == 201
     res_data = response.json()
     assert res_data["code"] == "TEST-MARA"
@@ -76,7 +78,9 @@ def test_create_and_get_basin():
     assert any(b["code"] == "TEST-MARA" for b in basins_list)
 
 
-def test_create_basin_invalid_geom():
+def test_create_basin_invalid_geom(setup_admin_user):
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
     basin_data = {
         "code": "TEST-INVALID",
         "name": "Invalid Basin",
@@ -95,11 +99,13 @@ def test_create_basin_invalid_geom():
             ],
         },
     }
-    response = client.post("/api/v1/basins", json=basin_data)
+    response = client.post("/api/v1/basins", json=basin_data, headers=headers)
     assert response.status_code == 422
 
 
-def test_create_wetland_success():
+def test_create_wetland_success(setup_admin_user):
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
     # 1. Create parent basin first
     basin_data = {
         "code": "TEST-BASIN-2",
@@ -119,7 +125,7 @@ def test_create_wetland_success():
             ],
         },
     }
-    res_basin = client.post("/api/v1/basins", json=basin_data)
+    res_basin = client.post("/api/v1/basins", json=basin_data, headers=headers)
     assert res_basin.status_code == 201
     basin_uuid = res_basin.json()["id"]
 
@@ -141,13 +147,17 @@ def test_create_wetland_success():
             ],
         },
     }
-    response = client.post("/api/v1/wetlands", json=wetland_data)
+    response = client.post(
+        "/api/v1/wetlands", json=wetland_data, headers=headers
+    )
     assert response.status_code == 201
     assert response.json()["code"] == "TEST-WETLAND-1"
     assert response.json()["basin_id"] == basin_uuid
 
 
-def test_create_wetland_missing_basin():
+def test_create_wetland_missing_basin(setup_admin_user):
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
     fake_uuid = str(uuid.uuid4())
     wetland_data = {
         "code": "TEST-WETLAND-ERR",
@@ -166,7 +176,9 @@ def test_create_wetland_missing_basin():
             ],
         },
     }
-    response = client.post("/api/v1/wetlands", json=wetland_data)
+    response = client.post(
+        "/api/v1/wetlands", json=wetland_data, headers=headers
+    )
     assert response.status_code == 400
     assert "Parent Basin" in response.json()["detail"]
 
@@ -194,7 +206,7 @@ def test_create_site_success_and_fail(setup_admin_user):
             ],
         },
     }
-    res_basin = client.post("/api/v1/basins", json=basin_data)
+    res_basin = client.post("/api/v1/basins", json=basin_data, headers=headers)
     basin_uuid = res_basin.json()["id"]
 
     wetland_data = {
@@ -214,7 +226,9 @@ def test_create_site_success_and_fail(setup_admin_user):
             ],
         },
     }
-    res_wetland = client.post("/api/v1/wetlands", json=wetland_data)
+    res_wetland = client.post(
+        "/api/v1/wetlands", json=wetland_data, headers=headers
+    )
     wetland_uuid = res_wetland.json()["id"]
 
     # 2. Create Site (Success) - requires Admin auth
@@ -267,10 +281,10 @@ def test_spatial_duplicates_and_404s(setup_admin_user):
             ],
         },
     }
-    res1 = client.post("/api/v1/basins", json=basin_data)
+    res1 = client.post("/api/v1/basins", json=basin_data, headers=headers)
     assert res1.status_code == 201
     basin_uuid = res1.json()["id"]
-    res2 = client.post("/api/v1/basins", json=basin_data)
+    res2 = client.post("/api/v1/basins", json=basin_data, headers=headers)
     assert res2.status_code == 400
     assert "already exists" in res2.json()["detail"]
 
@@ -296,10 +310,14 @@ def test_spatial_duplicates_and_404s(setup_admin_user):
             ],
         },
     }
-    res_w1 = client.post("/api/v1/wetlands", json=wetland_data)
+    res_w1 = client.post(
+        "/api/v1/wetlands", json=wetland_data, headers=headers
+    )
     assert res_w1.status_code == 201
     wetland_uuid = res_w1.json()["id"]
-    res_w2 = client.post("/api/v1/wetlands", json=wetland_data)
+    res_w2 = client.post(
+        "/api/v1/wetlands", json=wetland_data, headers=headers
+    )
     assert res_w2.status_code == 400
     assert "already exists" in res_w2.json()["detail"]
 
@@ -329,6 +347,26 @@ def test_spatial_duplicates_and_404s(setup_admin_user):
 def test_router_exceptions(mock_from_shape, db_session: Session):
     from geoalchemy2.shape import from_shape as real_from_shape
 
+    def ensure_admin():
+        admin_user = (
+            db_session.query(User)
+            .filter(User.email == "admin_spatial@nbd.org")
+            .first()
+        )
+        if not admin_user:
+            admin_user = User(
+                email="admin_spatial@nbd.org",
+                role="Admin",
+                is_active=True,
+            )
+            db_session.add(admin_user)
+            db_session.commit()
+
+    ensure_admin()
+
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
     mock_from_shape.side_effect = Exception("DB error mock")
 
     # Basin Create exception
@@ -350,12 +388,15 @@ def test_router_exceptions(mock_from_shape, db_session: Session):
             ],
         },
     }
-    res = client.post("/api/v1/basins", json=basin_data)
+    res = client.post("/api/v1/basins", json=basin_data, headers=headers)
     assert res.status_code == 400
+
+    # Restore admin user lost during rollback
+    ensure_admin()
 
     # Create dummy parent for wetland exception test
     mock_from_shape.side_effect = real_from_shape
-    res_b = client.post("/api/v1/basins", json=basin_data)
+    res_b = client.post("/api/v1/basins", json=basin_data, headers=headers)
     basin_uuid = res_b.json()["id"]
 
     # Wetland Create exception
@@ -377,25 +418,16 @@ def test_router_exceptions(mock_from_shape, db_session: Session):
             ],
         },
     }
-    res = client.post("/api/v1/wetlands", json=wetland_data)
+    res = client.post("/api/v1/wetlands", json=wetland_data, headers=headers)
     assert res.status_code == 400
+
+    # Restore admin user lost during rollback
+    ensure_admin()
 
     # Create dummy parent for site exception test
     mock_from_shape.side_effect = real_from_shape
-    res_w = client.post("/api/v1/wetlands", json=wetland_data)
+    res_w = client.post("/api/v1/wetlands", json=wetland_data, headers=headers)
     wetland_uuid = res_w.json()["id"]
-
-    # Create admin user AFTER basin/wetland setup (in current tx state)
-    admin = User(
-        email="admin_spatial@nbd.org",
-        role="Admin",
-        is_active=True,
-    )
-    db_session.add(admin)
-    db_session.flush()
-
-    admin_token = create_admin_token()
-    headers = {"Authorization": f"Bearer {admin_token}"}
 
     # Site Create exception - requires Admin auth
     mock_from_shape.side_effect = Exception("DB error mock")
