@@ -14,6 +14,7 @@ import {
 
 interface Submission {
   id: string;
+  rawId: string;
   formType: string;
   basinSite: string;
   date: string;
@@ -22,14 +23,22 @@ interface Submission {
     email: string;
   };
   status: string;
+  rawStatus: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  answers: any[];
 }
 
 export default function DataOverviewPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [formFilter, setFormFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Pending");
   const [basinFilter, setBasinFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "approve" | "reject" | "delete";
+    id: string;
+  } | null>(null);
   const pageSize = 10;
 
   useEffect(() => {
@@ -65,6 +74,7 @@ export default function DataOverviewPage() {
 
             return {
               id: `DP-${dp.id}`,
+              rawId: String(dp.id),
               formType: dp.form_name || "Dynamic Ingest",
               basinSite: dp.site_id
                 ? `SITE-${String(dp.site_id).slice(0, 8).toUpperCase()}`
@@ -79,6 +89,8 @@ export default function DataOverviewPage() {
                 email: "example_email@nbd.org",
               },
               status: statusMapped,
+              rawStatus: dp.status || "PENDING",
+              answers: dp.answers || [],
             };
           });
           setSubmissions(fetchedSubmissions);
@@ -97,7 +109,9 @@ export default function DataOverviewPage() {
       });
       setSubmissions((prev) =>
         prev.map((sub) =>
-          sub.id === id ? { ...sub, status: "Approved" } : sub
+          sub.id === id
+            ? { ...sub, status: "Approved", rawStatus: "APPROVED" }
+            : sub
         )
       );
     } catch (err) {
@@ -113,7 +127,9 @@ export default function DataOverviewPage() {
       });
       setSubmissions((prev) =>
         prev.map((sub) =>
-          sub.id === id ? { ...sub, status: "Rejected" } : sub
+          sub.id === id
+            ? { ...sub, status: "Rejected", rawStatus: "REJECTED" }
+            : sub
         )
       );
     } catch (err) {
@@ -126,6 +142,7 @@ export default function DataOverviewPage() {
       const cleanId = id.replace("DP-", "");
       await adminApiClient.delete(`/submissions/${cleanId}`);
       setSubmissions((prev) => prev.filter((sub) => sub.id !== id));
+      if (expandedRow === id) setExpandedRow(null);
     } catch (err) {
       console.error("Failed to delete submission:", err);
     }
@@ -136,6 +153,7 @@ export default function DataOverviewPage() {
     setStatusFilter("");
     setBasinFilter("");
     setCurrentPage(1);
+    setExpandedRow(null);
   };
 
   const totalPages = Math.ceil(submissions.length / pageSize) || 1;
@@ -243,73 +261,155 @@ export default function DataOverviewPage() {
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-slate-100 text-sm text-slate-700">
-            {paginatedSubmissions.map((sub) => (
-              <TableRow
-                key={sub.id}
-                className="hover:bg-slate-50/50 transition-colors"
-              >
-                <TableCell className="py-4 px-6 font-medium text-slate-900">
-                  {sub.id}
-                </TableCell>
-                <TableCell className="py-4 px-6">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
-                    {sub.formType}
-                  </span>
-                </TableCell>
-                <TableCell className="py-4 px-6">{sub.basinSite}</TableCell>
-                <TableCell className="py-4 px-6 font-semibold text-slate-900">
-                  {sub.date}
-                </TableCell>
-                <TableCell className="py-4 px-6">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-slate-900">
-                      {sub.submittedBy.name}
-                    </span>
-                    <span className="text-xs text-slate-400 mt-0.5">
-                      {sub.submittedBy.email}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-4 px-6">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                      sub.status === "Active" || sub.status === "Approved"
-                        ? "bg-green-50 text-green-700 border-green-100"
-                        : sub.status === "Pending"
-                          ? "bg-orange-50 text-orange-700 border-orange-100"
-                          : "bg-red-50 text-red-700 border-red-100"
-                    }`}
+            {paginatedSubmissions.map((sub) => {
+              const isApprovedOrRejected =
+                sub.rawStatus === "APPROVED" || sub.rawStatus === "REJECTED";
+
+              return (
+                <React.Fragment key={sub.id}>
+                  <TableRow
+                    className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    onClick={() =>
+                      setExpandedRow(expandedRow === sub.id ? null : sub.id)
+                    }
                   >
-                    {sub.status}
-                  </span>
-                </TableCell>
-                <TableCell className="py-4 px-6 text-right">
-                  <div className="flex items-center justify-end space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => handleReject(sub.id)}
-                      className="px-3.5 py-1.5 border border-sky-400 hover:bg-sky-50 text-sky-500 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleApprove(sub.id)}
-                      className="px-3.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(sub.id)}
-                      className="px-3.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                    <TableCell className="py-4 px-6 font-medium text-slate-900">
+                      {sub.id}
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
+                        {sub.formType}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">{sub.basinSite}</TableCell>
+                    <TableCell className="py-4 px-6 font-semibold text-slate-900">
+                      {sub.date}
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-900">
+                          {sub.submittedBy.name}
+                        </span>
+                        <span className="text-xs text-slate-400 mt-0.5">
+                          {sub.submittedBy.email}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                          sub.status === "Active" || sub.status === "Approved"
+                            ? "bg-green-50 text-green-700 border-green-100"
+                            : sub.status === "Pending"
+                              ? "bg-orange-50 text-orange-700 border-orange-100"
+                              : "bg-red-50 text-red-700 border-red-100"
+                        }`}
+                      >
+                        {sub.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-4 px-6 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button
+                          type="button"
+                          disabled={isApprovedOrRejected}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmAction({ type: "reject", id: sub.id });
+                          }}
+                          className="px-3.5 py-1.5 border border-sky-400 hover:bg-sky-50 text-sky-500 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isApprovedOrRejected}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmAction({ type: "approve", id: sub.id });
+                          }}
+                          className="px-3.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmAction({ type: "delete", id: sub.id });
+                          }}
+                          className="px-3.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {expandedRow === sub.id && (
+                    <TableRow className="bg-slate-50/30 hover:bg-slate-50/30">
+                      <TableCell colSpan={7} className="p-6">
+                        <div className="space-y-4 text-left">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-800">
+                                Submission Details
+                              </h4>
+                              <p className="text-xs text-slate-500 mt-1">
+                                Submitter: {sub.submittedBy.name} (
+                                {sub.submittedBy.email})
+                              </p>
+                            </div>
+                            <a
+                              href={`/admin/data/edit/${sub.rawId}`}
+                              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                            >
+                              Edit Answers
+                            </a>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 border border-slate-150 rounded-lg">
+                            {sub.answers.map((ans) => (
+                              <div
+                                key={ans.id}
+                                className="border-b border-slate-50 pb-2 last:border-0"
+                              >
+                                <span className="text-xs font-semibold text-slate-400 block mb-0.5">
+                                  {ans.name}
+                                </span>
+                                {ans.read_url ? (
+                                  <div className="mt-1 flex items-center space-x-2">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={ans.read_url}
+                                      alt={ans.name}
+                                      className="w-16 h-16 object-cover rounded-lg border border-slate-100 shadow-sm"
+                                    />
+                                    <a
+                                      href={ans.read_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-sky-500 font-bold underline"
+                                    >
+                                      Open in New Tab
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm font-bold text-slate-800">
+                                    {ans.value !== null &&
+                                    ans.value !== undefined
+                                      ? String(ans.value)
+                                      : ans.name || "-"}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })}
             {paginatedSubmissions.length === 0 && (
               <TableRow>
                 <TableCell
@@ -364,6 +464,52 @@ export default function DataOverviewPage() {
           </div>
         )}
       </div>
+
+      {confirmAction && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-xl p-6 shadow-xl border border-slate-100 max-w-sm w-full space-y-4 animate-scale-up">
+            <h3 className="text-sm font-bold text-slate-900 capitalize">
+              Confirm {confirmAction.type} Action
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Are you sure you want to {confirmAction.type} submission{" "}
+              <span className="font-semibold text-slate-700">
+                {confirmAction.id}
+              </span>
+              ?
+              {confirmAction.type === "delete"
+                ? " This action cannot be undone."
+                : ""}
+            </p>
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { type, id } = confirmAction;
+                  setConfirmAction(null);
+                  if (type === "approve") await handleApprove(id);
+                  else if (type === "reject") await handleReject(id);
+                  else if (type === "delete") await handleDelete(id);
+                }}
+                className={`px-4 py-2 text-white rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  confirmAction.type === "delete"
+                    ? "bg-red-500 hover:bg-red-600 shadow-red-100"
+                    : "bg-sky-500 hover:bg-sky-600 shadow-sky-100"
+                }`}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
