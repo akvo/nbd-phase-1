@@ -424,6 +424,7 @@ export default function Home() {
         popupText: `${t("incident")}: ${incidentTypeName} (${severity})`,
         type: "incident" as const,
         status: severity,
+        code: incident.id ? String(incident.id) : undefined,
         name: incidentTypeName,
         description: descText,
         additionalInfo: `${t("reportedOn")}: ${formattedDate}`,
@@ -488,6 +489,15 @@ export default function Home() {
             basinGeometry={activeGeometry}
             wetlandGeometry={wetlandGeometry}
             className="h-full w-full"
+            onSelectMarker={(code, type) => {
+              if (type === "site") {
+                const s = dbSites.find((x) => x.code === code);
+                if (s) setSelectedSite(s);
+              } else {
+                const inc = dbIncidents.find((x) => x.id === code);
+                if (inc) setSelectedIncident(inc);
+              }
+            }}
           />
         </div>
 
