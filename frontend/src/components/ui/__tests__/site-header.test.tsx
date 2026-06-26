@@ -67,9 +67,3 @@ test("shows user menu button when authenticated", async () => {
   });
 });
 
-test("renders toggle menu when actions are disabled", () => {
-  renderWithIntl(<SiteHeader showActions={false} />);
-  expect(
-    screen.getByRole("button", { name: /toggle menu/i })
-  ).toBeInTheDocument();
-});

@@ -1,6 +1,7 @@
 # PRD — Domain Selector & Differentiated Dashboard View
 
-<!-- DIRTY_AMENDMENT: [Feedback #1 — DomainSelector relocated from sidebar to SiteHeader as a custom dropdown; state lifted to React Context (DomainContext). Approved 2026-06-26] -->
+<!-- DIRTY_AMENDMENT: [Feedback #1 — DomainSelector relocated from sidebar to SiteHeader as a "Dashboard" nav menu item with domain sub-items (flyout); state lifted to React Context (DomainContext). Approved 2026-06-26] -->
+<!-- DIRTY_AMENDMENT: [Feedback #1b — UX refinement: domain selector renders as a header nav item labelled "Dashboard" with a chevron; clicking reveals a sub-menu listing available domains (Wetland Monitoring, Pollution Reports). Not a standalone dropdown button. Approved 2026-06-26] -->
 <!-- DIRTY_AMENDMENT: [Feedback #2 — Pollution Reports domain replaces point markers with a choropleth map rendered from sub-country GeoJSON shapefiles. Point markers suppressed on Pollution domain. Click popup shows total incidents + breakdown by type. Approved 2026-06-26] -->
 
 * **Stage 2 of 3 — Documentation Hierarchy**
@@ -21,13 +22,13 @@
 
 The public portal dashboard currently renders **pollution reports** (from `Pollution Reporting Form`) and **wetland health sites** (from Monthly Wetland Sampling) combined on the same map and the same list panel with no visual or functional differentiation. The manager has requested these two distinct data domains be clearly separated: users must be able to switch between a **"Pollution Reports" view** and a **"Wetland Monitoring" view** through an explicit domain selector. The list panel below the map must also reflect only the data relevant to the selected domain.
 
-**Feedback #1 Amendment**: The domain selector has been moved from the left sidebar panel into the **global site header** as a custom dropdown, ensuring it is always visible regardless of sidebar scroll/collapse state.
+**Feedback #1 Amendment (refined)**: The domain selector has been moved from the left sidebar panel into the **global site header** as a **"Dashboard" navigation menu item**. Clicking "Dashboard" in the header nav opens a flyout sub-menu listing the available domains (🌿 Wetland Monitoring, ⚠ Pollution Reports) with the active domain highlighted. This is a nav-menu pattern — not a standalone button — consistent with how top-level navigation menus expose sub-sections across modern dashboards.
 
 This is the **frontend-first companion** to the Decoupled Analysis Layer initiative, which establishes the `domain` concept at the backend model and API layer. This PRD focuses solely on the **portal UX differentiation** — the domain switcher and differentiated list rendering — without requiring the full backend refactor from the Decoupled Analysis Layer to be complete first.
 
 ### Core Metric
 - **Before:** Users cannot distinguish wetland health sites from pollution incident markers or their respective list items without prior domain knowledge.
-- **After:** 100% of portal users can self-select their view context (Pollution vs. Wetland) and see a correctly filtered map + list within 1 interaction. Domain choice is always visible in the header regardless of sidebar state.
+- **After:** 100% of portal users can self-select their view context (Pollution vs. Wetland) and see a correctly filtered map + list within 1 interaction. Domain choice is always accessible from the header nav regardless of sidebar state.
 
 ---
 
@@ -36,11 +37,11 @@ This is the **frontend-first companion** to the Decoupled Analysis Layer initiat
 | Dimension | Details |
 |---|---|
 | **Who** | Public portal users (NBD Secretariat, NDFs, officials, CSOs, public) and admin/partner users |
-| **What** | A **domain dropdown** in the global site header that switches the view between "Pollution Reports" and "Wetland Monitoring". The map and the list panel update to only show data for the active domain. |
-| **Where** | `frontend/src/components/ui/site-header.tsx` (domain dropdown), `frontend/src/app/page.tsx` (map/list logic), `frontend/src/context/domain-context.tsx` (shared state) |
-| **When** | Triggered each time a user selects a different domain from the header dropdown. Defaults to **"Wetland Monitoring"** on first load. |
-| **Why** | The two data types represent fundamentally different workflows, data shapes, and actions. Mixing them causes confusion for decision-makers who only care about one domain at a time. The SDD §4.5 (Key Features) lists "Pollution incident map" and "Wetland health scores" as separate features, validating the need for separation. The header placement ensures the domain selector is always visible even when the sidebar is collapsed or scrolled on mobile. |
-| **How** | A `DomainContext` (React Context) provides `selectedDomain` and `setSelectedDomain`. `SiteHeader` consumes the context to render a custom styled dropdown. `page.tsx` consumes the same context to drive map marker and list panel rendering. |
+| **What** | A **"Dashboard" nav item** in the global site header that, when clicked, reveals a flyout sub-menu with the available domains: "🌿 Wetland Monitoring" and "⚠ Pollution Reports". Selecting a sub-item switches the active domain. |
+| **Where** | `frontend/src/components/ui/site-header.tsx` (Dashboard nav item + sub-menu), `frontend/src/app/page.tsx` (map/list logic), `frontend/src/context/domain-context.tsx` (shared state) |
+| **When** | Triggered each time a user selects a domain sub-item from the Dashboard menu. Defaults to **"Wetland Monitoring"** on first load. |
+| **Why** | A nav-menu pattern is more scalable: if more domains are added in future (Forest, Soil, etc.), they appear as additional sub-items without changing the header layout. It also matches the mental model of "Dashboard is a top-level section with views inside it". |
+| **How** | A `DomainContext` (React Context) provides `selectedDomain` and `setSelectedDomain`. `SiteHeader` renders a "Dashboard" nav item with a chevron; clicking toggles a flyout sub-menu panel. Selecting a sub-item calls `setSelectedDomain` and closes the menu. `page.tsx` consumes context to drive map and list rendering. |
 
 ---
 
@@ -54,19 +55,24 @@ This is the **frontend-first companion** to the Decoupled Analysis Layer initiat
 ### User Flows
 
 #### Flow A — Wetland Monitoring Domain (Default)
+
 ```
 User opens portal
-  -> Header shows domain dropdown: "🌿 Wetland Monitoring" (active)
+  -> Header nav shows: "Dashboard" item (active sub-item: "🌿 Wetland Monitoring")
   -> Map shows: Health-class markers (A-E) for monitoring sites
   -> List shows: Site cards with health score, IK-adjusted badge, country, management action
-  -> Filter toggles: "All / Critical / At risk / Healthy"
+  -> Filter bar: "All / Critical / At risk / Healthy"
 ```
 
-#### Flow B — Switching to Pollution Report Domain
+#### Flow B — Switching to Pollution Report Domain via Dashboard Menu
+
 ```
-User clicks the domain dropdown in the header
-  -> Dropdown opens: two options with active checkmark on current
-  -> User selects "⚠ Pollution Reports"
+User clicks "Dashboard" in the header nav
+  -> Flyout sub-menu appears below the nav item:
+     ✓ 🌿 Wetland Monitoring   (active — checkmark shown)
+       ⚠ Pollution Reports
+  -> User clicks "⚠ Pollution Reports"
+  -> Sub-menu closes
   -> Map shows: NO point markers
   -> Map shows: Choropleth polygons (sub-country shapefiles) colour-shaded by incident density
      -> 0 incidents  → slate-grey fill
@@ -75,7 +81,7 @@ User clicks the domain dropdown in the header
      -> 16+          → deep red fill
   -> Map legend switches to: None / Low / Moderate / High colour buckets
   -> List shows: IncidentCard components with incident type, severity badge, date, description
-  -> Filter toggles adapt to: "All / Critical / Elevated"
+  -> Filter bar swaps to: Incident Type + Date range
   -> SiteDrawer closes automatically if open
 ```
 
@@ -101,12 +107,18 @@ User changes basin selector (MARA → SIO)
   -> Basin boundary outline remains (existing basinGeometry outline)
 ```
 
-#### Flow C — Switching Back
+#### Flow C — Switching Back to Wetland
+
 ```
-User clicks domain dropdown in header
-  -> Selects "🌿 Wetland Monitoring"
+User clicks "Dashboard" in the header nav
+  -> Sub-menu shows:
+       🌿 Wetland Monitoring
+     ✓ ⚠ Pollution Reports    (active)
+  -> User selects "🌿 Wetland Monitoring"
+  -> Sub-menu closes
   -> Map resets to site markers
   -> List re-renders with site cards
+  -> Filter bar reverts to: Wetland + Status filters
   -> Basin selection preserved
 ```
 
@@ -115,12 +127,19 @@ User clicks domain dropdown in header
 ## IV. Scope Guardrails
 
 ### Must-Have
-1. **Domain Selector UI**: A custom dropdown in the **global site header** (between logo block and right-side actions) showing the active domain with a chevron icon. Click opens a panel listing:
-   - `🌿 Wetland Monitoring` (default on every load)
+1. **Dashboard Nav Item in SiteHeader**: A **"Dashboard"** text nav link is added to `SiteHeader` **between the logo block and the right-side actions**. It has:
+   - A label: `Dashboard`
+   - A chevron icon that rotates when the sub-menu is open
+   - A flyout sub-menu panel that opens on click (or keyboard Enter/Space)
+2. **Dashboard Sub-menu**: The flyout panel lists all available domains as sub-items:
+   - `🌿 Wetland Monitoring` (default active on every load)
    - `⚠ Pollution Reports`
-   - Active option has a visible checkmark indicator.
-2. **DomainContext**: A React Context (`src/context/domain-context.tsx`) providing `selectedDomain: "wetland" | "pollution"` and `setSelectedDomain`. Default: `"wetland"`.
-3. **Header Dropdown Scope**: The dropdown only renders on the portal page; it is absent on the login page and any page not wrapped by `DomainProvider`.
+   - The **active domain sub-item** has a visible checkmark `✓` to the left.
+   - Selecting a sub-item: sets the active domain via context + closes the sub-menu.
+   - Sub-menu closes on outside click (same `mousedown` pattern as user-menu).
+3. **Nav Item Styling**: Matches the site's navigation aesthetic — `text-sm font-medium text-slate-700 hover:text-nbd-primary` with active-domain label shown as a badge or subtle indicator beneath the "Dashboard" label (e.g., `text-[10px] text-slate-400`).
+4. **DomainContext**: A React Context (`src/context/domain-context.tsx`) providing `selectedDomain: "wetland" | "pollution"` and `setSelectedDomain`. Default: `"wetland"`.
+5. **Sub-menu Scope**: Renders only when `DomainProvider` is in the tree (i.e., on the portal page). On the login page, "Dashboard" nav item is absent.
 4. **Map Filtering by Domain**:
    - Wetland active → only health-class site markers shown.
    - Pollution active → **zero point markers**; choropleth layer shown instead (see §IV items 13–20).
@@ -295,9 +314,12 @@ sequenceDiagram
   - No sites: Existing "No active stations matching filters."
 - **UAC-6 (SiteDrawer Auto-close)**: Switching to the Pollution domain closes any open SiteDrawer.
 - **UAC-7 (Incident Card Legibility)**: Each `IncidentCard` displays: incident type, severity badge, date reported, description (max 2 lines).
-- **UAC-H1 (Header Always Visible)**: Domain dropdown is visible in the header at all times — including when sidebar is collapsed on mobile.
-- **UAC-H2 (Login Page Clean)**: No domain dropdown is rendered on `http://localhost:3000/login` (page is not wrapped by `DomainProvider`).
-- **UAC-H3 (Dropdown Close)**: Clicking outside the open domain dropdown closes it without changing the domain.
+- **UAC-H1 (Dashboard Nav Item Visible)**: A "Dashboard" nav item is visible in the site header at all times on the portal page — including when the sidebar is collapsed on mobile.
+- **UAC-H2 (Login Page Clean)**: No "Dashboard" nav item is rendered on `http://localhost:3000/login`.
+- **UAC-H3 (Sub-menu Opens/Closes)**: Clicking "Dashboard" opens the flyout sub-menu; clicking outside closes it without changing the domain.
+- **UAC-H4 (Active Checkmark)**: The currently active domain sub-item shows a checkmark `✓` in the sub-menu.
+- **UAC-H5 (Sub-item Click Changes Domain)**: Clicking a domain sub-item sets `selectedDomain` via context and closes the sub-menu.
+- **UAC-H6 (Active Domain Label)**: The "Dashboard" nav item shows a subtle indicator of the active domain (e.g., a small badge or sub-label below "Dashboard") so the user knows the current view without opening the menu.
 - **UAC-C1 (No Markers — Pollution)**: Given `selectedDomain === "pollution"`, zero point markers are rendered on the map.
 - **UAC-C2 (Choropleth Visible)**: Given Pollution domain is active, colour-shaded polygons covering the active basin's sub-regions appear within 1 second of domain switch.
 - **UAC-C3 (Colour Scale)**: A polygon with 0 incidents is slate-grey; 1–5 is amber; 6–15 is orange; 16+ is red.
@@ -316,7 +338,8 @@ sequenceDiagram
 - **TAC-5**: All existing `__tests__/` continue to pass; new tests added for `DomainContext` and updated `SiteHeader` dropdown behaviour.
 - **TAC-H1**: `DomainProvider` wraps only the portal page tree, not the global `layout.tsx` (prevents context leaking into admin/login pages).
 - **TAC-H2**: `useDomain` throws a descriptive error when called outside `DomainProvider` (safe guard for future page additions).
-- **TAC-H3**: Domain dropdown ref closes on `mousedown` outside — identical pattern to existing user-menu in `SiteHeader`.
+- **TAC-H3**: Dashboard sub-menu ref closes on `mousedown` outside — identical pattern to existing user-menu in `SiteHeader`.
+- **TAC-H4**: `SiteHeader` detects the presence of `DomainContext` via a try/catch or optional context — renders "Dashboard" nav item only when context is available.
 - **TAC-C1**: `choroplethLayers` typed as `ChoroplethFeature[]`; each element extends GeoJSON `Feature` with `incidentCount: number`, `incidentBreakdown: Record<string, number>`, `displayName: string`.
 - **TAC-C2**: `choroplethLayers` computation wrapped in `useMemo([filteredIncidents, selectedBasin, selectedDomain])`.
 - **TAC-C3**: GeoJSON files imported as static JSON — no runtime HTTP fetch.

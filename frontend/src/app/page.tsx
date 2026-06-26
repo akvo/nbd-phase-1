@@ -3,15 +3,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Dropdown } from "@/components/ui/dropdown";
 import { SiteDrawer } from "@/components/ui/site-drawer";
 import { SiteHeader } from "@/components/ui/site-header";
 import { Loader } from "@/components/ui/loader";
 import { MapLegend } from "@/components/ui/map-legend";
-import { DomainSelector } from "@/components/ui/domain-selector";
 import { IncidentCard } from "@/components/ui/incident-card";
 import { IncidentDrawer } from "@/components/ui/incident-drawer";
+import { MapFilter } from "@/components/ui/map-filter";
 import { useTranslations } from "next-intl";
 
 import {
@@ -21,8 +19,6 @@ import {
   MonitoringDomain,
   IncidentSummary,
 } from "@/lib/api";
-
-const SHOW_BASIN_SELECTOR = true;
 
 const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
   ssr: false,
@@ -168,7 +164,10 @@ export default function Home() {
 
   const [selectedBasin, setSelectedBasin] = useState("MARA");
   const [selectedHealthFilter, setSelectedHealthFilter] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedWetland, setSelectedWetland] = useState("");
+  const [selectedIncidentType, setSelectedIncidentType] = useState("");
+  const [selectedDateFrom, setSelectedDateFrom] = useState("");
+  const [selectedDateTo, setSelectedDateTo] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSite, setSelectedSite] = useState<any>(null);
   const [selectedDomain, setSelectedDomain] =
@@ -194,6 +193,10 @@ export default function Home() {
     setSelectedDomain(domain);
     setSelectedHealthFilter("All");
     setSelectedIncident(null);
+    setSelectedWetland("");
+    setSelectedIncidentType("");
+    setSelectedDateFrom("");
+    setSelectedDateTo("");
     if (domain === "pollution") {
       setSelectedSite(null);
     }
@@ -254,7 +257,7 @@ export default function Home() {
       });
   }, [selectedBasin, selectedDomain]);
 
-  // 1. Filtered sites based on health and search
+  // 1. Filtered sites based on health and wetland selector
   const filteredSites = dbSites.filter((site) => {
     // Health category filter
     if (selectedHealthFilter !== "All") {
@@ -266,19 +269,15 @@ export default function Home() {
         return false;
     }
 
-    // Search query filter
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      const matchName = site.name.toLowerCase().includes(query);
-      const matchId = site.code.toLowerCase().includes(query);
-      const matchDescription = site.description?.toLowerCase().includes(query);
-      if (!matchName && !matchId && !matchDescription) return false;
+    // Wetland site selection filter
+    if (selectedWetland !== "" && site.code !== selectedWetland) {
+      return false;
     }
 
     return true;
   });
 
-  // 2. Filtered incidents based on basin and health/severity
+  // 2. Filtered incidents based on basin, severity, incident type, and date range
   const activeBasin = basins.find((b) => b.code === selectedBasin);
   const activeBasinId = activeBasin?.id;
 
@@ -295,6 +294,25 @@ export default function Home() {
       (a: any) => a.name === "incident_type" || a.question_id === 2
     );
     const optionVal = qIncidentAns?.options?.[0];
+
+    // Filter by incident type
+    if (selectedIncidentType !== "") {
+      if (String(optionVal) !== selectedIncidentType) return false;
+    }
+
+    // Filter by Date From
+    if (selectedDateFrom !== "") {
+      if (new Date(incident.created_at) < new Date(selectedDateFrom))
+        return false;
+    }
+
+    // Filter by Date To
+    if (selectedDateTo !== "") {
+      const endOfDay = new Date(selectedDateTo);
+      endOfDay.setHours(23, 59, 59, 999);
+      if (new Date(incident.created_at) > endOfDay) return false;
+    }
+
     let severity = "Moderate";
     if (optionVal === 3 || optionVal === "3") {
       severity = "Critical";
@@ -409,10 +427,41 @@ export default function Home() {
     label: b.name,
   }));
 
+  const wetlandOptions = useMemo(() => {
+    return [
+      { value: "", label: "All Wetland" },
+      ...dbSites.map((s) => ({ value: s.code, label: s.name })),
+    ];
+  }, [dbSites]);
+
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col font-sans relative overflow-hidden">
       {/* Header Navigation */}
       <SiteHeader showActions={true} />
+
+      {/* Map Filter Bar */}
+      <MapFilter
+        domain={selectedDomain}
+        basins={dropdownOptions}
+        selectedBasin={selectedBasin}
+        onBasinChange={(val) => {
+          setSelectedBasin(val);
+          setSelectedSite(null);
+          setSelectedIncident(null);
+          setSelectedWetland("");
+        }}
+        wetlandOptions={wetlandOptions}
+        selectedWetland={selectedWetland}
+        onWetlandChange={setSelectedWetland}
+        selectedHealthFilter={selectedHealthFilter}
+        onHealthFilterChange={setSelectedHealthFilter}
+        selectedIncidentType={selectedIncidentType}
+        onIncidentTypeChange={setSelectedIncidentType}
+        selectedDateFrom={selectedDateFrom}
+        onDateFromChange={setSelectedDateFrom}
+        selectedDateTo={selectedDateTo}
+        onDateToChange={setSelectedDateTo}
+      />
 
       {/* Main content body with relative layout */}
       <div className="flex-1 relative overflow-hidden flex flex-col md:flex-row">
@@ -437,56 +486,6 @@ export default function Home() {
             className="w-12 h-1.5 bg-slate-300 hover:bg-slate-400 rounded-full mx-auto my-2.5 shrink-0 md:hidden cursor-pointer active:scale-95 transition-all focus:outline-none"
             aria-label="Toggle panel collapse"
           />
-
-          {/* Domain and Basin selector */}
-          <div className="p-4 border-b border-slate-100 space-y-4 shrink-0">
-            <DomainSelector
-              value={selectedDomain}
-              onChange={handleDomainChange}
-            />
-
-            {SHOW_BASIN_SELECTOR && (
-              <Dropdown
-                label={t("basinRegion")}
-                options={dropdownOptions}
-                value={selectedBasin}
-                onChange={(val) => {
-                  setSelectedBasin(val);
-                  setSelectedSite(null);
-                  setSelectedIncident(null);
-                }}
-              />
-            )}
-
-            {/* Health / Severity filter toggles */}
-            <div className="flex bg-slate-100 p-1 rounded-lg w-full text-xs font-semibold">
-              {(selectedDomain === "wetland"
-                ? ["All", "Critical", "At risk", "Healthy"]
-                : ["All", "Critical", "Elevated"]
-              ).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setSelectedHealthFilter(filter)}
-                  className={`flex-1 py-1.5 rounded-md text-center transition-all ${
-                    selectedHealthFilter === filter
-                      ? "bg-white text-slate-800 shadow"
-                      : "text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  {filterLabels[filter]}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input */}
-            <Input
-              type="text"
-              placeholder={t("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border-slate-200 focus:bg-white text-sm"
-            />
-          </div>
 
           {/* Site cards list */}
           <div
