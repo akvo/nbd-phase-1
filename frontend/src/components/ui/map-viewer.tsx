@@ -51,51 +51,6 @@ function MapController({ basinGeometry }: { basinGeometry: any }) {
   return null;
 }
 
-function GestureHandling() {
-  const map = useMap();
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Check if it's mobile/touch device
-    const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-    if (!isTouch) return;
-
-    // Disable dragging on touch devices by default
-    if (map.dragging) {
-      map.dragging.disable();
-    }
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length >= 2) {
-        map.dragging?.enable();
-      } else {
-        map.dragging?.disable();
-      }
-    };
-
-    const handleTouchEnd = () => {
-      map.dragging?.disable();
-    };
-
-    if (typeof map.getContainer !== "function") return;
-    const container = map.getContainer();
-    if (!container) return;
-
-    container.addEventListener("touchstart", handleTouchStart, {
-      passive: true,
-    });
-    container.addEventListener("touchend", handleTouchEnd, { passive: true });
-
-    return () => {
-      container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [map]);
-
-  return null;
-}
-
 export default function MapViewer({
   center,
   zoom,
@@ -193,7 +148,7 @@ export default function MapViewer({
         key={`nbd-map-${center[0]}-${center[1]}`}
       >
         <MapController basinGeometry={basinGeometry} />
-        <GestureHandling />
+
         {basinGeometry && (
           <GeoJSON
             key={JSON.stringify(basinGeometry)}
@@ -208,8 +163,8 @@ export default function MapViewer({
           />
         )}
         <TileLayer
-          attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          attribution="&copy; Google Maps"
+          url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
         />
         <ZoomControl position="bottomright" />
         {markers.map((marker, index) => {
