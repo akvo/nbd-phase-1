@@ -56,21 +56,19 @@ User selects "Pollution Reports" from header dropdown
      -> 1–5 incidents: light amber fill
      -> 6–15 incidents: medium orange fill
      -> 16+ incidents: deep red fill
-  -> List panel: IncidentCard list (unchanged)
+  -> Map Legend: Displays the graduated choropleth color scale gradient
+  -> List panel / Sidebar: Empty state (No cards or photos shown since no sub-county is selected)
 ```
 
 #### Flow B — Clicking a Choropleth Polygon
 ```
 User clicks a sub-region polygon
-  -> Leaflet popup opens on the map (no drawer)
-  -> Popup shows:
-     - Sub-region label (from GeoJSON feature name/id)
-     - "Total Incidents: N"
-     - Breakdown table:
-       • Oil Spill: 3
-       • Chemical Discharge: 2
-       • Waste Dumping: 1
-       ...
+  -> Right-hand details drawer slides open (no Leaflet popup)
+  -> Drawer shows:
+     - Sub-region name (from GeoJSON feature name)
+     - Latest environmental status of the sub-county
+     - Horizontal bar chart showing Report Count grouped by incident types, with the incident labels (e.g. "Oil Spill") and counts displayed inside the bars
+  -> List panel / Sidebar: Populates with IncidentCards for the selected sub-county showing reported photos sorted by created_at ASC
 ```
 
 #### Flow C — Basin Selector Changes
@@ -78,15 +76,16 @@ User clicks a sub-region polygon
 User changes basin selector (MARA → SIO)
   -> Active shapefiles switch to sio-basin.geojson + sio-siteko-wetland.geojson
   -> Choropleth re-calculates counts against new filtered incident set
+  -> Drawer & list panel reset to empty state (unselected)
   -> Basin boundary outline remains (existing basinGeometry behaviour)
 ```
 
 #### Flow D — Domain Switch Back to Wetland
 ```
 User selects "Wetland Monitoring" from header dropdown
-  -> Choropleth layer removed
+  -> Choropleth layer and legend removed
   -> Site markers re-appear
-  -> Wetland mode fully restored
+  -> Drawer closed and Wetland mode details drawer / site list fully restored
 ```
 
 ---
@@ -113,18 +112,20 @@ User selects "Wetland Monitoring" from header dropdown
    | 6–15 | `#f97316` (orange-500) | Moderate |
    | 16+ | `#dc2626` (red-600) | High |
 
-6. **Click Popup** (Leaflet popup, not a drawer):
-   - Shows polygon display name (derived from GeoJSON `properties.name` or feature index fallback).
-   - Total incident count.
-   - Breakdown by incident type (extracted from `answers` array, same logic as existing `incident_type` field, `question_id === 2`).
+6. **Click Action & Details Drawer**:
+   - Clicking a sub-county polygon opens a Details Drawer on the right side of the screen.
+   - Shows the sub-county name and the latest environmental status of that selected sub-county.
+   - Renders a horizontal bar chart displaying the "Report count by grouped incident types" for that sub-county, with both the incident labels (names) and count values rendered inside the bars.
 7. **Hover Highlight**: On mouse-hover, polygon stroke weight increases to `3px` and opacity lifts slightly — provides clear interactive affordance.
 8. **Basin Boundary Outline Preserved**: The existing `basinGeometry` outline (teal border) remains visible underneath the choropleth.
 9. **Empty State**: If all polygons have 0 incidents, all render in neutral grey — no error state needed.
-10. **Legend**: A compact map legend in the bottom-left of the map showing the 4 colour buckets (None / Low / Moderate / High) when Pollution domain is active. Wetland legend (existing `MapLegend` component) shown otherwise.
+10. **Legend**: A map legend showing the choropleth color gradient scale for the density buckets (None / Low / Moderate / High) when the Pollution domain is active.
+11. **Photo Card List**:
+    - The card list in the sidebar/bottom list panel displays reported photos sorted by `created_at` ASC.
+    - If no sub-county is selected, no photo cards are showed (empty/hidden card list). When a sub-county is selected, it only displays the photo cards for that selected sub-county.
 
 ### Nice-to-Have (Deferred)
 - Animated transitions between choropleth states on basin change.
-- Drill-down: clicking a polygon filters the sidebar incident list to that sub-region only.
 - Backend-computed spatial aggregation endpoint for performance at scale.
 
 ### Out of Scope
