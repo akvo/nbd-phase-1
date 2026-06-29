@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import * as LucideIcons from "lucide-react";
-import { CollapsibleChartContainer } from "./collapsible-chart-container";
 import {
   getSiteSamplings,
   getSiteScores,
@@ -14,28 +13,9 @@ import {
 } from "@/lib/api";
 import { useTranslations, useLocale } from "next-intl";
 
-import {
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
-
-const DynamicIcon = ({
-  name,
-  className,
-}: {
-  name: string | null;
-  className?: string;
-}) => {
-  if (!name) return null;
-  const IconComponent = LucideIcons[name as keyof typeof LucideIcons] as
-    | React.ComponentType<{ className?: string }>
-    | undefined;
-  if (!IconComponent) return null;
-  return <IconComponent className={className} />;
-};
+import { InterventionsList } from "./site-drawer/interventions-list";
+import { ParameterTable } from "./site-drawer/parameter-table";
+import { ScoreBreakdownPanel } from "./site-drawer/score-breakdown-panel";
 
 interface MetricEntry {
   value: string | number | boolean | null;
@@ -110,33 +90,6 @@ function getTileCoords(lat: number, lon: number, zoom: number) {
 
   return { x, y, xOffset, yOffset };
 }
-
-// Map score breakdown keys to translation keys
-const scoreKeyToTranslation: Record<string, string> = {
-  physico_chemical: "physicoChemical",
-  catchment_hydrological: "catchmentHydrological",
-  ecological: "ecological",
-  governance: "governance",
-};
-
-// Map metric keys to translation keys
-const metricKeyToTranslation: Record<string, string> = {
-  ph: "ph",
-  dissolved_oxygen: "dissolvedOxygen",
-  temperature: "temperature",
-  water_level: "waterLevel",
-  turbidity: "turbidity",
-  macroinvertebrate: "macroinvertebrate",
-};
-
-// Map status values to translation keys (case-insensitive matching)
-const statusToTranslation: Record<string, string> = {
-  normal: "normal",
-  "flood risk": "floodRisk",
-  drought: "drought",
-  "abnormal low": "abnormalLow",
-  stable: "stable",
-};
 
 // Map FGD indicator values to translation keys
 const fgdValueToTranslation: Record<string, string> = {
@@ -246,29 +199,11 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
 
   // Determine severity themes for header grade circle
   let gradeCircleClass = "bg-green-500 text-green-50 border-transparent";
-  let gradeTextClass = "text-green-600";
   if (isCritical) {
     gradeCircleClass = "bg-red-500 text-red-50 border-transparent";
-    gradeTextClass = "text-red-600";
   } else if (isAtRisk) {
     gradeCircleClass = "bg-amber-500 text-amber-50 border-transparent";
-    gradeTextClass = "text-amber-600";
   }
-
-  const getScoreColorClass = (score: number) => {
-    if (score >= 0.6) return "bg-green-500";
-    if (score >= 0.2) return "bg-amber-500";
-    return "bg-red-500";
-  };
-
-  // Pre-calculate composites for display matching Figma LLD spec
-  const rawComposite = (
-    site.current_score + (site.is_ik_adjusted ? 0.05 : 0)
-  ).toFixed(2);
-
-  const scoreBreakdownEntries = Object.entries(
-    site.details.score_breakdown || {}
-  );
 
   return (
     <div
@@ -464,282 +399,27 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           })()}
 
         {/* Required Interventions */}
-        <div className="space-y-3 print-avoid-break">
-          <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-            {t("requiredInterventions")}
-          </h3>
-          {site.details.management_actions.length > 0 ? (
-            <div className="space-y-3">
-              {site.details.management_actions.map((action, i) => (
-                <div
-                  key={i}
-                  className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 shadow-sm"
-                >
-                  <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="text-amber-500">⚠️</span> {action.label}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                    {action.description}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center border border-dashed border-slate-200">
-              {t("noInterventions")}
-            </div>
-          )}
-        </div>
+        <InterventionsList
+          managementActions={site.details.management_actions || []}
+          t={t}
+        />
 
-        <div className="space-y-3 print-avoid-break">
-          <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-            {t("parameter")}
-          </h3>
-          <div className="relative w-full overflow-visible rounded-lg border border-slate-200 bg-white shadow-sm">
-            <table className="w-full caption-bottom text-sm">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs uppercase text-slate-500 font-bold">
-                    {t("parameter")}
-                  </TableHead>
-                  <TableHead className="text-xs uppercase text-slate-500 font-bold">
-                    {t("value")}
-                  </TableHead>
-                  <TableHead className="text-xs uppercase text-slate-500 font-bold text-center">
-                    {t("flag")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Object.entries(site.details.metrics || {}).map(
-                  ([key, metric]) => {
-                    const metricHistory = samplingsHistory
-                      .filter(
-                        (h) => h.parameters && h.parameters[key] !== undefined
-                      )
-                      .map((h) => {
-                        const rawVal = h.parameters[key];
-                        const val =
-                          rawVal &&
-                          typeof rawVal === "object" &&
-                          "value" in rawVal
-                            ? (rawVal as Record<string, unknown>).value
-                            : rawVal;
-                        let numericVal = 0;
-                        if (typeof val === "number") {
-                          numericVal = val;
-                        } else if (typeof val === "string") {
-                          if (val.toUpperCase() === "HIGH") numericVal = 3;
-                          else if (val.toUpperCase() === "MEDIUM")
-                            numericVal = 2;
-                          else if (val.toUpperCase() === "LOW") numericVal = 1;
-                          else numericVal = Number(val) || 0;
-                        }
-                        return {
-                          date: h.sampled_at,
-                          value: numericVal,
-                        };
-                      });
-
-                    // Translate metric label
-                    const metricTranslationKey = metricKeyToTranslation[key];
-                    const translatedMetricLabel = metricTranslationKey
-                      ? tm(metricTranslationKey)
-                      : metric.label;
-
-                    const translatedMetricDesc = metricTranslationKey
-                      ? tm(`${metricTranslationKey}_desc`)
-                      : "";
-
-                    // Translate status
-                    const statusLower = (metric.status || "").toLowerCase();
-                    const statusTranslationKey =
-                      statusToTranslation[statusLower];
-                    const translatedStatus = statusTranslationKey
-                      ? t(statusTranslationKey)
-                      : metric.status || t("normal");
-
-                    return (
-                      <React.Fragment key={key}>
-                        <TableRow>
-                          <TableCell className="text-xs font-semibold text-slate-700 h-11 cursor-help">
-                            <div
-                              className="relative group flex items-center gap-1.5 h-full w-full focus:outline-none"
-                              tabIndex={0}
-                            >
-                              <DynamicIcon
-                                name={metric.icon}
-                                className="w-3.5 h-3.5 text-slate-400 shrink-0"
-                              />
-                              <span className="underline decoration-dotted decoration-slate-300 underline-offset-2">
-                                {translatedMetricLabel}
-                              </span>
-                              {translatedMetricDesc && (
-                                <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-1.5 invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 transition-all duration-200 max-w-50 w-max rounded bg-slate-900 p-2 text-[10px] font-normal leading-normal text-white shadow-lg whitespace-normal wrap-break-word">
-                                  {translatedMetricDesc}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs font-mono text-slate-800">
-                            {metric.value !== null &&
-                            metric.value !== undefined ? (
-                              <>
-                                {metric.value}
-                                {metric.unit ? (
-                                  <span className="text-slate-400 font-normal">
-                                    {metric.unit.startsWith("°")
-                                      ? metric.unit
-                                      : ` ${metric.unit}`}
-                                  </span>
-                                ) : (
-                                  ""
-                                )}
-                              </>
-                            ) : (
-                              "-"
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span
-                              className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                                statusLower.includes("normal") ||
-                                statusLower.includes("stable")
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-amber-100 text-amber-700"
-                              }`}
-                            >
-                              {translatedStatus}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                        <TableRow className="hover:bg-transparent no-print">
-                          <TableCell
-                            colSpan={3}
-                            className="py-0 px-2 border-b border-slate-100"
-                          >
-                            <CollapsibleChartContainer
-                              label={translatedMetricLabel}
-                              data={metricHistory}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      </React.Fragment>
-                    );
-                  }
-                )}
-              </TableBody>
-            </table>
-          </div>
-        </div>
+        {/* Parameter Table */}
+        <ParameterTable
+          metrics={site.details.metrics || {}}
+          samplingsHistory={samplingsHistory}
+          t={t}
+          tm={tm}
+        />
 
         {/* Score Breakdown Progress Bars */}
-        <div className="print-avoid-break">
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            <div className="bg-white border-b border-slate-200 px-4.5 py-3.5">
-              <h4 className="font-bold text-sm text-slate-800">
-                {t("scoreBreakdown")}
-              </h4>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {t("parameterGroupScores")}
-              </p>
-            </div>
-            <div className="p-4.5 space-y-4 bg-white">
-              {scoresError && (
-                <div className="text-[10px] text-red-400 italic px-1">
-                  ⚠ {t(scoresError)}
-                </div>
-              )}
-              {scoreBreakdownEntries.map(([key, group]) => {
-                const groupHistory = scoresHistory
-                  .filter((h) => h.breakdown && h.breakdown[key] !== undefined)
-                  .map((h) => ({
-                    date: h.calculated_at,
-                    value:
-                      typeof h.breakdown[key] === "object" &&
-                      h.breakdown[key] !== null
-                        ? (h.breakdown[key] as Record<string, unknown>)
-                            .score !== undefined
-                          ? Number(
-                              (h.breakdown[key] as Record<string, unknown>)
-                                .score
-                            )
-                          : 0
-                        : Number(h.breakdown[key] ?? 0),
-                  }));
-
-                // Use translated label based on key, fallback to backend label
-                const translationKey = scoreKeyToTranslation[key];
-                const translatedLabel = translationKey
-                  ? ts(translationKey)
-                  : group.label;
-
-                return (
-                  <div key={key} className="space-y-2">
-                    <div className="flex justify-between text-xs font-semibold text-slate-700">
-                      <div className="flex items-center gap-1.5">
-                        <DynamicIcon
-                          name={group.icon}
-                          className="w-3.5 h-3.5 text-slate-400"
-                        />
-                        <span>{translatedLabel}</span>
-                      </div>
-                      <span>{group.score.toFixed(2)}</span>
-                    </div>
-                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={`h-full transition-all duration-300 ease-in-out rounded-full ${getScoreColorClass(group.score)}`}
-                        style={{
-                          width: `${group.score * 100}%`,
-                        }}
-                      />
-                    </div>
-                    <CollapsibleChartContainer
-                      label={translatedLabel}
-                      data={groupHistory}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Bottom adjustment score panel */}
-            <div className="bg-slate-50 p-4 border-t border-slate-200 space-y-2 text-xs font-medium text-slate-700">
-              {!hideFuzzy && (
-                <div className="flex justify-between">
-                  <span>{t("compositePreAdjustment")}</span>
-                  <span className="font-semibold text-slate-800">
-                    {rawComposite}
-                  </span>
-                </div>
-              )}
-              {site.is_ik_adjusted && !hideFuzzy && (
-                <div className="flex justify-between">
-                  <span>{t("ikHealthSignal")}</span>
-                  <span className="font-semibold text-slate-800">
-                    {site.details.ik_signal.encoded_signal_value.toFixed(2)}
-                  </span>
-                </div>
-              )}
-              <div
-                className={`flex justify-between font-bold ${
-                  !hideFuzzy ? "border-t border-slate-200/60 pt-2 mt-1" : ""
-                } ${gradeTextClass}`}
-              >
-                <span>
-                  {hideFuzzy
-                    ? `Score - Class ${site.current_health_class}`
-                    : t("adjustedScore", {
-                        healthClass: site.current_health_class,
-                      })}
-                </span>
-                <span className="text-sm font-extrabold">
-                  {site.current_score.toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ScoreBreakdownPanel
+          site={site}
+          scoresHistory={scoresHistory}
+          scoresError={scoresError}
+          t={t}
+          ts={ts}
+        />
 
         {/* FGD Session Context */}
         {!hideFGD && (
