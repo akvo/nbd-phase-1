@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Dropdown } from "@/components/ui/dropdown";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, RotateCcw } from "lucide-react";
 
 export type MonitoringDomain = "wetland" | "pollution";
 
@@ -27,6 +27,7 @@ interface MapFilterProps {
   selectedDateTo: string;
   onDateToChange: (val: string) => void;
   incidentTypeOptions?: { value: string; label: string }[];
+  onClearFilters: () => void;
 }
 
 export function MapFilter({
@@ -46,6 +47,7 @@ export function MapFilter({
   selectedDateTo,
   onDateToChange,
   incidentTypeOptions = [],
+  onClearFilters,
 }: MapFilterProps) {
   const t = useTranslations("landing");
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
@@ -62,6 +64,13 @@ export function MapFilter({
     domain === "wetland"
       ? ["All", "Critical", "At risk", "Healthy"]
       : ["All", "Critical", "Elevated"];
+
+  const hasActiveFilters =
+    domain === "wetland"
+      ? selectedWetland !== "" || selectedHealthFilter !== "All"
+      : selectedIncidentType !== "" ||
+        selectedDateFrom !== "" ||
+        selectedDateTo !== "";
 
   return (
     <div className="sticky top-16 z-40 bg-white border-b border-slate-100 shadow-sm shrink-0">
@@ -146,6 +155,16 @@ export function MapFilter({
                 onEndDateChange={onDateToChange}
               />
             </>
+          )}
+
+          {hasActiveFilters && (
+            <button
+              onClick={onClearFilters}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-all shadow-sm w-full md:w-auto justify-center"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {t("filters.clear")}
+            </button>
           )}
         </div>
       </div>

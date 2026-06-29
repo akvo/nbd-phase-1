@@ -616,6 +616,14 @@ export default function Home() {
         selectedDateTo={selectedDateTo}
         onDateToChange={setSelectedDateTo}
         incidentTypeOptions={incidentTypeOptions}
+        onClearFilters={() => {
+          setSelectedHealthFilter("All");
+          setSelectedWetland("");
+          setSelectedIncidentType("");
+          setSelectedDateFrom("");
+          setSelectedDateTo("");
+          closeAllDrawers();
+        }}
       />
 
       {/* Main content body with relative layout */}

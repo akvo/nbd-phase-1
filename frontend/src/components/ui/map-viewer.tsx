@@ -188,6 +188,12 @@ export default function MapViewer({
     return <Loader message="Loading Regional Map (Component)..." />;
   }
 
+  const countHash = choroplethLayers
+    ? choroplethLayers
+        .map((f: any) => f.properties?.incidentCount || 0)
+        .join(",")
+    : "";
+
   return (
     <div
       className={`${className || ""} ${zoomOffsetClass || ""}`}
@@ -214,7 +220,7 @@ export default function MapViewer({
 
         {choroplethLayers && choroplethLayers.length > 0 && (
           <GeoJSON
-            key={`choropleth-${choroplethLayers.length}-${selectedSubCounty?.properties?.name || ""}`}
+            key={`choropleth-${countHash}-${selectedSubCounty?.properties?.name || ""}`}
             data={
               { type: "FeatureCollection", features: choroplethLayers } as any
             }
@@ -239,8 +245,7 @@ export default function MapViewer({
                   const l = e.target;
                   if (!isSelected && typeof l.setStyle === "function") {
                     l.setStyle({
-                      weight: 3,
-                      fillOpacity: 0.65,
+                      fillOpacity: 0.75,
                       color: "#1e293b",
                     });
                   }
@@ -249,7 +254,6 @@ export default function MapViewer({
                   const l = e.target;
                   if (!isSelected && typeof l.setStyle === "function") {
                     l.setStyle({
-                      weight: 1.5,
                       fillOpacity: 0.45,
                       color: "#475569",
                     });
