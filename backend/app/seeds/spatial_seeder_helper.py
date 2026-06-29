@@ -53,8 +53,8 @@ def seed_spatial(db: Session):
     }
 
     geojson_wetlands = {
-        "LOWER_MARA_WETLAND": "mara-wetland.geojson",
-        "SIO_ESTUARY_WETLAND": "sio-siteko-wetland.geojson",
+        "Mara_Wetland": "mara-wetland.geojson",
+        "Sio_Siteko_Wetland": "sio-siteko-wetland.geojson",
     }
 
     # 1. Seed Basins
