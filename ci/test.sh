@@ -43,8 +43,15 @@ then
     FRONTEND_CHANGES=1
 fi
 
+# Always build images on CI environment to avoid stale cache issues
+BUILD_FLAG=""
+if [ "${CI:-}" = "true" ]; then
+    BUILD_FLAG="--build"
+fi
+
 frontend_test () {
     docker compose -f docker-compose.test.yml run \
+       ${BUILD_FLAG} \
        --rm \
        --no-deps \
        frontend \
@@ -54,7 +61,7 @@ frontend_test () {
 backend_test () {
     docker compose \
         -f docker-compose.test.yml \
-        run -T backend ./test.sh
+        run ${BUILD_FLAG} -T backend ./test.sh
 }
 
 if [[ ${FRONTEND_CHANGES} == 1 ]];
