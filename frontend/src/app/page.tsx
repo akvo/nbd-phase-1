@@ -15,6 +15,14 @@ import { useDomain } from "@/context/domain-context";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { point } from "@turf/helpers";
 import { PollutionDetailsDrawer } from "@/components/ui/pollution-details-drawer";
+import {
+  AlertTriangle,
+  Droplet,
+  Fish,
+  Wind,
+  CloudLightning,
+  Waves,
+} from "lucide-react";
 
 import {
   getBasins,
@@ -162,6 +170,43 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
       },
     },
   };
+};
+
+const getIncidentIcon = (typeName: string) => {
+  const lower = typeName.toLowerCase();
+  if (
+    lower.includes("colour") ||
+    lower.includes("color") ||
+    lower.includes("chafu") ||
+    lower.includes("nyeusi")
+  ) {
+    return <Droplet className="w-4 h-4 text-sky-500" />;
+  }
+  if (
+    lower.includes("smell") ||
+    lower.includes("harufu") ||
+    lower.includes("odour")
+  ) {
+    return <Wind className="w-4 h-4 text-emerald-500" />;
+  }
+  if (
+    lower.includes("fish") ||
+    lower.includes("samaki") ||
+    lower.includes("kill") ||
+    lower.includes("vifo")
+  ) {
+    return <Fish className="w-4 h-4 text-rose-500" />;
+  }
+  if (lower.includes("storm") || lower.includes("dhoruba")) {
+    return <CloudLightning className="w-4 h-4 text-amber-500" />;
+  }
+  if (lower.includes("high water") || lower.includes("juu ya maji")) {
+    return <Waves className="w-4 h-4 text-blue-500" />;
+  }
+  if (lower.includes("low water") || lower.includes("chini ya maji")) {
+    return <Waves className="w-4 h-4 text-teal-500 rotate-180" />;
+  }
+  return <AlertTriangle className="w-4 h-4 text-slate-500" />;
 };
 
 export default function Home() {
@@ -889,26 +934,6 @@ export default function Home() {
                     const qIncidentAns = incident.answers?.find(
                       (a) => a.name === "incident_type" || a.question_id === 2
                     );
-                    const optionVal = qIncidentAns?.options?.[0];
-                    let severity: "Critical" | "Elevated" | "Moderate" =
-                      "Moderate";
-                    if (optionVal !== undefined) {
-                      const valStr = String(optionVal);
-                      if (valStr === "3") severity = "Critical";
-                      else if (["1", "2"].includes(valStr))
-                        severity = "Elevated";
-                    }
-
-                    const qDetailAns = incident.answers?.find(
-                      (a) =>
-                        a.name === "incident_description" ||
-                        a.name === "details" ||
-                        a.question_id === 3
-                    );
-                    const descText =
-                      qDetailAns?.value ||
-                      incident.description ||
-                      "No details recorded.";
                     const incidentTypeName =
                       qIncidentAns?.value || "Pollution Report";
 
@@ -917,19 +942,33 @@ export default function Home() {
                       (a) => a.read_url && a.read_url.trim() !== ""
                     )?.read_url;
 
+                    // Find sub-county name
+                    const subCountyFeature = subcountyGeometry?.features?.find(
+                      (scFeature: any) => {
+                        const coords = incident.geo?.coordinates;
+                        if (!coords || coords.length < 2) return false;
+                        try {
+                          return booleanPointInPolygon(
+                            point(coords),
+                            scFeature
+                          );
+                        } catch {
+                          return false;
+                        }
+                      }
+                    );
+                    const subCountyName = subCountyFeature?.properties?.name;
+
                     return (
                       <IncidentCard
                         key={incident.id ?? idx}
                         incidentTypeName={incidentTypeName}
-                        severity={severity}
                         dateReported={incident.created_at || ""}
-                        description={descText}
-                        basinName={activeBasin?.name}
-                        onClick={() => {
-                          setSelectedIncident(incident);
-                          setSelectedSubCounty(null);
-                        }}
+                        description={incident.description}
+                        subCountyName={subCountyName}
+                        disableClick={true}
                         imageUrl={imageUrl}
+                        icon={getIncidentIcon(incidentTypeName)}
                       />
                     );
                   })
