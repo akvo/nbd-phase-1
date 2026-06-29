@@ -640,13 +640,6 @@ export default function Home() {
     label: b.name,
   }));
 
-  const wetlandOptions = useMemo(() => {
-    return [
-      { value: "", label: "All Wetland" },
-      ...dbSites.map((s) => ({ value: s.code, label: s.name })),
-    ];
-  }, [dbSites]);
-
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col font-sans relative md:overflow-hidden">
       {/* Header Navigation */}
@@ -664,9 +657,6 @@ export default function Home() {
           setSelectedWetland("");
           setSelectedSubCounty(null);
         }}
-        wetlandOptions={wetlandOptions}
-        selectedWetland={selectedWetland}
-        onWetlandChange={setSelectedWetland}
         selectedHealthFilter={selectedHealthFilter}
         onHealthFilterChange={setSelectedHealthFilter}
         selectedIncidentTypes={selectedIncidentTypes}
@@ -787,9 +777,6 @@ export default function Home() {
                       const ikAdjustedScore =
                         site.status?.ik_adjusted_score ?? 0.5;
                       const progressPercent = Math.round(ikAdjustedScore * 100);
-                      const isIkAdjusted =
-                        site.status?.ik_adjusted_score !==
-                        site.status?.composite_score;
                       const country =
                         site.country ||
                         (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
@@ -810,24 +797,17 @@ export default function Home() {
                               </span>
                             </div>
                             <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${
+                              className={`w-3 h-3 rounded-full border mt-1 shrink-0 ${
                                 isCritical
-                                  ? "bg-red-50 text-red-700 border-red-200"
+                                  ? "bg-red-500 border-red-600"
                                   : isAtRisk
-                                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                                    : "bg-green-50 text-green-700 border-green-200"
+                                    ? "bg-amber-500 border-amber-600"
+                                    : "bg-green-500 border-green-600"
                               }`}
-                            >
-                              {hClass}
-                            </div>
+                            />
                           </div>
 
                           <div className="space-y-1">
-                            <div className="text-xs text-slate-500 font-medium">
-                              Community Signal:{" "}
-                              {site.description ||
-                                "No signal details recorded."}
-                            </div>
                             <div className="flex items-center gap-2">
                               <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <div
@@ -848,9 +828,6 @@ export default function Home() {
                           </div>
 
                           <div className="flex flex-wrap gap-1.5 mt-1">
-                            <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm flex items-center gap-1">
-                              Approved
-                            </span>
                             <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200/80 shadow-sm flex items-center gap-1 shrink-0">
                               <svg
                                 className="w-3 h-3 text-slate-400"
@@ -872,11 +849,6 @@ export default function Home() {
                               </svg>
                               {country}
                             </span>
-                            {isIkAdjusted && (
-                              <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-100 shadow-sm flex items-center gap-1 shrink-0">
-                                IK-adjusted
-                              </span>
-                            )}
                           </div>
 
                           {/* Action Warning Banners for sites requiring intervention */}

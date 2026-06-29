@@ -6,11 +6,9 @@ import messages from "../../../../messages/en.json";
 import { expect, test, vi } from "vitest";
 
 const mockBasins = [{ value: "MARA", label: "Mara River Basin" }];
-const mockWetlands = [{ value: "W1", label: "Mara Wetland" }];
 
 test("renders MapFilter for Wetland and responds to inputs", () => {
   const onBasinChange = vi.fn();
-  const onWetlandChange = vi.fn();
   const onHealthFilterChange = vi.fn();
 
   render(
@@ -20,9 +18,6 @@ test("renders MapFilter for Wetland and responds to inputs", () => {
         basins={mockBasins}
         selectedBasin="MARA"
         onBasinChange={onBasinChange}
-        wetlandOptions={mockWetlands}
-        selectedWetland=""
-        onWetlandChange={onWetlandChange}
         selectedHealthFilter="All"
         onHealthFilterChange={onHealthFilterChange}
         selectedIncidentTypes={[]}
@@ -35,11 +30,6 @@ test("renders MapFilter for Wetland and responds to inputs", () => {
       />
     </NextIntlClientProvider>
   );
-
-  // Expect Basin selector label
-  // expect(screen.getByText("Basin / Region")).toBeInTheDocument();
-  // Expect Wetland selector label
-  // expect(screen.getByText("Wetland")).toBeInTheDocument();
 
   // Change health filter
   const critBtn = screen.getByRole("button", { name: "Critical" });
@@ -58,9 +48,6 @@ test("renders MapFilter for Pollution domain", () => {
         basins={mockBasins}
         selectedBasin="MARA"
         onBasinChange={vi.fn()}
-        wetlandOptions={mockWetlands}
-        selectedWetland=""
-        onWetlandChange={vi.fn()}
         selectedHealthFilter="All"
         onHealthFilterChange={vi.fn()}
         selectedIncidentTypes={[]}

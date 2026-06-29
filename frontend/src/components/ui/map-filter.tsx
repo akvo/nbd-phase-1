@@ -15,9 +15,6 @@ interface MapFilterProps {
   selectedBasin: string;
   onBasinChange: (val: string) => void;
   // Wetland
-  wetlandOptions: { value: string; label: string }[];
-  selectedWetland: string;
-  onWetlandChange: (val: string) => void;
   selectedHealthFilter: string;
   onHealthFilterChange: (val: string) => void;
   // Pollution
@@ -36,9 +33,6 @@ export function MapFilter({
   basins,
   selectedBasin,
   onBasinChange,
-  wetlandOptions,
-  selectedWetland,
-  onWetlandChange,
   selectedHealthFilter,
   onHealthFilterChange,
   selectedIncidentTypes,
@@ -68,7 +62,7 @@ export function MapFilter({
 
   const hasActiveFilters =
     domain === "wetland"
-      ? selectedWetland !== "" || selectedHealthFilter !== "All"
+      ? selectedHealthFilter !== "All"
       : selectedIncidentTypes.length > 0 ||
         selectedDateFrom !== "" ||
         selectedDateTo !== "";
@@ -110,15 +104,6 @@ export function MapFilter({
         >
           {domain === "wetland" ? (
             <>
-              {/* Wetland site selector */}
-              <div className="w-full md:w-60">
-                <Dropdown
-                  options={wetlandOptions}
-                  value={selectedWetland}
-                  onChange={onWetlandChange}
-                />
-              </div>
-
               {/* Health pills */}
               <div className="flex bg-slate-100 p-1 rounded-lg w-full md:w-auto text-xs font-semibold h-9 items-center">
                 {activeFilters.map((filter) => (
