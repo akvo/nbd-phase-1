@@ -86,6 +86,9 @@
     "communitySignal": "Ishara ya jamii",
     "locationMap": "Ramani ya Eneo",
     "subCountyDetails": "Maelezo ya Wilaya",
+    "countySuffix": "Kaunti ya {countyName}",
+    "selectedSubCountyFallback": "Wilaya Iliyochaguliwa",
+    "incidentPhotoAlt": "Picha ya tukio la uchafuzi lililoripotiwa {index}",
     "status": "Hali",
     "good": "Nzuri",
     "critical": "Hatari",
@@ -167,6 +170,19 @@
     "questionnaireAnswers": "Majibu ya Maswali",
     "moderate": "Wastani",
     "critical": "Hatari",
-    "elevated": "Juu"
+    "elevated": "Juu",
+    "questionFallback": "Swali {id}",
+    "incidentPhotoAlt": "Picha ya ripoti ya tukio {index}"
+  },
+  "login": {
+    "title": "Ingia kwenye akaunti yako",
+    "subtitle": "Jukwaa la Ufuatiliaji wa Eneo Oevu Linaloongozwa na Raia",
+    "noAccount": "Huna akaunti? Wasiliana na msimamizi wa jukwaa lako.",
+    "noSelfRegistration": "Kujisajili mwenyewe hakupatikani.",
+    "signingIn": "Inaingia...",
+    "errorTitle": "Imeshindikana Kuingia",
+    "errorNotRegistered": "Barua pepe yako haijasajiliwa. Wasiliana na msimamizi wa jukwaa ili kuomba ufikiaji.",
+    "errorInactive": "Akaunti yako imezimwa. Wasiliana na msimamizi wa jukwaa lako.",
+    "errorAuthFailed": "Uthibitishaji umeshindikana. Tafadhali jaribu tena."
   }
 }

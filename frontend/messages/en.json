@@ -86,6 +86,9 @@
     "communitySignal": "Community signal",
     "locationMap": "Location Map",
     "subCountyDetails": "Sub-County Details",
+    "countySuffix": "{countyName} County",
+    "selectedSubCountyFallback": "Selected Sub-County",
+    "incidentPhotoAlt": "Reported pollution incident {index}",
     "status": "Status",
     "good": "Good",
     "critical": "Critical",
@@ -167,6 +170,19 @@
     "questionnaireAnswers": "Questionnaire Answers",
     "moderate": "Moderate",
     "critical": "Critical",
-    "elevated": "Elevated"
+    "elevated": "Elevated",
+    "questionFallback": "Question {id}",
+    "incidentPhotoAlt": "Incident report photo {index}"
+  },
+  "login": {
+    "title": "Log in to your account",
+    "subtitle": "Citizen-Led Wetland Monitoring Platform",
+    "noAccount": "No account? Contact your platform administrator.",
+    "noSelfRegistration": "Self-registration is not available.",
+    "signingIn": "Signing in...",
+    "errorTitle": "Sign-in Failed",
+    "errorNotRegistered": "Your email is not registered. Contact your platform administrator to request access.",
+    "errorInactive": "Your account has been deactivated. Contact your platform administrator.",
+    "errorAuthFailed": "Authentication failed. Please try again."
   }
 }

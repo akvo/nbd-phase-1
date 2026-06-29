@@ -45,10 +45,6 @@ export function MapLegend({
 
       {domain === "pollution" && (
         <div className="flex flex-col gap-1.5 min-w-30">
-          <div className="flex items-center justify-between text-[10px] text-slate-300 font-medium pb-0.5">
-            <span>{t("density")}</span>
-            <span>{t("pollutionIncidents")}</span>
-          </div>
           <div className="flex items-center gap-2">
             <span className="w-4 h-3 rounded-sm border border-slate-700/50 bg-[#f1f5f9]" />
             <span>{t("none")}</span>

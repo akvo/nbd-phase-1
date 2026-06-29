@@ -114,7 +114,7 @@ export function PollutionDetailsDrawer({
   if (!selectedSubCounty) return null;
 
   const subCountyName =
-    selectedSubCounty.properties?.name || "Selected Sub-County";
+    selectedSubCounty.properties?.name || t("selectedSubCountyFallback");
   const countyName = selectedSubCounty.properties?.county || "";
   const totalIncidents = selectedSubCounty.properties?.incidentCount || 0;
 
@@ -143,7 +143,9 @@ export function PollutionDetailsDrawer({
       <div className="p-6 border-b border-slate-200 flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
           <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-            {countyName ? `${countyName} County` : t("subCountyDetails")}
+            {countyName
+              ? t("countySuffix", { countyName })
+              : t("subCountyDetails")}
           </span>
           <h2 className="text-lg font-bold text-slate-800 truncate mt-0.5">
             {subCountyName}
@@ -238,7 +240,7 @@ export function PollutionDetailsDrawer({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}
-                    alt={`Reported pollution incident ${idx + 1}`}
+                    alt={t("incidentPhotoAlt", { index: idx + 1 })}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>

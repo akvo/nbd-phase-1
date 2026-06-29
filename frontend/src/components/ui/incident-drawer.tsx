@@ -169,7 +169,7 @@ export function IncidentDrawer({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.read_url}
-                    alt={`Incident report photo ${i + 1}`}
+                    alt={t("incidentPhotoAlt", { index: i + 1 })}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                   />
@@ -199,7 +199,8 @@ export function IncidentDrawer({
                     className="p-3 bg-white flex justify-between gap-4"
                   >
                     <span className="text-slate-500 font-medium shrink-0">
-                      {ans.question_label || `Question ${ans.question_id}`}
+                      {ans.question_label ||
+                        t("questionFallback", { id: ans.question_id ?? idx })}
                     </span>
                     <span className="text-slate-800 text-right">
                       {String(ans.value)}
