@@ -43,9 +43,13 @@ export function EChartsChart({
     };
 
     window.addEventListener("resize", handleResize);
+    window.addEventListener("beforeprint", handleResize);
+    window.addEventListener("afterprint", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("beforeprint", handleResize);
+      window.removeEventListener("afterprint", handleResize);
       if (onEvents && chartInstance.current) {
         Object.entries(onEvents).forEach(([eventName, handler]) => {
           chartInstance.current?.off(eventName, handler);

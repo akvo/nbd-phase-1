@@ -16,6 +16,7 @@ export interface CollapsibleChartContainerProps {
   data: ChartDataPoint[];
   type?: ChartType;
   color?: string;
+  isPrinting?: boolean;
 }
 
 export function CollapsibleChartContainer({
@@ -23,14 +24,15 @@ export function CollapsibleChartContainer({
   data,
   type = "area",
   color = "#0ea5e9",
+  isPrinting = false,
 }: CollapsibleChartContainerProps) {
   const t = useTranslations("drawer");
   const [isOpen, setIsOpen] = useState(false);
   const chartOptions = getHistoricalChartOptions(type, label, data, color);
 
   return (
-    <div className="w-full no-print">
-      <div className="flex justify-end pr-2">
+    <div className="w-full">
+      <div className="flex justify-end pr-2 print:hidden">
         <Button
           variant="ghost"
           size="sm"
@@ -41,17 +43,20 @@ export function CollapsibleChartContainer({
           {isOpen ? t("hideTrend") : t("showTrend")}
         </Button>
       </div>
-      {isOpen && (
-        <div className="h-36 w-full mt-1 border border-slate-100 rounded-xl bg-slate-50/50 p-2 overflow-hidden">
-          {data.length > 0 ? (
-            <EChartsChart options={chartOptions} />
-          ) : (
-            <div className="h-full flex items-center justify-center text-[10px] text-slate-400 italic">
-              {t("noHistoricalData")}
-            </div>
-          )}
-        </div>
-      )}
+      <div
+        data-testid="chart-container"
+        className={`w-full mt-1 border border-slate-100 rounded-xl bg-slate-50/50 p-2 overflow-hidden ${
+          isPrinting || isOpen ? "h-36 block" : "h-36 hidden print:block"
+        }`}
+      >
+        {data.length > 0 ? (
+          <EChartsChart options={chartOptions} />
+        ) : (
+          <div className="h-full flex items-center justify-center text-[10px] text-slate-400 italic">
+            {t("noHistoricalData")}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

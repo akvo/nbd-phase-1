@@ -25,6 +25,7 @@ interface ParameterTableProps {
   samplingsHistory: GenericSamplingHistory[];
   t: (key: string) => string;
   tm: (key: string) => string;
+  isPrinting?: boolean;
 }
 
 const DynamicIcon = ({
@@ -68,9 +69,10 @@ export function ParameterTable({
   samplingsHistory,
   t,
   tm,
+  isPrinting = false,
 }: ParameterTableProps) {
   return (
-    <div className="space-y-3 print-avoid-break">
+    <div className="space-y-3">
       <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
         {t("parameter")}
       </h3>
@@ -186,7 +188,7 @@ export function ParameterTable({
                       </span>
                     </TableCell>
                   </TableRow>
-                  <TableRow className="hover:bg-transparent no-print">
+                  <TableRow className="hover:bg-transparent">
                     <TableCell
                       colSpan={3}
                       className="py-0 px-2 border-b border-slate-100"
@@ -194,6 +196,7 @@ export function ParameterTable({
                       <CollapsibleChartContainer
                         label={translatedMetricLabel}
                         data={metricHistory}
+                        isPrinting={isPrinting}
                       />
                     </TableCell>
                   </TableRow>

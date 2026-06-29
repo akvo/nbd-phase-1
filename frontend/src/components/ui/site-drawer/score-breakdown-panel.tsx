@@ -31,6 +31,7 @@ interface ScoreBreakdownPanelProps {
   scoresError: string | null;
   t: (key: string, values?: Record<string, string | number>) => string;
   ts: (key: string) => string;
+  isPrinting?: boolean;
 }
 
 const DynamicIcon = ({
@@ -67,6 +68,7 @@ export function ScoreBreakdownPanel({
   scoresError,
   t,
   ts,
+  isPrinting = false,
 }: ScoreBreakdownPanelProps) {
   const isCritical = ["D", "E"].includes(site.current_health_class);
   const isAtRisk = site.current_health_class === "C";
@@ -155,6 +157,7 @@ export function ScoreBreakdownPanel({
                 <CollapsibleChartContainer
                   label={translatedLabel}
                   data={groupHistory}
+                  isPrinting={isPrinting}
                 />
               </div>
             );

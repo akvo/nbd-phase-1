@@ -208,7 +208,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   return (
     <div
       id="site-drawer-print-area"
-      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in"
+      className={`fixed inset-y-0 right-0 z-50 w-full bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in transition-all duration-300 ${
+        isPrinting ? "max-w-4xl" : "max-w-md"
+      }`}
     >
       {/* Drawer Header */}
       <div className="p-6 border-b border-slate-200 flex items-center justify-between">
@@ -410,6 +412,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           samplingsHistory={samplingsHistory}
           t={t}
           tm={tm}
+          isPrinting={isPrinting}
         />
 
         {/* Score Breakdown Progress Bars */}
@@ -419,6 +422,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           scoresError={scoresError}
           t={t}
           ts={ts}
+          isPrinting={isPrinting}
         />
 
         {/* FGD Session Context */}

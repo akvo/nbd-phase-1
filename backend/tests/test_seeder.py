@@ -191,7 +191,7 @@ def test_seed_spatial_success(db_session: Session):
     from app.models.management_action import ManagementAction
 
     actions = db_session.query(ManagementAction).all()
-    assert len(actions) == 12
+    assert len(actions) == 40
 
     # 5. Assert Sub-counties created
     sub_counties = db_session.query(SpatialBoundary).all()
