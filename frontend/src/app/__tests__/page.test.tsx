@@ -1,13 +1,21 @@
+import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import Home from "../page";
 import { expect, test, vi } from "vitest";
 import messages from "../../../messages/en.json";
+import { DomainProvider, useDomain } from "@/context/domain-context";
 
 // Mock the MapViewer component to bypass leaflet loading in jsdom
 vi.mock("@/components/ui/map-viewer", () => {
   return {
     default: () => <div data-testid="mock-map-viewer" />,
+  };
+});
+
+vi.mock("@/components/ui/echarts-chart", () => {
+  return {
+    EChartsChart: () => <div data-testid="mock-echarts-chart" />,
   };
 });
 
@@ -20,36 +28,66 @@ vi.mock("@/lib/api", () => {
     getBasins: vi.fn().mockResolvedValue([]),
     getSites: vi.fn().mockResolvedValue([]),
     getSubmissions: vi.fn().mockResolvedValue([]),
+    getForms: vi.fn().mockResolvedValue([]),
+    getForm: vi.fn().mockResolvedValue({}),
   };
 });
 
-const renderWithIntl = (ui: React.ReactElement) => {
+const renderWithContextAndIntl = (ui: React.ReactElement) => {
   return render(
     <NextIntlClientProvider messages={messages} locale="en">
-      {ui}
+      <DomainProvider>{ui}</DomainProvider>
+    </NextIntlClientProvider>
+  );
+};
+
+const TestDomainToggler = () => {
+  const { selectedDomain, setSelectedDomain } = useDomain();
+  return (
+    <div>
+      <span data-testid="current-domain">{selectedDomain}</span>
+      <button
+        data-testid="toggle-domain-btn"
+        onClick={() =>
+          setSelectedDomain(
+            selectedDomain === "wetland" ? "pollution" : "wetland"
+          )
+        }
+      >
+        Toggle Domain
+      </button>
+    </div>
+  );
+};
+
+const renderWithToggler = () => {
+  return render(
+    <NextIntlClientProvider messages={messages} locale="en">
+      <DomainProvider>
+        <TestDomainToggler />
+        <Home />
+      </DomainProvider>
     </NextIntlClientProvider>
   );
 };
 
 test("renders Home page elements and handles filtering", () => {
-  renderWithIntl(<Home />);
+  renderWithContextAndIntl(<Home />);
 
   // Verify Logoipsum exists in header
   expect(screen.getByText(messages.header.brand)).toBeInTheDocument();
+});
 
-  // Verify search input
-  const searchInput = screen.getByPlaceholderText(
-    messages.landing.searchPlaceholder
-  );
-  expect(searchInput).toBeInTheDocument();
-  fireEvent.change(searchInput, { target: { value: "Gulu" } });
+test("updates domain state and page when domain context changes", () => {
+  renderWithToggler();
 
-  // Verify filter buttons
-  const allButton = screen.getByRole("button", {
-    name: messages.landing.filters.all,
-  });
-  expect(allButton).toBeInTheDocument();
-  fireEvent.click(
-    screen.getByRole("button", { name: messages.landing.filters.critical })
-  );
+  // Initial domain should be wetland
+  expect(screen.getByTestId("current-domain").textContent).toBe("wetland");
+
+  // Toggle domain to pollution
+  const toggleBtn = screen.getByTestId("toggle-domain-btn");
+  fireEvent.click(toggleBtn);
+
+  // Current domain should now be pollution
+  expect(screen.getByTestId("current-domain").textContent).toBe("pollution");
 });

@@ -3,19 +3,13 @@
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Script from "next/script";
+import { useTranslations } from "next-intl";
 import { MessageNote } from "@/components/ui/message-note";
 import { SiteHeader } from "@/components/ui/site-header";
 import { apiClient } from "@/lib/api";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  not_registered:
-    "Your email is not registered. Contact your platform administrator to request access.",
-  inactive:
-    "Your account has been deactivated. Contact your platform administrator.",
-  auth_failed: "Authentication failed. Please try again.",
-};
-
 function LoginContent() {
+  const t = useTranslations("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -37,7 +31,7 @@ function LoginContent() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const detail = err.response?.data?.detail || "auth_failed";
-      setError(ERROR_MESSAGES[detail] || ERROR_MESSAGES.auth_failed);
+      setError(detail);
       setLoading(false);
     }
   };
@@ -84,17 +78,19 @@ function LoginContent() {
           {/* Header Title */}
           <div className="text-center space-y-2">
             <h1 className="text-[22px] font-semibold text-gray-900 tracking-tight">
-              Log in to your account
+              {t("title")}
             </h1>
-            <p className="text-sm text-gray-500">
-              Citizen-Led Wetland Monitoring Platform
-            </p>
+            <p className="text-sm text-gray-500">{t("subtitle")}</p>
           </div>
 
           {/* Alert Notification */}
           {error && (
-            <MessageNote type="error" title="Sign-in Failed">
-              {error}
+            <MessageNote type="error" title={t("errorTitle")}>
+              {error === "not_registered"
+                ? t("errorNotRegistered")
+                : error === "inactive"
+                  ? t("errorInactive")
+                  : t("errorAuthFailed")}
             </MessageNote>
           )}
 
@@ -103,7 +99,7 @@ function LoginContent() {
             <div className="flex flex-col items-center space-y-4">
               {loading ? (
                 <div className="h-10 flex items-center justify-center text-sm text-slate-500">
-                  Signing in...
+                  {t("signingIn")}
                 </div>
               ) : (
                 <div ref={buttonRef} className="flex justify-center" />
@@ -114,9 +110,9 @@ function LoginContent() {
           {/* Footer Notice */}
           <div className="text-center pt-4">
             <p className="text-[13px] text-gray-400 leading-relaxed">
-              No account? Contact your platform administrator.
+              {t("noAccount")}
               <br />
-              Self-registration is not available.
+              {t("noSelfRegistration")}
             </p>
           </div>
         </div>

@@ -3,10 +3,10 @@ import {
   MapContainer,
   TileLayer,
   Marker,
-  Popup,
   ZoomControl,
   GeoJSON,
   useMap,
+  LayersControl,
 } from "react-leaflet";
 import * as L from "leaflet";
 import { Loader } from "@/components/ui/loader";
@@ -31,70 +31,57 @@ interface MapViewerProps {
   zoomOffsetClass?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   basinGeometry?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wetlandGeometry?: any;
+  onSelectMarker?: (code: string, type: "site" | "incident") => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  choroplethLayers?: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  selectedSubCounty?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSelectSubCounty?: (feature: any) => void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function MapController({ basinGeometry }: { basinGeometry: any }) {
+function MapController({
+  basinGeometry,
+  wetlandGeometry,
+  choroplethLayers,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  basinGeometry: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wetlandGeometry: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  choroplethLayers: any;
+}) {
   const map = useMap();
 
   useEffect(() => {
-    if (basinGeometry) {
+    const targetGeom =
+      wetlandGeometry ||
+      (choroplethLayers && choroplethLayers.length > 0
+        ? { type: "FeatureCollection", features: choroplethLayers }
+        : null) ||
+      basinGeometry;
+    if (targetGeom) {
       try {
-        const layer = L.geoJSON(basinGeometry);
+        const layer = L.geoJSON(targetGeom);
         map.fitBounds(layer.getBounds(), { padding: [30, 30] });
       } catch (err) {
-        console.error("Failed to fit bounds to basin geometry:", err);
+        console.error("Failed to fit bounds to geometry:", err);
       }
     }
-  }, [basinGeometry, map]);
+  }, [basinGeometry, wetlandGeometry, choroplethLayers, map]);
 
   return null;
 }
 
-function GestureHandling() {
-  const map = useMap();
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Check if it's mobile/touch device
-    const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-    if (!isTouch) return;
-
-    // Disable dragging on touch devices by default
-    if (map.dragging) {
-      map.dragging.disable();
-    }
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length >= 2) {
-        map.dragging?.enable();
-      } else {
-        map.dragging?.disable();
-      }
-    };
-
-    const handleTouchEnd = () => {
-      map.dragging?.disable();
-    };
-
-    if (typeof map.getContainer !== "function") return;
-    const container = map.getContainer();
-    if (!container) return;
-
-    container.addEventListener("touchstart", handleTouchStart, {
-      passive: true,
-    });
-    container.addEventListener("touchend", handleTouchEnd, { passive: true });
-
-    return () => {
-      container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [map]);
-
-  return null;
-}
+const getChoroplethColor = (count: number) => {
+  if (count >= 16) return "#dc2626"; // red-600
+  if (count >= 6) return "#f97316"; // orange-500
+  if (count >= 1) return "#fef3c7"; // amber-100
+  return "#f1f5f9"; // slate-100
+};
 
 export default function MapViewer({
   center,
@@ -103,6 +90,11 @@ export default function MapViewer({
   className,
   zoomOffsetClass,
   basinGeometry,
+  wetlandGeometry,
+  onSelectMarker,
+  choroplethLayers = [],
+  selectedSubCounty,
+  onSelectSubCounty,
 }: MapViewerProps) {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -113,10 +105,24 @@ export default function MapViewer({
   const icons = useMemo(() => {
     if (!isMounted || typeof window === "undefined" || !L) return null;
 
-    const createIcon = (type: "site" | "incident", status?: string) => {
+    const createIcon = (
+      type: "site" | "incident" | "siteDefault",
+      status?: string
+    ) => {
       let pingBg: string;
       let centerBg: string;
-      let isWarningIcon = false;
+
+      if (type === "siteDefault") {
+        return L.divIcon({
+          html: `<div class="relative flex items-center justify-center w-6 h-6">
+              <span class="absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-60 animate-ping"></span>
+              <div class="relative rounded-full h-4.5 w-4.5 bg-teal-600 border border-white shadow"></div>
+            </div>`,
+          className: "custom-leaflet-icon",
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+      }
 
       if (type === "site") {
         if (status === "A" || status === "B") {
@@ -129,32 +135,35 @@ export default function MapViewer({
           pingBg = "bg-red-400";
           centerBg = "bg-red-600";
         }
-      } else {
-        isWarningIcon = true;
-        if (status === "Critical") {
-          pingBg = "bg-red-400";
-          centerBg = "bg-red-600";
-        } else if (status === "Elevated") {
-          pingBg = "bg-amber-400";
-          centerBg = "bg-amber-500";
-        } else {
-          pingBg = "bg-yellow-400";
-          centerBg = "bg-yellow-500";
-        }
+
+        return L.divIcon({
+          html: `<div class="relative flex items-center justify-center w-6 h-6">
+              <span class="absolute inline-flex h-full w-full rounded-full ${pingBg} opacity-60 animate-ping"></span>
+              <div class="relative rounded-full h-4.5 w-4.5 ${centerBg} border border-white shadow"></div>
+            </div>`,
+          className: "custom-leaflet-icon",
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
       }
 
-      const htmlContent = isWarningIcon
-        ? `<div class="relative flex items-center justify-center w-8 h-8">
-            <span class="absolute inline-flex h-full w-full rounded-full ${pingBg} opacity-75 animate-ping"></span>
-            <div class="relative flex items-center justify-center rounded-full h-6 w-6 ${centerBg} border border-white shadow text-white font-bold text-xs">!</div>
-          </div>`
-        : `<div class="relative flex items-center justify-center w-8 h-8">
-            <span class="absolute inline-flex h-full w-full rounded-full ${pingBg} opacity-75 animate-ping"></span>
-            <div class="relative flex items-center justify-center rounded-full h-6 w-6 ${centerBg} border border-white shadow text-white font-bold text-xs">${status || ""}</div>
-          </div>`;
+      // Incident warning pin
+      if (status === "Critical") {
+        pingBg = "bg-red-400";
+        centerBg = "bg-red-600";
+      } else if (status === "Elevated") {
+        pingBg = "bg-amber-400";
+        centerBg = "bg-amber-500";
+      } else {
+        pingBg = "bg-yellow-400";
+        centerBg = "bg-yellow-500";
+      }
 
       return L.divIcon({
-        html: htmlContent,
+        html: `<div class="relative flex items-center justify-center w-8 h-8">
+            <span class="absolute inline-flex h-full w-full rounded-full ${pingBg} opacity-75 animate-ping"></span>
+            <div class="relative flex items-center justify-center rounded-full h-6 w-6 ${centerBg} border border-white shadow text-white font-bold text-xs">!</div>
+          </div>`,
         className: "custom-leaflet-icon",
         iconSize: [32, 32],
         iconAnchor: [16, 16],
@@ -162,6 +171,7 @@ export default function MapViewer({
     };
 
     return {
+      siteDefault: createIcon("siteDefault"),
       siteA: createIcon("site", "A"),
       siteB: createIcon("site", "B"),
       siteC: createIcon("site", "C"),
@@ -179,6 +189,12 @@ export default function MapViewer({
     return <Loader message="Loading Regional Map (Component)..." />;
   }
 
+  const countHash = choroplethLayers
+    ? choroplethLayers
+        .map((f: any) => f.properties?.incidentCount || 0)
+        .join(",")
+    : "";
+
   return (
     <div
       className={`${className || ""} ${zoomOffsetClass || ""}`}
@@ -192,12 +208,104 @@ export default function MapViewer({
         style={{ width: "100%", height: "100%" }}
         key={`nbd-map-${center[0]}-${center[1]}`}
       >
-        <MapController basinGeometry={basinGeometry} />
-        <GestureHandling />
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Google Hybrid">
+            <TileLayer
+              attribution="&copy; Google Maps"
+              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Google Terrain">
+            <TileLayer
+              attribution="&copy; Google Maps"
+              url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="OpenStreetMap">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
+        <ZoomControl position="bottomright" />
+        <MapController
+          basinGeometry={basinGeometry}
+          wetlandGeometry={wetlandGeometry}
+          choroplethLayers={choroplethLayers}
+        />
+
+        {choroplethLayers && choroplethLayers.length > 0 && (
+          <GeoJSON
+            key={`choropleth-${countHash}-${selectedSubCounty?.properties?.name || ""}`}
+            data={
+              { type: "FeatureCollection", features: choroplethLayers } as any
+            }
+            onEachFeature={(feature, layer) => {
+              const count = feature.properties?.incidentCount || 0;
+              const isSelected =
+                selectedSubCounty &&
+                selectedSubCounty.properties?.name === feature.properties?.name;
+
+              if (typeof (layer as any).setStyle === "function") {
+                (layer as any).setStyle({
+                  fillColor: getChoroplethColor(count),
+                  fillOpacity: isSelected ? 0.8 : 0.45,
+                  color: isSelected ? "#2563eb" : "#475569",
+                  weight: isSelected ? 3.5 : 1.5,
+                  opacity: 0.8,
+                });
+              }
+
+              layer.on({
+                mouseover: (e) => {
+                  const l = e.target;
+                  if (!isSelected && typeof l.setStyle === "function") {
+                    l.setStyle({
+                      fillOpacity: 0.75,
+                      color: "#1e293b",
+                    });
+                  }
+                },
+                mouseout: (e) => {
+                  const l = e.target;
+                  if (!isSelected && typeof l.setStyle === "function") {
+                    l.setStyle({
+                      fillOpacity: 0.45,
+                      color: "#475569",
+                    });
+                  }
+                },
+                click: () => {
+                  if (onSelectSubCounty) {
+                    onSelectSubCounty(feature);
+                  }
+                },
+              });
+            }}
+          />
+        )}
+
+        {wetlandGeometry && (
+          <GeoJSON
+            key={JSON.stringify(wetlandGeometry)}
+            data={wetlandGeometry}
+            interactive={false}
+            style={{
+              color: "#14b8a6",
+              weight: 2,
+              opacity: 0.9,
+              fillColor: "#14b8a6",
+              fillOpacity: 0.12,
+            }}
+          />
+        )}
+
         {basinGeometry && (
           <GeoJSON
             key={JSON.stringify(basinGeometry)}
             data={basinGeometry}
+            interactive={false}
             style={{
               color: "#0d9488",
               weight: 2,
@@ -207,15 +315,11 @@ export default function MapViewer({
             }}
           />
         )}
-        <TileLayer
-          attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-        />
-        <ZoomControl position="bottomright" />
         {markers.map((marker, index) => {
           let icon;
           if (marker.type === "site") {
-            if (marker.status === "A") icon = icons.siteA;
+            if (!marker.status) icon = icons.siteDefault;
+            else if (marker.status === "A") icon = icons.siteA;
             else if (marker.status === "B") icon = icons.siteB;
             else if (marker.status === "C") icon = icons.siteC;
             else if (marker.status === "D") icon = icons.siteD;
@@ -228,87 +332,18 @@ export default function MapViewer({
           }
           if (!icon) return null;
           return (
-            <Marker key={index} position={marker.position} icon={icon}>
-              <Popup>
-                <div className="p-1 min-w-[200px] flex flex-col gap-2 text-slate-800 font-sans">
-                  <div className="flex justify-between items-start gap-3">
-                    <div>
-                      <h4 className="font-bold text-sm leading-tight text-slate-900">
-                        {marker.name ||
-                          (marker.type === "site"
-                            ? "Monitoring Station"
-                            : "Incident Report")}
-                      </h4>
-                      {marker.code && (
-                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                          {marker.code}
-                        </span>
-                      )}
-                    </div>
-                    {marker.status && (
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          marker.type === "site"
-                            ? ["D", "E"].includes(marker.status)
-                              ? "bg-red-50 text-red-600 border border-red-200"
-                              : marker.status === "C"
-                                ? "bg-amber-50 text-amber-600 border border-amber-200"
-                                : "bg-green-50 text-green-600 border border-green-200"
-                            : marker.status === "Critical"
-                              ? "bg-red-50 text-red-600 border border-red-200"
-                              : marker.status === "Elevated"
-                                ? "bg-orange-50 text-orange-600 border border-orange-200"
-                                : "bg-yellow-50 text-yellow-600 border border-yellow-200"
-                        }`}
-                      >
-                        {marker.status}
-                      </span>
-                    )}
-                  </div>
-
-                  {marker.type === "site" && marker.score !== undefined && (
-                    <div className="space-y-1 mt-1">
-                      <div className="flex justify-between text-[10px] font-medium text-slate-500">
-                        <span>Health Index</span>
-                        <span className="font-bold text-slate-700">
-                          {marker.score}%
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            ["D", "E"].includes(marker.status || "")
-                              ? "bg-red-500"
-                              : marker.status === "C"
-                                ? "bg-amber-500"
-                                : "bg-green-500"
-                          }`}
-                          style={{ width: `${marker.score}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {marker.description && (
-                    <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-snug mt-1">
-                      {marker.description}
-                    </p>
-                  )}
-
-                  {!marker.name && !marker.code && marker.popupText && (
-                    <div className="font-semibold text-sm text-slate-800 mt-1">
-                      {marker.popupText}
-                    </div>
-                  )}
-
-                  {marker.additionalInfo && (
-                    <span className="text-[10px] text-slate-400 block mt-1 border-t border-slate-100 pt-1">
-                      {marker.additionalInfo}
-                    </span>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
+            <Marker
+              key={index}
+              position={marker.position}
+              icon={icon}
+              eventHandlers={{
+                click: () => {
+                  if (onSelectMarker && marker.code) {
+                    onSelectMarker(marker.code, marker.type);
+                  }
+                },
+              }}
+            />
           );
         })}
       </MapContainer>

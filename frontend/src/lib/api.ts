@@ -126,3 +126,18 @@ export interface IncidentSummary {
     read_url?: string;
   }>;
 }
+
+export const getForms = async (params?: {
+  lang?: string;
+}): Promise<Record<string, any>[]> => {
+  const response = await apiClient.get("/forms", { params });
+  return response.data;
+};
+
+export const getForm = async (
+  formId: number | string,
+  params?: { lang?: string }
+): Promise<Record<string, any>> => {
+  const response = await apiClient.get(`/forms/${formId}`, { params });
+  return response.data;
+};

@@ -36,8 +36,6 @@ Add a Location Map section before the final scroll container padding:
 
 ---
 
-## 2. Print Layout Styling
-
 ### 2.1 CSS Utility classes
 Inject media rules inside the stylesheet or as specific inline print utilities (`print:*` tailwind classes if tailwind is active, or standard `@media print` rules inside global css).
 - Hide everything except the print container:
@@ -64,6 +62,12 @@ Inject media rules inside the stylesheet or as specific inline print utilities (
     }
   }
   ```
+
+### 2.2 ECharts Print Reflow Sizing & Page Breaking
+To prevent blurry, stretched canvas bitmaps and ensure charts expand to the full width of printed sheets natively:
+1. **Dynamic Drawer Width Expansion**: When `isPrinting` is active, the drawer's max-width class transitions from `max-w-md` (`448px`) to `max-w-4xl` (`896px`) on screen.
+2. **Forced Pre-print Visibility**: The `isPrinting` state is passed down to `ParameterTable`, `ScoreBreakdownPanel`, and `CollapsibleChartContainer` components to force all collapsible chart wrappers to render in `display: block` on screen before `window.print()` is executed. This allows ECharts to query the correct wide container width and resize its canvases natively.
+3. **Natural Page Breaks**: The `print-avoid-break` utility is removed from the outer container of the `ParameterTable` component to allow metrics to flow and break naturally across pages, preventing large blank gaps at the bottom of Page 1.
 
 ---
 
