@@ -15,6 +15,13 @@
     "basinRegion": "Basin Region",
     "filters": {
       "all": "All",
+      "allTypes": "All types",
+      "optionWaterColour": "Water colour (darker/murkier)",
+      "optionSmell": "Smell (bad odour)",
+      "optionFishKills": "Fish or animal kills",
+      "optionStormEvent": "Storm event",
+      "optionHighWater": "High water level",
+      "optionLowWater": "Low water level",
       "critical": "Critical",
       "atRisk": "At risk",
       "healthy": "Healthy",

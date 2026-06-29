@@ -271,7 +271,7 @@ export default function Home() {
           });
           if (foundOptions.length > 0) {
             setIncidentTypeOptions([
-              { value: "", label: locale === "sw" ? "Aina zote" : "All types" },
+              { value: "", label: t("filters.allTypes") },
               ...foundOptions,
             ]);
             return;
@@ -279,86 +279,28 @@ export default function Home() {
         }
         // Fallback static options
         setIncidentTypeOptions([
-          { value: "", label: locale === "sw" ? "Aina zote" : "All types" },
-          {
-            value: "1",
-            label:
-              locale === "sw"
-                ? "Rangi ya maji (nyeusi/chafu)"
-                : "Water colour (darker/murkier)",
-          },
-          {
-            value: "2",
-            label:
-              locale === "sw" ? "Harufu (harufu mbaya)" : "Smell (bad odour)",
-          },
-          {
-            value: "3",
-            label:
-              locale === "sw"
-                ? "Vifo vya samaki au wanyama"
-                : "Fish or animal kills",
-          },
-          {
-            value: "4",
-            label: locale === "sw" ? "Tukio la dhoruba" : "Storm event",
-          },
-          {
-            value: "5",
-            label:
-              locale === "sw" ? "Kiwango cha juu cha maji" : "High water level",
-          },
-          {
-            value: "6",
-            label:
-              locale === "sw"
-                ? "Kiwango cha chini cha maji"
-                : "Low water level",
-          },
+          { value: "", label: t("filters.allTypes") },
+          { value: "1", label: t("filters.optionWaterColour") },
+          { value: "2", label: t("filters.optionSmell") },
+          { value: "3", label: t("filters.optionFishKills") },
+          { value: "4", label: t("filters.optionStormEvent") },
+          { value: "5", label: t("filters.optionHighWater") },
+          { value: "6", label: t("filters.optionLowWater") },
         ]);
       })
       .catch((err) => {
         console.error("Error fetching questionnaire options:", err);
         setIncidentTypeOptions([
-          { value: "", label: locale === "sw" ? "Aina zote" : "All types" },
-          {
-            value: "1",
-            label:
-              locale === "sw"
-                ? "Rangi ya maji (nyeusi/chafu)"
-                : "Water colour (darker/murkier)",
-          },
-          {
-            value: "2",
-            label:
-              locale === "sw" ? "Harufu (harufu mbaya)" : "Smell (bad odour)",
-          },
-          {
-            value: "3",
-            label:
-              locale === "sw"
-                ? "Vifo vya samaki au wanyama"
-                : "Fish or animal kills",
-          },
-          {
-            value: "4",
-            label: locale === "sw" ? "Tukio la dhoruba" : "Storm event",
-          },
-          {
-            value: "5",
-            label:
-              locale === "sw" ? "Kiwango cha juu cha maji" : "High water level",
-          },
-          {
-            value: "6",
-            label:
-              locale === "sw"
-                ? "Kiwango cha chini cha maji"
-                : "Low water level",
-          },
+          { value: "", label: t("filters.allTypes") },
+          { value: "1", label: t("filters.optionWaterColour") },
+          { value: "2", label: t("filters.optionSmell") },
+          { value: "3", label: t("filters.optionFishKills") },
+          { value: "4", label: t("filters.optionStormEvent") },
+          { value: "5", label: t("filters.optionHighWater") },
+          { value: "6", label: t("filters.optionLowWater") },
         ]);
       });
-  }, [locale]);
+  }, [locale, t]);
 
   // Synchronize filter resets whenever selectedDomain changes
   useEffect(() => {

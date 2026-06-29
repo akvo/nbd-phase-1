@@ -15,6 +15,13 @@
     "basinRegion": "Eneo la Bonde",
     "filters": {
       "all": "Zote",
+      "allTypes": "Aina zote",
+      "optionWaterColour": "Rangi ya maji (nyeusi/chafu)",
+      "optionSmell": "Harufu (harufu mbaya)",
+      "optionFishKills": "Vifo vya samaki au wanyama",
+      "optionStormEvent": "Tukio la dhoruba",
+      "optionHighWater": "Kiwango cha juu cha maji",
+      "optionLowWater": "Kiwango cha chini cha maji",
       "critical": "Hatari",
       "atRisk": "Hatarini",
       "healthy": "Afya njema",
