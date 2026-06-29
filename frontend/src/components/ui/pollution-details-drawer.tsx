@@ -119,20 +119,16 @@ export function PollutionDetailsDrawer({
   const totalIncidents = selectedSubCounty.properties?.incidentCount || 0;
 
   // Determine sub-county status based on incident count
-  let statusText = t("statusHealthy");
   let statusColor = "bg-green-50 text-green-700 border-green-200";
   let StatusIcon = CheckCircle;
 
   if (totalIncidents >= 16) {
-    statusText = t("critical");
     statusColor = "bg-red-50 text-red-700 border-red-200";
     StatusIcon = AlertTriangle;
   } else if (totalIncidents >= 6) {
-    statusText = t("moderateDegradation");
     statusColor = "bg-orange-50 text-orange-700 border-orange-200";
     StatusIcon = AlertTriangle;
   } else if (totalIncidents >= 1) {
-    statusText = t("minorConcerns");
     statusColor = "bg-amber-50 text-amber-700 border-amber-200";
     StatusIcon = Info;
   }
@@ -168,7 +164,7 @@ export function PollutionDetailsDrawer({
           <StatusIcon className="w-5 h-5 mt-0.5 shrink-0" />
           <div>
             <div className="font-bold text-sm">
-              {t("status")}: {statusText}
+              {t("reportedIncidents")}: {totalIncidents}
             </div>
             <p className="text-xs mt-1 leading-relaxed opacity-90">
               {totalIncidents > 0

@@ -90,6 +90,7 @@
     "selectedSubCountyFallback": "Selected Sub-County",
     "incidentPhotoAlt": "Reported pollution incident {index}",
     "status": "Status",
+    "reportedIncidents": "Reported Incidents",
     "good": "Good",
     "critical": "Critical",
     "moderateDegradation": "Moderate Degradation",

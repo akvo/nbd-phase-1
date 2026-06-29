@@ -90,6 +90,7 @@
     "selectedSubCountyFallback": "Wilaya Iliyochaguliwa",
     "incidentPhotoAlt": "Picha ya tukio la uchafuzi lililoripotiwa {index}",
     "status": "Hali",
+    "reportedIncidents": "Matukio Yaliyoripotiwa",
     "good": "Nzuri",
     "critical": "Hatari",
     "moderateDegradation": "Uharibifu wa Wastani",
