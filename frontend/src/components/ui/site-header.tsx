@@ -332,11 +332,11 @@ export function SiteHeader({ showActions = true }: SiteHeaderProps) {
             <>
               {/* Backdrop */}
               <div
-                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 transition-opacity"
+                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 animate-fade-in"
                 onClick={() => setIsMenuOpen(false)}
               />
               {/* Right Drawer Sheet */}
-              <div className="fixed inset-y-0 right-0 w-72 max-w-[80vw] bg-white shadow-2xl z-50 p-5 flex flex-col gap-5 animate-slide-in-right">
+              <div className="fixed inset-y-0 right-0 w-72 max-w-[80vw] bg-white shadow-2xl z-50 p-5 flex flex-col gap-5 animate-slide-in">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <img
