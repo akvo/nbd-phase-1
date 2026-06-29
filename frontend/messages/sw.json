@@ -97,6 +97,8 @@
     "incidentDistributionDesc": "Hesabu za ripoti kulingana na aina za matukio. Bofya kadi za matukio kwenye upau wa kando ili kukagua maelezo.",
     "cleanSubCounty": "Wilaya Safi",
     "noReportedIncidents": "Hakuna matukio ya uchafuzi yaliyoripotiwa katika {subCountyName} yanayolingana na vichujio vya sasa.",
+    "reportedPhotos": "Picha Zilizoripotiwa",
+    "noPhotos": "Hakuna picha zilizoripotiwa katika eneo hili.",
     "requiredInterventions": "Uingiliaji Unaohitajika",
     "noInterventions": "Hakuna uingiliaji ulioanzishwa kwa kiwango hiki.",
     "scoreBreakdown": "Uchambuzi wa alama",

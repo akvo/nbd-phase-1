@@ -515,7 +515,15 @@ export default function Home() {
   // Compute sidebar/list incidents filtered by selected sub-county
   const sidebarIncidents = useMemo(() => {
     if (selectedDomain !== "pollution") return [];
-    if (!selectedSubCounty) return [];
+
+    // If no sub-county is selected, return all basin-wide incidents matching filters
+    if (!selectedSubCounty) {
+      return [...filteredIncidents].sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateA - dateB;
+      });
+    }
 
     const matched = filteredIncidents.filter((incident) => {
       const coords = incident.geo?.coordinates;
@@ -628,7 +636,7 @@ export default function Home() {
                     ? `${t("monitoringSites")} (${filteredSites.length})`
                     : selectedSubCounty
                       ? `Pollution Incidents: ${selectedSubCounty.properties.name || "Selected Sub-County"} (${sidebarIncidents.length})`
-                      : "Pollution Incidents"}
+                      : `Pollution Incidents (${sidebarIncidents.length})`}
                   {selectedDomain === "wetland" &&
                     filteredIncidents.length > 0 && (
                       <span className="text-red-500 normal-case font-medium ml-2">
@@ -820,61 +828,57 @@ export default function Home() {
                       No active stations matching filters.
                     </div>
                   )
-                ) : selectedSubCounty ? (
-                  sidebarIncidents.length > 0 ? (
-                    sidebarIncidents.map((incident, idx) => {
-                      const qIncidentAns = incident.answers?.find(
-                        (a) => a.name === "incident_type" || a.question_id === 2
-                      );
-                      const optionVal = qIncidentAns?.options?.[0];
-                      let severity: "Critical" | "Elevated" | "Moderate" =
-                        "Moderate";
-                      if (optionVal !== undefined) {
-                        const valStr = String(optionVal);
-                        if (valStr === "3") severity = "Critical";
-                        else if (["1", "2"].includes(valStr))
-                          severity = "Elevated";
-                      }
+                ) : sidebarIncidents.length > 0 ? (
+                  sidebarIncidents.map((incident, idx) => {
+                    const qIncidentAns = incident.answers?.find(
+                      (a) => a.name === "incident_type" || a.question_id === 2
+                    );
+                    const optionVal = qIncidentAns?.options?.[0];
+                    let severity: "Critical" | "Elevated" | "Moderate" =
+                      "Moderate";
+                    if (optionVal !== undefined) {
+                      const valStr = String(optionVal);
+                      if (valStr === "3") severity = "Critical";
+                      else if (["1", "2"].includes(valStr))
+                        severity = "Elevated";
+                    }
 
-                      const qDetailAns = incident.answers?.find(
-                        (a) =>
-                          a.name === "incident_description" ||
-                          a.name === "details" ||
-                          a.question_id === 3
-                      );
-                      const descText =
-                        qDetailAns?.value ||
-                        incident.description ||
-                        "No details recorded.";
-                      const incidentTypeName =
-                        qIncidentAns?.value || "Pollution Report";
+                    const qDetailAns = incident.answers?.find(
+                      (a) =>
+                        a.name === "incident_description" ||
+                        a.name === "details" ||
+                        a.question_id === 3
+                    );
+                    const descText =
+                      qDetailAns?.value ||
+                      incident.description ||
+                      "No details recorded.";
+                    const incidentTypeName =
+                      qIncidentAns?.value || "Pollution Report";
 
-                      // Find image answer
-                      const imageUrl = incident.answers?.find(
-                        (a) => a.read_url && a.read_url.trim() !== ""
-                      )?.read_url;
+                    // Find image answer
+                    const imageUrl = incident.answers?.find(
+                      (a) => a.read_url && a.read_url.trim() !== ""
+                    )?.read_url;
 
-                      return (
-                        <IncidentCard
-                          key={incident.id ?? idx}
-                          incidentTypeName={incidentTypeName}
-                          severity={severity}
-                          dateReported={incident.created_at || ""}
-                          description={descText}
-                          basinName={activeBasin?.name}
-                          onClick={() => setSelectedIncident(incident)}
-                          imageUrl={imageUrl}
-                        />
-                      );
-                    })
-                  ) : (
-                    <div className="text-sm text-slate-400 italic py-8 text-center">
-                      No pollution incidents reported in this sub-county.
-                    </div>
-                  )
+                    return (
+                      <IncidentCard
+                        key={incident.id ?? idx}
+                        incidentTypeName={incidentTypeName}
+                        severity={severity}
+                        dateReported={incident.created_at || ""}
+                        description={descText}
+                        basinName={activeBasin?.name}
+                        onClick={() => setSelectedIncident(incident)}
+                        imageUrl={imageUrl}
+                      />
+                    );
+                  })
                 ) : (
                   <div className="text-sm text-slate-400 italic py-8 text-center">
-                    Select a sub-county on the map to view pollution reports.
+                    {selectedSubCounty
+                      ? "No pollution incidents reported in this sub-county."
+                      : t("noIncidents")}
                   </div>
                 )}
               </div>
@@ -902,6 +906,8 @@ export default function Home() {
       {/* Pollution sub-county details Drawer panel */}
       <PollutionDetailsDrawer
         selectedSubCounty={selectedSubCounty}
+        incidents={sidebarIncidents}
+        onClickIncident={(incident: any) => setSelectedIncident(incident)}
         onClose={() => setSelectedSubCounty(null)}
       />
     </main>

@@ -97,6 +97,8 @@
     "incidentDistributionDesc": "Report counts by incident types. Click incident cards in the sidebar to review details.",
     "cleanSubCounty": "Clean Sub-County",
     "noReportedIncidents": "There are no reported pollution incidents in {subCountyName} matching the current filters.",
+    "reportedPhotos": "Reported Photos",
+    "noPhotos": "No photos reported in this region.",
     "requiredInterventions": "Required Interventions",
     "noInterventions": "No interventions triggered for this level.",
     "scoreBreakdown": "Score breakdown",

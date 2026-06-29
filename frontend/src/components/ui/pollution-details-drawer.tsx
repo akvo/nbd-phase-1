@@ -8,13 +8,29 @@ interface PollutionDetailsDrawerProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   selectedSubCounty: any;
   onClose: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  incidents?: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onClickIncident?: (incident: any) => void;
 }
 
 export function PollutionDetailsDrawer({
   selectedSubCounty,
   onClose,
+  incidents = [],
+  onClickIncident,
 }: PollutionDetailsDrawerProps) {
   const t = useTranslations("drawer");
+
+  const imageUrls = React.useMemo(() => {
+    return incidents
+      .map((incident) => {
+        return incident.answers?.find(
+          (a: any) => a.read_url && a.read_url.trim() !== ""
+        )?.read_url;
+      })
+      .filter(Boolean) as string[];
+  }, [incidents]);
 
   if (!selectedSubCounty) return null;
 
@@ -139,6 +155,45 @@ export function PollutionDetailsDrawer({
             </p>
           </div>
         )}
+
+        {/* Reported Photos gallery */}
+        <div className="space-y-4 pt-4 border-t border-slate-100">
+          <div>
+            <h3 className="font-bold text-slate-800 uppercase tracking-wider text-xs">
+              {t("reportedPhotos")}
+            </h3>
+          </div>
+
+          {imageUrls.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3">
+              {imageUrls.map((url, idx) => (
+                <div
+                  key={idx}
+                  className="aspect-square rounded-xl overflow-hidden border border-slate-100 bg-slate-50 relative group cursor-pointer hover:border-slate-300 transition-colors"
+                  onClick={() => {
+                    const matchingIncident = incidents.find((inc: any) =>
+                      inc.answers?.find(
+                        (a: { read_url?: string }) => a.read_url === url
+                      )
+                    );
+                    if (matchingIncident && onClickIncident) {
+                      onClickIncident(matchingIncident);
+                    }
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`Reported pollution incident ${idx + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 italic">{t("noPhotos")}</p>
+          )}
+        </div>
       </div>
     </div>
   );
