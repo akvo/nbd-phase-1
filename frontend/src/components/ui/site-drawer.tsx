@@ -485,7 +485,10 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                     .replace(/_/g, " ")
                     .trim();
                   let dotColor = "bg-green-500";
-                  let statusKey: "statusCritical" | "statusWarning" | "statusHealthy" = "statusHealthy";
+                  let statusKey:
+                    | "statusCritical"
+                    | "statusWarning"
+                    | "statusHealthy" = "statusHealthy";
                   if (item.redVals.some((rv) => valLower.includes(rv))) {
                     dotColor = "bg-red-500";
                     statusKey = "statusCritical";
