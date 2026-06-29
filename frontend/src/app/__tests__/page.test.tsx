@@ -13,6 +13,12 @@ vi.mock("@/components/ui/map-viewer", () => {
   };
 });
 
+vi.mock("@/components/ui/echarts-chart", () => {
+  return {
+    EChartsChart: () => <div data-testid="mock-echarts-chart" />,
+  };
+});
+
 vi.mock("@/lib/api", () => {
   return {
     apiClient: {

@@ -3,6 +3,8 @@
 import React from "react";
 import { X, AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
+import * as echarts from "echarts";
+import { EChartsChart } from "./echarts-chart";
 
 interface PollutionDetailsDrawerProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,17 +34,89 @@ export function PollutionDetailsDrawer({
       .filter(Boolean) as string[];
   }, [incidents]);
 
+  const breakdown: Record<string, number> = React.useMemo(() => {
+    return selectedSubCounty?.properties?.incidentBreakdown || {};
+  }, [selectedSubCounty]);
+
+  const sortedBreakdown = React.useMemo(() => {
+    return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+  }, [breakdown]);
+
+  const chartOptions: echarts.EChartsOption = React.useMemo(() => {
+    const reversedBreakdown = [...sortedBreakdown].reverse();
+    const categories = reversedBreakdown.map(([label]) => label);
+    const dataValues = reversedBreakdown.map(([, count]) => count);
+    const maxVal = Math.max(...dataValues, 5);
+
+    return {
+      grid: {
+        left: "2%",
+        right: "2%",
+        top: "5px",
+        bottom: "5px",
+        containLabel: false,
+      },
+      xAxis: {
+        type: "value",
+        show: false,
+      },
+      yAxis: {
+        type: "category",
+        data: categories,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+      },
+      series: [
+        {
+          type: "bar",
+          data: dataValues,
+          barWidth: 26,
+          showBackground: true,
+          backgroundStyle: {
+            color: "#f1f5f9",
+            borderRadius: 4,
+          },
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: "#f97316" },
+              { offset: 1, color: "#ef4444" },
+            ]),
+            borderRadius: 4,
+          },
+        },
+        {
+          type: "bar",
+          itemStyle: {
+            color: "rgba(0,0,0,0)",
+          },
+          barGap: "-100%",
+          barWidth: 14,
+          data: dataValues.map(() => maxVal),
+          label: {
+            show: true,
+            position: "insideRight",
+            formatter: (params: { dataIndex: number; name: string }) => {
+              const actualCount = dataValues[params.dataIndex];
+              return `${params.name} (${actualCount})`;
+            },
+            color: "#475569",
+            fontSize: 12,
+            fontWeight: "bold",
+            fontFamily: "Inter, sans-serif",
+            offset: [-8, 5],
+          },
+        },
+      ],
+    };
+  }, [sortedBreakdown]);
+
   if (!selectedSubCounty) return null;
 
   const subCountyName =
     selectedSubCounty.properties?.name || "Selected Sub-County";
   const countyName = selectedSubCounty.properties?.county || "";
   const totalIncidents = selectedSubCounty.properties?.incidentCount || 0;
-  const breakdown: Record<string, number> =
-    selectedSubCounty.properties?.incidentBreakdown || {};
-
-  // Sort breakdown by count descending
-  const sortedBreakdown = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
 
   // Determine sub-county status based on incident count
   let statusText = t("statusHealthy");
@@ -62,12 +136,6 @@ export function PollutionDetailsDrawer({
     statusColor = "bg-amber-50 text-amber-700 border-amber-200";
     StatusIcon = Info;
   }
-
-  // Find max count to scale the bar chart
-  const maxCount =
-    sortedBreakdown.length > 0
-      ? Math.max(...sortedBreakdown.map(([, count]) => count))
-      : 1;
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
@@ -120,28 +188,14 @@ export function PollutionDetailsDrawer({
               </p>
             </div>
 
-            {/* Horizontal Bar Chart with inner labels */}
-            <div className="space-y-3">
-              {sortedBreakdown.map(([typeLabel, count]) => {
-                const percentage = Math.max(15, (count / maxCount) * 100);
-                return (
-                  <div key={typeLabel} className="space-y-1">
-                    <div className="relative w-full h-8 bg-slate-50 rounded-lg overflow-hidden border border-slate-100 group">
-                      <div
-                        className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-l transition-all duration-500 flex items-center justify-between px-3 text-white"
-                        style={{ width: `${percentage}%` }}
-                      >
-                        <span className="text-xs font-bold truncate pr-2">
-                          {typeLabel}
-                        </span>
-                        <span className="text-xs font-black shrink-0">
-                          {count}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Horizontal Bar Chart with ECharts */}
+            <div className="w-full">
+              <EChartsChart
+                options={chartOptions}
+                style={{
+                  height: `${Math.max(120, sortedBreakdown.length * 32)}px`,
+                }}
+              />
             </div>
           </div>
         ) : (

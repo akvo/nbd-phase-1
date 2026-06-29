@@ -474,7 +474,8 @@ export default function Home() {
 
   // Compute choroplethLayers for sub-counties
   const choroplethLayers = useMemo(() => {
-    if (selectedDomain !== "pollution" || !subcountyGeometry) return [];
+    if (selectedDomain !== "pollution" || !subcountyGeometry || loading)
+      return [];
 
     const features = JSON.parse(
       JSON.stringify(subcountyGeometry.features || [])
@@ -510,7 +511,7 @@ export default function Home() {
 
       return feature;
     });
-  }, [selectedDomain, subcountyGeometry, filteredIncidents]);
+  }, [selectedDomain, subcountyGeometry, filteredIncidents, loading]);
 
   // Compute sidebar/list incidents filtered by selected sub-county
   const sidebarIncidents = useMemo(() => {
@@ -605,7 +606,13 @@ export default function Home() {
             wetlandGeometry={wetlandGeometry}
             choroplethLayers={choroplethLayers}
             selectedSubCounty={selectedSubCounty}
-            onSelectSubCounty={setSelectedSubCounty}
+            onSelectSubCounty={(subCounty) => {
+              setSelectedSubCounty(subCounty);
+              if (subCounty) {
+                setSelectedSite(null);
+                setSelectedIncident(null);
+              }
+            }}
             className="h-full w-full"
             onSelectMarker={(code, type) => {
               if (type === "site") {
