@@ -1,10 +1,10 @@
 # PRD — Map Filter Bar Component
 
-* **Stage 2 of 3 — Documentation Hierarchy**
-* **Initiative**: Map Filter Bar — Fixed Sub-Header Filter Component
-* **Owner**: John (Product Manager) & Sally (UX Designer)
-* **Status**: Draft — Pending Approval
-* **Related Docs**:
+- **Stage 2 of 3 — Documentation Hierarchy**
+- **Initiative**: Map Filter Bar — Fixed Sub-Header Filter Component
+- **Owner**: John (Product Manager) & Sally (UX Designer)
+- **Status**: Draft — Pending Approval
+- **Related Docs**:
   - [Domain Selector & Dashboard PRD](./domain_selector_dashboard_prd.md)
   - [Pollution Choropleth PRD](./pollution_choropleth_prd.md)
 
@@ -31,14 +31,14 @@ All map filters (basin selector, domain selector, health/severity toggle, search
 
 ## II. 5W1H Analysis
 
-| Dimension | Details |
-|---|---|
-| **Who** | All public portal users on both mobile and desktop |
-| **What** | A new `MapFilter` component — a fixed sub-header bar with domain-aware filter controls: basin selector, domain-specific filters (wetland status / pollution incident type + date range). Search input is removed entirely. |
-| **Where** | `src/components/ui/map-filter.tsx` (new), rendered in `src/app/page.tsx` between `<SiteHeader>` and the map/sidebar body; state lifted to `page.tsx` via props/callbacks |
-| **When** | Always visible on the portal page (`/`). Activated on every page load. Filters fire on change (no submit button needed). |
-| **Why** | The sidebar is becoming purely a data list. Filters should live in a persistent, always-visible control area. Removing search simplifies the UX and focuses the filter set on what's most useful for map-based decision-making. |
-| **How** | On desktop: filters render horizontally in a single row. On mobile: basin selector shown by default; remaining filters hidden behind a "More filters" chevron toggle (collapsible). The entire row sticks below the site header using `sticky` CSS. |
+| Dimension | Details                                                                                                                                                                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Who**   | All public portal users on both mobile and desktop                                                                                                                                                                                                  |
+| **What**  | A new `MapFilter` component — a fixed sub-header bar with domain-aware filter controls: basin selector, domain-specific filters (wetland status / pollution incident type + date range). Search input is removed entirely.                          |
+| **Where** | `src/components/ui/map-filter.tsx` (new), rendered in `src/app/page.tsx` between `<SiteHeader>` and the map/sidebar body; state lifted to `page.tsx` via props/callbacks                                                                            |
+| **When**  | Always visible on the portal page (`/`). Activated on every page load. Filters fire on change (no submit button needed).                                                                                                                            |
+| **Why**   | The sidebar is becoming purely a data list. Filters should live in a persistent, always-visible control area. Removing search simplifies the UX and focuses the filter set on what's most useful for map-based decision-making.                     |
+| **How**   | On desktop: filters render horizontally in a single row. On mobile: basin selector shown by default; remaining filters hidden behind a "More filters" chevron toggle (collapsible). The entire row sticks below the site header using `sticky` CSS. |
 
 ---
 
@@ -52,6 +52,7 @@ All map filters (basin selector, domain selector, health/severity toggle, search
 ### User Flows
 
 #### Flow A — Desktop, Wetland Domain (Default)
+
 ```
 Page loads → MapFilter bar appears below SiteHeader (sticky)
 Wetland domain active → bar shows:
@@ -61,6 +62,7 @@ User selects "Critical" → site list + map markers filter to health class D/E o
 ```
 
 #### Flow B — Desktop, Pollution Domain
+
 ```
 User selects "Pollution Reports" from domain dropdown (in SiteHeader)
 → MapFilter bar swaps to pollution controls:
@@ -70,6 +72,7 @@ User picks date range → further filters by incident.created_at
 ```
 
 #### Flow C — Mobile, Default Load
+
 ```
 Page loads → MapFilter bar shows only:
   [Basin: MARA ▾]  [⊕ More filters]
@@ -79,6 +82,7 @@ User taps "More filters" chevron → collapsible panel drops below:
 ```
 
 #### Flow D — Domain Switch Clears Filters
+
 ```
 User is in Pollution domain with "Fish or animal kills" filter active
 → Switches to Wetland domain (header dropdown)
@@ -99,43 +103,49 @@ User is in Pollution domain with "Fish or animal kills" filter active
 5. **Remove DomainSelector from sidebar**: The `<DomainSelector>` at L443–446 in `page.tsx` is removed (it moves to the SiteHeader as part of Feedback #1). This PRD does not implement that — only removes the sidebar stub.
 
 #### Wetland Domain Filters (Must-Have)
+
 6. **Basin Selector** — same `<Dropdown>` component, driven by `basins` API data. Controlled by `selectedBasin`.
 7. **Wetland Selector** — dropdown: `All Wetlands` (default) + individual wetland site names. Controlled by new `selectedWetland` state. Filters the site list to a single site when chosen.
 8. **Site Status Toggle** — horizontal pill toggle: `All | Critical | At Risk | Healthy`. Controlled by `selectedHealthFilter`. (Same logic as existing; just moved.)
 
 #### Pollution Domain Filters (Must-Have)
+
 9. **Basin Selector** — same as #6.
 10. **Incident Type Dropdown** — options derived from the `incident_type` question options (static list from form seed):
 
-    | Value | Label |
-    |---|---|
-    | `` (empty) | All types |
-    | `1` | Water colour (darker/murkier) |
-    | `2` | Smell (bad odour) |
-    | `3` | Fish or animal kills |
-    | `4` | Storm event |
-    | `5` | High water level |
-    | `6` | Low water level |
+    | Value      | Label                         |
+    | ---------- | ----------------------------- |
+    | `` (empty) | All types                     |
+    | `1`        | Water colour (darker/murkier) |
+    | `2`        | Smell (bad odour)             |
+    | `3`        | Fish or animal kills          |
+    | `4`        | Storm event                   |
+    | `5`        | High water level              |
+    | `6`        | Low water level               |
 
     Controlled by new `selectedIncidentType` state (`""` = All).
 
 11. **Date Range Filter** — two date `<input type="date">` fields: From / To. Controlled by `selectedDateFrom` and `selectedDateTo` (`""` = no filter). Filters incidents where `incident.created_at` falls within the range (inclusive).
 
 #### Mobile Behaviour (Must-Have)
+
 12. **Basin selector always visible** on mobile — never hidden in the collapsible section.
 13. **"More filters" toggle** — a chevron button that expands/collapses the domain-specific filters on mobile.
 14. **Default collapsed** — the "More filters" section is collapsed on mobile on page load and on domain switch.
 
 #### Responsive Layout (Must-Have)
+
 15. **Desktop** (`md:` breakpoint and above): all filters in a single horizontal row, space-x gap between them.
 16. **Mobile** (below `md:`): basin selector + chevron button in the top row; domain-specific filters in a collapsible section below.
 
 ### Nice-to-Have (Deferred)
+
 - Active filter count badge on the "More filters" button (e.g., "Filters (2)").
 - "Clear all filters" button that resets all domain-specific filters.
 - Animated smooth expand/collapse on mobile filter panel.
 
 ### Out of Scope
+
 - Persisting filter state to URL query params or localStorage.
 - Any filter applied on the Wetland choropleth (that feature does not exist; wetland uses markers).
 - Backend filtering — all filtering is client-side.
@@ -168,23 +178,25 @@ graph TD
 
 ### State Changes in `page.tsx`
 
-| State Variable | Change | Notes |
-|---|---|---|
-| `selectedBasin` | Keep — passed to MapFilter | unchanged |
-| `selectedHealthFilter` | Keep — passed to MapFilter | unchanged |
-| `searchQuery` | **Remove** | search input eliminated |
-| `selectedWetland` | **Add** `useState("")` | `""` = all wetlands |
-| `selectedIncidentType` | **Add** `useState("")` | `""` = all types |
-| `selectedDateFrom` | **Add** `useState("")` | `""` = no start filter |
-| `selectedDateTo` | **Add** `useState("")` | `""` = no end filter |
+| State Variable         | Change                     | Notes                   |
+| ---------------------- | -------------------------- | ----------------------- |
+| `selectedBasin`        | Keep — passed to MapFilter | unchanged               |
+| `selectedHealthFilter` | Keep — passed to MapFilter | unchanged               |
+| `searchQuery`          | **Remove**                 | search input eliminated |
+| `selectedWetland`      | **Add** `useState("")`     | `""` = all wetlands     |
+| `selectedIncidentType` | **Add** `useState("")`     | `""` = all types        |
+| `selectedDateFrom`     | **Add** `useState("")`     | `""` = no start filter  |
+| `selectedDateTo`       | **Add** `useState("")`     | `""` = no end filter    |
 
 ### Filter Logic Changes in `page.tsx`
 
 #### `filteredSites` (Wetland domain)
+
 - **Remove** search query filter block (L270–276).
 - **Add** wetland filter: if `selectedWetland !== ""`, keep only `site.id === selectedWetland` (or `site.code === selectedWetland`).
 
 #### `filteredIncidents` (Pollution domain)
+
 - **Add** incident type filter: if `selectedIncidentType !== ""`, keep only incidents where `answers.find(a => a.name === "incident_type")?.options?.[0] === selectedIncidentType`.
 - **Add** date range filter: if `selectedDateFrom !== ""`, keep incidents with `new Date(incident.created_at) >= new Date(selectedDateFrom)`; if `selectedDateTo !== ""`, keep incidents with date `<= end of selectedDateTo`.
 
@@ -221,8 +233,8 @@ interface MapFilterProps {
   selectedHealthFilter: string;
   onHealthFilterChange: (val: string) => void;
   // Incident type (Pollution domain only)
-  selectedIncidentType: string;
-  onIncidentTypeChange: (val: string) => void;
+  selectedIncidentTypes: string[];
+  onIncidentTypesChange: (val: string[]) => void;
   // Date range (Pollution domain only)
   selectedDateFrom: string;
   onDateFromChange: (val: string) => void;
@@ -268,14 +280,14 @@ interface MapFilterProps {
 
 ## VII. Edge Cases & Errors
 
-| Case | Behaviour |
-|---|---|
-| `basins` API returns empty | Basin selector shows empty dropdown; no crash |
-| `dbSites` is empty (loading) | Wetland selector shows "All Wetlands" only |
-| Date From > Date To | No validation error shown — just returns 0 results naturally |
-| Domain switch with date filter active | Date filters cleared; no stale filtered state |
-| User resizes from mobile to desktop | Filter bar switches layout; collapsed state does not persist |
-| No incidents match date + type filters | Pollution list shows empty state; map shows grey choropleth |
+| Case                                                | Behaviour                                                                               |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `basins` API returns empty                          | Basin selector shows empty dropdown; no crash                                           |
+| `dbSites` is empty (loading)                        | Wetland selector shows "All Wetlands" only                                              |
+| Date From > Date To                                 | No validation error shown — just returns 0 results naturally                            |
+| Domain switch with date filter active               | Date filters cleared; no stale filtered state                                           |
+| User resizes from mobile to desktop                 | Filter bar switches layout; collapsed state does not persist                            |
+| No incidents match date + type filters              | Pollution list shows empty state; map shows grey choropleth                             |
 | `selectedWetland` site is removed from API response | Filter resets to "All Wetlands" (stale value yields 0 results, functionally equivalent) |
 
 ---
@@ -295,11 +307,13 @@ interface MapFilterProps {
 ### Mobile Layout (< md breakpoint)
 
 **Collapsed:**
+
 ```
 [Basin: MARA ▾]                        [⊕ More filters (2)]
 ```
 
 **Expanded:**
+
 ```
 [Basin: MARA ▾]                        [⊕ More filters (2)]
 ─────────────────────────────────────────────────────────────
@@ -320,19 +334,19 @@ interface MapFilterProps {
 
 ## IX. Epic & Ballpark Estimation
 
-| Component | Complexity | Estimate |
-|---|---|---|
-| `MapFilter` component (desktop layout, both domains) | Medium | 2.5 h |
-| Mobile collapsible behaviour + "More filters" toggle | Medium | 1.5 h |
-| New state: `selectedWetland`, `selectedIncidentType`, `selectedDateFrom`, `selectedDateTo` in `page.tsx` | Simple | 0.5 h |
-| `filteredSites` wetland filter logic | Simple | 0.5 h |
-| `filteredIncidents` incident type + date range filter logic | Simple | 1 h |
-| Remove search input + `searchQuery` state | Simple | 0.25 h |
-| Remove sidebar DomainSelector + basin + status filters | Simple | 0.25 h |
-| Sticky layout wiring (`top-16 z-40`) | Simple | 0.25 h |
-| Unit tests (`MapFilter` renders correct filters per domain, filter callbacks fire) | Medium | 1.5 h |
-| QA (both domains, mobile + desktop, sticky scroll test) | Simple | 1 h |
-| **Total** | | **~9.25 hours / ~1.5 Story Points** |
+| Component                                                                                                | Complexity | Estimate                            |
+| -------------------------------------------------------------------------------------------------------- | ---------- | ----------------------------------- |
+| `MapFilter` component (desktop layout, both domains)                                                     | Medium     | 2.5 h                               |
+| Mobile collapsible behaviour + "More filters" toggle                                                     | Medium     | 1.5 h                               |
+| New state: `selectedWetland`, `selectedIncidentType`, `selectedDateFrom`, `selectedDateTo` in `page.tsx` | Simple     | 0.5 h                               |
+| `filteredSites` wetland filter logic                                                                     | Simple     | 0.5 h                               |
+| `filteredIncidents` incident type + date range filter logic                                              | Simple     | 1 h                                 |
+| Remove search input + `searchQuery` state                                                                | Simple     | 0.25 h                              |
+| Remove sidebar DomainSelector + basin + status filters                                                   | Simple     | 0.25 h                              |
+| Sticky layout wiring (`top-16 z-40`)                                                                     | Simple     | 0.25 h                              |
+| Unit tests (`MapFilter` renders correct filters per domain, filter callbacks fire)                       | Medium     | 1.5 h                               |
+| QA (both domains, mobile + desktop, sticky scroll test)                                                  | Simple     | 1 h                                 |
+| **Total**                                                                                                |            | **~9.25 hours / ~1.5 Story Points** |
 
 ### Assumptions
 

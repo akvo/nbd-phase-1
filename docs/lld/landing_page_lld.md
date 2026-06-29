@@ -12,6 +12,7 @@
 Interactive landing page at `/` (`src/app/page.tsx`) mapping basins, monitoring sites, and pollution incidents with search, category filtering, and parameter drill-downs.
 
 **PRD References**:
+
 - FR-001 (Leaflet Map Render)
 - FR-002 (Health Grade & Incident Markers)
 - FR-003 (Status Toggle Tags)
@@ -24,6 +25,7 @@ Interactive landing page at `/` (`src/app/page.tsx`) mapping basins, monitoring 
 ## 2. Component Design & Layout
 
 The page utilizes a mobile-first responsive layout matching Figma specifications:
+
 - **HeaderNavigation**: Logo, navigation action buttons (Log in, Sign up).
 - **Map Container**: Fully fills the background/viewport height. Employs `next/dynamic` to load the Leaflet wrapper with `ssr: false`.
   - **GIS Popups**: Clicking on a site or incident marker opens an enriched, styled popup containing:
@@ -37,17 +39,17 @@ The page utilizes a mobile-first responsive layout matching Figma specifications
   - Appears as a left-hand floating sidebar on desktop screens (>= 768px).
   - Contains the View Toggle switch (`All`, `Critical`, `At risk`, `Healthy`), search input field, and list of site cards.
   - **Collapsible Cards List (Mobile & Desktop)**: The site cards list itself is collapsible (toggled via the "Monitoring Sites" section header, or via the mobile drag handle button at the top of the panel) to allow maximizing map visibility on mobile screens while keeping the dropdown filters and search input visible at all times.
-- **Detailed Site View Card (Task 2)**:
-  - **UAC 2.1 (Card Anatomy)**: Displays the Location Name, site_id code (e.g., `NBD-MARA-002`), a color-coded Health Class badge (A, C, D) using Tailwind HSL themes, and the Community Signal text.
-  - **UAC 2.2 (Chip Rendering)**: Displays the "IK-adjusted" chip alongside the geographic location (e.g., "Tanzania", "Kenya") and status chips ("Pending", "Approved"). The status chip represents the approval state of the site.
-  - **UAC 2.3 (Action Banners)**: Shows a distinct warning banner at the bottom of the card with an alert icon if a site requires intervention (e.g., health class is poor like D or E, or recommended management actions exist in the DB, e.g., "Action: Site stewards notified...").
-  - Clicking on a card toggles a modal/drawer parameter breakdown (pH, DO, Temp, unit weights, and triggered management actions matching the API contract).
+- **Detailed Site View Card**:
+  - **Site Card Anatomy**: Displays the Location Name, site_id code (e.g., `NBD-MARA-002`), and a clean color-coded status dot representing the site's health class.
+  - **Removed Elements**: The approved/pending status tags, "IK-adjusted" badge, and "Community Signal" description section are removed to simplify the visual layout.
+  - Clicking on a card opens a modal/drawer parameter breakdown (pH, DO, Temp, unit weights, and triggered management actions matching the API contract).
 
 ## 3. Data Integration & Schema
 
 Rather than using local static mock JSON, the landing page fetches data from the database using the unauthenticated API endpoints:
 
 ### 3.1 API Endpoints
+
 1. **Basin Boundaries**: `GET /api/v1/basins`
    - Returns a list of basins with GeoJSON MultiPolygon geometries.
 2. **Monitoring Sites**: `GET /api/v1/sites`
@@ -57,6 +59,7 @@ Rather than using local static mock JSON, the landing page fetches data from the
    - The coordinates are extracted from the `geo` field (`[longitude, latitude]` format).
 
 ### 3.2 Coordinate and Severity Mapping
+
 - **Leaflet Coordinate Flip**: All coordinates are mapped from database GeoJSON format `[longitude, latitude]` to Leaflet's coordinate structure `[latitude, longitude]`.
 - **Incident Severity Translation**: Submissions do not contain an explicit severity string. The frontend maps the `incident_type` option value to a severity status:
   - Option `3` (Fish or animal kills) -> **Critical**
@@ -68,10 +71,12 @@ Rather than using local static mock JSON, the landing page fetches data from the
 ## 4. Verification Plan
 
 ### Automated Tests
+
 - Run `yarn test` to verify component compilation.
 - Verify that dynamic search and status filtering update the markers and card listing correctly.
 
 ### Manual Verification
+
 - Simulate mobile devices (e.g. 375px width) in Chrome DevTools:
   - Verify map occupies the top section (`45vh`) and the panel forms the bottom half.
   - Verify that a single-finger swipe on the map scrolls the page, and two-finger swipe pans the map.

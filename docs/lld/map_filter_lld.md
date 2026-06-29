@@ -7,6 +7,7 @@
 ---
 
 ## 1. UI Architecture & Sticky Layout
+
 - Create a new component at `frontend/src/components/ui/map-filter.tsx`.
 - The filter bar is styled as a sticky sub-header underneath the main header:
   - Parent container uses Tailwind classes `sticky top-16 z-20 w-full border-b border-slate-200 bg-white/95 backdrop-blur-sm shadow-sm`.
@@ -17,6 +18,7 @@
 ## 2. Component Design (`map-filter.tsx`)
 
 ### 2.1 Props Interface
+
 ```typescript
 interface MapFilterProps {
   domain: "wetland" | "pollution";
@@ -29,8 +31,8 @@ interface MapFilterProps {
   selectedHealthFilter: string;
   onHealthFilterChange: (status: string) => void;
   // Pollution filters
-  selectedIncidentType: string;
-  onIncidentTypeChange: (type: string) => void;
+  selectedIncidentTypes: string[];
+  onIncidentTypesChange: (types: string[]) => void;
   selectedDateFrom: string;
   onDateFromChange: (date: string) => void;
   selectedDateTo: string;
@@ -39,6 +41,7 @@ interface MapFilterProps {
 ```
 
 ### 2.2 Domain-Aware Layout & Mobile Collapsing
+
 - **Desktop (md and larger)**: Displayed as a single horizontal row.
   - Wetland: Basin dropdown, Wetland dropdown, Status buttons group.
   - Pollution: Basin dropdown, Incident Type dropdown, Date Range Pickers.
@@ -48,6 +51,7 @@ interface MapFilterProps {
 ---
 
 ## 3. Integration & Code Cleanups (`page.tsx`)
+
 - Import and render `<MapFilter>` directly below `<SiteHeader>`.
 - Remove the search input components and all `searchQuery` state filter operations from `filteredSites` and `filteredIncidents` arrays.
 - Remove `<DomainSelector>` from the collapsible sidebar and feed it to the new filter bar props.
@@ -55,6 +59,7 @@ interface MapFilterProps {
 ---
 
 ## 4. Verification & Testing Plan
+
 - Verify that changing filters correctly cascades down to filtered lists and map markers.
 - Verify mobile collapsing layout on responsive screens.
 - Run tests in `map-filter.test.tsx` to verify component triggers and callbacks.
