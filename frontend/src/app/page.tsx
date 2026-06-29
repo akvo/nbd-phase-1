@@ -577,6 +577,7 @@ export default function Home() {
           setSelectedSite(null);
           setSelectedIncident(null);
           setSelectedWetland("");
+          setSelectedSubCounty(null);
         }}
         wetlandOptions={wetlandOptions}
         selectedWetland={selectedWetland}
@@ -869,7 +870,10 @@ export default function Home() {
                         dateReported={incident.created_at || ""}
                         description={descText}
                         basinName={activeBasin?.name}
-                        onClick={() => setSelectedIncident(incident)}
+                        onClick={() => {
+                          setSelectedIncident(incident);
+                          setSelectedSubCounty(null);
+                        }}
                         imageUrl={imageUrl}
                       />
                     );
@@ -907,7 +911,10 @@ export default function Home() {
       <PollutionDetailsDrawer
         selectedSubCounty={selectedSubCounty}
         incidents={sidebarIncidents}
-        onClickIncident={(incident: any) => setSelectedIncident(incident)}
+        onClickIncident={(incident: any) => {
+          setSelectedIncident(incident);
+          setSelectedSubCounty(null);
+        }}
         onClose={() => setSelectedSubCounty(null)}
       />
     </main>

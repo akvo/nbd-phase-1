@@ -77,7 +77,7 @@ export function IncidentDrawer({
   const coords = incident.geo?.coordinates;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
+    <div className="fixed inset-y-0 right-0 z-60 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
       {/* Drawer Header */}
       <div className="p-6 border-b border-slate-200 flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
