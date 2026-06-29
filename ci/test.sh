@@ -48,7 +48,7 @@ frontend_test () {
        --rm \
        --no-deps \
        frontend \
-       sh ./test.sh
+       ./test.sh
 }
 
 backend_test () {
