@@ -173,12 +173,16 @@ export default function Home() {
   const [selectedIncidentType, setSelectedIncidentType] = useState("");
   const [selectedDateFrom, setSelectedDateFrom] = useState("");
   const [selectedDateTo, setSelectedDateTo] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedSite, setSelectedSite] = useState<any>(null);
-  const { selectedDomain } = useDomain();
-  const [selectedIncident, setSelectedIncident] =
-    useState<IncidentSummary | null>(null);
-  const [selectedSubCounty, setSelectedSubCounty] = useState<any>(null);
+  const {
+    selectedDomain,
+    selectedSite,
+    setSelectedSite,
+    selectedIncident,
+    setSelectedIncident,
+    selectedSubCounty,
+    setSelectedSubCounty,
+    closeAllDrawers,
+  } = useDomain();
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   const locale = useLocale();
   const [incidentTypeOptions, setIncidentTypeOptions] = useState<
@@ -314,7 +318,27 @@ export default function Home() {
     if (selectedDomain === "pollution") {
       setSelectedSite(null);
     }
-  }, [selectedDomain]);
+  }, [
+    selectedDomain,
+    setSelectedHealthFilter,
+    setSelectedIncident,
+    setSelectedSubCounty,
+    setSelectedSite,
+  ]);
+
+  // Automatically close any open drawers when any filter changes
+  useEffect(() => {
+    closeAllDrawers();
+  }, [
+    selectedDomain,
+    selectedBasin,
+    selectedHealthFilter,
+    selectedWetland,
+    selectedIncidentType,
+    selectedDateFrom,
+    selectedDateTo,
+    closeAllDrawers,
+  ]);
 
   useEffect(() => {
     getBasins()

@@ -43,9 +43,9 @@ const DynamicIcon = ({
   if (!name) {
     return null;
   }
-  const IconComponent = LucideIcons[name as keyof typeof LucideIcons] as
-    | React.ComponentType<{ className?: string }>
-    | undefined;
+  const IconComponent = LucideIcons[
+    name as keyof typeof LucideIcons
+  ] as React.ComponentType<{ className?: string }>;
   if (!IconComponent) {
     return null;
   }

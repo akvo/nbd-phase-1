@@ -484,20 +484,23 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
                     .toLowerCase()
                     .replace(/_/g, " ")
                     .trim();
-                  let dotColor = "bg-green-500";
-                  let statusKey:
-                    | "statusCritical"
-                    | "statusWarning"
-                    | "statusHealthy" = "statusHealthy";
-                  if (item.redVals.some((rv) => valLower.includes(rv))) {
-                    dotColor = "bg-red-500";
-                    statusKey = "statusCritical";
-                  } else if (
-                    item.orangeVals.some((ov) => valLower.includes(ov))
-                  ) {
-                    dotColor = "bg-amber-500";
-                    statusKey = "statusWarning";
-                  }
+                  const isRed = item.redVals.some((rv) =>
+                    valLower.includes(rv)
+                  );
+                  const isOrange = item.orangeVals.some((ov) =>
+                    valLower.includes(ov)
+                  );
+
+                  const dotColor = isRed
+                    ? "bg-red-500"
+                    : isOrange
+                      ? "bg-amber-500"
+                      : "bg-green-500";
+                  const statusKey = isRed
+                    ? "statusCritical"
+                    : isOrange
+                      ? "statusWarning"
+                      : "statusHealthy";
 
                   // Translate FGD indicator value
                   const fgdTranslationKey = fgdValueToTranslation[valLower];
