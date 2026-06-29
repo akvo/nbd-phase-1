@@ -51,4 +51,5 @@ services:
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_test_google_client_id_here
     volumes:
       - ./frontend:/app:delegated
+      - /app/node_modules
     command: ["./test.sh"]

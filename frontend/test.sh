@@ -2,10 +2,10 @@
 set -e
 
 echo "Running prettier check..."
-npm run prettier:check
+yarn prettier:check
 
 echo "Running ESLint..."
-npm run lint
+yarn lint
 
 echo "Running frontend tests..."
-npm run test:coverage
+yarn test:coverage
