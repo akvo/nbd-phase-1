@@ -21,6 +21,20 @@ vi.mock("react-leaflet", () => {
     useMap: () => ({
       fitBounds: vi.fn(),
     }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    LayersControl: Object.assign(
+      ({ children }: any) => <div data-testid="layers-control">{children}</div>,
+      {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        BaseLayer: ({ children }: any) => (
+          <div data-testid="base-layer">{children}</div>
+        ),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        Overlay: ({ children }: any) => (
+          <div data-testid="overlay">{children}</div>
+        ),
+      }
+    ),
   };
 });
 

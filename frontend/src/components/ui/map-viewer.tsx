@@ -6,6 +6,7 @@ import {
   ZoomControl,
   GeoJSON,
   useMap,
+  LayersControl,
 } from "react-leaflet";
 import * as L from "leaflet";
 import { Loader } from "@/components/ui/loader";
@@ -207,10 +208,26 @@ export default function MapViewer({
         style={{ width: "100%", height: "100%" }}
         key={`nbd-map-${center[0]}-${center[1]}`}
       >
-        <TileLayer
-          attribution="&copy; Google Maps"
-          url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-        />
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Google Hybrid">
+            <TileLayer
+              attribution="&copy; Google Maps"
+              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Google Terrain">
+            <TileLayer
+              attribution="&copy; Google Maps"
+              url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="OpenStreetMap">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
         <ZoomControl position="bottomright" />
         <MapController
           basinGeometry={basinGeometry}
