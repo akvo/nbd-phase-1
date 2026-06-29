@@ -879,4 +879,3 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
 }
 
 export default SiteDrawer;
-// Prettier check force-trigger
