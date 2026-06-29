@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Dropdown } from "@/components/ui/dropdown";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { SlidersHorizontal, RotateCcw } from "lucide-react";
 
@@ -20,8 +21,8 @@ interface MapFilterProps {
   selectedHealthFilter: string;
   onHealthFilterChange: (val: string) => void;
   // Pollution
-  selectedIncidentType: string;
-  onIncidentTypeChange: (val: string) => void;
+  selectedIncidentTypes: string[];
+  onIncidentTypesChange: (val: string[]) => void;
   selectedDateFrom: string;
   onDateFromChange: (val: string) => void;
   selectedDateTo: string;
@@ -40,8 +41,8 @@ export function MapFilter({
   onWetlandChange,
   selectedHealthFilter,
   onHealthFilterChange,
-  selectedIncidentType,
-  onIncidentTypeChange,
+  selectedIncidentTypes,
+  onIncidentTypesChange,
   selectedDateFrom,
   onDateFromChange,
   selectedDateTo,
@@ -68,7 +69,7 @@ export function MapFilter({
   const hasActiveFilters =
     domain === "wetland"
       ? selectedWetland !== "" || selectedHealthFilter !== "All"
-      : selectedIncidentType !== "" ||
+      : selectedIncidentTypes.length > 0 ||
         selectedDateFrom !== "" ||
         selectedDateTo !== "";
 
@@ -139,10 +140,11 @@ export function MapFilter({
             <>
               {/* Incident type filter */}
               <div className="w-full md:w-60">
-                <Dropdown
+                <MultiSelect
                   options={incidentTypeOptions}
-                  value={selectedIncidentType}
-                  onChange={onIncidentTypeChange}
+                  selectedValues={selectedIncidentTypes}
+                  onChange={onIncidentTypesChange}
+                  placeholder={t("filters.allTypes")}
                 />
               </div>
 

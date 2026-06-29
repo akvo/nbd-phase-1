@@ -25,12 +25,13 @@ test("renders MapFilter for Wetland and responds to inputs", () => {
         onWetlandChange={onWetlandChange}
         selectedHealthFilter="All"
         onHealthFilterChange={onHealthFilterChange}
-        selectedIncidentType=""
-        onIncidentTypeChange={vi.fn()}
+        selectedIncidentTypes={[]}
+        onIncidentTypesChange={vi.fn()}
         selectedDateFrom=""
         onDateFromChange={vi.fn()}
         selectedDateTo=""
         onDateToChange={vi.fn()}
+        onClearFilters={vi.fn()}
       />
     </NextIntlClientProvider>
   );
@@ -62,12 +63,13 @@ test("renders MapFilter for Pollution domain", () => {
         onWetlandChange={vi.fn()}
         selectedHealthFilter="All"
         onHealthFilterChange={vi.fn()}
-        selectedIncidentType=""
-        onIncidentTypeChange={onIncidentTypeChange}
+        selectedIncidentTypes={[]}
+        onIncidentTypesChange={onIncidentTypeChange}
         selectedDateFrom="2026-06-01"
         onDateFromChange={onDateFromChange}
         selectedDateTo=""
         onDateToChange={vi.fn()}
+        onClearFilters={vi.fn()}
       />
     </NextIntlClientProvider>
   );

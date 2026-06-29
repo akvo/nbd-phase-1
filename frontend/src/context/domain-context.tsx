@@ -20,6 +20,8 @@ interface DomainContextType {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setSelectedSubCounty: (subCounty: any) => void;
   closeAllDrawers: () => void;
+  pollutionRange: [number, number];
+  setPollutionRange: (range: [number, number]) => void;
 }
 
 const DomainContext = createContext<DomainContextType | null>(null);
@@ -39,6 +41,9 @@ export function DomainProvider({
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSubCounty, setSelectedSubCounty] = useState<any>(null);
+  const [pollutionRange, setPollutionRange] = useState<[number, number]>([
+    0, 20,
+  ]);
 
   const closeAllDrawers = useCallback(() => {
     setSelectedSite(null);
@@ -58,6 +63,8 @@ export function DomainProvider({
         selectedSubCounty,
         setSelectedSubCounty,
         closeAllDrawers,
+        pollutionRange,
+        setPollutionRange,
       }}
     >
       {children}

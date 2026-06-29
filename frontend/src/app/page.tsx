@@ -170,7 +170,9 @@ export default function Home() {
   const [selectedBasin, setSelectedBasin] = useState("MARA");
   const [selectedHealthFilter, setSelectedHealthFilter] = useState("All");
   const [selectedWetland, setSelectedWetland] = useState("");
-  const [selectedIncidentType, setSelectedIncidentType] = useState("");
+  const [selectedIncidentTypes, setSelectedIncidentTypes] = useState<string[]>(
+    []
+  );
   const [selectedDateFrom, setSelectedDateFrom] = useState("");
   const [selectedDateTo, setSelectedDateTo] = useState("");
   const {
@@ -182,6 +184,8 @@ export default function Home() {
     selectedSubCounty,
     setSelectedSubCounty,
     closeAllDrawers,
+    pollutionRange,
+    setPollutionRange,
   } = useDomain();
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   const locale = useLocale();
@@ -213,7 +217,7 @@ export default function Home() {
         selectedBasin === "SIO_SITEKO"
           ? "sio-siteko-wetland.geojson"
           : "mara-wetland.geojson";
-      fetch(`/spatial/${fileName}`)
+      fetch(`/spatial/${fileName}?v=1.0.1`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load wetland GeoJSON");
           return res.json();
@@ -235,7 +239,7 @@ export default function Home() {
         selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
           ? "sio-subcounties.geojson"
           : "mara-subcounties.geojson";
-      fetch(`/spatial/${fileName}`)
+      fetch(`/spatial/${fileName}?v=1.0.1`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load sub-counties GeoJSON");
           return res.json();
@@ -311,7 +315,7 @@ export default function Home() {
     setSelectedHealthFilter("All");
     setSelectedIncident(null);
     setSelectedWetland("");
-    setSelectedIncidentType("");
+    setSelectedIncidentTypes([]);
     setSelectedDateFrom("");
     setSelectedDateTo("");
     setSelectedSubCounty(null);
@@ -334,7 +338,7 @@ export default function Home() {
     selectedBasin,
     selectedHealthFilter,
     selectedWetland,
-    selectedIncidentType,
+    selectedIncidentTypes,
     selectedDateFrom,
     selectedDateTo,
     closeAllDrawers,
@@ -425,8 +429,8 @@ export default function Home() {
     const optionVal = qIncidentAns?.options?.[0];
 
     // Filter by incident type
-    if (selectedIncidentType !== "") {
-      if (String(optionVal) !== selectedIncidentType) return false;
+    if (selectedIncidentTypes.length > 0) {
+      if (!selectedIncidentTypes.includes(String(optionVal))) return false;
     }
 
     // Filter by Date From
@@ -505,37 +509,48 @@ export default function Home() {
       JSON.stringify(subcountyGeometry.features || [])
     );
 
-    return features.map((feature: any) => {
-      let count = 0;
-      const breakdown: Record<string, number> = {};
+    return features
+      .map((feature: any) => {
+        let count = 0;
+        const breakdown: Record<string, number> = {};
 
-      filteredIncidents.forEach((incident) => {
-        const coords = incident.geo?.coordinates;
-        if (!coords || coords.length < 2) return;
-        try {
-          const pt = point(coords);
-          if (booleanPointInPolygon(pt, feature)) {
-            count++;
-            const qIncidentAns = incident.answers?.find(
-              (a: any) => a.name === "incident_type" || a.question_id === 2
-            );
-            const typeLabel = qIncidentAns?.value || "Unknown";
-            breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
+        filteredIncidents.forEach((incident) => {
+          const coords = incident.geo?.coordinates;
+          if (!coords || coords.length < 2) return;
+          try {
+            const pt = point(coords);
+            if (booleanPointInPolygon(pt, feature)) {
+              count++;
+              const qIncidentAns = incident.answers?.find(
+                (a: any) => a.name === "incident_type" || a.question_id === 2
+              );
+              const typeLabel = qIncidentAns?.value || "Unknown";
+              breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
+            }
+          } catch (err) {
+            console.error("Point-in-polygon check failed:", err);
           }
-        } catch (err) {
-          console.error("Point-in-polygon check failed:", err);
-        }
+        });
+
+        feature.properties = {
+          ...feature.properties,
+          incidentCount: count,
+          incidentBreakdown: breakdown,
+        };
+
+        return feature;
+      })
+      .filter((feature: any) => {
+        const count = feature.properties?.incidentCount || 0;
+        return count >= pollutionRange[0] && count <= pollutionRange[1];
       });
-
-      feature.properties = {
-        ...feature.properties,
-        incidentCount: count,
-        incidentBreakdown: breakdown,
-      };
-
-      return feature;
-    });
-  }, [selectedDomain, subcountyGeometry, filteredIncidents, loading]);
+  }, [
+    selectedDomain,
+    subcountyGeometry,
+    filteredIncidents,
+    loading,
+    pollutionRange,
+  ]);
 
   // Compute sidebar/list incidents filtered by selected sub-county
   const sidebarIncidents = useMemo(() => {
@@ -609,8 +624,8 @@ export default function Home() {
         onWetlandChange={setSelectedWetland}
         selectedHealthFilter={selectedHealthFilter}
         onHealthFilterChange={setSelectedHealthFilter}
-        selectedIncidentType={selectedIncidentType}
-        onIncidentTypeChange={setSelectedIncidentType}
+        selectedIncidentTypes={selectedIncidentTypes}
+        onIncidentTypesChange={setSelectedIncidentTypes}
         selectedDateFrom={selectedDateFrom}
         onDateFromChange={setSelectedDateFrom}
         selectedDateTo={selectedDateTo}
@@ -619,9 +634,10 @@ export default function Home() {
         onClearFilters={() => {
           setSelectedHealthFilter("All");
           setSelectedWetland("");
-          setSelectedIncidentType("");
+          setSelectedIncidentTypes([]);
           setSelectedDateFrom("");
           setSelectedDateTo("");
+          setPollutionRange([0, 20]);
           closeAllDrawers();
         }}
       />
