@@ -33,21 +33,35 @@ interface MapViewerProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   wetlandGeometry?: any;
   onSelectMarker?: (code: string, type: "site" | "incident") => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  choroplethLayers?: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  selectedSubCounty?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSelectSubCounty?: (feature: any) => void;
 }
 
 function MapController({
   basinGeometry,
   wetlandGeometry,
+  choroplethLayers,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   basinGeometry: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   wetlandGeometry: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  choroplethLayers: any;
 }) {
   const map = useMap();
 
   useEffect(() => {
-    const targetGeom = wetlandGeometry || basinGeometry;
+    const targetGeom =
+      wetlandGeometry ||
+      (choroplethLayers && choroplethLayers.length > 0
+        ? { type: "FeatureCollection", features: choroplethLayers }
+        : null) ||
+      basinGeometry;
     if (targetGeom) {
       try {
         const layer = L.geoJSON(targetGeom);
@@ -56,10 +70,17 @@ function MapController({
         console.error("Failed to fit bounds to geometry:", err);
       }
     }
-  }, [basinGeometry, wetlandGeometry, map]);
+  }, [basinGeometry, wetlandGeometry, choroplethLayers, map]);
 
   return null;
 }
+
+const getChoroplethColor = (count: number) => {
+  if (count >= 16) return "#dc2626"; // red-600
+  if (count >= 6) return "#f97316"; // orange-500
+  if (count >= 1) return "#fef3c7"; // amber-100
+  return "#f1f5f9"; // slate-100
+};
 
 export default function MapViewer({
   center,
@@ -70,6 +91,9 @@ export default function MapViewer({
   basinGeometry,
   wetlandGeometry,
   onSelectMarker,
+  choroplethLayers = [],
+  selectedSubCounty,
+  onSelectSubCounty,
 }: MapViewerProps) {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -185,7 +209,61 @@ export default function MapViewer({
         <MapController
           basinGeometry={basinGeometry}
           wetlandGeometry={wetlandGeometry}
+          choroplethLayers={choroplethLayers}
         />
+
+        {choroplethLayers && choroplethLayers.length > 0 && (
+          <GeoJSON
+            key={`choropleth-${choroplethLayers.length}-${selectedSubCounty?.properties?.name || ""}`}
+            data={
+              { type: "FeatureCollection", features: choroplethLayers } as any
+            }
+            onEachFeature={(feature, layer) => {
+              const count = feature.properties?.incidentCount || 0;
+              const isSelected =
+                selectedSubCounty &&
+                selectedSubCounty.properties?.name === feature.properties?.name;
+
+              if (typeof (layer as any).setStyle === "function") {
+                (layer as any).setStyle({
+                  fillColor: getChoroplethColor(count),
+                  fillOpacity: isSelected ? 0.8 : 0.45,
+                  color: isSelected ? "#2563eb" : "#475569",
+                  weight: isSelected ? 3.5 : 1.5,
+                  opacity: 0.8,
+                });
+              }
+
+              layer.on({
+                mouseover: (e) => {
+                  const l = e.target;
+                  if (!isSelected && typeof l.setStyle === "function") {
+                    l.setStyle({
+                      weight: 3,
+                      fillOpacity: 0.65,
+                      color: "#1e293b",
+                    });
+                  }
+                },
+                mouseout: (e) => {
+                  const l = e.target;
+                  if (!isSelected && typeof l.setStyle === "function") {
+                    l.setStyle({
+                      weight: 1.5,
+                      fillOpacity: 0.45,
+                      color: "#475569",
+                    });
+                  }
+                },
+                click: () => {
+                  if (onSelectSubCounty) {
+                    onSelectSubCounty(feature);
+                  }
+                },
+              });
+            }}
+          />
+        )}
 
         {wetlandGeometry && (
           <GeoJSON

@@ -44,24 +44,26 @@ export function MapLegend({
       )}
 
       {domain === "pollution" && (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded bg-red-600 flex items-center justify-center text-[8px] font-bold text-white">
-              !
-            </span>
-            <span>{t("criticalSeverity")}</span>
+        <div className="flex flex-col gap-1.5 min-w-30">
+          <div className="flex items-center justify-between text-[10px] text-slate-300 font-medium pb-0.5">
+            <span>{t("density")}</span>
+            <span>{t("pollutionIncidents")}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded bg-amber-500 flex items-center justify-center text-[8px] font-bold text-white">
-              !
-            </span>
-            <span>{t("elevatedSeverity")}</span>
+            <span className="w-4 h-3 rounded-sm border border-slate-700/50 bg-[#f1f5f9]" />
+            <span>{t("none")}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded bg-yellow-500 flex items-center justify-center text-[8px] font-bold text-white">
-              !
-            </span>
-            <span>{t("moderateSeverity")}</span>
+            <span className="w-4 h-3 rounded-sm border border-slate-700/50 bg-[#fef3c7]" />
+            <span>{t("low")}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-3 rounded-sm border border-slate-700/50 bg-[#f97316]" />
+            <span>{t("moderate")}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-3 rounded-sm border border-slate-700/50 bg-[#dc2626]" />
+            <span>{t("high")}</span>
           </div>
         </div>
       )}

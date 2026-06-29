@@ -26,17 +26,8 @@ interface MapFilterProps {
   onDateFromChange: (val: string) => void;
   selectedDateTo: string;
   onDateToChange: (val: string) => void;
+  incidentTypeOptions?: { value: string; label: string }[];
 }
-
-const INCIDENT_TYPES = [
-  { value: "", label: "All types" },
-  { value: "1", label: "Water colour (darker/murkier)" },
-  { value: "2", label: "Smell (bad odour)" },
-  { value: "3", label: "Fish or animal kills" },
-  { value: "4", label: "Storm event" },
-  { value: "5", label: "High water level" },
-  { value: "6", label: "Low water level" },
-];
 
 export function MapFilter({
   domain,
@@ -54,6 +45,7 @@ export function MapFilter({
   onDateFromChange,
   selectedDateTo,
   onDateToChange,
+  incidentTypeOptions = [],
 }: MapFilterProps) {
   const t = useTranslations("landing");
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
@@ -139,7 +131,7 @@ export function MapFilter({
               {/* Incident type filter */}
               <div className="w-full md:w-60">
                 <Dropdown
-                  options={INCIDENT_TYPES}
+                  options={incidentTypeOptions}
                   value={selectedIncidentType}
                   onChange={onIncidentTypeChange}
                 />

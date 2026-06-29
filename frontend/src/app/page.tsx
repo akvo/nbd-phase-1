@@ -10,14 +10,19 @@ import { MapLegend } from "@/components/ui/map-legend";
 import { IncidentCard } from "@/components/ui/incident-card";
 import { IncidentDrawer } from "@/components/ui/incident-drawer";
 import { MapFilter } from "@/components/ui/map-filter";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useDomain } from "@/context/domain-context";
+import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
+import { point } from "@turf/helpers";
+import { PollutionDetailsDrawer } from "@/components/ui/pollution-details-drawer";
 
 import {
   getBasins,
   getSites,
   getSubmissions,
   IncidentSummary,
+  getForms,
+  getForm,
 } from "@/lib/api";
 
 const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
@@ -173,7 +178,12 @@ export default function Home() {
   const { selectedDomain } = useDomain();
   const [selectedIncident, setSelectedIncident] =
     useState<IncidentSummary | null>(null);
+  const [selectedSubCounty, setSelectedSubCounty] = useState<any>(null);
   const [isListCollapsed, setIsListCollapsed] = useState(false);
+  const locale = useLocale();
+  const [incidentTypeOptions, setIncidentTypeOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [basinGeometries, setBasinGeometries] = useState<Record<string, any>>(
     {}
@@ -182,6 +192,8 @@ export default function Home() {
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [wetlandGeometry, setWetlandGeometry] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [subcountyGeometry, setSubcountyGeometry] = useState<any>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [basins, setBasins] = useState<any[]>([]);
@@ -212,6 +224,142 @@ export default function Home() {
     }
   }, [selectedDomain, selectedBasin]);
 
+  // Fetch sub-counties GeoJSON when in pollution domain
+  useEffect(() => {
+    if (selectedDomain === "pollution") {
+      const fileName =
+        selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
+          ? "sio-subcounties.geojson"
+          : "mara-subcounties.geojson";
+      fetch(`/spatial/${fileName}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load sub-counties GeoJSON");
+          return res.json();
+        })
+        .then((data) => setSubcountyGeometry(data))
+        .catch((err) => {
+          console.error("Error loading sub-county geometry:", err);
+          setSubcountyGeometry(null);
+        });
+    } else {
+      setSubcountyGeometry(null);
+    }
+  }, [selectedDomain, selectedBasin]);
+
+  // Fetch dynamic incident type options from questionnaire
+  useEffect(() => {
+    getForms({ lang: locale })
+      .then((formsList) => {
+        const pForm = formsList.find((f) => f.type === 1);
+        if (pForm) {
+          return getForm(pForm.id, { lang: locale });
+        }
+        return null;
+      })
+      .then((fullForm) => {
+        if (fullForm) {
+          let foundOptions: Array<{ value: string; label: string }> = [];
+          fullForm.question_groups?.forEach((group: any) => {
+            group.questions?.forEach((q: any) => {
+              if (q.name === "incident_type" && q.options) {
+                foundOptions = q.options.map((opt: any) => ({
+                  value: String(opt.value),
+                  label: opt.label || opt.name,
+                }));
+              }
+            });
+          });
+          if (foundOptions.length > 0) {
+            setIncidentTypeOptions([
+              { value: "", label: locale === "sw" ? "Aina zote" : "All types" },
+              ...foundOptions,
+            ]);
+            return;
+          }
+        }
+        // Fallback static options
+        setIncidentTypeOptions([
+          { value: "", label: locale === "sw" ? "Aina zote" : "All types" },
+          {
+            value: "1",
+            label:
+              locale === "sw"
+                ? "Rangi ya maji (nyeusi/chafu)"
+                : "Water colour (darker/murkier)",
+          },
+          {
+            value: "2",
+            label:
+              locale === "sw" ? "Harufu (harufu mbaya)" : "Smell (bad odour)",
+          },
+          {
+            value: "3",
+            label:
+              locale === "sw"
+                ? "Vifo vya samaki au wanyama"
+                : "Fish or animal kills",
+          },
+          {
+            value: "4",
+            label: locale === "sw" ? "Tukio la dhoruba" : "Storm event",
+          },
+          {
+            value: "5",
+            label:
+              locale === "sw" ? "Kiwango cha juu cha maji" : "High water level",
+          },
+          {
+            value: "6",
+            label:
+              locale === "sw"
+                ? "Kiwango cha chini cha maji"
+                : "Low water level",
+          },
+        ]);
+      })
+      .catch((err) => {
+        console.error("Error fetching questionnaire options:", err);
+        setIncidentTypeOptions([
+          { value: "", label: locale === "sw" ? "Aina zote" : "All types" },
+          {
+            value: "1",
+            label:
+              locale === "sw"
+                ? "Rangi ya maji (nyeusi/chafu)"
+                : "Water colour (darker/murkier)",
+          },
+          {
+            value: "2",
+            label:
+              locale === "sw" ? "Harufu (harufu mbaya)" : "Smell (bad odour)",
+          },
+          {
+            value: "3",
+            label:
+              locale === "sw"
+                ? "Vifo vya samaki au wanyama"
+                : "Fish or animal kills",
+          },
+          {
+            value: "4",
+            label: locale === "sw" ? "Tukio la dhoruba" : "Storm event",
+          },
+          {
+            value: "5",
+            label:
+              locale === "sw" ? "Kiwango cha juu cha maji" : "High water level",
+          },
+          {
+            value: "6",
+            label:
+              locale === "sw"
+                ? "Kiwango cha chini cha maji"
+                : "Low water level",
+          },
+        ]);
+      });
+  }, [locale]);
+
   // Synchronize filter resets whenever selectedDomain changes
   useEffect(() => {
     setSelectedHealthFilter("All");
@@ -220,6 +368,7 @@ export default function Home() {
     setSelectedIncidentType("");
     setSelectedDateFrom("");
     setSelectedDateTo("");
+    setSelectedSubCounty(null);
     if (selectedDomain === "pollution") {
       setSelectedSite(null);
     }
@@ -377,60 +526,74 @@ export default function Home() {
       });
     }
 
-    // Pollution Reports domain
-    return filteredIncidents.map((incident) => {
-      const coords = incident.geo?.coordinates;
-      const position: [number, number] = coords
-        ? [coords[1], coords[0]]
-        : [0, 0];
+    // Pollution Reports domain - point markers are hidden in favor of choropleth shapes
+    return [];
+  }, [selectedDomain, filteredSites, t]);
 
-      const qIncidentAns = incident.answers.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (a: any) => a.name === "incident_type" || a.question_id === 2
-      );
-      const optionVal = qIncidentAns?.options?.[0];
-      let severityKey:
-        | "severityModerate"
-        | "severityCritical"
-        | "severityElevated" = "severityModerate";
-      if (optionVal === 3 || optionVal === "3") {
-        severityKey = "severityCritical";
-      } else if (
-        optionVal === 1 ||
-        optionVal === "1" ||
-        optionVal === 2 ||
-        optionVal === "2"
-      ) {
-        severityKey = "severityElevated";
-      }
-      const severity = t(severityKey);
+  // Compute choroplethLayers for sub-counties
+  const choroplethLayers = useMemo(() => {
+    if (selectedDomain !== "pollution" || !subcountyGeometry) return [];
 
-      const qDetailAns = incident.answers.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (a: any) =>
-          a.name === "incident_description" ||
-          a.name === "details" ||
-          a.question_id === 3
-      );
-      const descText =
-        qDetailAns?.value || incident.description || t("noDetails");
-      const incidentTypeName = qIncidentAns?.value || t("pollutionReport");
-      const formattedDate = incident.created_at
-        ? new Date(incident.created_at).toLocaleDateString()
-        : t("unknownDate");
+    const features = JSON.parse(
+      JSON.stringify(subcountyGeometry.features || [])
+    );
 
-      return {
-        position,
-        popupText: `${t("incident")}: ${incidentTypeName} (${severity})`,
-        type: "incident" as const,
-        status: severity,
-        code: incident.id ? String(incident.id) : undefined,
-        name: incidentTypeName,
-        description: descText,
-        additionalInfo: `${t("reportedOn")}: ${formattedDate}`,
+    return features.map((feature: any) => {
+      let count = 0;
+      const breakdown: Record<string, number> = {};
+
+      filteredIncidents.forEach((incident) => {
+        const coords = incident.geo?.coordinates;
+        if (!coords || coords.length < 2) return;
+        try {
+          const pt = point(coords);
+          if (booleanPointInPolygon(pt, feature)) {
+            count++;
+            const qIncidentAns = incident.answers?.find(
+              (a: any) => a.name === "incident_type" || a.question_id === 2
+            );
+            const typeLabel = qIncidentAns?.value || "Unknown";
+            breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
+          }
+        } catch (err) {
+          console.error("Point-in-polygon check failed:", err);
+        }
+      });
+
+      feature.properties = {
+        ...feature.properties,
+        incidentCount: count,
+        incidentBreakdown: breakdown,
       };
+
+      return feature;
     });
-  }, [selectedDomain, filteredSites, filteredIncidents, t]);
+  }, [selectedDomain, subcountyGeometry, filteredIncidents]);
+
+  // Compute sidebar/list incidents filtered by selected sub-county
+  const sidebarIncidents = useMemo(() => {
+    if (selectedDomain !== "pollution") return [];
+    if (!selectedSubCounty) return [];
+
+    const matched = filteredIncidents.filter((incident) => {
+      const coords = incident.geo?.coordinates;
+      if (!coords || coords.length < 2) return false;
+      try {
+        const pt = point(coords);
+        return booleanPointInPolygon(pt, selectedSubCounty);
+      } catch (err) {
+        console.error("Point-in-polygon check for sidebar failed:", err);
+        return false;
+      }
+    });
+
+    // Sort by created_at ASC
+    return [...matched].sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateA - dateB;
+    });
+  }, [selectedDomain, selectedSubCounty, filteredIncidents]);
 
   // Map center logic (center of Mara or Sio depending on selection)
   const mapCenter: [number, number] =
@@ -476,6 +639,7 @@ export default function Home() {
         onDateFromChange={setSelectedDateFrom}
         selectedDateTo={selectedDateTo}
         onDateToChange={setSelectedDateTo}
+        incidentTypeOptions={incidentTypeOptions}
       />
 
       {/* Main content body with relative layout */}
@@ -488,6 +652,9 @@ export default function Home() {
             markers={mapMarkers}
             basinGeometry={activeGeometry}
             wetlandGeometry={wetlandGeometry}
+            choroplethLayers={choroplethLayers}
+            selectedSubCounty={selectedSubCounty}
+            onSelectSubCounty={setSelectedSubCounty}
             className="h-full w-full"
             onSelectMarker={(code, type) => {
               if (type === "site") {
@@ -517,7 +684,9 @@ export default function Home() {
                 <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">
                   {selectedDomain === "wetland"
                     ? `${t("monitoringSites")} (${filteredSites.length})`
-                    : `Pollution Incidents (${filteredIncidents.length})`}
+                    : selectedSubCounty
+                      ? `Pollution Incidents: ${selectedSubCounty.properties.name || "Selected Sub-County"} (${sidebarIncidents.length})`
+                      : "Pollution Incidents"}
                   {selectedDomain === "wetland" &&
                     filteredIncidents.length > 0 && (
                       <span className="text-red-500 normal-case font-medium ml-2">
@@ -709,49 +878,61 @@ export default function Home() {
                       No active stations matching filters.
                     </div>
                   )
-                ) : filteredIncidents.length > 0 ? (
-                  filteredIncidents.map((incident, idx) => {
-                    const qIncidentAns = incident.answers?.find(
-                      (a) => a.name === "incident_type" || a.question_id === 2
-                    );
-                    const optionVal = qIncidentAns?.options?.[0];
-                    let severity: "Critical" | "Elevated" | "Moderate" =
-                      "Moderate";
-                    if (optionVal !== undefined) {
-                      const valStr = String(optionVal);
-                      if (valStr === "3") severity = "Critical";
-                      else if (["1", "2"].includes(valStr))
-                        severity = "Elevated";
-                    }
+                ) : selectedSubCounty ? (
+                  sidebarIncidents.length > 0 ? (
+                    sidebarIncidents.map((incident, idx) => {
+                      const qIncidentAns = incident.answers?.find(
+                        (a) => a.name === "incident_type" || a.question_id === 2
+                      );
+                      const optionVal = qIncidentAns?.options?.[0];
+                      let severity: "Critical" | "Elevated" | "Moderate" =
+                        "Moderate";
+                      if (optionVal !== undefined) {
+                        const valStr = String(optionVal);
+                        if (valStr === "3") severity = "Critical";
+                        else if (["1", "2"].includes(valStr))
+                          severity = "Elevated";
+                      }
 
-                    const qDetailAns = incident.answers?.find(
-                      (a) =>
-                        a.name === "incident_description" ||
-                        a.name === "details" ||
-                        a.question_id === 3
-                    );
-                    const descText =
-                      qDetailAns?.value ||
-                      incident.description ||
-                      "No details recorded.";
-                    const incidentTypeName =
-                      qIncidentAns?.value || "Pollution Report";
+                      const qDetailAns = incident.answers?.find(
+                        (a) =>
+                          a.name === "incident_description" ||
+                          a.name === "details" ||
+                          a.question_id === 3
+                      );
+                      const descText =
+                        qDetailAns?.value ||
+                        incident.description ||
+                        "No details recorded.";
+                      const incidentTypeName =
+                        qIncidentAns?.value || "Pollution Report";
 
-                    return (
-                      <IncidentCard
-                        key={incident.id ?? idx}
-                        incidentTypeName={incidentTypeName}
-                        severity={severity}
-                        dateReported={incident.created_at || ""}
-                        description={descText}
-                        basinName={activeBasin?.name}
-                        onClick={() => setSelectedIncident(incident)}
-                      />
-                    );
-                  })
+                      // Find image answer
+                      const imageUrl = incident.answers?.find(
+                        (a) => a.read_url && a.read_url.trim() !== ""
+                      )?.read_url;
+
+                      return (
+                        <IncidentCard
+                          key={incident.id ?? idx}
+                          incidentTypeName={incidentTypeName}
+                          severity={severity}
+                          dateReported={incident.created_at || ""}
+                          description={descText}
+                          basinName={activeBasin?.name}
+                          onClick={() => setSelectedIncident(incident)}
+                          imageUrl={imageUrl}
+                        />
+                      );
+                    })
+                  ) : (
+                    <div className="text-sm text-slate-400 italic py-8 text-center">
+                      No pollution incidents reported in this sub-county.
+                    </div>
+                  )
                 ) : (
                   <div className="text-sm text-slate-400 italic py-8 text-center">
-                    {t("noIncidents")}
+                    Select a sub-county on the map to view pollution reports.
                   </div>
                 )}
               </div>
@@ -774,6 +955,12 @@ export default function Home() {
         incident={selectedIncident}
         basinName={activeBasin?.name}
         onClose={() => setSelectedIncident(null)}
+      />
+
+      {/* Pollution sub-county details Drawer panel */}
+      <PollutionDetailsDrawer
+        selectedSubCounty={selectedSubCounty}
+        onClose={() => setSelectedSubCounty(null)}
       />
     </main>
   );

@@ -27,13 +27,9 @@ test("renders map legend details for pollution domain", () => {
   renderWithIntl(<MapLegend domain="pollution" />);
   expect(screen.getByText(messages.legend.title)).toBeInTheDocument();
   expect(screen.queryByText(messages.legend.healthy)).not.toBeInTheDocument();
-  expect(
-    screen.getByText(messages.legend.criticalSeverity)
-  ).toBeInTheDocument();
-  expect(
-    screen.getByText(messages.legend.elevatedSeverity)
-  ).toBeInTheDocument();
-  expect(
-    screen.getByText(messages.legend.moderateSeverity)
-  ).toBeInTheDocument();
+  expect(screen.getByText(messages.legend.density)).toBeInTheDocument();
+  expect(screen.getByText(messages.legend.none)).toBeInTheDocument();
+  expect(screen.getByText(messages.legend.low)).toBeInTheDocument();
+  expect(screen.getByText(messages.legend.moderate)).toBeInTheDocument();
+  expect(screen.getByText(messages.legend.high)).toBeInTheDocument();
 });

@@ -12,6 +12,7 @@ interface IncidentCardProps {
   description: string;
   basinName?: string;
   onClick?: () => void;
+  imageUrl?: string;
 }
 
 const SEVERITY_STYLES: Record<Severity, string> = {
@@ -27,6 +28,7 @@ export function IncidentCard({
   description,
   basinName,
   onClick,
+  imageUrl,
 }: IncidentCardProps) {
   const formattedDate = dateReported
     ? new Date(dateReported).toLocaleDateString()
@@ -39,6 +41,18 @@ export function IncidentCard({
         onClick ? "cursor-pointer" : "cursor-default"
       }`}
     >
+      {imageUrl && (
+        <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 shrink-0 mb-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={incidentTypeName}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+          />
+        </div>
+      )}
+
       {/* Header row */}
       <div className="flex justify-between items-start gap-2">
         <h4 className="font-bold text-slate-800 text-sm group-hover:text-red-600 transition-colors leading-tight">
