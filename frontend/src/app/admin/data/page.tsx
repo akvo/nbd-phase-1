@@ -13,6 +13,15 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useAdminForms } from "../layout";
 
 interface Submission {
@@ -528,51 +537,53 @@ export default function DataOverviewPage() {
         )}
       </div>
 
-      {confirmAction && (
-        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-xl p-6 shadow-xl border border-slate-100 max-w-sm w-full space-y-4 animate-scale-up">
-            <h3 className="text-sm font-bold text-slate-900 capitalize">
-              Confirm {confirmAction.type} Action
-            </h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Are you sure you want to {confirmAction.type} submission{" "}
-              <span className="font-semibold text-slate-700">
-                {confirmAction.id}
-              </span>
-              ?
-              {confirmAction.type === "delete"
-                ? " This action cannot be undone."
-                : ""}
-            </p>
-            <div className="flex justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setConfirmAction(null)}
-                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const { type, id } = confirmAction;
-                  setConfirmAction(null);
-                  if (type === "approve") await handleApprove(id);
-                  else if (type === "reject") await handleReject(id);
-                  else if (type === "delete") await handleDelete(id);
-                }}
-                className={`px-4 py-2 text-white rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  confirmAction.type === "delete"
-                    ? "bg-red-500 hover:bg-red-600 shadow-red-100"
-                    : "bg-sky-500 hover:bg-sky-600 shadow-sky-100"
-                }`}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={!!confirmAction}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="capitalize">
+              Confirm {confirmAction?.type} Action
+            </DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="text-slate-500">
+            Are you sure you want to {confirmAction?.type} submission{" "}
+            <span className="font-semibold text-slate-700">
+              {confirmAction?.id}
+            </span>
+            ?
+            {confirmAction?.type === "delete"
+              ? " This action cannot be undone."
+              : ""}
+          </DialogDescription>
+          <DialogFooter className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setConfirmAction(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant={
+                confirmAction?.type === "delete" ? "destructive" : "default"
+              }
+              onClick={async () => {
+                if (!confirmAction) return;
+                const { type, id } = confirmAction;
+                setConfirmAction(null);
+                if (type === "approve") await handleApprove(id);
+                else if (type === "reject") await handleReject(id);
+                else if (type === "delete") await handleDelete(id);
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

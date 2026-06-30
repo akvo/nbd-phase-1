@@ -52,7 +52,7 @@ export default function FormEditPage() {
     setError(null);
     try {
       const [res, cascadeRes] = await Promise.all([
-        apiClient.get(`/forms/${formId}/blueprint`),
+        apiClient.get(`/forms/${formId}/draft`),
         apiClient.get("/reference/cascade-options").catch((err) => {
           console.warn("Failed to fetch cascade options, falling back:", err);
           return {
@@ -88,10 +88,6 @@ export default function FormEditPage() {
     setSaving(true);
     try {
       await apiClient.put(`/forms/${formId}`, values);
-      // TODO:: currently saving will publish the form, I think we should handle it differently
-      // TODO:: we should create another endpoint like form/blueprint to
-      // load the saved form definition from form table then we need to add publish button on form list.
-      await apiClient.post(`/forms/${formId}/publish`);
       setFormData(values);
       setError(null);
     } catch (err) {
