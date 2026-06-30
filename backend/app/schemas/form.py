@@ -283,6 +283,7 @@ class BlueprintQuestionSchema(BaseModel):
     label: str
     shortLabel: Optional[str] = None
     type: str
+    order: Optional[int] = None
     required: bool = True
     rule: Optional[Dict[str, Any]] = None
     dependency: Optional[List[Dict[str, Any]]] = None
@@ -302,7 +303,7 @@ class BlueprintQuestionSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def normalize_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
@@ -328,9 +329,17 @@ class BlueprintQuestionSchema(BaseModel):
 
     @classmethod
     def from_orm_model(cls, q):
-        opts = (
-            [BlueprintOptionSchema.from_orm_model(o) for o in q.options]
+        sorted_options = (
+            sorted(
+                q.options,
+                key=lambda x: x.order if x.order is not None else float("inf"),
+            )
             if q.options
+            else []
+        )
+        opts = (
+            [BlueprintOptionSchema.from_orm_model(o) for o in sorted_options]
+            if sorted_options
             else []
         )
         extra = q.extra or {}
@@ -346,6 +355,7 @@ class BlueprintQuestionSchema(BaseModel):
             name=q.name,
             label=q.label,
             shortLabel=q.short_label,
+            order=q.order,
             type=q_type_str,
             required=q.required,
             rule=q.rule,
@@ -380,7 +390,7 @@ class BlueprintQuestionGroupSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def normalize_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
@@ -394,13 +404,20 @@ class BlueprintQuestionGroupSchema(BaseModel):
 
     @classmethod
     def from_orm_model(cls, g):
+        sorted_questions = (
+            sorted(
+                [q for q in g.questions if q.deleted_at is None],
+                key=lambda x: x.order if x.order is not None else float("inf"),
+            )
+            if g.questions
+            else []
+        )
         qs = (
             [
                 BlueprintQuestionSchema.from_orm_model(q)
-                for q in g.questions
-                if q.deleted_at is None
+                for q in sorted_questions
             ]
-            if g.questions
+            if sorted_questions
             else []
         )
         return cls(
@@ -429,7 +446,7 @@ class FormBlueprintResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def normalize_groups(cls, data: Any) -> Any:
         if isinstance(data, dict):
@@ -494,7 +511,7 @@ class QuestionUpdate(BaseModel):
     translations: List[Dict[str, Any]] = []
     option: Optional[List[OptionUpdate]] = None
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def normalize_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
@@ -530,7 +547,7 @@ class QuestionGroupUpdate(BaseModel):
     translations: List[Dict[str, Any]] = []
     question: List[QuestionUpdate] = []
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def normalize_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
@@ -551,7 +568,7 @@ class FormBlueprintUpdate(BaseModel):
     translations: List[Dict[str, Any]] = []
     question_group: List[QuestionGroupUpdate] = []
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def normalize_groups(cls, data: Any) -> Any:
         if isinstance(data, dict):
