@@ -141,10 +141,16 @@ def seed_forms(db: Session):
                 # Extra config/API extraction
                 api_config = None
                 if q_type_str == "cascade":
-                    api_config = {
-                        "endpoint": q_data.get("endpoint"),
-                        "comment": q_data.get("comment"),
-                    }
+                    api_config = q_data.get("api")
+                    if isinstance(api_config, dict):
+                        api_config = dict(api_config)
+                    else:
+                        api_config = {}
+
+                    if "endpoint" in q_data and "endpoint" not in api_config:
+                        api_config["endpoint"] = q_data.get("endpoint")
+                    if "comment" in q_data and "comment" not in api_config:
+                        api_config["comment"] = q_data.get("comment")
 
                 q = (
                     db.query(Question)
