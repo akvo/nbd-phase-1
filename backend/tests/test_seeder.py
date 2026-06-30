@@ -189,7 +189,7 @@ def test_seed_spatial_success(db_session: Session):
     assert "NBD-SIO-001" in site_ids
     assert "NBD-SIO-004" in site_ids
 
-    # Assert Management Actions created for each site (3 per site)
+    # Assert Management Actions per site: 2 GREEN, 4 YELLOW, 4 RED = 10 total
     from app.models.management_action import ManagementAction
 
     seeded_site_ids = [s.id for s in sites]
@@ -198,7 +198,7 @@ def test_seed_spatial_success(db_session: Session):
         .filter(ManagementAction.site_id.in_(seeded_site_ids))
         .all()
     )
-    assert len(actions) == 24
+    assert len(actions) == 80
 
     # 5. Assert Sub-counties created
     sub_counties = db_session.query(SpatialBoundary).all()
