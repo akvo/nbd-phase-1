@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Edit2, Trash2, X, AlertTriangle } from "lucide-react";
+import { Edit2, Trash2, X, AlertTriangle, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import {
   Table,
@@ -41,6 +41,14 @@ export default function FormManagementPage() {
   const [deleteModal, setDeleteModal] = useState<Form | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [loadingEditId, setLoadingEditId] = useState<number | null>(null);
+
+  const handleEditClick = (formId: number) => {
+    setLoadingEditId(formId);
+    setTimeout(() => {
+      router.push(`/admin/resources/forms/${formId}`);
+    }, 10);
+  };
 
   const fetchForms = useCallback(async () => {
     setLoading(true);
@@ -177,13 +185,18 @@ export default function FormManagementPage() {
                     <div className="flex items-center justify-end space-x-2">
                       <button
                         type="button"
-                        onClick={() =>
-                          router.push(`/admin/resources/forms/${form.id}`)
-                        }
-                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                        onClick={() => handleEditClick(form.id)}
+                        disabled={loadingEditId !== null}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>Edit</span>
+                        {loadingEditId === form.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Edit2 className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          {loadingEditId === form.id ? "Loading..." : "Edit"}
+                        </span>
                       </button>
                       <button
                         type="button"

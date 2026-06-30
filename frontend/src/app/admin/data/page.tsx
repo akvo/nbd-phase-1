@@ -76,8 +76,6 @@ export default function DataOverviewPage() {
                 })
               : "12.04.80";
 
-            console.log(dp, "====");
-
             return {
               id: `DP-${dp.id}`,
               rawId: String(dp.id),
