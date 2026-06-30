@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  createContext,
+  useContext,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Header from "@/components/admin/header";
 import Tabs from "@/components/admin/tabs";
@@ -15,6 +21,24 @@ import {
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
+interface FormItem {
+  id: string;
+  name: string;
+  type: number;
+}
+
+interface AdminFormsContextType {
+  forms: FormItem[];
+  loading: boolean;
+}
+
+export const AdminFormsContext = createContext<AdminFormsContextType>({
+  forms: [],
+  loading: true,
+});
+
+export const useAdminForms = () => useContext(AdminFormsContext);
+
 export default function AdminLayout({
   children,
 }: {
@@ -24,8 +48,8 @@ export default function AdminLayout({
   const router = useRouter();
   const { user, loading: authLoading, isAdmin } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [forms, setForms] = useState<any[]>([]);
+  const [forms, setForms] = useState<FormItem[]>([]);
+  const [formsLoading, setFormsLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Redirect non-admins away from admin-only routes
@@ -46,6 +70,7 @@ export default function AdminLayout({
   }, [pathname, user, authLoading, isAdmin, router]);
 
   useEffect(() => {
+    setFormsLoading(true);
     apiClient
       .get("/forms")
       .then((res) => {
@@ -54,13 +79,15 @@ export default function AdminLayout({
           const fetched = res.data.map((f: any) => ({
             id: String(f.id),
             name: f.name,
+            type: f.type,
           }));
           setForms(fetched);
         }
+        setFormsLoading(false);
       })
       .catch(() => {
-        // Fallback placeholder in case database is empty or down
         setForms([]);
+        setFormsLoading(false);
       });
   }, []);
 
@@ -218,7 +245,9 @@ export default function AdminLayout({
         {isTabbedRoute && <Tabs />}
 
         {/* Dynamic Nested Sub-view Viewport */}
-        <main className="w-full">{children}</main>
+        <AdminFormsContext.Provider value={{ forms, loading: formsLoading }}>
+          <main className="w-full">{children}</main>
+        </AdminFormsContext.Provider>
       </div>
     </div>
   );

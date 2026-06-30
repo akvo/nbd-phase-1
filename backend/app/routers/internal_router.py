@@ -124,7 +124,31 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
                 opt = q_def.option
 
             terminal_val = val[-1] if isinstance(val, list) and val else val
-            if opt in ("wetland", "administration"):
+            if q_def.name == "location_id":
+                from app.models.spatial import SpatialBoundary
+                import uuid
+
+                sb = None
+                try:
+                    sb_uuid = uuid.UUID(str(terminal_val))
+                    sb = (
+                        db.query(SpatialBoundary)
+                        .filter(SpatialBoundary.id == sb_uuid)
+                        .first()
+                    )
+                except (ValueError, TypeError):
+                    sb = (
+                        db.query(SpatialBoundary)
+                        .filter(
+                            SpatialBoundary.name.ilike(
+                                str(terminal_val).strip()
+                            )
+                        )
+                        .first()
+                    )
+                if sb and not resolved_basin_id:
+                    resolved_basin_id = sb.basin_id
+            elif opt in ("wetland", "administration"):
                 if not resolved_wetland_id:
                     resolved_wetland_id = terminal_val
             elif opt == "site":

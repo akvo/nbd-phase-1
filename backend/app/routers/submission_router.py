@@ -170,7 +170,14 @@ def list_submissions(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(Datapoint)
+    from sqlalchemy.orm import joinedload
+
+    query = db.query(Datapoint).options(
+        joinedload(Datapoint.basin),
+        joinedload(Datapoint.wetland),
+        joinedload(Datapoint.site),
+        joinedload(Datapoint.created_by),
+    )
     if form_id is not None:
         query = query.filter(Datapoint.form_id == form_id)
     if domain is not None:

@@ -281,6 +281,11 @@ class DatapointResponse(DatapointBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     form_name: Optional[str] = None
+    basin_name: Optional[str] = None
+    wetland_name: Optional[str] = None
+    site_name: Optional[str] = None
+    creator_name: Optional[str] = None
+    creator_email: Optional[str] = None
     answers: List[AnswerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

@@ -42,7 +42,18 @@ def list_admin_submissions(
     basin: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(Datapoint).outerjoin(Form, Datapoint.form_id == Form.id)
+    from sqlalchemy.orm import joinedload
+
+    query = (
+        db.query(Datapoint)
+        .outerjoin(Form, Datapoint.form_id == Form.id)
+        .options(
+            joinedload(Datapoint.basin),
+            joinedload(Datapoint.wetland),
+            joinedload(Datapoint.site),
+            joinedload(Datapoint.created_by),
+        )
+    )
 
     if form_type is not None:
         query = query.filter(Form.type == form_type)
@@ -80,7 +91,19 @@ def get_submission(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    dp = db.query(Datapoint).filter(Datapoint.id == id).first()
+    from sqlalchemy.orm import joinedload
+
+    dp = (
+        db.query(Datapoint)
+        .options(
+            joinedload(Datapoint.basin),
+            joinedload(Datapoint.wetland),
+            joinedload(Datapoint.site),
+            joinedload(Datapoint.created_by),
+        )
+        .filter(Datapoint.id == id)
+        .first()
+    )
     if not dp:
         raise HTTPException(
             status_code=404, detail=f"Submission with ID {id} not found."
