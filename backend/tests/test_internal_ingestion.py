@@ -402,3 +402,99 @@ def test_internal_generic_submit_field_mappings(
     assert ans_mercury is not None
     assert ans_mercury.name == "Non-detectable"
     assert ans_mercury.value is None
+
+
+def test_internal_generic_submit_resolves_basin_from_sub_county(
+    auth_header, setup_lab_data, db_session: Session
+):
+    from app.models.spatial import SpatialBoundary, Basin
+    from shapely.geometry import Point
+    from geoalchemy2.shape import from_shape
+
+    # 1. Create a dummy Sio-Siteko basin and a sub-county associated with it
+    sio_basin = Basin(
+        code="SIO_TEST",
+        name="Sio Siteko Test Basin",
+        geom="SRID=4326;MULTIPOLYGON(((34.5 0.5,34.6 0.5,34.6 0.6,34.5 0.6,34.5 0.5)))",  # noqa
+    )
+    db_session.add(sio_basin)
+    db_session.commit()
+
+    sio_subcounty = SpatialBoundary(
+        name="Kanduyi Test",
+        level=3,
+        basin_id=sio_basin.id,
+        centroid_geom=from_shape(Point(34.5, 0.5), srid=4326),
+    )
+    db_session.add(sio_subcounty)
+    db_session.commit()
+
+    # 2. Setup a question named "location_id" (QuestionType.cascade)
+    # on the form.
+    form = setup_lab_data["form"]
+    q_group = (
+        db_session.query(QuestionGroup).filter_by(form_id=form.id).first()
+    )
+    q_location = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="location_id",
+        type="cascade",
+        label="Select Location",
+        order=10,
+    )
+    db_session.add(q_location)
+    db_session.commit()
+
+    # 3. Submit generic payload with location_id set to the sub-county UUID
+    payload = {
+        "form_id": form.id,
+        "answers": [
+            {
+                "question_id": "location_id",
+                "value": [
+                    "Sio Region",
+                    "Kanduyi Test County",
+                    str(sio_subcounty.id),
+                ],
+            }
+        ],
+    }
+
+    response = client.post(
+        "/api/v1/internal/submit", json=payload, headers=auth_header
+    )
+    assert response.status_code == 200
+
+    dp_id = response.json()["datapoint_id"]
+    dp = db_session.query(Datapoint).filter_by(id=dp_id).first()
+    assert dp is not None
+    assert dp.basin_id == sio_basin.id  # Resolved correct Sio Siteko basin!
+    assert dp.wetland_id is None
+    assert dp.site_id is None
+
+    # 4. Submit generic payload with location_id set
+    # as the name string (testing fallback)
+    payload_name = {
+        "form_id": form.id,
+        "answers": [
+            {
+                "question_id": "location_id",
+                "value": "Kanduyi Test",
+            }
+        ],
+    }
+
+    response_name = client.post(
+        "/api/v1/internal/submit", json=payload_name, headers=auth_header
+    )
+    assert response_name.status_code == 200
+
+    dp_id_name = response_name.json()["datapoint_id"]
+    dp_name = db_session.query(Datapoint).filter_by(id=dp_id_name).first()
+    assert dp_name is not None
+    assert (
+        dp_name.basin_id == sio_basin.id
+    )  # Resolved correct Sio Siteko basin via name!
+    assert dp_name.wetland_id is None
+    assert dp_name.site_id is None
