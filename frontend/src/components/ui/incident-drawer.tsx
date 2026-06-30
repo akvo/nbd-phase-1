@@ -77,7 +77,7 @@ export function IncidentDrawer({
   const coords = incident.geo?.coordinates;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
+    <div className="fixed inset-y-0 right-0 z-60 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
       {/* Drawer Header */}
       <div className="p-6 border-b border-slate-200 flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
@@ -169,7 +169,7 @@ export function IncidentDrawer({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.read_url}
-                    alt={`Incident report photo ${i + 1}`}
+                    alt={t("incidentPhotoAlt", { index: i + 1 })}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                   />
@@ -199,7 +199,8 @@ export function IncidentDrawer({
                     className="p-3 bg-white flex justify-between gap-4"
                   >
                     <span className="text-slate-500 font-medium shrink-0">
-                      {ans.question_label || `Question ${ans.question_id}`}
+                      {ans.question_label ||
+                        t("questionFallback", { id: ans.question_id ?? idx })}
                     </span>
                     <span className="text-slate-800 text-right">
                       {String(ans.value)}

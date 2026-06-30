@@ -15,10 +15,28 @@
     "basinRegion": "Basin Region",
     "filters": {
       "all": "All",
+      "allTypes": "All types",
+      "optionWaterColour": "Water colour (darker/murkier)",
+      "optionSmell": "Smell (bad odour)",
+      "optionFishKills": "Fish or animal kills",
+      "optionStormEvent": "Storm event",
+      "optionHighWater": "High water level",
+      "optionLowWater": "Low water level",
       "critical": "Critical",
       "atRisk": "At risk",
       "healthy": "Healthy",
-      "elevated": "Elevated"
+      "elevated": "Elevated",
+      "dateRange": "Date Range",
+      "allTime": "All Time",
+      "clear": "Clear",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
+      "thisMonth": "This Month",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "present": "Present",
+      "upTo": "Up to"
     },
     "searchPlaceholder": "Search field, area, water source",
     "monitoringSites": "Monitoring Sites",
@@ -48,13 +66,18 @@
   },
   "legend": {
     "title": "Legend",
-    "healthy": "Healthy (A / B)",
-    "atRisk": "At Risk (C)",
-    "critical": "Critical (D / E)",
+    "healthy": "Healthy",
+    "atRisk": "At Risk",
+    "critical": "Critical",
     "pollutionIncidents": "Pollution Incidents",
     "criticalSeverity": "Critical Severity",
     "elevatedSeverity": "Elevated Severity",
-    "moderateSeverity": "Moderate Severity"
+    "moderateSeverity": "Moderate Severity",
+    "density": "Density",
+    "none": "0 (None)",
+    "low": "1–5 (Low)",
+    "moderate": "6–15 (Mod)",
+    "high": "16+ (High)"
   },
   "drawer": {
     "monitoringStation": "Monitoring Station",
@@ -62,6 +85,24 @@
     "warningMessage": "Wetland health is currently at risk or degraded (Class {healthClass}). Management interventions are highly recommended to prevent further ecological decline.",
     "communitySignal": "Community signal",
     "locationMap": "Location Map",
+    "subCountyDetails": "Sub-County Details",
+    "countySuffix": "{countyName} County",
+    "selectedSubCountyFallback": "Selected Sub-County",
+    "incidentPhotoAlt": "Reported pollution incident {index}",
+    "status": "Status",
+    "reportedIncidents": "Reported Incidents",
+    "good": "Good",
+    "critical": "Critical",
+    "moderateDegradation": "Moderate Degradation",
+    "minorConcerns": "Minor Concerns",
+    "activePollutionIncidents": "{count} active pollution incidents reported in this sub-county. Review the incident distribution and reports below.",
+    "noActivePollutionIncidents": "No active pollution incidents reported. Environmental condition is currently stable.",
+    "incidentDistribution": "Incident Distribution",
+    "incidentDistributionDesc": "Report counts by incident types. Click incident cards in the sidebar to review details.",
+    "cleanSubCounty": "Clean Sub-County",
+    "noReportedIncidents": "There are no reported pollution incidents in {subCountyName} matching the current filters.",
+    "reportedPhotos": "Reported Photos",
+    "noPhotos": "No photos reported in this region.",
     "requiredInterventions": "Required Interventions",
     "noInterventions": "No interventions triggered for this level.",
     "scoreBreakdown": "Score breakdown",
@@ -95,15 +136,22 @@
     "showTrend": "Show Trend",
     "hideTrend": "Hide Trend",
     "noHistoricalData": "No historical data for this period",
-    "scoreHistoryError": "Could not load score history"
+    "scoreHistoryError": "Could not load score history",
+    "lastReported": "Last reported"
   },
   "metrics": {
     "ph": "pH",
+    "ph_desc": "Measure of acidity or alkalinity of the water (range 0-14).",
     "dissolvedOxygen": "Dissolved O₂",
+    "dissolvedOxygen_desc": "The amount of oxygen dissolved in the water, essential for aquatic life.",
     "temperature": "Temperature",
+    "temperature_desc": "The temperature of the water, affecting chemical and biological processes.",
     "waterLevel": "Water level",
+    "waterLevel_desc": "The height of the water level relative to a baseline reference point.",
     "turbidity": "Turbidity",
-    "macroinvertebrate": "Macroinvertebrate"
+    "turbidity_desc": "The cloudiness or haziness of water caused by suspended particles.",
+    "macroinvertebrate": "Macroinvertebrate",
+    "macroinvertebrate_desc": "Presence of small organisms used as bioindicators of water quality."
   },
   "scores": {
     "physicoChemical": "Physico-chemical",
@@ -123,6 +171,19 @@
     "questionnaireAnswers": "Questionnaire Answers",
     "moderate": "Moderate",
     "critical": "Critical",
-    "elevated": "Elevated"
+    "elevated": "Elevated",
+    "questionFallback": "Question {id}",
+    "incidentPhotoAlt": "Incident report photo {index}"
+  },
+  "login": {
+    "title": "Log in to your account",
+    "subtitle": "Citizen-Led Wetland Monitoring Platform",
+    "noAccount": "No account? Contact your platform administrator.",
+    "noSelfRegistration": "Self-registration is not available.",
+    "signingIn": "Signing in...",
+    "errorTitle": "Sign-in Failed",
+    "errorNotRegistered": "Your email is not registered. Contact your platform administrator to request access.",
+    "errorInactive": "Your account has been deactivated. Contact your platform administrator.",
+    "errorAuthFailed": "Authentication failed. Please try again."
   }
 }

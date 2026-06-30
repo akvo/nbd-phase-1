@@ -15,11 +15,11 @@ echo -e "${YELLOW}Running flake8 linting...${NC}"
 echo -e "${CYAN}=== Running Backend Tests & Coverage ===${NC}"
 ./dc.sh exec backend python -m pytest
 
+echo -e "\n${GREEN}=== Running Frontend Tests & Coverage ===${NC}"
+./dc.sh exec frontend yarn test:coverage
+
 echo -e "${PURPLE}Running yarn lint...${NC}"
 ./dc.sh exec frontend yarn lint
 
 echo -e "${BLUE}Running yarn prettier...${NC}"
 ./dc.sh exec frontend yarn prettier --write
-
-echo -e "\n${GREEN}=== Running Frontend Tests & Coverage ===${NC}"
-./dc.sh exec frontend yarn test:coverage

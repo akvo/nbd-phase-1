@@ -173,40 +173,75 @@ def seed_spatial(db: Session):
 
         from app.models.management_action import ManagementAction
 
-        for color, label, desc in [
-            (
-                "GREEN",
-                "Maintain Buffers",
-                "Protect riparian vegetation buffer zone and maintain current conservation practices.",  # noqa: E501
-            ),
-            (
-                "YELLOW",
-                "Establish Silt Traps",
-                "Install vegetative filters along the edges of agricultural plots to catch sediment.",  # noqa: E501
-            ),
-            (
-                "RED",
-                "Revegetate Wetland",
-                "Conduct active native replanting of papyrus and macrophytes to restore water filtration.",  # noqa: E501
-            ),
-        ]:
-            existing_action = (
-                db.query(ManagementAction)
-                .filter(
-                    ManagementAction.site_id == site.id,
-                    ManagementAction.status_color == color,
+        actions_templates = {
+            "GREEN": [
+                (
+                    "Routine Patrols",
+                    "Conduct standard monthly water sampling and visual checks.",  # noqa
+                ),
+                (
+                    "Community Engagement",
+                    "Hold educational workshops with local farmers on sustainable wetland use.",  # noqa
+                ),
+            ],
+            "YELLOW": [
+                (
+                    "Establish Silt Traps & Grass Strips",
+                    "Catch sediment and runoff from crop boundaries near the wetland.",  # noqa
+                ),
+                (
+                    "Constructed Wetlands",
+                    "Setup domestic greywater filters around housing zones adjacent to the basin.",  # noqa
+                ),
+                (
+                    "Livelihood Transitions",
+                    "Guide farmers to apiculture (beekeeping) or sustainable macrophyte harvesting.",  # noqa
+                ),  # noqa
+                (
+                    "Riparian Re-vegetation",
+                    "Target plantings of indigenous species along degraded river banks.",  # noqa
+                ),  # noqa
+            ],
+            "RED": [
+                (
+                    "Report Discharge",
+                    "Log effluent discharge with local Ministry of Environment and Water units.",  # noqa
+                ),  # noqa
+                (
+                    "Interceptor STPs",
+                    "Direct untreated sewage to local treatment plants to halt degradation.",  # noqa
+                ),  # noqa
+                (
+                    "Buffer Enactment",
+                    "Stop agricultural encroachment using local buffer regulations under EMCA.",  # noqa
+                ),  # noqa
+                (
+                    "Mesh Controls",
+                    "Direct fishermen to larger gillnet sizes to protect breeding fish stocks.",  # noqa
+                ),  # noqa
+            ],
+        }
+
+        for color, actions in actions_templates.items():
+            for label, desc in actions:
+                existing_action = (
+                    db.query(ManagementAction)
+                    .filter(
+                        ManagementAction.site_id == site.id,
+                        ManagementAction.status_color == color,
+                        ManagementAction.short_label == label,
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if not existing_action:
-                action = ManagementAction(
-                    site_id=site.id,
-                    status_color=color,
-                    short_label=label,
-                    description_text=desc,
-                )
-                db.add(action)
-                db.flush()
+                if not existing_action:
+                    action = ManagementAction(
+                        site_id=site.id,
+                        status_color=color,
+                        short_label=label,
+                        description_text=desc,
+                    )
+                    db.add(action)
+                    db.flush()
 
     # 4. Seed Spatial Boundaries (Hierarchical Regions and Districts)
     boundaries_data = data.get("spatial_boundaries", [])

@@ -15,10 +15,28 @@
     "basinRegion": "Eneo la Bonde",
     "filters": {
       "all": "Zote",
+      "allTypes": "Aina zote",
+      "optionWaterColour": "Rangi ya maji (nyeusi/chafu)",
+      "optionSmell": "Harufu (harufu mbaya)",
+      "optionFishKills": "Vifo vya samaki au wanyama",
+      "optionStormEvent": "Tukio la dhoruba",
+      "optionHighWater": "Kiwango cha juu cha maji",
+      "optionLowWater": "Kiwango cha chini cha maji",
       "critical": "Hatari",
       "atRisk": "Hatarini",
       "healthy": "Afya njema",
-      "elevated": "Juu"
+      "elevated": "Juu",
+      "dateRange": "Kipindi cha Tarehe",
+      "allTime": "Muda Wote",
+      "clear": "Futa",
+      "last7Days": "Siku 7 Zilizopita",
+      "last30Days": "Siku 30 Zilizopita",
+      "thisMonth": "Mwezi Huu",
+      "from": "Kutoka",
+      "to": "Hadi",
+      "apply": "Tekeleza",
+      "present": "Sasa",
+      "upTo": "Hadi"
     },
     "searchPlaceholder": "Tafuta eneo, chanzo cha maji",
     "monitoringSites": "Vituo vya Ufuatiliaji",
@@ -54,7 +72,12 @@
     "pollutionIncidents": "Matukio ya Uchafuzi",
     "criticalSeverity": "Ukali Mkubwa",
     "elevatedSeverity": "Ukali wa Juu",
-    "moderateSeverity": "Ukali wa Wastani"
+    "moderateSeverity": "Ukali wa Wastani",
+    "density": "Uzani",
+    "none": "0 (Hakuna)",
+    "low": "1–5 (Chini)",
+    "moderate": "6–15 (Wastani)",
+    "high": "16+ (Juu)"
   },
   "drawer": {
     "monitoringStation": "Kituo cha Ufuatiliaji",
@@ -62,6 +85,24 @@
     "warningMessage": "Afya ya eneo oevu iko hatarini au imeharibika (Daraja {healthClass}). Uingiliaji wa usimamizi unapendekezwa sana kuzuia kupungua kwa ikolojia.",
     "communitySignal": "Ishara ya jamii",
     "locationMap": "Ramani ya Eneo",
+    "subCountyDetails": "Maelezo ya Wilaya",
+    "countySuffix": "Kaunti ya {countyName}",
+    "selectedSubCountyFallback": "Wilaya Iliyochaguliwa",
+    "incidentPhotoAlt": "Picha ya tukio la uchafuzi lililoripotiwa {index}",
+    "status": "Hali",
+    "reportedIncidents": "Matukio Yaliyoripotiwa",
+    "good": "Nzuri",
+    "critical": "Hatari",
+    "moderateDegradation": "Uharibifu wa Wastani",
+    "minorConcerns": "Wasiwasi Mdogo",
+    "activePollutionIncidents": "Matukio {count} ya uchafuzi yanayofanya kazi yameripotiwa katika wilaya hii. Kagua usambazaji wa matukio na ripoti hapa chini.",
+    "noActivePollutionIncidents": "Hakuna matukio ya uchafuzi yanayofanya kazi yaliyoripotiwa. Hali ya mazingira kwa sasa ni shwari.",
+    "incidentDistribution": "Usambazaji wa Matukio",
+    "incidentDistributionDesc": "Hesabu za ripoti kulingana na aina za matukio. Bofya kadi za matukio kwenye upau wa kando ili kukagua maelezo.",
+    "cleanSubCounty": "Wilaya Safi",
+    "noReportedIncidents": "Hakuna matukio ya uchafuzi yaliyoripotiwa katika {subCountyName} yanayolingana na vichujio vya sasa.",
+    "reportedPhotos": "Picha Zilizoripotiwa",
+    "noPhotos": "Hakuna picha zilizoripotiwa katika eneo hili.",
     "requiredInterventions": "Uingiliaji Unaohitajika",
     "noInterventions": "Hakuna uingiliaji ulioanzishwa kwa kiwango hiki.",
     "scoreBreakdown": "Uchambuzi wa alama",
@@ -95,15 +136,22 @@
     "showTrend": "Onyesha Mwenendo",
     "hideTrend": "Ficha Mwenendo",
     "noHistoricalData": "Hakuna data ya historia kwa kipindi hiki",
-    "scoreHistoryError": "Imeshindwa kupakia historia ya alama"
+    "scoreHistoryError": "Imeshindwa kupakia historia ya alama",
+    "lastReported": "Ripoti ya mwisho"
   },
   "metrics": {
     "ph": "pH",
+    "ph_desc": "Kipimo cha asidi au alkali ya maji (kati ya 0 na 14).",
     "dissolvedOxygen": "O₂ Iliyoyeyuka",
+    "dissolvedOxygen_desc": "Kiasi cha oksijeni iliyoyeyushwa katika maji, muhimu kwa viumbe vya majini.",
     "temperature": "Joto",
+    "temperature_desc": "Kiwango cha joto cha maji, kinachoathiri michakato ya kemikali na biolojia.",
     "waterLevel": "Kiwango cha maji",
+    "waterLevel_desc": "Urefu wa kiwango cha maji ikilinganishwa na alama ya kumbukumbu.",
     "turbidity": "Ukungu wa maji",
-    "macroinvertebrate": "Macroinvertebrate"
+    "turbidity_desc": "Hali ya uchafu au mawingu kwenye maji yanayosababishwa na chembechembe zilizosimamishwa.",
+    "macroinvertebrate": "Macroinvertebrate",
+    "macroinvertebrate_desc": "Uwepo wa viumbe wadogo wanaotumika kama viashiria vya ubora wa maji."
   },
   "scores": {
     "physicoChemical": "Fisikokemikali",
@@ -123,6 +171,19 @@
     "questionnaireAnswers": "Majibu ya Maswali",
     "moderate": "Wastani",
     "critical": "Hatari",
-    "elevated": "Juu"
+    "elevated": "Juu",
+    "questionFallback": "Swali {id}",
+    "incidentPhotoAlt": "Picha ya ripoti ya tukio {index}"
+  },
+  "login": {
+    "title": "Ingia kwenye akaunti yako",
+    "subtitle": "Jukwaa la Ufuatiliaji wa Eneo Oevu Linaloongozwa na Raia",
+    "noAccount": "Huna akaunti? Wasiliana na msimamizi wa jukwaa lako.",
+    "noSelfRegistration": "Kujisajili mwenyewe hakupatikani.",
+    "signingIn": "Inaingia...",
+    "errorTitle": "Imeshindikana Kuingia",
+    "errorNotRegistered": "Barua pepe yako haijasajiliwa. Wasiliana na msimamizi wa jukwaa ili kuomba ufikiaji.",
+    "errorInactive": "Akaunti yako imezimwa. Wasiliana na msimamizi wa jukwaa lako.",
+    "errorAuthFailed": "Uthibitishaji umeshindikana. Tafadhali jaribu tena."
   }
 }

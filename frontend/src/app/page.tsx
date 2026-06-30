@@ -3,26 +3,35 @@
 import React, { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Dropdown } from "@/components/ui/dropdown";
 import { SiteDrawer } from "@/components/ui/site-drawer";
 import { SiteHeader } from "@/components/ui/site-header";
 import { Loader } from "@/components/ui/loader";
 import { MapLegend } from "@/components/ui/map-legend";
-import { DomainSelector } from "@/components/ui/domain-selector";
 import { IncidentCard } from "@/components/ui/incident-card";
 import { IncidentDrawer } from "@/components/ui/incident-drawer";
-import { useTranslations } from "next-intl";
+import { MapFilter } from "@/components/ui/map-filter";
+import { useTranslations, useLocale } from "next-intl";
+import { useDomain } from "@/context/domain-context";
+import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
+import { point } from "@turf/helpers";
+import { PollutionDetailsDrawer } from "@/components/ui/pollution-details-drawer";
+import {
+  AlertTriangle,
+  Droplet,
+  Fish,
+  Wind,
+  CloudLightning,
+  Waves,
+} from "lucide-react";
 
 import {
   getBasins,
   getSites,
   getSubmissions,
-  MonitoringDomain,
   IncidentSummary,
+  getForms,
+  getForm,
 } from "@/lib/api";
-
-const SHOW_BASIN_SELECTOR = true;
 
 const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
   ssr: false,
@@ -163,25 +172,81 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
   };
 };
 
+const getIncidentIcon = (typeName: string) => {
+  const lower = typeName.toLowerCase();
+  if (
+    lower.includes("colour") ||
+    lower.includes("color") ||
+    lower.includes("chafu") ||
+    lower.includes("nyeusi")
+  ) {
+    return <Droplet className="w-4 h-4 text-sky-500" />;
+  }
+  if (
+    lower.includes("smell") ||
+    lower.includes("harufu") ||
+    lower.includes("odour")
+  ) {
+    return <Wind className="w-4 h-4 text-emerald-500" />;
+  }
+  if (
+    lower.includes("fish") ||
+    lower.includes("samaki") ||
+    lower.includes("kill") ||
+    lower.includes("vifo")
+  ) {
+    return <Fish className="w-4 h-4 text-rose-500" />;
+  }
+  if (lower.includes("storm") || lower.includes("dhoruba")) {
+    return <CloudLightning className="w-4 h-4 text-amber-500" />;
+  }
+  if (lower.includes("high water") || lower.includes("juu ya maji")) {
+    return <Waves className="w-4 h-4 text-blue-500" />;
+  }
+  if (lower.includes("low water") || lower.includes("chini ya maji")) {
+    return <Waves className="w-4 h-4 text-teal-500 rotate-180" />;
+  }
+  return <AlertTriangle className="w-4 h-4 text-slate-500" />;
+};
+
 export default function Home() {
   const t = useTranslations("landing");
 
   const [selectedBasin, setSelectedBasin] = useState("MARA");
   const [selectedHealthFilter, setSelectedHealthFilter] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedSite, setSelectedSite] = useState<any>(null);
-  const [selectedDomain, setSelectedDomain] =
-    useState<MonitoringDomain>("wetland");
-  const [selectedIncident, setSelectedIncident] =
-    useState<IncidentSummary | null>(null);
+  const [selectedWetland, setSelectedWetland] = useState("");
+  const [selectedIncidentTypes, setSelectedIncidentTypes] = useState<string[]>(
+    []
+  );
+  const [selectedDateFrom, setSelectedDateFrom] = useState("");
+  const [selectedDateTo, setSelectedDateTo] = useState("");
+  const {
+    selectedDomain,
+    selectedSite,
+    setSelectedSite,
+    selectedIncident,
+    setSelectedIncident,
+    selectedSubCounty,
+    setSelectedSubCounty,
+    closeAllDrawers,
+    pollutionRange,
+    setPollutionRange,
+  } = useDomain();
   const [isListCollapsed, setIsListCollapsed] = useState(false);
+  const locale = useLocale();
+  const [incidentTypeOptions, setIncidentTypeOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [basinGeometries, setBasinGeometries] = useState<Record<string, any>>(
     {}
   );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [wetlandGeometry, setWetlandGeometry] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [subcountyGeometry, setSubcountyGeometry] = useState<any>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [basins, setBasins] = useState<any[]>([]);
@@ -190,23 +255,139 @@ export default function Home() {
   const [dbIncidents, setDbIncidents] = useState<IncidentSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const handleDomainChange = (domain: MonitoringDomain) => {
-    setSelectedDomain(domain);
+  // Fetch wetland GeoJSON when in wetland domain
+  useEffect(() => {
+    if (selectedDomain === "wetland") {
+      const fileName =
+        selectedBasin === "SIO_SITEKO"
+          ? "sio-siteko-wetland.geojson"
+          : "mara-wetland.geojson";
+      fetch(`/spatial/${fileName}?v=1.0.1`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load wetland GeoJSON");
+          return res.json();
+        })
+        .then((data) => setWetlandGeometry(data))
+        .catch((err) => {
+          console.error("Error loading wetland geometry:", err);
+          setWetlandGeometry(null);
+        });
+    } else {
+      setWetlandGeometry(null);
+    }
+  }, [selectedDomain, selectedBasin]);
+
+  // Fetch sub-counties GeoJSON when in pollution domain
+  useEffect(() => {
+    if (selectedDomain === "pollution") {
+      const fileName =
+        selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
+          ? "sio-subcounties.geojson"
+          : "mara-subcounties.geojson";
+      fetch(`/spatial/${fileName}?v=1.0.1`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load sub-counties GeoJSON");
+          return res.json();
+        })
+        .then((data) => setSubcountyGeometry(data))
+        .catch((err) => {
+          console.error("Error loading sub-county geometry:", err);
+          setSubcountyGeometry(null);
+        });
+    } else {
+      setSubcountyGeometry(null);
+    }
+  }, [selectedDomain, selectedBasin]);
+
+  // Fetch dynamic incident type options from questionnaire
+  useEffect(() => {
+    getForms({ lang: locale })
+      .then((formsList) => {
+        const pForm = formsList.find((f) => f.type === 1);
+        if (pForm) {
+          return getForm(pForm.id, { lang: locale });
+        }
+        return null;
+      })
+      .then((fullForm) => {
+        if (fullForm) {
+          let foundOptions: Array<{ value: string; label: string }> = [];
+          fullForm.question_groups?.forEach((group: any) => {
+            group.questions?.forEach((q: any) => {
+              if (q.name === "incident_type" && q.options) {
+                foundOptions = q.options.map((opt: any) => ({
+                  value: String(opt.value),
+                  label: opt.label || opt.name,
+                }));
+              }
+            });
+          });
+          if (foundOptions.length > 0) {
+            setIncidentTypeOptions([
+              { value: "", label: t("filters.allTypes") },
+              ...foundOptions,
+            ]);
+            return;
+          }
+        }
+        // Fallback static options
+        setIncidentTypeOptions([
+          { value: "", label: t("filters.allTypes") },
+          { value: "1", label: t("filters.optionWaterColour") },
+          { value: "2", label: t("filters.optionSmell") },
+          { value: "3", label: t("filters.optionFishKills") },
+          { value: "4", label: t("filters.optionStormEvent") },
+          { value: "5", label: t("filters.optionHighWater") },
+          { value: "6", label: t("filters.optionLowWater") },
+        ]);
+      })
+      .catch((err) => {
+        console.error("Error fetching questionnaire options:", err);
+        setIncidentTypeOptions([
+          { value: "", label: t("filters.allTypes") },
+          { value: "1", label: t("filters.optionWaterColour") },
+          { value: "2", label: t("filters.optionSmell") },
+          { value: "3", label: t("filters.optionFishKills") },
+          { value: "4", label: t("filters.optionStormEvent") },
+          { value: "5", label: t("filters.optionHighWater") },
+          { value: "6", label: t("filters.optionLowWater") },
+        ]);
+      });
+  }, [locale, t]);
+
+  // Synchronize filter resets whenever selectedDomain changes
+  useEffect(() => {
     setSelectedHealthFilter("All");
     setSelectedIncident(null);
-    if (domain === "pollution") {
+    setSelectedWetland("");
+    setSelectedIncidentTypes([]);
+    setSelectedDateFrom("");
+    setSelectedDateTo("");
+    setSelectedSubCounty(null);
+    if (selectedDomain === "pollution") {
       setSelectedSite(null);
     }
-  };
+  }, [
+    selectedDomain,
+    setSelectedHealthFilter,
+    setSelectedIncident,
+    setSelectedSubCounty,
+    setSelectedSite,
+  ]);
 
-  // Filter labels mapping (key -> translated label)
-  const filterLabels: Record<string, string> = {
-    All: t("filters.all"),
-    Critical: t("filters.critical"),
-    "At risk": t("filters.atRisk"),
-    Healthy: t("filters.healthy"),
-    Elevated: t("filters.elevated"),
-  };
+  // Automatically close any open drawers when any filter changes
+  useEffect(() => {
+    closeAllDrawers();
+  }, [
+    selectedDomain,
+    selectedBasin,
+    selectedHealthFilter,
+    selectedWetland,
+    selectedIncidentTypes,
+    selectedDateFrom,
+    selectedDateTo,
+    closeAllDrawers,
+  ]);
 
   useEffect(() => {
     getBasins()
@@ -254,7 +435,7 @@ export default function Home() {
       });
   }, [selectedBasin, selectedDomain]);
 
-  // 1. Filtered sites based on health and search
+  // 1. Filtered sites based on health and wetland selector
   const filteredSites = dbSites.filter((site) => {
     // Health category filter
     if (selectedHealthFilter !== "All") {
@@ -266,19 +447,15 @@ export default function Home() {
         return false;
     }
 
-    // Search query filter
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      const matchName = site.name.toLowerCase().includes(query);
-      const matchId = site.code.toLowerCase().includes(query);
-      const matchDescription = site.description?.toLowerCase().includes(query);
-      if (!matchName && !matchId && !matchDescription) return false;
+    // Wetland site selection filter
+    if (selectedWetland !== "" && site.code !== selectedWetland) {
+      return false;
     }
 
     return true;
   });
 
-  // 2. Filtered incidents based on basin and health/severity
+  // 2. Filtered incidents based on basin, severity, incident type, and date range
   const activeBasin = basins.find((b) => b.code === selectedBasin);
   const activeBasinId = activeBasin?.id;
 
@@ -295,6 +472,25 @@ export default function Home() {
       (a: any) => a.name === "incident_type" || a.question_id === 2
     );
     const optionVal = qIncidentAns?.options?.[0];
+
+    // Filter by incident type
+    if (selectedIncidentTypes.length > 0) {
+      if (!selectedIncidentTypes.includes(String(optionVal))) return false;
+    }
+
+    // Filter by Date From
+    if (selectedDateFrom !== "") {
+      if (new Date(incident.created_at || "") < new Date(selectedDateFrom))
+        return false;
+    }
+
+    // Filter by Date To
+    if (selectedDateTo !== "") {
+      const endOfDay = new Date(selectedDateTo);
+      endOfDay.setHours(23, 59, 59, 999);
+      if (new Date(incident.created_at || "") > endOfDay) return false;
+    }
+
     let severity = "Moderate";
     if (optionVal === 3 || optionVal === "3") {
       severity = "Critical";
@@ -345,59 +541,94 @@ export default function Home() {
       });
     }
 
-    // Pollution Reports domain
-    return filteredIncidents.map((incident) => {
+    // Pollution Reports domain - point markers are hidden in favor of choropleth shapes
+    return [];
+  }, [selectedDomain, filteredSites, t]);
+
+  // Compute choroplethLayers for sub-counties
+  const choroplethLayers = useMemo(() => {
+    if (selectedDomain !== "pollution" || !subcountyGeometry || loading)
+      return [];
+
+    const features = JSON.parse(
+      JSON.stringify(subcountyGeometry.features || [])
+    );
+
+    return features
+      .map((feature: any) => {
+        let count = 0;
+        const breakdown: Record<string, number> = {};
+
+        filteredIncidents.forEach((incident) => {
+          const coords = incident.geo?.coordinates;
+          if (!coords || coords.length < 2) return;
+          try {
+            const pt = point(coords);
+            if (booleanPointInPolygon(pt, feature)) {
+              count++;
+              const qIncidentAns = incident.answers?.find(
+                (a: any) => a.name === "incident_type" || a.question_id === 2
+              );
+              const typeLabel = qIncidentAns?.value || "Unknown";
+              breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
+            }
+          } catch (err) {
+            console.error("Point-in-polygon check failed:", err);
+          }
+        });
+
+        feature.properties = {
+          ...feature.properties,
+          incidentCount: count,
+          incidentBreakdown: breakdown,
+        };
+
+        return feature;
+      })
+      .filter((feature: any) => {
+        const count = feature.properties?.incidentCount || 0;
+        return count >= pollutionRange[0] && count <= pollutionRange[1];
+      });
+  }, [
+    selectedDomain,
+    subcountyGeometry,
+    filteredIncidents,
+    loading,
+    pollutionRange,
+  ]);
+
+  // Compute sidebar/list incidents filtered by selected sub-county
+  const sidebarIncidents = useMemo(() => {
+    if (selectedDomain !== "pollution") return [];
+
+    // If no sub-county is selected, return all basin-wide incidents matching filters
+    if (!selectedSubCounty) {
+      return [...filteredIncidents].sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateA - dateB;
+      });
+    }
+
+    const matched = filteredIncidents.filter((incident) => {
       const coords = incident.geo?.coordinates;
-      const position: [number, number] = coords
-        ? [coords[1], coords[0]]
-        : [0, 0];
-
-      const qIncidentAns = incident.answers.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (a: any) => a.name === "incident_type" || a.question_id === 2
-      );
-      const optionVal = qIncidentAns?.options?.[0];
-      let severityKey:
-        | "severityModerate"
-        | "severityCritical"
-        | "severityElevated" = "severityModerate";
-      if (optionVal === 3 || optionVal === "3") {
-        severityKey = "severityCritical";
-      } else if (
-        optionVal === 1 ||
-        optionVal === "1" ||
-        optionVal === 2 ||
-        optionVal === "2"
-      ) {
-        severityKey = "severityElevated";
+      if (!coords || coords.length < 2) return false;
+      try {
+        const pt = point(coords);
+        return booleanPointInPolygon(pt, selectedSubCounty);
+      } catch (err) {
+        console.error("Point-in-polygon check for sidebar failed:", err);
+        return false;
       }
-      const severity = t(severityKey);
-
-      const qDetailAns = incident.answers.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (a: any) =>
-          a.name === "incident_description" ||
-          a.name === "details" ||
-          a.question_id === 3
-      );
-      const descText =
-        qDetailAns?.value || incident.description || t("noDetails");
-      const incidentTypeName = qIncidentAns?.value || t("pollutionReport");
-      const formattedDate = incident.created_at
-        ? new Date(incident.created_at).toLocaleDateString()
-        : t("unknownDate");
-
-      return {
-        position,
-        popupText: `${t("incident")}: ${incidentTypeName} (${severity})`,
-        type: "incident" as const,
-        status: severity,
-        name: incidentTypeName,
-        description: descText,
-        additionalInfo: `${t("reportedOn")}: ${formattedDate}`,
-      };
     });
-  }, [selectedDomain, filteredSites, filteredIncidents, t]);
+
+    // Sort by created_at ASC
+    return [...matched].sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateA - dateB;
+    });
+  }, [selectedDomain, selectedSubCounty, filteredIncidents]);
 
   // Map center logic (center of Mara or Sio depending on selection)
   const mapCenter: [number, number] =
@@ -410,9 +641,41 @@ export default function Home() {
   }));
 
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col font-sans relative overflow-hidden">
+    <main className="min-h-screen bg-slate-50 flex flex-col font-sans relative md:overflow-hidden">
       {/* Header Navigation */}
       <SiteHeader showActions={true} />
+
+      {/* Map Filter Bar */}
+      <MapFilter
+        domain={selectedDomain}
+        basins={dropdownOptions}
+        selectedBasin={selectedBasin}
+        onBasinChange={(val) => {
+          setSelectedBasin(val);
+          setSelectedSite(null);
+          setSelectedIncident(null);
+          setSelectedWetland("");
+          setSelectedSubCounty(null);
+        }}
+        selectedHealthFilter={selectedHealthFilter}
+        onHealthFilterChange={setSelectedHealthFilter}
+        selectedIncidentTypes={selectedIncidentTypes}
+        onIncidentTypesChange={setSelectedIncidentTypes}
+        selectedDateFrom={selectedDateFrom}
+        onDateFromChange={setSelectedDateFrom}
+        selectedDateTo={selectedDateTo}
+        onDateToChange={setSelectedDateTo}
+        incidentTypeOptions={incidentTypeOptions}
+        onClearFilters={() => {
+          setSelectedHealthFilter("All");
+          setSelectedWetland("");
+          setSelectedIncidentTypes([]);
+          setSelectedDateFrom("");
+          setSelectedDateTo("");
+          setPollutionRange([0, 20]);
+          closeAllDrawers();
+        }}
+      />
 
       {/* Main content body with relative layout */}
       <div className="flex-1 relative overflow-hidden flex flex-col md:flex-row">
@@ -423,7 +686,26 @@ export default function Home() {
             zoom={mapZoom}
             markers={mapMarkers}
             basinGeometry={activeGeometry}
+            wetlandGeometry={wetlandGeometry}
+            choroplethLayers={choroplethLayers}
+            selectedSubCounty={selectedSubCounty}
+            onSelectSubCounty={(subCounty) => {
+              setSelectedSubCounty(subCounty);
+              if (subCounty) {
+                setSelectedSite(null);
+                setSelectedIncident(null);
+              }
+            }}
             className="h-full w-full"
+            onSelectMarker={(code, type) => {
+              if (type === "site") {
+                const s = dbSites.find((x) => x.code === code);
+                if (s) setSelectedSite(s);
+              } else {
+                const inc = dbIncidents.find((x) => x.id === code);
+                if (inc) setSelectedIncident(inc);
+              }
+            }}
           />
         </div>
 
@@ -431,63 +713,6 @@ export default function Home() {
         <section
           className={`relative ${isListCollapsed ? "flex-initial" : "flex-1"} md:absolute md:bottom-auto md:left-auto md:right-auto md:w-96 md:h-full bg-white/95 backdrop-blur-sm border-t md:border-t-0 md:border-r border-slate-200 z-10 flex flex-col shadow-2xl md:shadow-lg rounded-t-2xl md:rounded-t-none`}
         >
-          {/* Drag indicator for mobile - clickable toggle */}
-          <button
-            onClick={() => setIsListCollapsed(!isListCollapsed)}
-            className="w-12 h-1.5 bg-slate-300 hover:bg-slate-400 rounded-full mx-auto my-2.5 shrink-0 md:hidden cursor-pointer active:scale-95 transition-all focus:outline-none"
-            aria-label="Toggle panel collapse"
-          />
-
-          {/* Domain and Basin selector */}
-          <div className="p-4 border-b border-slate-100 space-y-4 shrink-0">
-            <DomainSelector
-              value={selectedDomain}
-              onChange={handleDomainChange}
-            />
-
-            {SHOW_BASIN_SELECTOR && (
-              <Dropdown
-                label={t("basinRegion")}
-                options={dropdownOptions}
-                value={selectedBasin}
-                onChange={(val) => {
-                  setSelectedBasin(val);
-                  setSelectedSite(null);
-                  setSelectedIncident(null);
-                }}
-              />
-            )}
-
-            {/* Health / Severity filter toggles */}
-            <div className="flex bg-slate-100 p-1 rounded-lg w-full text-xs font-semibold">
-              {(selectedDomain === "wetland"
-                ? ["All", "Critical", "At risk", "Healthy"]
-                : ["All", "Critical", "Elevated"]
-              ).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setSelectedHealthFilter(filter)}
-                  className={`flex-1 py-1.5 rounded-md text-center transition-all ${
-                    selectedHealthFilter === filter
-                      ? "bg-white text-slate-800 shadow"
-                      : "text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  {filterLabels[filter]}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input */}
-            <Input
-              type="text"
-              placeholder={t("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border-slate-200 focus:bg-white text-sm"
-            />
-          </div>
-
           {/* Site cards list */}
           <div
             className={`p-4 flex flex-col min-h-0 ${isListCollapsed ? "shrink-0" : "flex-1 overflow-y-auto"}`}
@@ -500,7 +725,9 @@ export default function Home() {
                 <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">
                   {selectedDomain === "wetland"
                     ? `${t("monitoringSites")} (${filteredSites.length})`
-                    : `Pollution Incidents (${filteredIncidents.length})`}
+                    : selectedSubCounty
+                      ? `Pollution Incidents: ${selectedSubCounty.properties.name || "Selected Sub-County"} (${sidebarIncidents.length})`
+                      : `Pollution Incidents (${sidebarIncidents.length})`}
                   {selectedDomain === "wetland" &&
                     filteredIncidents.length > 0 && (
                       <span className="text-red-500 normal-case font-medium ml-2">
@@ -550,9 +777,6 @@ export default function Home() {
                       const ikAdjustedScore =
                         site.status?.ik_adjusted_score ?? 0.5;
                       const progressPercent = Math.round(ikAdjustedScore * 100);
-                      const isIkAdjusted =
-                        site.status?.ik_adjusted_score !==
-                        site.status?.composite_score;
                       const country =
                         site.country ||
                         (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
@@ -573,24 +797,17 @@ export default function Home() {
                               </span>
                             </div>
                             <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${
+                              className={`w-3 h-3 rounded-full border mt-1 shrink-0 ${
                                 isCritical
-                                  ? "bg-red-50 text-red-700 border-red-200"
+                                  ? "bg-red-500 border-red-600"
                                   : isAtRisk
-                                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                                    : "bg-green-50 text-green-700 border-green-200"
+                                    ? "bg-amber-500 border-amber-600"
+                                    : "bg-green-500 border-green-600"
                               }`}
-                            >
-                              {hClass}
-                            </div>
+                            />
                           </div>
 
                           <div className="space-y-1">
-                            <div className="text-xs text-slate-500 font-medium">
-                              Community Signal:{" "}
-                              {site.description ||
-                                "No signal details recorded."}
-                            </div>
                             <div className="flex items-center gap-2">
                               <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <div
@@ -611,9 +828,6 @@ export default function Home() {
                           </div>
 
                           <div className="flex flex-wrap gap-1.5 mt-1">
-                            <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm flex items-center gap-1">
-                              Approved
-                            </span>
                             <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 border border-slate-200/80 shadow-sm flex items-center gap-1 shrink-0">
                               <svg
                                 className="w-3 h-3 text-slate-400"
@@ -635,11 +849,6 @@ export default function Home() {
                               </svg>
                               {country}
                             </span>
-                            {isIkAdjusted && (
-                              <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-100 shadow-sm flex items-center gap-1 shrink-0">
-                                IK-adjusted
-                              </span>
-                            )}
                           </div>
 
                           {/* Action Warning Banners for sites requiring intervention */}
@@ -692,49 +901,54 @@ export default function Home() {
                       No active stations matching filters.
                     </div>
                   )
-                ) : filteredIncidents.length > 0 ? (
-                  filteredIncidents.map((incident, idx) => {
+                ) : sidebarIncidents.length > 0 ? (
+                  sidebarIncidents.map((incident, idx) => {
                     const qIncidentAns = incident.answers?.find(
                       (a) => a.name === "incident_type" || a.question_id === 2
                     );
-                    const optionVal = qIncidentAns?.options?.[0];
-                    let severity: "Critical" | "Elevated" | "Moderate" =
-                      "Moderate";
-                    if (optionVal !== undefined) {
-                      const valStr = String(optionVal);
-                      if (valStr === "3") severity = "Critical";
-                      else if (["1", "2"].includes(valStr))
-                        severity = "Elevated";
-                    }
-
-                    const qDetailAns = incident.answers?.find(
-                      (a) =>
-                        a.name === "incident_description" ||
-                        a.name === "details" ||
-                        a.question_id === 3
-                    );
-                    const descText =
-                      qDetailAns?.value ||
-                      incident.description ||
-                      "No details recorded.";
                     const incidentTypeName =
                       qIncidentAns?.value || "Pollution Report";
+
+                    // Find image answer
+                    const imageUrl = incident.answers?.find(
+                      (a) => a.read_url && a.read_url.trim() !== ""
+                    )?.read_url;
+
+                    // Find sub-county name
+                    const subCountyFeature = subcountyGeometry?.features?.find(
+                      (scFeature: any) => {
+                        const coords = incident.geo?.coordinates;
+                        if (!coords || coords.length < 2) return false;
+                        try {
+                          return booleanPointInPolygon(
+                            point(coords),
+                            scFeature
+                          );
+                        } catch {
+                          return false;
+                        }
+                      }
+                    );
+                    const subCountyName = subCountyFeature?.properties?.name;
 
                     return (
                       <IncidentCard
                         key={incident.id ?? idx}
                         incidentTypeName={incidentTypeName}
-                        severity={severity}
                         dateReported={incident.created_at || ""}
-                        description={descText}
-                        basinName={activeBasin?.name}
-                        onClick={() => setSelectedIncident(incident)}
+                        description={incident.description}
+                        subCountyName={subCountyName}
+                        disableClick={true}
+                        imageUrl={imageUrl}
+                        icon={getIncidentIcon(incidentTypeName)}
                       />
                     );
                   })
                 ) : (
                   <div className="text-sm text-slate-400 italic py-8 text-center">
-                    {t("noIncidents")}
+                    {selectedSubCounty
+                      ? "No pollution incidents reported in this sub-county."
+                      : t("noIncidents")}
                   </div>
                 )}
               </div>
@@ -757,6 +971,17 @@ export default function Home() {
         incident={selectedIncident}
         basinName={activeBasin?.name}
         onClose={() => setSelectedIncident(null)}
+      />
+
+      {/* Pollution sub-county details Drawer panel */}
+      <PollutionDetailsDrawer
+        selectedSubCounty={selectedSubCounty}
+        incidents={sidebarIncidents}
+        onClickIncident={(incident: any) => {
+          setSelectedIncident(incident);
+          setSelectedSubCounty(null);
+        }}
+        onClose={() => setSelectedSubCounty(null)}
       />
     </main>
   );

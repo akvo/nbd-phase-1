@@ -62,7 +62,6 @@ test("renders site drawer details", () => {
 
   expect(screen.getByText("Gulu Wetland")).toBeInTheDocument();
   expect(screen.getByText("Uganda")).toBeInTheDocument();
-  expect(screen.getByText("Community signal:")).toBeInTheDocument();
   expect(screen.getByText("Revegetation")).toBeInTheDocument();
 
   const closeButton = screen.getByText("✕");

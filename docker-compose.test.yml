@@ -26,6 +26,9 @@ services:
       - MAIL_FROM=alerts@nbd-wetland.org
       - STORAGE_DIR=/app/storage_test
       - SECRET_KEY=your_test_secret_key_here
+      - GOOGLE_CLIENT_ID=your_test_google_client_id_here
+      - JWT_SECRET=your_test_secret_key_here
+      - JWT_EXPIRY_HOURS=24
       - KOBOTOOLBOX_API_URL=https://eu.kobotoolbox.org
       - KOBOTOOLBOX_API_TOKEN=your_actual_token_here
       - WHATSAPP_APP_SECRET=your_meta_app_secret_here
@@ -33,6 +36,7 @@ services:
       - WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token_here
       - WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id_here
     volumes:
+      - ./backend:/app:delegated
       - ./storage_test:/app/storage_test
     command: ["./test.sh"]
     depends_on:
@@ -44,4 +48,8 @@ services:
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=test
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_test_google_client_id_here
+    volumes:
+      - ./frontend:/app:delegated
+      - /app/node_modules
     command: ["./test.sh"]

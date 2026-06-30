@@ -7,9 +7,16 @@ interface EChartsChartProps {
   options: echarts.EChartsOption;
   className?: string;
   style?: React.CSSProperties;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onEvents?: Record<string, (params: any) => void>;
 }
 
-export function EChartsChart({ options, className, style }: EChartsChartProps) {
+export function EChartsChart({
+  options,
+  className,
+  style,
+  onEvents,
+}: EChartsChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
@@ -23,18 +30,34 @@ export function EChartsChart({ options, className, style }: EChartsChartProps) {
     // Set initial options
     chart.setOption(options);
 
+    // Bind events
+    if (onEvents) {
+      Object.entries(onEvents).forEach(([eventName, handler]) => {
+        chart.on(eventName, handler);
+      });
+    }
+
     // Resize handler
     const handleResize = () => {
       chart.resize();
     };
 
     window.addEventListener("resize", handleResize);
+    window.addEventListener("beforeprint", handleResize);
+    window.addEventListener("afterprint", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("beforeprint", handleResize);
+      window.removeEventListener("afterprint", handleResize);
+      if (onEvents && chartInstance.current) {
+        Object.entries(onEvents).forEach(([eventName, handler]) => {
+          chartInstance.current?.off(eventName, handler);
+        });
+      }
       chart.dispose();
     };
-  }, [options]);
+  }, [options, onEvents]);
 
   return (
     <div

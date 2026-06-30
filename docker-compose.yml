@@ -96,6 +96,9 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV}
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    volumes:
+      - ./frontend:/app:delegated
+      - /app/node_modules
     command: ./start.sh
     stdin_open: true
     tty: true

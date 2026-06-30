@@ -36,20 +36,23 @@ test("renders trend toggle button", () => {
 test("collapses and expands the chart on click", () => {
   renderWithIntl(<CollapsibleChartContainer label="pH" data={mockData} />);
 
+  const container = screen.getByTestId("chart-container");
+
   // Should be closed by default
-  expect(screen.queryByTestId("mock-echarts-chart")).not.toBeInTheDocument();
+  expect(container.className.split(" ")).toContain("hidden");
 
   // Click to open
   const toggleBtn = screen.getByText(messages.drawer.showTrend);
   fireEvent.click(toggleBtn);
 
   expect(screen.getByText(messages.drawer.hideTrend)).toBeInTheDocument();
-  expect(screen.getByTestId("mock-echarts-chart")).toBeInTheDocument();
+  expect(container.className.split(" ")).toContain("block");
+  expect(container.className.split(" ")).not.toContain("hidden");
 
   // Click to close again
   fireEvent.click(toggleBtn);
   expect(screen.getByText(messages.drawer.showTrend)).toBeInTheDocument();
-  expect(screen.queryByTestId("mock-echarts-chart")).not.toBeInTheDocument();
+  expect(container.className.split(" ")).toContain("hidden");
 });
 
 test("shows fallback message when data is empty", () => {
