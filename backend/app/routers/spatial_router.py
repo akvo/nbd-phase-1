@@ -631,3 +631,21 @@ def list_reference_sites(
             }
         )
     return results
+
+
+@router.get("/reference/cascade-options")
+def get_cascade_options():
+    return [
+        {
+            "name": "Sub-Counties",
+            "endpoint": "/api/v1/reference/sub-counties",
+        },
+        {
+            "name": "Wetlands",
+            "endpoint": "/api/v1/reference/wetlands",
+        },
+        {
+            "name": "Sites",
+            "endpoint": "/api/v1/reference/sites",
+        },
+    ]

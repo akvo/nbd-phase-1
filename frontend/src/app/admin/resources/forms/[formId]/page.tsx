@@ -40,6 +40,9 @@ export default function FormEditPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [formData, setFormData] = useState<any>(null);
+  const [cascadeOptions, setCascadeOptions] = useState<
+    { name: string; endpoint: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +51,22 @@ export default function FormEditPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiClient.get(`/forms/${formId}/blueprint`);
+      const [res, cascadeRes] = await Promise.all([
+        apiClient.get(`/forms/${formId}/blueprint`),
+        apiClient.get("/reference/cascade-options").catch((err) => {
+          console.warn("Failed to fetch cascade options, falling back:", err);
+          return {
+            data: [
+              {
+                name: "Sub-Counties",
+                endpoint: "/api/v1/reference/sub-counties",
+              },
+            ],
+          };
+        }),
+      ]);
       setFormData(res.data);
+      setCascadeOptions(cascadeRes.data);
       // Add a short timeout (150ms) to ensure CSS and DOM are fully loaded/settled
       await new Promise((resolve) => setTimeout(resolve, 150));
     } catch (err) {
@@ -71,17 +88,14 @@ export default function FormEditPage() {
     setSaving(true);
     try {
       await apiClient.put(`/forms/${formId}`, values);
-      router.push("/admin/resources/forms");
+      setFormData(values);
+      setError(null);
     } catch (err) {
-      console.error("Failed to save form:", err);
-      setError("Failed to save form. Please try again.");
+      console.error("Failed to save blueprint:", err);
+      setError("Failed to save blueprint. Please try again.");
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleBack = () => {
-    router.push("/admin/resources/forms");
   };
 
   if (loading) {
@@ -111,22 +125,21 @@ export default function FormEditPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center space-x-4">
           <button
-            type="button"
-            onClick={handleBack}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            onClick={() => router.push("/admin/resources/forms")}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+            aria-label="Back to Forms"
           >
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </button>
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">
-              Edit Form: {formData?.name}
-            </h2>
-            <p className="text-slate-500 text-sm mt-0.5">
-              Form ID: {formId} • Version: {formData?.version || "Draft"}
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+              Edit Form Blueprint
+            </h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Form ID: {formId} | Customize questions, groups, and options.
             </p>
           </div>
         </div>
@@ -150,7 +163,8 @@ export default function FormEditPage() {
               initialValue={formData}
               onSave={handleSave}
               limitQuestionType={ALLOWED_QUESTION_TYPES}
-              defaultQuestion={null}
+              defaultQuestion={false}
+              settingCascadeURL={cascadeOptions}
             />
           </div>
         )}

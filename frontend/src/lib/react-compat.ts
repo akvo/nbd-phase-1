@@ -10,12 +10,21 @@ import React, { useEffect } from "react";
 export function initReactCompat(L?: any) {
   if (typeof window === "undefined") return;
 
-  // 1. Silence the React 19 element.ref deprecation warnings
+  // 1. Silence deprecation and internal design warnings from legacy dependencies (e.g., React 19 element.ref, antd, state-in-render warnings)
   const originalError = console.error;
   console.error = function (...args: any[]) {
     if (
       typeof args[0] === "string" &&
-      args[0].includes("Accessing element.ref was removed in React 19")
+      (args[0].includes("Accessing element.ref was removed in React 19") ||
+        args[0].includes("Tabs.TabPane is deprecated") ||
+        args[0].includes(
+          "Modal] `visible` will be removed in next major version"
+        ) ||
+        args[0].includes(
+          "Form.Item] A `Form.Item` with a `name` prop must have a single child element"
+        ) ||
+        (args[0].includes("Cannot update a component") &&
+          args[0].includes("while rendering a different component")))
     ) {
       return;
     }
@@ -26,7 +35,16 @@ export function initReactCompat(L?: any) {
   console.warn = function (...args: any[]) {
     if (
       typeof args[0] === "string" &&
-      args[0].includes("Accessing element.ref was removed in React 19")
+      (args[0].includes("Accessing element.ref was removed in React 19") ||
+        args[0].includes("Tabs.TabPane is deprecated") ||
+        args[0].includes(
+          "Modal] `visible` will be removed in next major version"
+        ) ||
+        args[0].includes(
+          "Form.Item] A `Form.Item` with a `name` prop must have a single child element"
+        ) ||
+        (args[0].includes("Cannot update a component") &&
+          args[0].includes("while rendering a different component")))
     ) {
       return;
     }
@@ -82,94 +100,6 @@ export function initReactCompat(L?: any) {
           enumerable: true,
         }
       );
-    }
-
-    // React 19 ref property compatibility polyfill for custom/legacy components
-    const originalCreateElement = r.createElement;
-    if (originalCreateElement && !originalCreateElement.__refPolyfilled) {
-      const newCreateElement = function (
-        type: any,
-        props: any,
-        ...children: any[]
-      ) {
-        const element = originalCreateElement.apply(React, [
-          type,
-          props,
-          ...children,
-        ]);
-        if (
-          element &&
-          typeof element === "object" &&
-          typeof type !== "string" &&
-          props &&
-          props.ref !== undefined
-        ) {
-          // Bypass cloning for Map/Leaflet components to prevent double-initialization errors
-          const name = type && (type.name || type.displayName || "");
-          const isMapComponent =
-            (props &&
-              (props.center !== undefined ||
-                props.zoom !== undefined ||
-                props.url !== undefined ||
-                props.attribution !== undefined ||
-                props.position !== undefined)) ||
-            (typeof name === "string" &&
-              (name.toLowerCase().includes("map") ||
-                name.toLowerCase().includes("layer") ||
-                name.toLowerCase().includes("marker") ||
-                name.toLowerCase().includes("popup") ||
-                name.toLowerCase().includes("geojson") ||
-                name.toLowerCase().includes("leaflet")));
-          if (isMapComponent) {
-            return element;
-          }
-
-          try {
-            const clonedElement = Object.create(Object.getPrototypeOf(element));
-
-            // Copy all string properties
-            Object.getOwnPropertyNames(element).forEach((key) => {
-              if (key === "ref") {
-                Object.defineProperty(clonedElement, "ref", {
-                  get() {
-                    return this.props?.ref;
-                  },
-                  configurable: true,
-                  enumerable: true,
-                });
-              } else {
-                Object.defineProperty(
-                  clonedElement,
-                  key,
-                  Object.getOwnPropertyDescriptor(
-                    element,
-                    key
-                  ) as PropertyDescriptor
-                );
-              }
-            });
-
-            // Copy all symbol properties (e.g. $$typeof)
-            Object.getOwnPropertySymbols(element).forEach((sym) => {
-              Object.defineProperty(
-                clonedElement,
-                sym,
-                Object.getOwnPropertyDescriptor(
-                  element,
-                  sym
-                ) as PropertyDescriptor
-              );
-            });
-
-            return clonedElement;
-          } catch {
-            return element;
-          }
-        }
-        return element;
-      };
-      newCreateElement.__refPolyfilled = true;
-      r.createElement = newCreateElement;
     }
   }
 }

@@ -515,6 +515,10 @@
   border-color: #cbd5e1;
   color: #1e293b;
 }
+/* Hide eye icons ARFE */
+.arfe-editor-wrapper button:has(svg path[d^="M942.2 486.2"]) {
+  display: none !important;
+}
 /* End Akvo React Form Editor styles */
 
 /* Protect app buttons from Ant Design global styles */
