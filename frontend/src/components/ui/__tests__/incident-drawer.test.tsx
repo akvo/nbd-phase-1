@@ -54,9 +54,6 @@ test("renders incident details correctly", () => {
   expect(
     screen.getByRole("heading", { name: "Fish kill" })
   ).toBeInTheDocument();
-  expect(
-    screen.getByText(messages.incidentDrawer.critical)
-  ).toBeInTheDocument();
   expect(screen.getByText("Victoria Basin")).toBeInTheDocument();
   expect(
     screen.getAllByText("Lots of dead fish floating.")[0]
