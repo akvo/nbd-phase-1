@@ -183,8 +183,6 @@ export default function MapViewer({
     };
   }, [isMounted]);
 
-  console.log("MapViewer State:", { isMounted, hasIcons: !!icons, hasL: !!L });
-
   if (!isMounted || !icons) {
     return <Loader message="Loading Regional Map (Component)..." />;
   }

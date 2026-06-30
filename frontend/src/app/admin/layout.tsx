@@ -88,7 +88,7 @@ export default function AdminLayout({
     title = "Data overview";
     subtitle =
       "Search and filter across all submitted data • Click a row to review";
-    showBadge = true;
+    showBadge = false;
     isTabbedRoute = true;
   } else if (
     pathname === "/admin/resources" ||

@@ -469,7 +469,7 @@ export default function Home() {
     // Resolve incident type and map to severity status
     const qIncidentAns = incident.answers.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (a: any) => a.name === "incident_type" || a.question_id === 2
+      (a: any) => a.question_name === "incident_type"
     );
     const optionVal = qIncidentAns?.options?.[0];
 
@@ -562,8 +562,7 @@ export default function Home() {
         filteredIncidents.forEach((incident) => {
           const locationAns = incident.answers?.find(
             (a) =>
-              (a.name === "location_id" ||
-                a.question_label?.toLowerCase().includes("location")) &&
+              a.question_name === "location_id" &&
               a.value &&
               a.value.toString().trim().toLowerCase() ===
                 feature.properties?.name?.toString().trim().toLowerCase()
@@ -586,7 +585,7 @@ export default function Home() {
           if (isInside) {
             count++;
             const qIncidentAns = incident.answers?.find(
-              (a: any) => a.name === "incident_type" || a.question_id === 2
+              (a: any) => a.question_name === "incident_type"
             );
             const typeLabel = qIncidentAns?.value || "Unknown";
             breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
@@ -629,8 +628,7 @@ export default function Home() {
     const matched = filteredIncidents.filter((incident) => {
       const locationAns = incident.answers?.find(
         (a) =>
-          (a.name === "location_id" ||
-            a.question_label?.toLowerCase().includes("location")) &&
+          a.question_name === "location_id" &&
           a.value &&
           a.value.toString().trim().toLowerCase() ===
             selectedSubCounty.properties?.name?.toString().trim().toLowerCase()
@@ -930,7 +928,7 @@ export default function Home() {
                 ) : sidebarIncidents.length > 0 ? (
                   sidebarIncidents.map((incident, idx) => {
                     const qIncidentAns = incident.answers?.find(
-                      (a) => a.name === "incident_type" || a.question_id === 2
+                      (a) => a.question_name === "incident_type"
                     );
                     const incidentTypeName =
                       qIncidentAns?.value || "Pollution Report";
@@ -942,9 +940,7 @@ export default function Home() {
 
                     // Find sub-county name
                     const locationAns = incident.answers?.find(
-                      (a) =>
-                        a.name === "location_id" ||
-                        a.question_label?.toLowerCase().includes("location")
+                      (a) => a.question_name === "location_id"
                     );
                     let subCountyName = locationAns?.value;
 

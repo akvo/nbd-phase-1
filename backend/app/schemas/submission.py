@@ -18,6 +18,7 @@ class AnswerCreate(AnswerBase):
 
 class AnswerResponse(AnswerBase):
     id: int
+    question_name: str
     question_label: str
     datapoint_id: int
     read_url: Optional[str] = None
@@ -235,7 +236,8 @@ class AnswerResponse(AnswerBase):
             "datapoint_id": datapoint_id,
             "question_id": question_id,
             "question_label": question_label,
-            "name": name or question_name,
+            "question_name": question_name,
+            "name": name,
             "value": resolved_value,
             "options": options,
             "index": index,

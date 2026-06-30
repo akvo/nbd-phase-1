@@ -21,9 +21,9 @@ def populate_answers_option_labels(
     Batch resolves option IDs and cascade boundary UUIDs
     to human-readable labels.
     """
-    all_option_ids = []
     all_boundary_ids = []
     answers_to_resolve = []
+    question_ids = []
 
     for dp in datapoints:
         for ans in dp.answers:
@@ -34,34 +34,29 @@ def populate_answers_option_labels(
                     "cascade",
                 ):
                     answers_to_resolve.append(ans)
+                    question_ids.append(ans.question_id)
                     for opt_val in ans.options:
                         if is_valid_uuid(opt_val):
                             all_boundary_ids.append(opt_val)
-                        else:
-                            try:
-                                all_option_ids.append(int(opt_val))
-                            except (ValueError, TypeError):
-                                all_option_ids.append(opt_val)
 
-    if not all_option_ids and not all_boundary_ids:
+    if not answers_to_resolve and not all_boundary_ids:
         return
 
     label_map = {}
 
-    # Query Options
-    if all_option_ids:
-        int_ids = [x for x in all_option_ids if isinstance(x, int)]
-        str_vals = [str(x) for x in all_option_ids]
-
+    # Query Options scoped by question IDs
+    if question_ids:
         options = (
-            db.query(Option)
-            .filter((Option.id.in_(int_ids)) | (Option.value.in_(str_vals)))
-            .all()
+            db.query(Option).filter(Option.question_id.in_(question_ids)).all()
         )
         for opt in options:
-            label_map[opt.id] = opt.label
+            label_map[(opt.question_id, opt.id)] = opt.label
             if opt.value:
-                label_map[opt.value] = opt.label
+                label_map[(opt.question_id, str(opt.value))] = opt.label
+                try:
+                    label_map[(opt.question_id, int(opt.value))] = opt.label
+                except (ValueError, TypeError):
+                    pass
 
     # Query Spatial Boundaries
     if all_boundary_ids:
@@ -76,18 +71,35 @@ def populate_answers_option_labels(
 
     for ans in answers_to_resolve:
         resolved = []
+        q_id = ans.question_id
         for val in ans.options:
-            try:
-                int_val = int(val)
-            except (ValueError, TypeError):
-                int_val = None
-
-            if int_val is not None and int_val in label_map:
-                resolved.append(label_map[int_val])
-            elif val in label_map:
-                resolved.append(label_map[val])
-            elif str(val) in label_map:
-                resolved.append(label_map[str(val)])
+            if is_valid_uuid(val):
+                if val in label_map:
+                    resolved.append(label_map[val])
+                elif str(val) in label_map:
+                    resolved.append(label_map[str(val)])
+                else:
+                    resolved.append(str(val))
             else:
-                resolved.append(str(val))
-        ans._resolved_value = ", ".join(resolved)
+                try:
+                    int_val = int(val)
+                except (ValueError, TypeError):
+                    int_val = None
+
+                if int_val is not None and (q_id, int_val) in label_map:
+                    resolved.append(label_map[(q_id, int_val)])
+                elif (q_id, val) in label_map:
+                    resolved.append(label_map[(q_id, val)])
+                elif (q_id, str(val)) in label_map:
+                    resolved.append(label_map[(q_id, str(val))])
+                else:
+                    resolved.append(str(val))
+
+        if (
+            ans.question
+            and ans.question.type == "cascade"
+            and len(resolved) >= 3
+        ):
+            ans._resolved_value = resolved[-1]
+        else:
+            ans._resolved_value = ", ".join(resolved)

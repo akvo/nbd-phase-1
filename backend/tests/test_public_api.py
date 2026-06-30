@@ -707,13 +707,13 @@ def test_submission_answers_option_labels_resolution(db_session: Session):
     assert len(answers) == 2
 
     ans_type = next(a for a in answers if a["question_id"] == question.id)
-    assert ans_type["name"] == "incident_type"
+    assert ans_type["question_name"] == "incident_type"
     assert ans_type["value"] == "Fish kill"
     assert ans_type["options"] == [option.id]
 
     ans_loc = next(
         a for a in answers if a["question_id"] == cascade_question.id
     )
-    assert ans_loc["name"] == "location_id"
+    assert ans_loc["question_name"] == "location_id"
     assert ans_loc["value"] == "Test Sub-Location"
     assert ans_loc["options"] == [str(boundary.id)]
