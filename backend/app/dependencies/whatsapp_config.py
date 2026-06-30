@@ -1,9 +1,4 @@
-"""WhatsApp Meta Cloud API dependency settings.
-
-All pipelines share a single GCS bucket (GCS_BUCKET_NAME). The previous
-WHATSAPP_GCS_BUCKET env var has been removed in favour of the unified
-bucket + path-prefix strategy (FR-001).
-"""
+"""WhatsApp Twilio API dependency settings."""
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,16 +12,21 @@ class WhatsAppConfig(BaseSettings):
     )
 
     # Field names must match env var names (case-insensitive)
-    whatsapp_app_secret: str = Field(...)
-    whatsapp_verify_token: str = Field(...)
+    twilio_account_sid: str = Field(...)
+    twilio_auth_token: str = Field(...)
+    twilio_number: str = Field(...)
 
     @property
-    def app_secret(self) -> str:
-        return self.whatsapp_app_secret
+    def account_sid(self) -> str:
+        return self.twilio_account_sid
 
     @property
-    def verify_token(self) -> str:
-        return self.whatsapp_verify_token
+    def auth_token(self) -> str:
+        return self.twilio_auth_token
+
+    @property
+    def from_number(self) -> str:
+        return self.twilio_number
 
 
 def get_whatsapp_config() -> WhatsAppConfig:
