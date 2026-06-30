@@ -13,6 +13,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { useAdminForms } from "../layout";
 
 interface Submission {
   id: string;
@@ -22,7 +23,7 @@ interface Submission {
   date: string;
   submittedBy: {
     name: string;
-    email: string;
+    email: string | null;
   };
   status: string;
   rawStatus: string;
@@ -32,6 +33,7 @@ interface Submission {
 
 export default function DataOverviewPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const { forms } = useAdminForms();
   const [formFilter, setFormFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("Pending");
   const [basinFilter, setBasinFilter] = useState("");
@@ -74,21 +76,27 @@ export default function DataOverviewPage() {
                 })
               : "12.04.80";
 
+            console.log(dp, "====");
+
             return {
               id: `DP-${dp.id}`,
               rawId: String(dp.id),
               formType: dp.form_name || "Dynamic Ingest",
-              basinSite: dp.site_id
-                ? `SITE-${String(dp.site_id).slice(0, 8).toUpperCase()}`
-                : dp.wetland_id
-                  ? `WETLAND-${String(dp.wetland_id).slice(0, 8).toUpperCase()}`
-                  : `BASIN-${String(dp.basin_id || "")
-                      .slice(0, 8)
-                      .toUpperCase()}`,
+              basinSite:
+                dp.site_name ||
+                dp.wetland_name ||
+                dp.basin_name ||
+                (dp.site_id
+                  ? `SITE-${String(dp.site_id).slice(0, 8).toUpperCase()}`
+                  : dp.wetland_id
+                    ? `WETLAND-${String(dp.wetland_id).slice(0, 8).toUpperCase()}`
+                    : `BASIN-${String(dp.basin_id || "")
+                        .slice(0, 8)
+                        .toUpperCase()}`),
               date: dateStr,
               submittedBy: {
-                name: dp.submitter || "Example Submitter",
-                email: "example_email@nbd.org",
+                name: dp.creator_name || dp.submitter || "System / Unspecified",
+                email: dp.creator_email || null,
               },
               status: statusMapped,
               rawStatus: dp.status || "PENDING",
@@ -181,10 +189,11 @@ export default function DataOverviewPage() {
               className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer"
             >
               <option value="">Select a form</option>
-              <option value="1">Citizen Reporter</option>
-              <option value="2">Citizen Scientist</option>
-              <option value="3">Indigenous Knowledge</option>
-              <option value="4">Lab QA</option>
+              {forms.map((f) => (
+                <option key={f.id} value={String(f.type)}>
+                  {f.name}
+                </option>
+              ))}
             </select>
             <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
@@ -264,9 +273,6 @@ export default function DataOverviewPage() {
           </TableHeader>
           <TableBody className="divide-y divide-slate-100 text-sm text-slate-700">
             {paginatedSubmissions.map((sub) => {
-              const isApprovedOrRejected =
-                sub.rawStatus === "APPROVED" || sub.rawStatus === "REJECTED";
-
               return (
                 <React.Fragment key={sub.id}>
                   <TableRow
@@ -292,9 +298,13 @@ export default function DataOverviewPage() {
                         <span className="font-semibold text-slate-900">
                           {sub.submittedBy.name}
                         </span>
-                        <span className="text-xs text-slate-400 mt-0.5">
-                          {sub.submittedBy.email}
-                        </span>
+                        {sub?.submittedBy?.email ? (
+                          <span className="text-xs text-slate-400 mt-0.5">
+                            {sub.submittedBy.email}
+                          </span>
+                        ) : (
+                          ""
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="py-4 px-6">
@@ -314,7 +324,7 @@ export default function DataOverviewPage() {
                       <div className="flex items-center justify-end space-x-2">
                         <button
                           type="button"
-                          disabled={isApprovedOrRejected}
+                          disabled={sub.rawStatus === "REJECTED"}
                           onClick={(e) => {
                             e.stopPropagation();
                             setConfirmAction({ type: "reject", id: sub.id });
@@ -325,7 +335,7 @@ export default function DataOverviewPage() {
                         </button>
                         <button
                           type="button"
-                          disabled={isApprovedOrRejected}
+                          disabled={sub.rawStatus === "APPROVED"}
                           onClick={(e) => {
                             e.stopPropagation();
                             setConfirmAction({ type: "approve", id: sub.id });

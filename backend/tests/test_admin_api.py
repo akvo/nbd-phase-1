@@ -90,6 +90,8 @@ def test_list_submissions_filtering(db_session):
     data = resp.json()
     assert len(data) >= 1
     assert all(d["basin_id"] == str(basin1.id) for d in data)
+    assert data[0]["basin_name"] == "Mara"
+    assert "creator_name" in data[0]
 
     # Filter by form type
     resp = client.get("/api/v1/admin/submissions?form_type=2", headers=headers)

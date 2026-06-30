@@ -81,6 +81,30 @@ class Datapoint(Base):
     def form_name(self) -> str:
         return self.form.name if self.form else "Unknown Form"
 
+    @property
+    def basin_name(self) -> Optional[str]:
+        return self.basin.name if self.basin else None
+
+    @property
+    def wetland_name(self) -> Optional[str]:
+        return self.wetland.name if self.wetland else None
+
+    @property
+    def site_name(self) -> Optional[str]:
+        return self.site.name if self.site else None
+
+    @property
+    def creator_name(self) -> Optional[str]:
+        if self.created_by:
+            return self.created_by.display_name or self.created_by.email
+        return self.submitter
+
+    @property
+    def creator_email(self) -> Optional[str]:
+        if self.created_by:
+            return self.created_by.email
+        return None
+
     __table_args__ = (
         CheckConstraint(
             "(basin_id IS NOT NULL)::int + "
