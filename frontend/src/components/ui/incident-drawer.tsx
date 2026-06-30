@@ -91,11 +91,6 @@ export function IncidentDrawer({
           </h2>
         </div>
         <div className="flex items-center gap-3">
-          <span
-            className={`text-xs font-bold tracking-wide uppercase px-2.5 py-1 rounded-md border shrink-0 ${styles.badge}`}
-          >
-            {t(severity.toLowerCase() as "moderate" | "critical" | "elevated")}
-          </span>
           <Button
             variant="ghost"
             onClick={onClose}
