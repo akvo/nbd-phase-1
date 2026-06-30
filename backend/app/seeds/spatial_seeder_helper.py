@@ -135,9 +135,11 @@ def seed_spatial(db: Session):
             db.flush()
             logger.info("Created Wetland: %s", wetland_id)
         else:
+            wetland.name = w_data["name"]
+            wetland.basin_id = parent_basin.id
             wetland.geom = geom_val
             db.flush()
-            logger.info("Updated Wetland geometry: %s", wetland_id)
+            logger.info("Updated Wetland: %s", wetland_id)
 
     # 3. Seed Sites
     for s_data in data.get("sites", []):
@@ -169,7 +171,11 @@ def seed_spatial(db: Session):
             db.flush()
             logger.info("Created Site: %s", site_id)
         else:
-            logger.info("Site already exists: %s", site_id)
+            site.name = s_data["name"]
+            site.wetland_id = parent_wetland.id
+            site.geom = from_shape(shape(s_data["geom"]), srid=4326)
+            db.flush()
+            logger.info("Updated Site properties: %s", site_id)
 
         from app.models.management_action import ManagementAction
 
