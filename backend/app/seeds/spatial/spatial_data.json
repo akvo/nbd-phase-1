@@ -39,9 +39,9 @@
   ],
   "wetlands": [
     {
-      "wetland_id": "LOWER_MARA_WETLAND",
+      "wetland_id": "Mara_Wetland",
       "basin_id": "MARA",
-      "name": "Lower Mara Wetland",
+      "name": "Mara Wetland",
       "geom": {
         "type": "Polygon",
         "coordinates": [
@@ -56,9 +56,9 @@
       }
     },
     {
-      "wetland_id": "SIO_ESTUARY_WETLAND",
+      "wetland_id": "Sio_Siteko_Wetland",
       "basin_id": "SIO_SITEKO",
-      "name": "Sio Estuary Wetland",
+      "name": "Sio-Siteko Wetland",
       "geom": {
         "type": "Polygon",
         "coordinates": [
@@ -76,38 +76,74 @@
   "sites": [
     {
       "site_id": "NBD-MARA-001",
-      "wetland_id": "LOWER_MARA_WETLAND",
-      "name": "Lower Mara Wetland Site 1",
+      "wetland_id": "Mara_Wetland",
+      "name": "Nyansurura (Tarime)",
       "geom": {
         "type": "Point",
-        "coordinates": [34.5678, -1.2345]
+        "coordinates": [34.5924383333333, -1.60326666666667]
       }
     },
     {
       "site_id": "NBD-MARA-002",
-      "wetland_id": "LOWER_MARA_WETLAND",
-      "name": "Mara River - delta Site 2",
+      "wetland_id": "Mara_Wetland",
+      "name": "Kwiswa (Butiyama)",
       "geom": {
         "type": "Point",
-        "coordinates": [34.571, -1.241]
+        "coordinates": [34.036519, -1.547542]
       }
     },
     {
       "site_id": "NBD-MARA-003",
-      "wetland_id": "LOWER_MARA_WETLAND",
-      "name": "Upper Mara Tributary Site 3",
+      "wetland_id": "Mara_Wetland",
+      "name": "Nyamonyo river at Wegero (Butiyama)",
       "geom": {
         "type": "Point",
-        "coordinates": [34.58, -1.22]
+        "coordinates": [34.23963, -1.574725]
+      }
+    },
+    {
+      "site_id": "NBD-MARA-004",
+      "wetland_id": "Mara_Wetland",
+      "name": "Kirumi bridge (Rorya)",
+      "geom": {
+        "type": "Point",
+        "coordinates": [33.9751833333333, -1.52934833333333]
       }
     },
     {
       "site_id": "NBD-SIO-001",
-      "wetland_id": "SIO_ESTUARY_WETLAND",
-      "name": "Sio Estuary Site 1",
+      "wetland_id": "Sio_Siteko_Wetland",
+      "name": "Musoma",
       "geom": {
         "type": "Point",
-        "coordinates": [34.2, 0.22]
+        "coordinates": [34.255891, 0.431652]
+      }
+    },
+    {
+      "site_id": "NBD-SIO-002",
+      "wetland_id": "Sio_Siteko_Wetland",
+      "name": "Majanji subcounty sitobelo",
+      "geom": {
+        "type": "Point",
+        "coordinates": [34.022491, 0.255155]
+      }
+    },
+    {
+      "site_id": "NBD-SIO-003",
+      "wetland_id": "Sio_Siteko_Wetland",
+      "name": "Nahyusi-Bunyandeti",
+      "geom": {
+        "type": "Point",
+        "coordinates": [34.057201, 0.321833]
+      }
+    },
+    {
+      "site_id": "NBD-SIO-004",
+      "wetland_id": "Sio_Siteko_Wetland",
+      "name": "Siteko village",
+      "geom": {
+        "type": "Point",
+        "coordinates": [34.12659, 0.40506]
       }
     }
   ],

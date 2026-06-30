@@ -79,3 +79,4 @@ docker-compose-docker-sync.yml
 docker-sync.yml
 pg-admin-data/
 pg-data/
+.dockerignore
