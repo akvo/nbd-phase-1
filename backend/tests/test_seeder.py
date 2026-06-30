@@ -192,7 +192,12 @@ def test_seed_spatial_success(db_session: Session):
     # Assert Management Actions created for each site (3 per site)
     from app.models.management_action import ManagementAction
 
-    actions = db_session.query(ManagementAction).all()
+    seeded_site_ids = [s.id for s in sites]
+    actions = (
+        db_session.query(ManagementAction)
+        .filter(ManagementAction.site_id.in_(seeded_site_ids))
+        .all()
+    )
     assert len(actions) == 24
 
     # 5. Assert Sub-counties created
