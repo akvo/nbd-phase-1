@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import from_shape
@@ -516,10 +517,36 @@ def create_sub_county(
 
 
 @router.get(
-    "/reference/sub-counties", response_model=list[schemas.SpatialBoundary]
+    "/reference/sub-counties",
+    response_model=list[schemas.SpatialBoundary],
 )
-def list_sub_counties(db: Session = Depends(get_db)):
+def list_all_sub_counties(db: Session = Depends(get_db)):
     return db.query(SpatialBoundary).all()
+
+
+@router.get(
+    "/reference/sub-counties/{parent_id}",
+    response_model=list[schemas.SpatialBoundary],
+)
+def list_sub_counties(
+    parent_id: Optional[str] = None, db: Session = Depends(get_db)
+):
+    if parent_id is None:
+        return db.query(SpatialBoundary).all()
+    if parent_id in ("0", 0, "null", "None", ""):
+        # Root level: level = 1
+        return (
+            db.query(SpatialBoundary).filter(SpatialBoundary.level == 1).all()
+        )
+    try:
+        parent_uuid = uuid.UUID(parent_id)
+        return (
+            db.query(SpatialBoundary)
+            .filter(SpatialBoundary.parent_id == parent_uuid)
+            .all()
+        )
+    except (ValueError, TypeError):
+        return []
 
 
 @router.get("/reference/wetlands")
