@@ -13,10 +13,21 @@
           "type": "cascade",
           "name": "Select Site",
           "required": true,
-          "endpoint": "/api/v1/reference/sites",
-          "extra": {
-            "option": "site"
-          }
+          "api": {
+            "endpoint": "/api/v1/reference/sites",
+            "initial": null,
+            "list": false
+          },
+          "translations": [
+            {
+              "name": "Select Site",
+              "language": "en"
+            },
+            {
+              "name": "Chagua Kituo",
+              "language": "sw"
+            }
+          ]
         },
         {
           "id": "sampling_id",

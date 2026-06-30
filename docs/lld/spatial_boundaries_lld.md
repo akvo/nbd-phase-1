@@ -6,14 +6,14 @@ We will update the definition of `spatial_boundaries` to use the **Adjacency Lis
 
 ### 1.1 Table Definition: `spatial_boundaries`
 
-| Column | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique identifier. |
-| `name` | `VARCHAR(100)` | `NOT NULL` | Name of the boundary element (e.g. "Mara Region"). |
-| `level` | `INTEGER` | `NOT NULL` | Hierarchy level (Indexed). |
-| `parent_id` | `UUID` | `REFERENCES spatial_boundaries(id) ON DELETE CASCADE` | Parent boundary pointer. |
-| `basin_id` | `UUID` | `REFERENCES basins(id) ON DELETE CASCADE`, `NOT NULL` | Associated basin pointer. |
-| `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL` | PostGIS centroid coordinate. |
+| Column          | Data Type               | Constraints                                           | Description                                        |
+| :-------------- | :---------------------- | :---------------------------------------------------- | :------------------------------------------------- |
+| `id`            | `UUID`                  | `PRIMARY KEY`, `DEFAULT gen_random_uuid()`            | Unique identifier.                                 |
+| `name`          | `VARCHAR(100)`          | `NOT NULL`                                            | Name of the boundary element (e.g. "Mara Region"). |
+| `level`         | `INTEGER`               | `NOT NULL`                                            | Hierarchy level (Indexed).                         |
+| `parent_id`     | `UUID`                  | `REFERENCES spatial_boundaries(id) ON DELETE CASCADE` | Parent boundary pointer.                           |
+| `basin_id`      | `UUID`                  | `REFERENCES basins(id) ON DELETE CASCADE`, `NOT NULL` | Associated basin pointer.                          |
+| `centroid_geom` | `geometry(Point, 4326)` | `NOT NULL`                                            | PostGIS centroid coordinate.                       |
 
 ### 1.2 SQL Schema & Indices
 
@@ -41,6 +41,7 @@ CREATE INDEX idx_spatial_boundaries_centroid_gist ON spatial_boundaries USING GI
 We will define a strict Python Enum for hierarchy levels to avoid magic numbers in application code.
 
 ### 2.1 Enum Definition
+
 ```python
 # backend/app/models/spatial.py
 import enum
@@ -52,6 +53,7 @@ class BoundaryLevel(int, enum.Enum):
 ```
 
 ### 2.2 SQLAlchemy ORM Model
+
 ```python
 class SpatialBoundary(Base):
     __tablename__ = "spatial_boundaries"
@@ -80,6 +82,31 @@ class SpatialBoundary(Base):
 ## 3. Data Seeding Strategy
 
 Upon database migration, an Alembic seed or custom migration command will execute:
+
 1. Lookup the `Basin` records for "Mara Basin".
 2. Seed 'Mara Region' (`level=1`, `parent_id=null`).
 3. Seed the sub-counties/districts: 'Butiama', 'Rorya', 'Tarime', 'Serengeti' (`level=2`, `parent_id` pointing to Mara Region).
+
+---
+
+## 4. Reference API Endpoints for Cascade Queries
+
+To support dynamic frontend cascade selectors (e.g. County -> Sub-County), reference routes accept parent filtering:
+
+### 4.1 Sub-Counties Reference Route
+
+- **Paths**:
+  - `GET /api/v1/reference/sub-counties` (returns all boundaries for backwards compatibility/fallback)
+  - `GET /api/v1/reference/sub-counties/{parent_id}` (returns level 1 if `0` or `null`; returns child boundaries under the parent UUID otherwise)
+
+### 4.2 Wetlands Reference Route
+
+- **Path**: `GET /api/v1/reference/wetlands`
+- **Query Parameters**:
+  - `parent_id` (optional): Returns basins if `0` or `null`; returns wetlands under the basin UUID otherwise
+
+### 4.3 Sites Reference Route
+
+- **Path**: `GET /api/v1/reference/sites`
+- **Query Parameters**:
+  - `parent_id` (optional): Returns wetlands if `0` or `null`; returns sites under the wetland UUID otherwise

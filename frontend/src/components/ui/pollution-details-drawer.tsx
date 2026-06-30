@@ -5,6 +5,7 @@ import { X, AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as echarts from "echarts";
 import { EChartsChart } from "./echarts-chart";
+import { isVideoUrl } from "@/lib/utils";
 
 interface PollutionDetailsDrawerProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -218,29 +219,43 @@ export function PollutionDetailsDrawer({
 
           {imageUrls.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
-              {imageUrls.map((url, idx) => (
-                <div
-                  key={idx}
-                  className="aspect-square rounded-xl overflow-hidden border border-slate-100 bg-slate-50 relative group cursor-pointer hover:border-slate-300 transition-colors"
-                  onClick={() => {
-                    const matchingIncident = incidents.find((inc: any) =>
-                      inc.answers?.find(
-                        (a: { read_url?: string }) => a.read_url === url
-                      )
-                    );
-                    if (matchingIncident && onClickIncident) {
-                      onClickIncident(matchingIncident);
-                    }
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={t("incidentPhotoAlt", { index: idx + 1 })}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-              ))}
+              {imageUrls.map((url, idx) => {
+                const isVideo = isVideoUrl(url);
+
+                return (
+                  <div
+                    key={idx}
+                    className="aspect-square rounded-xl overflow-hidden border border-slate-100 bg-slate-50 relative group cursor-pointer hover:border-slate-300 transition-colors"
+                    onClick={() => {
+                      const matchingIncident = incidents.find((inc: any) =>
+                        inc.answers?.find(
+                          (a: { read_url?: string }) => a.read_url === url
+                        )
+                      );
+                      if (matchingIncident && onClickIncident) {
+                        onClickIncident(matchingIncident);
+                      }
+                    }}
+                  >
+                    {isVideo ? (
+                      <video
+                        src={url}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 bg-black"
+                        preload="metadata"
+                        muted
+                        playsInline
+                      />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={url}
+                        alt={t("incidentPhotoAlt", { index: idx + 1 })}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-xs text-slate-400 italic">{t("noPhotos")}</p>

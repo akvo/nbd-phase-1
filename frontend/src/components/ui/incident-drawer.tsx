@@ -4,6 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { IncidentSummary } from "@/lib/api";
 import { useTranslations } from "next-intl";
+import { isVideoUrl } from "@/lib/utils";
 import {
   AlertTriangle,
   Calendar,
@@ -166,13 +167,22 @@ export function IncidentDrawer({
                   key={img.question_id ?? i}
                   className="relative rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100 aspect-video group"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={img.read_url}
-                    alt={t("incidentPhotoAlt", { index: i + 1 })}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
+                  {isVideoUrl(img.read_url) ? (
+                    <video
+                      src={img.read_url}
+                      controls
+                      className="w-full h-full object-cover"
+                      preload="metadata"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={img.read_url}
+                      alt={t("incidentPhotoAlt", { index: i + 1 })}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                  )}
                 </div>
               ))}
             </div>

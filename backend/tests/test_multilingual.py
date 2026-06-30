@@ -182,26 +182,14 @@ async def test_whatsapp_multilingual_flow(db_session: Session):
     # Inbound webhook payload structure helper
     def build_wa_hook(phone: str, text: str) -> dict:
         return {
-            "entry": [
-                {
-                    "changes": [
-                        {
-                            "value": {
-                                "messages": [
-                                    {
-                                        "from": phone,
-                                        "type": "text",
-                                        "text": {"body": text},
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            ]
+            "From": f"whatsapp:{phone}",
+            "To": "whatsapp:+14155238886",
+            "Body": text,
+            "NumMedia": "0",
         }
 
     phone = "+254711223344"
+
     # Choose Kiswahili
     with patch(
         "app.services.whatsapp_service._send_message", new_callable=AsyncMock

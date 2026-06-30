@@ -121,6 +121,7 @@ export interface IncidentSummary {
     name?: string;
     question_id?: number;
     question_label?: string;
+    question_name?: string;
     value?: string;
     options?: Array<string | number>;
     read_url?: string;

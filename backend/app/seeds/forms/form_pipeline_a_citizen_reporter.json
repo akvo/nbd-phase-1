@@ -87,7 +87,21 @@
             { "name": "Chagua Kaunti Ndogo", "language": "sw" }
           ],
           "required": true,
-          "endpoint": "/api/v1/reference/sub-counties",
+          "api": {
+            "endpoint": "/api/v1/reference/sub-counties",
+            "initial": 0,
+            "list": false
+          },
+          "extra": {
+            "placement": "before",
+            "content": "Please select County then Sub-County",
+            "translations": [
+              {
+                "content": "Tafadhali chagua Kaunti kisha Kaunti Ndogo",
+                "language": "sw"
+              }
+            ]
+          },
           "comment": "External API dependency for hierarchical sub-county list"
         },
         {

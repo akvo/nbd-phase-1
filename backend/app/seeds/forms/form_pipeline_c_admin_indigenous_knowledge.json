@@ -13,10 +13,21 @@
           "type": "cascade",
           "name": "Select Wetland",
           "required": true,
-          "endpoint": "/api/v1/reference/wetlands",
-          "extra": {
-            "option": "wetland"
-          }
+          "api": {
+            "endpoint": "/api/v1/reference/wetlands",
+            "initial": null,
+            "list": false
+          },
+          "translations": [
+            {
+              "name": "Select Wetland",
+              "language": "en"
+            },
+            {
+              "name": "Chagua Eneo la Wetland",
+              "language": "sw"
+            }
+          ]
         },
         {
           "id": "dependent_population",

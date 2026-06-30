@@ -31,10 +31,9 @@ services:
       - JWT_EXPIRY_HOURS=24
       - KOBOTOOLBOX_API_URL=https://eu.kobotoolbox.org
       - KOBOTOOLBOX_API_TOKEN=your_actual_token_here
-      - WHATSAPP_APP_SECRET=your_meta_app_secret_here
-      - WHATSAPP_VERIFY_TOKEN=your_verify_token_here
-      - WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token_here
-      - WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id_here
+      - TWILIO_ACCOUNT_SID=ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      - TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+      - TWILIO_NUMBER=whatsapp:+14155238886
     volumes:
       - ./backend:/app:delegated
       - ./storage_test:/app/storage_test

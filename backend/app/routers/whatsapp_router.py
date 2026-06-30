@@ -12,11 +12,7 @@ from app.dependencies.whatsapp_config import (
     get_whatsapp_config,
     WhatsAppConfig,
 )
-import hmac
-import hashlib
-import json
-
-
+from twilio.request_validator import RequestValidator
 from app.database import get_db
 from sqlalchemy.orm import Session
 
@@ -25,41 +21,35 @@ router = APIRouter(prefix="/api/v1/whatsapp", tags=["WhatsApp"])
 
 @router.get("/webhook")
 async def verify_webhook(
-    mode: str = Query(..., alias="hub.mode"),
-    verify_token: str = Query(..., alias="hub.verify_token"),
-    challenge: str = Query(..., alias="hub.challenge"),
-    config: WhatsAppConfig = Depends(get_whatsapp_config),
+    mode: str = Query(None, alias="hub.mode"),
+    verify_token: str = Query(None, alias="hub.verify_token"),
+    challenge: str = Query(None, alias="hub.challenge"),
 ):
-    """Meta subscription validation endpoint.
-    Responds with the hub.challenge when the verify token matches.
+    """Twilio verification compatibility or health endpoint.
+    Responds with the hub.challenge or OK.
     """
-    if mode != "subscribe" or verify_token != config.verify_token:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Verification token mismatch",
+    if challenge:
+        return Response(
+            content=challenge, media_type="text/plain", status_code=200
         )
-    return Response(
-        content=challenge, media_type="text/plain", status_code=200
-    )
+    return Response(content="OK", media_type="text/plain", status_code=200)
 
 
-def _verify_signature(request: Request, config: WhatsAppConfig) -> bool:
-    signature = request.headers.get("X-Hub-Signature-256")
+def _verify_signature(
+    url: str, params: dict, signature: str, auth_token: str
+) -> bool:
     if not signature:
         return False
-    body = request._body if hasattr(request, "_body") else None
-    if body is None:
-        # FastAPI reads body only once; we need to read it here
-        body = request.scope.get("body")
-    if body is None:
-        return False
-    expected = (
-        "sha256="
-        + hmac.new(
-            key=config.app_secret.encode(), msg=body, digestmod=hashlib.sha256
-        ).hexdigest()
-    )
-    return hmac.compare_digest(expected, signature)
+    validator = RequestValidator(auth_token)
+    if validator.validate(url, params, signature):
+        return True
+    # Fallback: if the server received HTTP but the
+    # client sent HTTPS (common behind proxies)
+    if url.startswith("http://"):
+        https_url = url.replace("http://", "https://", 1)
+        if validator.validate(https_url, params, signature):
+            return True
+    return False
 
 
 @router.post("/webhook")
@@ -69,40 +59,53 @@ async def receive_webhook(
     config: WhatsAppConfig = Depends(get_whatsapp_config),
     db: Session = Depends(get_db),
 ):
-    """Entry point for Meta webhook POSTs.
+    """Entry point for Twilio webhook POSTs.
 
-    Verifies the HMAC signature, then enqueues the payload for
-    asynchronous processing so Meta receives a 200 OK in < 300 ms
-    (FR-004).
+    Verifies the Twilio signature, then enqueues the payload for
+    asynchronous processing.
     """
     from app.models.user import User
     from app.models.audit_log import AuditLog
 
     status_code = 200
     try:
-        # Read raw body for signature verification
-        raw_body = await request.body()
-        # Store raw body for later use
-        request._body = raw_body
-        if not _verify_signature(request, config):
+        # Parse form parameters
+        form_data = await request.form()
+        params = dict(form_data)
+
+        signature = request.headers.get("X-Twilio-Signature", "")
+
+        # Reconstruct public URL if forwarded
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("x-forwarded-host", request.url.netloc)
+        path = request.url.path
+        url = f"{scheme}://{host}{path}"
+        if request.url.query:
+            url += f"?{request.url.query}"
+
+        print(f"[TWILIO DEBUG] URL: {url}", flush=True)
+        print(f"[TWILIO DEBUG] Signature: {signature}", flush=True)
+        print(f"[TWILIO DEBUG] Params: {params}", flush=True)
+        token_prefix = config.auth_token[:4]
+        print(f"[TWILIO DEBUG] Auth Token: {token_prefix}...", flush=True)
+
+        if not _verify_signature(url, params, signature, config.auth_token):
             status_code = 403
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid signature",
             )
-        payload = json.loads(raw_body)
-        # Basic validation – Meta sends 'entry' list
-        if not payload.get("entry"):
-            status_code = 400
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Malformed payload",
-            )
+
         # Dispatch asynchronously
         from app.services.whatsapp_service import process_whatsapp_message
 
-        background_tasks.add_task(process_whatsapp_message, payload)
-        return {"status": "accepted"}
+        background_tasks.add_task(process_whatsapp_message, params)
+
+        # Return a valid empty TwiML response to Twilio
+        twiml_content = "<Response></Response>"
+        return Response(
+            content=twiml_content, media_type="text/xml", status_code=200
+        )
     except HTTPException as http_err:
         status_code = http_err.status_code
         raise http_err

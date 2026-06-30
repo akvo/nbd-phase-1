@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import { adminApiClient } from "@/lib/api";
+import { isVideoUrl } from "@/lib/utils";
 import {
   Table,
   TableHeader,
@@ -391,26 +392,46 @@ export default function DataOverviewPage() {
                                     <td className="px-4 py-2.5 align-top">
                                       {ans.read_url ? (
                                         <div className="flex items-center space-x-2">
-                                          <Image
-                                            src={ans.read_url}
-                                            alt={
-                                              ans.question_name ||
-                                              ans.name ||
-                                              "photo"
-                                            }
-                                            width={48}
-                                            height={48}
-                                            unoptimized
-                                            className="object-cover rounded border border-slate-100 shadow-sm"
-                                          />
-                                          <a
-                                            href={ans.read_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs text-sky-500 font-bold underline"
-                                          >
-                                            Open image
-                                          </a>
+                                          {isVideoUrl(ans.read_url) ? (
+                                            <>
+                                              <video
+                                                src={ans.read_url}
+                                                className="w-64 h-64 object-cover rounded border border-slate-100 shadow-sm bg-slate-50"
+                                                preload="metadata"
+                                              />
+                                              <a
+                                                href={ans.read_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-sky-500 font-bold underline"
+                                              >
+                                                Open video
+                                              </a>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Image
+                                                src={ans.read_url}
+                                                alt={
+                                                  ans.question_name ||
+                                                  ans.name ||
+                                                  "photo"
+                                                }
+                                                width={256}
+                                                height={256}
+                                                unoptimized
+                                                className="w-64 h-64 object-cover rounded border border-slate-100 shadow-sm"
+                                              />
+                                              <a
+                                                href={ans.read_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-sky-500 font-bold underline"
+                                              >
+                                                Open image
+                                              </a>
+                                            </>
+                                          )}
                                         </div>
                                       ) : (
                                         <span className="text-sm font-semibold text-slate-800">

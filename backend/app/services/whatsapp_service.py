@@ -11,9 +11,9 @@ USSD router logic.
 
 import uuid  # noqa: F401
 import logging
-import os
 import httpx
 from typing import Any, AsyncIterator, Dict, List, Optional
+
 
 from sqlalchemy.orm import Session
 
@@ -36,65 +36,67 @@ from app.services.form_engine import is_question_active
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Meta Graph API helpers
+# Twilio API helpers
 # ---------------------------------------------------------------------------
-
-GRAPH_API_VERSION = "v25.0"
-GRAPH_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
-
-
-def _get_access_token() -> str:
-    token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-    if not token:
-        raise RuntimeError("WHATSAPP_ACCESS_TOKEN env var is not set")
-    return token
 
 
 async def _send_message(phone: str, text: str) -> None:
-    """Send a text message via the WhatsApp Business API."""
-    phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
-    if not phone_id:
-        logger.warning("WHATSAPP_PHONE_NUMBER_ID not set; skipping send")
-        return
-    url = f"{GRAPH_BASE}/{phone_id}/messages"
+    """Send a text message via the Twilio WhatsApp Business API."""
+    from app.dependencies.whatsapp_config import get_whatsapp_config
+
+    config = get_whatsapp_config()
+    url = (
+        f"https://api.twilio.com/2010-04-01/Accounts/"
+        f"{config.account_sid}/Messages.json"
+    )
+
+    to_number = (
+        f"whatsapp:{phone}" if not phone.startswith("whatsapp:") else phone
+    )
+    from_number = config.from_number
+    if not from_number.startswith("whatsapp:"):
+        from_number = f"whatsapp:{from_number}"
+
     payload = {
-        "messaging_product": "whatsapp",
-        "to": phone,
-        "type": "text",
-        "text": {"body": text},
+        "To": to_number,
+        "From": from_number,
+        "Body": text,
     }
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {_get_access_token()}",
-    }
+
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(url, json=payload, headers=headers)
+        resp = await client.post(
+            url,
+            data=payload,
+            auth=(config.account_sid, config.auth_token),
+        )
         resp.raise_for_status()
 
 
 async def _get_media_url(media_id: str) -> str:
-    """Step 1: resolve a Meta media_id to its short-lived download URL."""
-    headers = {"Authorization": f"Bearer {_get_access_token()}"}
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(f"{GRAPH_BASE}/{media_id}", headers=headers)
-        resp.raise_for_status()
-        url = resp.json().get("url")
-        if not url:
-            raise ValueError(f"No URL returned for media_id={media_id}")
-        return url
+    """Resolve Twilio media_id (which is already the full URL)."""
+    return media_id
 
 
 async def _iter_media_chunks(
     media_url: str, chunk_size: int = 1024 * 1024
 ) -> AsyncIterator[bytes]:
-    """Step 2: stream binary chunks from Meta's media URL.
+    """Stream binary chunks from Twilio's media URL."""
+    import re
+    from app.dependencies.whatsapp_config import get_whatsapp_config
 
-    Uses httpx streaming to avoid loading the full file into RAM.
-    WhatsApp caps media at 16 MB so peak memory ≤ 16 MB.
-    """
-    headers = {"Authorization": f"Bearer {_get_access_token()}"}
+    config = get_whatsapp_config()
+
+    # Extract Account SID from the media URL path (e.g. /Accounts/AC.../)
+    match = re.search(r"/Accounts/(AC[a-f0-9A-F]{32})/", media_url)
+    account_sid = match.group(1) if match else config.account_sid
+
     async with httpx.AsyncClient(timeout=120) as client:
-        async with client.stream("GET", media_url, headers=headers) as resp:
+        async with client.stream(
+            "GET",
+            media_url,
+            auth=(account_sid, config.auth_token),
+            follow_redirects=True,
+        ) as resp:
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes(chunk_size):
                 yield chunk
@@ -106,20 +108,40 @@ async def _iter_media_chunks(
 
 
 def _extract_message(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Return the first message dict from a Meta webhook payload, or None."""
-    try:
-        return payload["entry"][0]["changes"][0]["value"]["messages"][0]
-    except (KeyError, IndexError):
-        return None
+    """Return the structured message dict from a Twilio webhook payload."""
+    body = payload.get("Body", "")
+    num_media = int(payload.get("NumMedia", "0"))
+
+    if num_media > 0:
+        mime_type = payload.get("MediaContentType0", "image/jpeg")
+        if mime_type.startswith("image"):
+            msg_type = "image"
+        elif mime_type.startswith("video"):
+            msg_type = "video"
+        else:
+            msg_type = "document"
+
+        media_url = payload.get("MediaUrl0")
+        return {
+            "type": msg_type,
+            "text": {"body": body},
+            "mime_type": mime_type,
+            "image": {"id": media_url, "mime_type": mime_type},
+            "video": {"id": media_url, "mime_type": mime_type},
+            "document": {"id": media_url, "mime_type": mime_type},
+        }
+
+    return {
+        "type": "text",
+        "text": {"body": body},
+    }
 
 
 def _sender_phone(payload: Dict[str, Any]) -> Optional[str]:
-    try:
-        return payload["entry"][0]["changes"][0]["value"]["messages"][0][
-            "from"
-        ]
-    except (KeyError, IndexError):
-        return None
+    raw_from = payload.get("From", "")
+    if raw_from.startswith("whatsapp:"):
+        return raw_from.replace("whatsapp:", "")
+    return raw_from if raw_from else None
 
 
 # ---------------------------------------------------------------------------

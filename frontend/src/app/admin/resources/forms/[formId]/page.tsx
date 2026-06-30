@@ -160,7 +160,6 @@ export default function FormEditPage() {
     setError(null);
     try {
       const res = await apiClient.get(`/forms/${formId}/blueprint`);
-      console.log("Form blueprint:", res.data);
       setFormData(res.data);
     } catch (err) {
       console.error("Failed to fetch form:", err);
@@ -180,7 +179,6 @@ export default function FormEditPage() {
   const handleSave = async (values: any) => {
     setSaving(true);
     try {
-      console.log("Saving form:", values);
       await apiClient.put(`/forms/${formId}`, values);
       router.push("/admin/resources/forms");
     } catch (err) {

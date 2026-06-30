@@ -8,9 +8,9 @@ Covers:
   - Session cleanup helper
 """
 
+import base64
 import hashlib
 import hmac
-import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -25,8 +25,8 @@ from app.seeds.spatial_seeder_helper import seed_spatial
 
 client = TestClient(app)
 
-VERIFY_TOKEN = "test-verify-token"
-APP_SECRET = "test-app-secret"
+AUTH_TOKEN = "test-auth-token"
+TWILIO_NUMBER = "whatsapp:+14155238886"
 
 
 # ---------------------------------------------------------------------------
@@ -34,43 +34,36 @@ APP_SECRET = "test-app-secret"
 # ---------------------------------------------------------------------------
 
 
-def _sign(body: bytes, secret: str = APP_SECRET) -> str:
+def _sign(url: str, params: dict, token: str = AUTH_TOKEN) -> str:
+    # Sort parameters and concatenate
+    s = url
+    for k, v in sorted(params.items()):
+        s += k + v
+
     sig = hmac.new(
-        key=secret.encode(), msg=body, digestmod=hashlib.sha256
-    ).hexdigest()
-    return f"sha256={sig}"
+        key=token.encode(), msg=s.encode(), digestmod=hashlib.sha1
+    ).digest()
+    return base64.b64encode(sig).decode()
 
 
 def _wa_payload(phone: str, text: str) -> dict:
     return {
-        "entry": [
-            {
-                "changes": [
-                    {
-                        "value": {
-                            "messages": [
-                                {
-                                    "from": phone,
-                                    "type": "text",
-                                    "text": {"body": text},
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        ]
+        "From": f"whatsapp:{phone}",
+        "To": TWILIO_NUMBER,
+        "Body": text,
+        "NumMedia": "0",
     }
 
 
-def _post_webhook(payload: dict, secret: str = APP_SECRET) -> any:
-    body = json.dumps(payload).encode()
+def _post_webhook(payload: dict, token: str = AUTH_TOKEN) -> any:
+    url = "http://testserver/api/v1/whatsapp/webhook"
+    signature = _sign(url, payload, token)
     return client.post(
         "/api/v1/whatsapp/webhook",
-        content=body,
+        data=payload,
         headers={
-            "Content-Type": "application/json",
-            "X-Hub-Signature-256": _sign(body, secret),
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Twilio-Signature": signature,
         },
     )
 
@@ -88,42 +81,26 @@ def setup_seeds(db_session: Session):
 
 @pytest.fixture(autouse=True)
 def patch_env(monkeypatch):
-    monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", VERIFY_TOKEN)
-    monkeypatch.setenv("WHATSAPP_APP_SECRET", APP_SECRET)
-    monkeypatch.setenv("WHATSAPP_GCS_BUCKET", "test-bucket")
-    monkeypatch.setenv("WHATSAPP_ACCESS_TOKEN", "test-token")
-    monkeypatch.setenv("WHATSAPP_PHONE_NUMBER_ID", "123456789")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", AUTH_TOKEN)
+    monkeypatch.setenv("TWILIO_NUMBER", TWILIO_NUMBER)
 
 
 # ---------------------------------------------------------------------------
-# GET /webhook – subscription validation
+# GET /webhook – subscription validation / health check
 # ---------------------------------------------------------------------------
 
 
 class TestWebhookVerification:
-    def test_valid_verify_token_returns_challenge(self):
-        query = "hub.mode=subscribe&"
-        query += f"hub.verify_token={VERIFY_TOKEN}&hub.challenge=abc123"
-        resp = client.get(
-            f"/api/v1/whatsapp/webhook?{query}",
-        )
+    def test_health_check_returns_ok(self):
+        resp = client.get("/api/v1/whatsapp/webhook")
         assert resp.status_code == 200
+        assert resp.text == "OK"
 
-    def test_wrong_verify_token_returns_403(self):
-        query = "hub.mode=subscribe&"
-        query += "hub.verify_token=wrong-token&hub.challenge=abc123"
-        resp = client.get(
-            f"/api/v1/whatsapp/webhook?{query}",
-        )
-        assert resp.status_code == 403
-
-    def test_wrong_mode_returns_403(self):
-        query = "hub.mode=unsubscribe&"
-        query += f"hub.verify_token={VERIFY_TOKEN}&hub.challenge=abc123"
-        resp = client.get(
-            f"/api/v1/whatsapp/webhook?{query}",
-        )
-        assert resp.status_code == 403
+    def test_challenge_returns_challenge(self):
+        resp = client.get("/api/v1/whatsapp/webhook?hub.challenge=abc123")
+        assert resp.status_code == 200
+        assert resp.text == "abc123"
 
 
 # ---------------------------------------------------------------------------
@@ -133,22 +110,22 @@ class TestWebhookVerification:
 
 class TestSignatureVerification:
     def test_missing_signature_returns_403(self):
-        body = json.dumps(_wa_payload("+254700000001", "Hi")).encode()
+        payload = _wa_payload("+254700000001", "Hi")
         resp = client.post(
             "/api/v1/whatsapp/webhook",
-            content=body,
-            headers={"Content-Type": "application/json"},
+            data=payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         assert resp.status_code == 403
 
     def test_invalid_signature_returns_403(self):
-        body = json.dumps(_wa_payload("+254700000001", "Hi")).encode()
+        payload = _wa_payload("+254700000001", "Hi")
         resp = client.post(
             "/api/v1/whatsapp/webhook",
-            content=body,
+            data=payload,
             headers={
-                "Content-Type": "application/json",
-                "X-Hub-Signature-256": "sha256=badhash",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Twilio-Signature": "badsignature",
             },
         )
         assert resp.status_code == 403
@@ -162,19 +139,7 @@ class TestSignatureVerification:
         ):
             resp = _post_webhook(_wa_payload("+254700000001", "1"))
         assert resp.status_code == 200
-        assert resp.json() == {"status": "accepted"}
-
-    def test_malformed_payload_returns_400(self):
-        body = json.dumps({"not_entry": []}).encode()
-        resp = client.post(
-            "/api/v1/whatsapp/webhook",
-            content=body,
-            headers={
-                "Content-Type": "application/json",
-                "X-Hub-Signature-256": _sign(body),
-            },
-        )
-        assert resp.status_code == 400
+        assert "<Response></Response>" in resp.text
 
 
 # ---------------------------------------------------------------------------
