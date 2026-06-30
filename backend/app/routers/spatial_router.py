@@ -550,7 +550,7 @@ def list_sub_counties(
 
 
 @router.get("/reference/wetlands")
-def list_reference_wetlands(db: Session = Depends(get_db)):
+def list_all_reference_wetlands(db: Session = Depends(get_db)):
     wetlands = db.query(Wetland).all()
     results = []
     for w in wetlands:
@@ -564,9 +564,62 @@ def list_reference_wetlands(db: Session = Depends(get_db)):
     return results
 
 
+@router.get("/reference/wetlands/{parent_id}")
+def list_reference_wetlands(
+    parent_id: Optional[str] = None, db: Session = Depends(get_db)
+):
+    if parent_id is None or parent_id in ("0", 0, "null", "None", ""):
+        wetlands = db.query(Wetland).all()
+    else:
+        try:
+            parent_uuid = uuid.UUID(parent_id)
+            wetlands = (
+                db.query(Wetland).filter(Wetland.basin_id == parent_uuid).all()
+            )
+        except (ValueError, TypeError):
+            return []
+
+    results = []
+    for w in wetlands:
+        results.append(
+            {
+                "id": str(w.id),
+                "name": w.name,
+                "parent_id": str(w.basin_id),
+            }
+        )
+    return results
+
+
 @router.get("/reference/sites")
-def list_reference_sites(db: Session = Depends(get_db)):
+def list_all_reference_sites(db: Session = Depends(get_db)):
     sites = db.query(Site).all()
+    results = []
+    # Add Sites under Wetlands
+    for site in sites:
+        results.append(
+            {
+                "id": str(site.id),
+                "name": site.name,
+                "parent_id": str(site.wetland_id),
+            }
+        )
+    return results
+
+
+@router.get("/reference/sites/{parent_id}")
+def list_reference_sites(
+    parent_id: Optional[str] = None, db: Session = Depends(get_db)
+):
+    if parent_id is None or parent_id in ("0", 0, "null", "None", ""):
+        sites = db.query(Site).all()
+    else:
+        try:
+            parent_uuid = uuid.UUID(parent_id)
+            sites = db.query(Site).filter(Site.wetland_id == parent_uuid).all()
+        except (ValueError, TypeError):
+            return []
+
     results = []
     # Add Sites under Wetlands
     for site in sites:
