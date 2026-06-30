@@ -560,20 +560,36 @@ export default function Home() {
         const breakdown: Record<string, number> = {};
 
         filteredIncidents.forEach((incident) => {
-          const coords = incident.geo?.coordinates;
-          if (!coords || coords.length < 2) return;
-          try {
-            const pt = point(coords);
-            if (booleanPointInPolygon(pt, feature)) {
-              count++;
-              const qIncidentAns = incident.answers?.find(
-                (a: any) => a.name === "incident_type" || a.question_id === 2
-              );
-              const typeLabel = qIncidentAns?.value || "Unknown";
-              breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
+          const locationAns = incident.answers?.find(
+            (a) =>
+              (a.name === "location_id" ||
+                a.question_label?.toLowerCase().includes("location")) &&
+              a.value &&
+              a.value.toString().trim().toLowerCase() ===
+                feature.properties?.name?.toString().trim().toLowerCase()
+          );
+
+          let isInside = !!locationAns;
+
+          if (!isInside) {
+            const coords = incident.geo?.coordinates;
+            if (coords && coords.length >= 2) {
+              try {
+                const pt = point(coords);
+                isInside = booleanPointInPolygon(pt, feature);
+              } catch (err) {
+                console.error("Point-in-polygon check failed:", err);
+              }
             }
-          } catch (err) {
-            console.error("Point-in-polygon check failed:", err);
+          }
+
+          if (isInside) {
+            count++;
+            const qIncidentAns = incident.answers?.find(
+              (a: any) => a.name === "incident_type" || a.question_id === 2
+            );
+            const typeLabel = qIncidentAns?.value || "Unknown";
+            breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
           }
         });
 
@@ -611,6 +627,16 @@ export default function Home() {
     }
 
     const matched = filteredIncidents.filter((incident) => {
+      const locationAns = incident.answers?.find(
+        (a) =>
+          (a.name === "location_id" ||
+            a.question_label?.toLowerCase().includes("location")) &&
+          a.value &&
+          a.value.toString().trim().toLowerCase() ===
+            selectedSubCounty.properties?.name?.toString().trim().toLowerCase()
+      );
+      if (locationAns) return true;
+
       const coords = incident.geo?.coordinates;
       if (!coords || coords.length < 2) return false;
       try {
@@ -915,21 +941,29 @@ export default function Home() {
                     )?.read_url;
 
                     // Find sub-county name
-                    const subCountyFeature = subcountyGeometry?.features?.find(
-                      (scFeature: any) => {
-                        const coords = incident.geo?.coordinates;
-                        if (!coords || coords.length < 2) return false;
-                        try {
-                          return booleanPointInPolygon(
-                            point(coords),
-                            scFeature
-                          );
-                        } catch {
-                          return false;
-                        }
-                      }
+                    const locationAns = incident.answers?.find(
+                      (a) =>
+                        a.name === "location_id" ||
+                        a.question_label?.toLowerCase().includes("location")
                     );
-                    const subCountyName = subCountyFeature?.properties?.name;
+                    let subCountyName = locationAns?.value;
+
+                    if (!subCountyName) {
+                      const subCountyFeature =
+                        subcountyGeometry?.features?.find((scFeature: any) => {
+                          const coords = incident.geo?.coordinates;
+                          if (!coords || coords.length < 2) return false;
+                          try {
+                            return booleanPointInPolygon(
+                              point(coords),
+                              scFeature
+                            );
+                          } catch {
+                            return false;
+                          }
+                        });
+                      subCountyName = subCountyFeature?.properties?.name;
+                    }
 
                     return (
                       <IncidentCard

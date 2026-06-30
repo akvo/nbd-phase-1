@@ -79,7 +79,7 @@ function MapController({
 const getChoroplethColor = (count: number) => {
   if (count >= 16) return "#dc2626"; // red-600
   if (count >= 6) return "#f97316"; // orange-500
-  if (count >= 1) return "#fef3c7"; // amber-100
+  if (count >= 1) return "#fbbf24"; // amber-400 (visible warm amber/yellow)
   return "#f1f5f9"; // slate-100
 };
 
