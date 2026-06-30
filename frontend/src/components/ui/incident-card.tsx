@@ -3,6 +3,8 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 
+import { isVideoUrl } from "@/lib/utils";
+
 type Severity = "Critical" | "Elevated" | "Moderate";
 
 interface IncidentCardProps {
@@ -49,13 +51,21 @@ export function IncidentCard({
     >
       {imageUrl && (
         <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 shrink-0 mb-1">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt={incidentTypeName}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-          />
+          {isVideoUrl(imageUrl) ? (
+            <video
+              src={imageUrl}
+              className="w-full h-full object-cover"
+              preload="metadata"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageUrl}
+              alt={incidentTypeName}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          )}
         </div>
       )}
 
