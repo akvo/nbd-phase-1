@@ -99,6 +99,7 @@ def update_form(
         db_form.type = payload.type
         db_form.languages = payload.languages
         db_form.translations = payload.translations
+        db_form.status = FormStatus.DRAFT.value
 
         # Get existing active groups
         existing_groups = (
@@ -247,9 +248,7 @@ def update_form(
                         o_id = o_data.id
                         o_label = o_data.label or o_data.name
                         o_value = o_data.value
-                        o_order_val = (
-                            o_data.order if o_data.order else o_order
-                        )
+                        o_order_val = o_data.order if o_data.order else o_order
                         o_other = o_data.other
                         o_color = o_data.color
                         o_translations = o_data.translations
@@ -258,9 +257,7 @@ def update_form(
                         # Update existing option
                         payload_opt_ids.add(o_id)
                         db_opt = (
-                            db.query(Option)
-                            .filter(Option.id == o_id)
-                            .first()
+                            db.query(Option).filter(Option.id == o_id).first()
                         )
                         db_opt.label = o_label
                         db_opt.value = o_value
@@ -354,6 +351,41 @@ def get_form_blueprint(form_id: str, db: Session = Depends(get_db)):
 
     if db_form.active_version and db_form.active_version.schema:
         return db_form.active_version.schema
+
+    active_groups = (
+        db.query(QuestionGroup)
+        .filter(
+            QuestionGroup.form_id == db_form.id,
+            QuestionGroup.deleted_at.is_(None),
+        )
+        .order_by(QuestionGroup.order.asc().nullslast())
+        .all()
+    )
+
+    return schemas.FormBlueprintResponse.from_orm_model(db_form, active_groups)
+
+
+@router.get(
+    "/forms/{form_id}/draft", response_model=schemas.FormBlueprintResponse
+)
+def get_form_draft(form_id: str, db: Session = Depends(get_db)):
+    if form_id.isdigit():
+        db_form = db.query(Form).filter(Form.id == int(form_id)).first()
+    else:
+        if form_id.lower() == "fgd":
+            db_form = db.query(Form).filter(Form.name.ilike("%FGD%")).first()
+        elif form_id.lower() == "lab-qa":
+            db_form = db.query(Form).filter(Form.name.ilike("%Lab%")).first()
+        else:
+            db_form = (
+                db.query(Form).filter(Form.name.ilike(f"%{form_id}%")).first()
+            )
+
+    if not db_form:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Form with identifier '{form_id}' not found",
+        )
 
     active_groups = (
         db.query(QuestionGroup)
