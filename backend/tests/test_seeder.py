@@ -177,21 +177,23 @@ def test_seed_spatial_success(db_session: Session):
     wetlands = db_session.query(Wetland).all()
     assert len(wetlands) == 2
     wetland_ids = [w.code for w in wetlands]
-    assert "LOWER_MARA_WETLAND" in wetland_ids
-    assert "SIO_ESTUARY_WETLAND" in wetland_ids
+    assert "Mara_Wetland" in wetland_ids
+    assert "Sio_Siteko_Wetland" in wetland_ids
 
     # 4. Assert Sites created
     sites = db_session.query(Site).all()
-    assert len(sites) == 4
+    assert len(sites) == 8
     site_ids = [s.code for s in sites]
     assert "NBD-MARA-001" in site_ids
+    assert "NBD-MARA-004" in site_ids
     assert "NBD-SIO-001" in site_ids
+    assert "NBD-SIO-004" in site_ids
 
     # Assert Management Actions created for each site (3 per site)
     from app.models.management_action import ManagementAction
 
     actions = db_session.query(ManagementAction).all()
-    assert len(actions) == 12
+    assert len(actions) == 24
 
     # 5. Assert Sub-counties created
     sub_counties = db_session.query(SpatialBoundary).all()
@@ -244,12 +246,12 @@ def test_seed_spatial_success(db_session: Session):
     # Verify high-fidelity GeoJSON geometries loaded
     lower_mara = (
         db_session.query(Wetland)
-        .filter(Wetland.code == "LOWER_MARA_WETLAND")
+        .filter(Wetland.code == "Mara_Wetland")
         .first()
     )
     sio_estuary = (
         db_session.query(Wetland)
-        .filter(Wetland.code == "SIO_ESTUARY_WETLAND")
+        .filter(Wetland.code == "Sio_Siteko_Wetland")
         .first()
     )
     assert lower_mara is not None
@@ -265,5 +267,5 @@ def test_seed_spatial_success(db_session: Session):
     seed_spatial(db_session)
     assert len(db_session.query(Basin).all()) == 2
     assert len(db_session.query(Wetland).all()) == 2
-    assert len(db_session.query(Site).all()) == 4
+    assert len(db_session.query(Site).all()) == 8
     assert len(db_session.query(SpatialBoundary).all()) == 28
