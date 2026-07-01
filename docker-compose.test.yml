@@ -31,6 +31,8 @@ services:
       - JWT_EXPIRY_HOURS=24
       - KOBOTOOLBOX_API_URL=https://eu.kobotoolbox.org
       - KOBOTOOLBOX_API_TOKEN=your_actual_token_here
+      - KOBO_FORM_NAME_PREFIX=${KOBO_FORM_NAME_PREFIX}
+      - KOBO_FORM_NAME_SUFFIX=${KOBO_FORM_NAME_SUFFIX}
       - TWILIO_ACCOUNT_SID=ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       - TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
       - TWILIO_NUMBER=whatsapp:+14155238886
