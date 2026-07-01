@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import datetime
 from unittest.mock import patch
@@ -771,3 +772,190 @@ def test_sync_kobo_spatial_resolution_by_geolocation(
     assert dp.basin_id == basin.id
     assert dp.site_id is None
     assert dp.geo == {"type": "Point", "coordinates": [34.5, 0.5]}
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_env_suffix_filter_matches(
+    mock_get_submissions, mock_get_forms, db_session: Session
+):
+    os.environ["KOBO_FORM_NAME_SUFFIX"] = " [test]"
+    try:
+        basin = Basin(
+            code="TEST_BASIN_1",
+            name="Test Basin 1",
+            geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",  # noqa
+        )
+        db_session.add(basin)
+        db_session.commit()
+
+        form = Form(name="Water Quality", version=1, kobo_asset_id=None)
+        db_session.add(form)
+        db_session.commit()
+
+        mock_get_forms.return_value = [
+            {"uid": "kobo_test_123", "name": "Water Quality [TEST]"}
+        ]
+        mock_get_submissions.return_value = []
+
+        res = sync_kobo_submissions(db_session)
+        assert res["processed_forms"] == 1
+        assert len(res["errors"]) == 0
+
+        updated_form = (
+            db_session.query(Form).filter(Form.name == "Water Quality").first()
+        )
+        assert updated_form.kobo_asset_id == "kobo_test_123"
+    finally:
+        os.environ.pop("KOBO_FORM_NAME_SUFFIX", None)
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_env_prefix_filter_matches(
+    mock_get_submissions, mock_get_forms, db_session: Session
+):
+    os.environ["KOBO_FORM_NAME_PREFIX"] = "dev_"
+    try:
+        basin = Basin(
+            code="TEST_BASIN_2",
+            name="Test Basin 2",
+            geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",  # noqa
+        )
+        db_session.add(basin)
+        db_session.commit()
+
+        form = Form(name="Water Quality", version=1, kobo_asset_id=None)
+        db_session.add(form)
+        db_session.commit()
+
+        mock_get_forms.return_value = [
+            {"uid": "kobo_test_456", "name": "Dev_Water Quality"}
+        ]
+        mock_get_submissions.return_value = []
+
+        res = sync_kobo_submissions(db_session)
+        assert res["processed_forms"] == 1
+        assert len(res["errors"]) == 0
+
+        updated_form = (
+            db_session.query(Form).filter(Form.name == "Water Quality").first()
+        )
+        assert updated_form.kobo_asset_id == "kobo_test_456"
+    finally:
+        os.environ.pop("KOBO_FORM_NAME_PREFIX", None)
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_env_filter_skips_unmatched(
+    mock_get_submissions, mock_get_forms, db_session: Session
+):
+    os.environ["KOBO_FORM_NAME_SUFFIX"] = " [test]"
+    try:
+        basin = Basin(
+            code="TEST_BASIN_3",
+            name="Test Basin 3",
+            geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",  # noqa
+        )
+        db_session.add(basin)
+        db_session.commit()
+
+        form = Form(name="Water Quality", version=1, kobo_asset_id=None)
+        db_session.add(form)
+        db_session.commit()
+
+        mock_get_forms.return_value = [
+            {"uid": "kobo_test_789", "name": "Water Quality"}
+        ]
+        mock_get_submissions.return_value = []
+
+        res = sync_kobo_submissions(db_session)
+        assert res["processed_forms"] == 0
+        assert len(res["errors"]) == 0
+
+        updated_form = (
+            db_session.query(Form).filter(Form.name == "Water Quality").first()
+        )
+        assert updated_form.kobo_asset_id is None
+    finally:
+        os.environ.pop("KOBO_FORM_NAME_SUFFIX", None)
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_env_both_prefix_and_suffix(
+    mock_get_submissions, mock_get_forms, db_session: Session
+):
+    os.environ["KOBO_FORM_NAME_PREFIX"] = "dev_"
+    os.environ["KOBO_FORM_NAME_SUFFIX"] = " [dev]"
+    try:
+        basin = Basin(
+            code="TEST_BASIN_4",
+            name="Test Basin 4",
+            geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",  # noqa
+        )
+        db_session.add(basin)
+        db_session.commit()
+
+        form = Form(name="Water Quality", version=1, kobo_asset_id=None)
+        db_session.add(form)
+        db_session.commit()
+
+        mock_get_forms.return_value = [
+            {"uid": "kobo_test_abc", "name": "Dev_Water Quality [DEV]"}
+        ]
+        mock_get_submissions.return_value = []
+
+        res = sync_kobo_submissions(db_session)
+        assert res["processed_forms"] == 1
+        assert len(res["errors"]) == 0
+
+        updated_form = (
+            db_session.query(Form).filter(Form.name == "Water Quality").first()
+        )
+        assert updated_form.kobo_asset_id == "kobo_test_abc"
+    finally:
+        os.environ.pop("KOBO_FORM_NAME_PREFIX", None)
+        os.environ.pop("KOBO_FORM_NAME_SUFFIX", None)
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_env_no_filter_syncs_all(
+    mock_get_submissions, mock_get_forms, db_session: Session
+):
+    # Ensure no environment variables are set
+    prefix = os.environ.pop("KOBO_FORM_NAME_PREFIX", None)
+    suffix = os.environ.pop("KOBO_FORM_NAME_SUFFIX", None)
+    try:
+        basin = Basin(
+            code="TEST_BASIN_5",
+            name="Test Basin 5",
+            geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",  # noqa
+        )
+        db_session.add(basin)
+        db_session.commit()
+
+        form = Form(name="Water Quality", version=1, kobo_asset_id=None)
+        db_session.add(form)
+        db_session.commit()
+
+        mock_get_forms.return_value = [
+            {"uid": "kobo_test_xyz", "name": "Water Quality"}
+        ]
+        mock_get_submissions.return_value = []
+
+        res = sync_kobo_submissions(db_session)
+        assert res["processed_forms"] == 1
+        assert len(res["errors"]) == 0
+
+        updated_form = (
+            db_session.query(Form).filter(Form.name == "Water Quality").first()
+        )
+        assert updated_form.kobo_asset_id == "kobo_test_xyz"
+    finally:
+        if prefix is not None:
+            os.environ["KOBO_FORM_NAME_PREFIX"] = prefix
+        if suffix is not None:
+            os.environ["KOBO_FORM_NAME_SUFFIX"] = suffix
