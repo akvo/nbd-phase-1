@@ -7,6 +7,7 @@
   1. A standard JSON representation matching our frontend `FormBlueprintResponse` schema.
   2. A KoboToolbox-compliant XLSForm (Excel spreadsheet).
 - **Core Metric**: 100% success rate in uploading exported XLSForms to KoboToolbox without validation errors.
+- **Architectural Leverage**: To export the latest published state of a form, the exporter should fetch the pre-compiled JSON blueprint snapshot stored in the `FormPublishedVersion.schema` column. If a form is not published or the user specifies `?draft=true` via a query parameter, it should fall back to loading the live relational tables.
 
 ---
 
@@ -15,16 +16,16 @@
 ### Must-Have
 
 - **JSON Export Endpoint**:
-  - `GET /api/v1/forms/{form_id}/export/json`: Returns the full blueprint JSON payload matching the `FormBlueprintResponse` schema.
+  - `GET /api/v1/forms/{form_id}/export/json`: Returns the full blueprint JSON payload matching the `FormBlueprintResponse` schema. Supports fetching from `FormPublishedVersion.schema` or falling back to live tables if `?draft=true` is provided.
 - **XLSForm Excel Export**:
-  - `GET /api/v1/forms/{form_id}/export/xlsform`: Generates and downloads a `.xlsx` file containing the three required XLSForm sheets:
+  - `GET /api/v1/forms/{form_id}/export/xlsform`: Generates and downloads a `.xlsx` file containing the three required XLSForm sheets. Can build the sheets directly from the pre-parsed JSON snapshot or live tables.
     - **`survey`**: `type`, `name`, `label`, `required`, `hint`, `relevant` (dependencies), and `constraint`.
     - **`choices`**: `list_name`, `name`, `label` for multiple-choice select questions.
     - **`settings`**: `form_title`, `form_id`, `version`, `default_language`.
 - **Shared Cascade Selection CSV Export**:
   - An endpoint/script to download a shared cascade select CSV file containing the spatial hierarchical datasets (e.g. `counties`, `subcounties`, `basins`, `wetlands`, `sites`) so they can be loaded externally on Kobo using the `select_one_from_file` mechanism.
 - **Frontend Export Actions**:
-  - Add download action buttons/dropdown options in the Form Management dashboard (`frontend/src/app/admin/resources/forms/page.tsx`) to allow administrators to directly trigger and download the JSON or XLSForm file for any form in the list.
+  - Add download action buttons/dropdown options in the Form Management dashboard (`frontend/src/app/admin/resources/forms/page.tsx`) to allow administrators to directly trigger and download the JSON or XLSForm file for any form in the list. By default, it downloads the published version; a draft option should also be available.
 
 ### Nice-to-Have
 

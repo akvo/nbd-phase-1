@@ -365,7 +365,7 @@ class BlueprintQuestionSchema(BaseModel):
             extra=q.extra,
             tooltip=q.tooltip,
             fn=q.fn,
-            pre=q.pre,
+            pre=q.pre or {},
             displayOnly=q.display_only or False,
             hiddenString=extra.get("hiddenString", False),
             requiredDoubleEntry=extra.get("requiredDoubleEntry", False),
@@ -457,6 +457,9 @@ class FormBlueprintResponse(BaseModel):
 
     @classmethod
     def from_orm_model(cls, db_form, active_groups):
+        langs = db_form.languages or ["en"]
+        # Derive defaultLanguage from the first entry in the languages list
+        default_lang = langs[0] if langs else "en"
         groups = [
             BlueprintQuestionGroupSchema.from_orm_model(g)
             for g in active_groups
@@ -466,8 +469,8 @@ class FormBlueprintResponse(BaseModel):
             name=db_form.name,
             type=db_form.type,
             version=db_form.version,
-            languages=db_form.languages or ["en"],
-            defaultLanguage="en",
+            languages=langs,
+            defaultLanguage=default_lang,
             translations=db_form.translations or [],
             question_group=groups,
         )
