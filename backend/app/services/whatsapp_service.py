@@ -893,11 +893,7 @@ async def _prompt_question(
     if q.type == "cascade":
         subcounties = _fetch_subcounties(db)
         menu = _format_location_menu(subcounties, lang)
-        prompt = (
-            f"Chagua eneo lako:\n\n{menu}"
-            if lang == "sw"
-            else f"Choose your location:\n\n{menu}"
-        )
+        prompt = f"{q_label}\n\n{menu}"
         await _send_message(phone, prompt)
 
     elif q.type == "option":
@@ -911,19 +907,20 @@ async def _prompt_question(
             f"{i}: {get_translation(o.translations, lang, o.label)}"
             for i, o in enumerate(options, 1)
         )
-        prompt = (
-            f"Je, ungependa kuripoti nini?\n\n{menu}"
-            if lang == "sw"
-            else f"What would you like to report?\n\n{menu}"
-        )
+        prompt = f"{q_label}\n\n{menu}"
         await _send_message(phone, prompt)
 
     elif q.type in ("image", "attachment"):
-        prompt = (
-            f"Tafadhali tuma picha au video ya tukio (au jibu *skip* kuendelea bila picha/video)."  # noqa
-            if lang == "sw"
-            else f"Please send a photo or video of the incident (or reply *skip* to continue without media)."  # noqa
-        )
+        if "skip" in q_label.lower():
+            prompt = q_label
+        else:
+            base_label = q_label.rstrip(".")
+            skip_instruction = (
+                " (au jibu *skip* kuendelea bila picha/video)."
+                if lang == "sw"
+                else " (or reply *skip* to continue without media)."
+            )
+            prompt = f"{base_label}{skip_instruction}"
         await _send_message(phone, prompt)
 
     else:
