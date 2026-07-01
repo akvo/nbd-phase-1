@@ -63,13 +63,34 @@ async def _send_message(phone: str, text: str) -> None:
         "Body": text,
     }
 
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(
-            url,
-            data=payload,
-            auth=(config.account_sid, config.auth_token),
-        )
-        resp.raise_for_status()
+    import asyncio
+
+    max_retries = 3
+    base_delay = 1.0  # seconds
+
+    for attempt in range(max_retries + 1):
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    url,
+                    data=payload,
+                    auth=(config.account_sid, config.auth_token),
+                )
+                if resp.status_code == 429 and attempt < max_retries:
+                    retry_after = resp.headers.get("Retry-After")
+                    sleep_time = (
+                        float(retry_after)
+                        if retry_after
+                        else (base_delay * (2**attempt))
+                    )
+                    await asyncio.sleep(sleep_time)
+                    continue
+
+                resp.raise_for_status()
+                break
+        except httpx.HTTPStatusError as e:
+            if attempt == max_retries:
+                raise e
 
 
 async def _get_media_url(media_id: str) -> str:
