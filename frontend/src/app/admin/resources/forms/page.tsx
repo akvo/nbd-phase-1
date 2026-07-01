@@ -186,7 +186,7 @@ export default function FormManagementPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Form Blueprints</h1>
+          <h1 className="text-xl font-bold text-slate-800">Form Management</h1>
           <p className="text-sm text-slate-500">
             Manage and export your form configurations and geographic datasets.
           </p>
@@ -355,27 +355,57 @@ export default function FormManagementPage() {
                               onClick={() =>
                                 handleDownload(
                                   `/forms/${form.id}/export/json`,
-                                  `${form.name.toLowerCase().replace(/\s+/g, "_")}_blueprint.json`,
+                                  `${form.name.toLowerCase().replace(/\s+/g, "_")}_published.json`,
+                                  form.id
+                                )
+                              }
+                              disabled={
+                                downloadingId !== null || !form.published_at
+                              }
+                            >
+                              <FileJson className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                              <span>JSON (Published)</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDownload(
+                                  `/forms/${form.id}/export/json?draft=true`,
+                                  `${form.name.toLowerCase().replace(/\s+/g, "_")}_draft.json`,
                                   form.id
                                 )
                               }
                               disabled={downloadingId !== null}
                             >
-                              <FileJson className="w-3.5 h-3.5 mr-2 text-slate-500" />
-                              <span>JSON</span>
+                              <FileJson className="w-3.5 h-3.5 mr-2 text-slate-400" />
+                              <span>JSON (Draft)</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
                                 handleDownload(
                                   `/forms/${form.id}/export/xlsform`,
-                                  `${form.name.toLowerCase().replace(/\s+/g, "_")}_xlsform.xlsx`,
+                                  `${form.name.toLowerCase().replace(/\s+/g, "_")}_published_xlsform.xlsx`,
+                                  form.id
+                                )
+                              }
+                              disabled={
+                                downloadingId !== null || !form.published_at
+                              }
+                            >
+                              <Download className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                              <span>XLSForm (Published)</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDownload(
+                                  `/forms/${form.id}/export/xlsform?draft=true`,
+                                  `${form.name.toLowerCase().replace(/\s+/g, "_")}_draft_xlsform.xlsx`,
                                   form.id
                                 )
                               }
                               disabled={downloadingId !== null}
                             >
-                              <Download className="w-3.5 h-3.5 mr-2 text-slate-500" />
-                              <span>XLSForm</span>
+                              <Download className="w-3.5 h-3.5 mr-2 text-slate-400" />
+                              <span>XLSForm (Draft)</span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
