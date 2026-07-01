@@ -12,6 +12,9 @@ USSD router logic.
 import uuid  # noqa: F401
 import logging
 import httpx
+import asyncio
+import time
+
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 
@@ -40,8 +43,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+_last_send_time = 0.0
+_send_lock = asyncio.Lock()
+
+
 async def _send_message(phone: str, text: str) -> None:
     """Send a text message via the Twilio WhatsApp Business API."""
+    global _last_send_time
     from app.dependencies.whatsapp_config import get_whatsapp_config
 
     config = get_whatsapp_config()
@@ -63,45 +71,52 @@ async def _send_message(phone: str, text: str) -> None:
         "Body": text,
     }
 
-    import asyncio
     import random
 
     max_retries = 5
     base_delay = 1.0  # seconds
 
-    for attempt in range(max_retries + 1):
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    url,
-                    data=payload,
-                    auth=(config.account_sid, config.auth_token),
-                )
-                if resp.status_code == 429 and attempt < max_retries:
-                    retry_after = resp.headers.get("Retry-After")
-                    sleep_time = (
-                        float(retry_after)
-                        if retry_after
-                        else (
-                            (base_delay * (2**attempt))
-                            + random.uniform(0.1, 1.0)
-                        )
-                    )
-                    logger.warning(
-                        "Twilio API rate limited (429). "
-                        "Retrying attempt %d/%d in %.2fs...",
-                        attempt + 1,
-                        max_retries,
-                        sleep_time,
-                    )
-                    await asyncio.sleep(sleep_time)
-                    continue
+    async with _send_lock:
+        now = time.time()
+        elapsed = now - _last_send_time
+        if elapsed < 1.0:
+            await asyncio.sleep(1.0 - elapsed)
 
-                resp.raise_for_status()
-                break
-        except httpx.HTTPStatusError as e:
-            if attempt == max_retries:
-                raise e
+        for attempt in range(max_retries + 1):
+            try:
+                async with httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(
+                        url,
+                        data=payload,
+                        auth=(config.account_sid, config.auth_token),
+                    )
+                    if resp.status_code == 429 and attempt < max_retries:
+                        retry_after = resp.headers.get("Retry-After")
+                        sleep_time = (
+                            float(retry_after)
+                            if retry_after
+                            else (
+                                (base_delay * (2**attempt))
+                                + random.uniform(0.1, 1.0)
+                            )
+                        )
+                        logger.warning(
+                            "Twilio API rate limited (429). "
+                            "Retrying attempt %d/%d in %.2fs...",
+                            attempt + 1,
+                            max_retries,
+                            sleep_time,
+                        )
+                        await asyncio.sleep(sleep_time)
+                        continue
+
+                    resp.raise_for_status()
+                    break
+            except httpx.HTTPStatusError as e:
+                if attempt == max_retries:
+                    raise e
+            finally:
+                _last_send_time = time.time()
 
 
 async def _get_media_url(media_id: str) -> str:
