@@ -505,18 +505,18 @@ def test_extract_message_keeps_body_on_text_only():
 
 
 @pytest.mark.asyncio
-async def test_send_message_retries_on_429():
+async def test_send_message_drops_on_429():
+    """On Twilio 429, _send_message should log a warning
+    and return without retrying."""
     from unittest.mock import patch, AsyncMock, MagicMock
     from app.services.whatsapp_service import _send_message
 
     mock_resp_429 = MagicMock()
     mock_resp_429.status_code = 429
-    mock_resp_429.headers = {"Retry-After": "0.01"}
-
-    mock_resp_200 = MagicMock()
-    mock_resp_200.status_code = 200
+    mock_resp_429.headers = {}
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.side_effect = [mock_resp_429, mock_resp_200]
+        mock_post.return_value = mock_resp_429
+        # Should not raise, should return silently after exactly 1 attempt
         await _send_message("12345678", "Hello")
-        assert mock_post.call_count == 2
+        assert mock_post.call_count == 1

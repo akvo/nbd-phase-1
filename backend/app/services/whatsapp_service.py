@@ -71,52 +71,28 @@ async def _send_message(phone: str, text: str) -> None:
         "Body": text,
     }
 
-    import random
-
-    max_retries = 5
-    base_delay = 1.0  # seconds
-
     async with _send_lock:
         now = time.time()
         elapsed = now - _last_send_time
         if elapsed < 1.0:
             await asyncio.sleep(1.0 - elapsed)
 
-        for attempt in range(max_retries + 1):
-            try:
-                async with httpx.AsyncClient(timeout=10) as client:
-                    resp = await client.post(
-                        url,
-                        data=payload,
-                        auth=(config.account_sid, config.auth_token),
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    url,
+                    data=payload,
+                    auth=(config.account_sid, config.auth_token),
+                )
+                if resp.status_code == 429:
+                    logger.warning(
+                        "Twilio API rate limited (429) for %s — dropping message",  # noqa
+                        phone,
                     )
-                    if resp.status_code == 429 and attempt < max_retries:
-                        retry_after = resp.headers.get("Retry-After")
-                        sleep_time = (
-                            float(retry_after)
-                            if retry_after
-                            else (
-                                (base_delay * (2**attempt))
-                                + random.uniform(0.1, 1.0)
-                            )
-                        )
-                        logger.warning(
-                            "Twilio API rate limited (429). "
-                            "Retrying attempt %d/%d in %.2fs...",
-                            attempt + 1,
-                            max_retries,
-                            sleep_time,
-                        )
-                        await asyncio.sleep(sleep_time)
-                        continue
-
-                    resp.raise_for_status()
-                    break
-            except httpx.HTTPStatusError as e:
-                if attempt == max_retries:
-                    raise e
-            finally:
-                _last_send_time = time.time()
+                    return
+                resp.raise_for_status()
+        finally:
+            _last_send_time = time.time()
 
 
 async def _get_media_url(media_id: str) -> str:
@@ -456,10 +432,19 @@ def _build_whatsapp_summary(
 
 async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
     """Route an inbound Meta webhook payload through the state machine."""
+    logger.info(
+        "WhatsApp webhook payload keys: %s | SmsStatus=%s MessageStatus=%s From=%s",  # noqa
+        list(payload.keys()),
+        payload.get("SmsStatus"),
+        payload.get("MessageStatus"),
+        payload.get("From"),
+    )
     # Ignore Twilio status callbacks (e.g. sent, delivered, read, etc.)
     sms_status = payload.get("SmsStatus")
     message_status = payload.get("MessageStatus")
-    if (sms_status and sms_status != "received") or message_status:
+    if (sms_status and sms_status != "received") or (
+        message_status and message_status != "received"
+    ):
         logger.info(
             "Ignoring Twilio status callback (SmsStatus: %s, MessageStatus: %s)",  # noqa
             sms_status,
