@@ -61,6 +61,18 @@ def override_get_db(
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(scope="function", autouse=True)
+def clean_kobo_env() -> Generator[None, None, None]:
+    """Ensure Kobo environment variables do not leak from local config."""
+    prefix = os.environ.pop("KOBO_FORM_NAME_PREFIX", None)
+    suffix = os.environ.pop("KOBO_FORM_NAME_SUFFIX", None)
+    yield
+    if prefix is not None:
+        os.environ["KOBO_FORM_NAME_PREFIX"] = prefix
+    if suffix is not None:
+        os.environ["KOBO_FORM_NAME_SUFFIX"] = suffix
+
+
 def make_auth_headers(
     db_session, email: str = "test_admin@nbd.org", role: str = "Admin"
 ) -> dict:
