@@ -13,6 +13,7 @@ from app.models.form import (
     FormStatus,
 )
 from app.schemas import form as schemas
+from app.schemas.form import _normalize_blueprint_languages
 
 from app.dependencies.auth import RoleChecker
 
@@ -350,7 +351,23 @@ def get_form_blueprint(form_id: str, db: Session = Depends(get_db)):
         )
 
     if db_form.active_version and db_form.active_version.schema:
-        return db_form.active_version.schema
+        schema = db_form.active_version.schema
+        if isinstance(schema, dict) and "languages" in schema:
+            schema["languages"] = _normalize_blueprint_languages(
+                schema["languages"]
+            )
+            if "defaultLanguage" in schema and schema["defaultLanguage"]:
+                from app.schemas.form import _to_editor_lang_code
+
+                base = _to_editor_lang_code(str(schema["defaultLanguage"]))
+                schema["defaultLanguage"] = (
+                    base
+                    if base in schema["languages"]
+                    else (
+                        schema["languages"][0] if schema["languages"] else "en"
+                    )
+                )
+        return schema
 
     active_groups = (
         db.query(QuestionGroup)
