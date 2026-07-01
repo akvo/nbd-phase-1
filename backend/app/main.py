@@ -18,6 +18,7 @@ from app.routers.internal_router import router as internal_router
 from app.routers.auth_router import router as auth_router
 from app.routers.public_router import router as public_router
 from app.routers.admin_router import router as admin_router
+from app.routers.form_export_router import router as form_export_router
 
 
 from fastapi.responses import JSONResponse
@@ -90,6 +91,7 @@ app.include_router(whatsapp_router)
 app.include_router(internal_router)
 app.include_router(public_router)
 app.include_router(admin_router)
+app.include_router(form_export_router)
 
 
 class TestEmailRequest(BaseModel):

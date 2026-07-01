@@ -2,8 +2,23 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Edit2, Trash2, AlertTriangle, Loader2, Globe } from "lucide-react";
+import {
+  Edit2,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  Globe,
+  Download,
+  FileJson,
+  ChevronDown,
+} from "lucide-react";
 import { apiClient } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableHeader,
@@ -53,6 +68,40 @@ export default function FormManagementPage() {
   const [loadingEditId, setLoadingEditId] = useState<number | null>(null);
   const [loadingPublishId, setLoadingPublishId] = useState<number | null>(null);
   const [publishModal, setPublishModal] = useState<Form | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [downloadingCascade, setDownloadingCascade] = useState(false);
+
+  const handleDownload = async (
+    url: string,
+    filename: string,
+    formId?: number
+  ) => {
+    if (formId) {
+      setDownloadingId(formId);
+    } else {
+      setDownloadingCascade(true);
+    }
+    try {
+      const response = await apiClient.get(url, { responseType: "blob" });
+      const contentType =
+        (response.headers["content-type"] as string) ||
+        "application/octet-stream";
+      const blob = new Blob([response.data], { type: contentType });
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Failed to download file:", err);
+    } finally {
+      setDownloadingId(null);
+      setDownloadingCascade(false);
+    }
+  };
 
   const handleEditClick = (formId: number) => {
     setLoadingEditId(formId);
@@ -135,6 +184,33 @@ export default function FormManagementPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Form Blueprints</h1>
+          <p className="text-sm text-slate-500">
+            Manage and export your form configurations and geographic datasets.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          disabled={downloadingCascade}
+          onClick={() =>
+            handleDownload(
+              "/reference/spatial-cascade/csv",
+              "spatial_cascade.csv"
+            )
+          }
+          className="text-xs font-semibold cursor-pointer inline-flex items-center space-x-2"
+        >
+          {downloadingCascade ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Download className="w-3.5 h-3.5" />
+          )}
+          <span>Download Spatial Cascade CSV</span>
+        </Button>
+      </div>
+
       {/* Main Forms Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <Table>
@@ -183,85 +259,139 @@ export default function FormManagementPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              forms.map((form) => (
-                <TableRow
-                  key={form.id}
-                  className="hover:bg-slate-50/50 transition-colors"
-                >
-                  <TableCell className="py-4 px-6 font-mono text-slate-500">
-                    {form.id}
-                  </TableCell>
-                  <TableCell className="py-4 px-6 font-semibold text-slate-900">
-                    {form.name}
-                  </TableCell>
-                  <TableCell className="py-4 px-6">
-                    {form.type ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                        {form.type}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="py-4 px-6">
-                    {getStatusBadge(form.status)}
-                  </TableCell>
-                  <TableCell className="py-4 px-6 text-slate-600">
-                    {form.version ? `v${form.version}` : "-"}
-                  </TableCell>
-                  <TableCell className="py-4 px-6 text-slate-600">
-                    {formatDate(form.published_at)}
-                  </TableCell>
-                  <TableCell className="py-4 px-6 text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleEditClick(form.id)}
-                        disabled={loadingEditId !== null}
-                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        {loadingEditId === form.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Edit2 className="w-3.5 h-3.5" />
-                        )}
-                        <span>
-                          {loadingEditId === form.id ? "Loading..." : "Edit"}
+              forms.map((form, index) => {
+                const isLastRow = index === forms.length - 1;
+                const openUpward = isLastRow && forms.length > 2;
+
+                return (
+                  <TableRow
+                    key={form.id}
+                    className="hover:bg-slate-50/50 transition-colors"
+                  >
+                    <TableCell className="py-4 px-6 font-mono text-slate-500">
+                      {form.id}
+                    </TableCell>
+                    <TableCell className="py-4 px-6 font-semibold text-slate-900">
+                      {form.name}
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      {form.type ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                          {form.type}
                         </span>
-                      </button>
-                      {form.status === 1 && (
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      {getStatusBadge(form.status)}
+                    </TableCell>
+                    <TableCell className="py-4 px-6 text-slate-600">
+                      {form.version ? `v${form.version}` : "-"}
+                    </TableCell>
+                    <TableCell className="py-4 px-6 text-slate-600">
+                      {formatDate(form.published_at)}
+                    </TableCell>
+                    <TableCell className="py-4 px-6 text-right">
+                      <div className="flex items-center justify-end space-x-2">
                         <button
                           type="button"
-                          onClick={() => handlePublishClick(form)}
-                          disabled={
-                            loadingPublishId !== null || loadingEditId !== null
-                          }
-                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-sky-200 hover:bg-sky-50 text-sky-700 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                          onClick={() => handleEditClick(form.id)}
+                          disabled={loadingEditId !== null}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                         >
-                          {loadingPublishId === form.id ? (
+                          {loadingEditId === form.id ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           ) : (
-                            <Globe className="w-3.5 h-3.5" />
+                            <Edit2 className="w-3.5 h-3.5" />
                           )}
                           <span>
-                            {loadingPublishId === form.id
-                              ? "Publishing..."
-                              : "Publish"}
+                            {loadingEditId === form.id ? "Loading..." : "Edit"}
                           </span>
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteClick(form)}
-                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                        {form.status === 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handlePublishClick(form)}
+                            disabled={
+                              loadingPublishId !== null ||
+                              loadingEditId !== null
+                            }
+                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-sky-200 hover:bg-sky-50 text-sky-700 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {loadingPublishId === form.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Globe className="w-3.5 h-3.5" />
+                            )}
+                            <span>
+                              {loadingPublishId === form.id
+                                ? "Publishing..."
+                                : "Publish"}
+                            </span>
+                          </button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              disabled={downloadingId !== null}
+                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              {downloadingId === form.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Download className="w-3.5 h-3.5" />
+                              )}
+                              <span>Export</span>
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="right"
+                            side={openUpward ? "top" : "bottom"}
+                          >
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDownload(
+                                  `/forms/${form.id}/export/json`,
+                                  `${form.name.toLowerCase().replace(/\s+/g, "_")}_blueprint.json`,
+                                  form.id
+                                )
+                              }
+                              disabled={downloadingId !== null}
+                            >
+                              <FileJson className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                              <span>JSON</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDownload(
+                                  `/forms/${form.id}/export/xlsform`,
+                                  `${form.name.toLowerCase().replace(/\s+/g, "_")}_xlsform.xlsx`,
+                                  form.id
+                                )
+                              }
+                              disabled={downloadingId !== null}
+                            >
+                              <Download className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                              <span>XLSForm</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClick(form)}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
