@@ -456,6 +456,17 @@ def _build_whatsapp_summary(
 
 async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
     """Route an inbound Meta webhook payload through the state machine."""
+    # Ignore Twilio status callbacks (e.g. sent, delivered, read, etc.)
+    sms_status = payload.get("SmsStatus")
+    message_status = payload.get("MessageStatus")
+    if (sms_status and sms_status != "received") or message_status:
+        logger.info(
+            "Ignoring Twilio status callback (SmsStatus: %s, MessageStatus: %s)",  # noqa
+            sms_status,
+            message_status,
+        )
+        return
+
     msg = _extract_message(payload)
     phone = _sender_phone(payload)
     if not msg or not phone:
