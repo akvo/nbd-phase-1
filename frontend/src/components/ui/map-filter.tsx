@@ -129,7 +129,7 @@ export function MapFilter({
                   options={incidentTypeOptions}
                   selectedValues={selectedIncidentTypes}
                   onChange={onIncidentTypesChange}
-                  placeholder={t("filters.allTypes")}
+                  placeholder={t("filters.selectIncidentType")}
                 />
               </div>
 

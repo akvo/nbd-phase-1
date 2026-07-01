@@ -21,7 +21,7 @@ export function MultiSelect({
   options,
   selectedValues,
   onChange,
-  placeholder = "Select options",
+  placeholder = "",
   className,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
