@@ -404,11 +404,8 @@ def _handle_ussd_core(
                                 )
                         menu_lines.append(f"  {idx}. {sc.name}")
 
-                    prompt_text = (
-                        "CON Chagua Mahali:\n" + "\n".join(menu_lines)
-                        if lang == "sw"
-                        else "CON Choose Location:\n" + "\n".join(menu_lines)
-                    )
+                    q_label = get_translation(q.translations, lang, q.label)
+                    prompt_text = f"CON {q_label}:\n" + "\n".join(menu_lines)
                     return PlainTextResponse(clean_ussd_response(prompt_text))
 
                 elif q.type == "option":
