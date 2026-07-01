@@ -69,6 +69,20 @@ class FormExportService:
                 return val
         return default_val
 
+    # Maps canonical cascade question names to XLSForm filter expressions
+    # that scope rows in spatial_cascade.csv to the correct hierarchy level.
+    SPATIAL_CASCADE_FILTER_MAP = {
+        "basin_id": "list_name='basin'",
+        "wetland_id": ("list_name='wetland' and parent_key=${basin_id}"),
+        "site_id": ("list_name='site' and parent_key=${wetland_id}"),
+        "region_id": "list_name='region'",
+        "district_id": ("list_name='district' and parent_key=${region_id}"),
+        "subcounty_id": (
+            "list_name='subcounty' and parent_key=${district_id}"
+        ),
+        "location_id": "list_name='subcounty'",
+    }
+
     @classmethod
     def generate_xlsform(
         cls, db: Session, form_id: int, draft: bool = False
@@ -120,7 +134,9 @@ class FormExportService:
         for lang in languages:
             lang_name = language_map.get(lang, f"{lang.upper()} ({lang})")
             survey_headers.append(f"label::{lang_name}")
-        survey_headers.extend(["required", "hint", "relevant"])
+        survey_headers.extend(
+            ["required", "hint", "relevant", "filter", "parameters"]
+        )
         survey_sheet.append(survey_headers)
 
         choices_headers = ["list_name", "name"]
@@ -146,7 +162,8 @@ class FormExportService:
 
             row = ["begin_group", group_name]
             row.extend(group_labels)
-            row.extend(["", "", ""])
+            # required, hint, relevant, filter, parameters
+            row.extend(["", "", "", "", ""])
             survey_sheet.append(row)
 
             questions = group.get("question", [])
@@ -186,8 +203,13 @@ class FormExportService:
                 # Map type to Kobo standard
                 xls_type = "text"
                 is_cascade = False
+                filter_val = ""
 
-                if q_type == "integer":
+                if q_name in cls.SPATIAL_CASCADE_FILTER_MAP:
+                    xls_type = "select_one_from_file spatial_cascade.csv"
+                    is_cascade = True
+                    filter_val = cls.SPATIAL_CASCADE_FILTER_MAP[q_name]
+                elif q_type == "integer":
                     xls_type = "integer"
                 elif q_type == "decimal" or q_type == "number":
                     xls_type = "decimal"
@@ -197,23 +219,34 @@ class FormExportService:
                     xls_type = "image"
                 elif q_type == "geopoint" or q_type == "gps":
                     xls_type = "geopoint"
+                elif q_type == "cascade":
+                    # Cascade questions always reference the external
+                    # spatial file. Derive filter from canonical name;
+                    # fall back to api metadata if present.
+                    xls_type = "select_one_from_file spatial_cascade.csv"
+                    is_cascade = True
+                    filter_val = cls.SPATIAL_CASCADE_FILTER_MAP.get(q_name, "")
+                    if not filter_val:
+                        q_api = q.get("api") or {}
+                        cascade_level = q_api.get("list_name") or q_api.get(
+                            "initial"
+                        )
+                        if cascade_level:
+                            filter_val = f"list_name='{cascade_level}'"
                 elif q_type in ("select_one", "select_multiple", "option"):
+
                     # Check if it uses external file for cascade
                     q_extra = q.get("extra") or {}
                     if (
                         q_extra.get("cascade")
                         or "cascade" in q_name.lower()
-                        or q_name
-                        in (
-                            "site_id",
-                            "wetland_id",
-                            "basin_id",
-                            "subcounty_id",
-                            "location_id",
-                        )
+                        or q_name in cls.SPATIAL_CASCADE_FILTER_MAP
                     ):
                         xls_type = "select_one_from_file spatial_cascade.csv"
                         is_cascade = True
+                        filter_val = cls.SPATIAL_CASCADE_FILTER_MAP.get(
+                            q_name, ""
+                        )
                     else:
                         prefix_val = (
                             "select_multiple"
@@ -222,9 +255,21 @@ class FormExportService:
                         )
                         xls_type = f"{prefix_val} option_{q_name}"
 
+                param_val = ""
+                if is_cascade:
+                    param_val = "value=name label=label"
+
                 q_row = [xls_type, q_name]
                 q_row.extend(q_labels)
-                q_row.extend([required_val, hint_val, relevant_val])
+                q_row.extend(
+                    [
+                        required_val,
+                        hint_val,
+                        relevant_val,
+                        filter_val,
+                        param_val,
+                    ]
+                )
                 survey_sheet.append(q_row)
 
                 # Populate choices if multiple choice and not external cascade
@@ -254,7 +299,8 @@ class FormExportService:
             # Write group end
             end_row = ["end_group", ""]
             end_row.extend(["" for _ in languages])
-            end_row.extend(["", "", ""])
+            # required, hint, relevant, filter, parameters
+            end_row.extend(["", "", "", "", ""])
             survey_sheet.append(end_row)
 
         file_stream = io.BytesIO()
