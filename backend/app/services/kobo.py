@@ -67,6 +67,47 @@ def parse_kobo_timestamp(ts_str: str | None) -> datetime:
         return datetime.utcnow()
 
 
+def _apply_env_filter(form_name: str) -> str | None:
+    """
+    Applies environment-specific Kobo form name filtering.
+
+    Reads KOBO_FORM_NAME_PREFIX and KOBO_FORM_NAME_SUFFIX
+    from the environment.
+    Returns the normalized (stripped + lowercased) form name
+    for DB lookup, or None if the form does not match the
+    configured filter and should be skipped.
+
+    Matching is case-insensitive. Stripping uses len() offset on the original
+    string to preserve mid-string casing before final lowercasing.
+    """
+    prefix = os.getenv("KOBO_FORM_NAME_PREFIX", "").strip().lower()
+    suffix = os.getenv("KOBO_FORM_NAME_SUFFIX", "").strip().lower()
+    name_lower = form_name.lower()
+
+    if prefix and not name_lower.startswith(prefix):
+        logger.debug(
+            f"Skipping Kobo form '{form_name}': "
+            f"does not match prefix '{prefix}'"
+        )
+        return None
+
+    if suffix and not name_lower.endswith(suffix):
+        logger.debug(
+            f"Skipping Kobo form '{form_name}': "
+            f"does not match suffix '{suffix}'"
+        )
+        return None
+
+    # Strip from original (offset by len) to preserve mid-string casing
+    stripped = form_name
+    if prefix:
+        stripped = stripped[len(prefix) :]  # noqa
+    if suffix:
+        stripped = stripped[: len(stripped) - len(suffix)]
+
+    return stripped.strip().lower()
+
+
 def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
     logger.info("Starting KoboToolbox submissions sync...")
     try:
@@ -79,6 +120,7 @@ def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
 def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
     service = KoboService()
     sync_results = {"processed_forms": 0, "ingested_records": 0, "errors": []}
+    sync_failures = []
 
     try:
         forms = service.get_forms()
@@ -101,7 +143,10 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
 
         # Match by kobo_asset_id first, then fallback to form name
         # (lowercase & stripped)
-        normalized_name = form_name.strip().lower()
+        normalized_name = _apply_env_filter(form_name)
+        if normalized_name is None:
+            continue
+
         db_form = (
             db.query(Form)
             .filter(
@@ -151,8 +196,6 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
             continue
 
         latest_submission_time = None
-
-        sync_failures = []
 
         for sub in submissions:
             sub_uuid_str = sub.get("_uuid")
