@@ -334,7 +334,29 @@ class TestConsentState:
             sess.location,
         )
 
-        # Step 5: Skip image upload (reply "skip") -> CONFIRMATION state
+        # Step 5a: Provide invalid answer to image upload
+        # (reply "1" instead of image or "skip")
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "1"))
+
+        # Verify re-prompt is sent
+        last_msg = mock_send.call_args[0][1]
+        assert "Please send a photo/video or reply *skip*." in last_msg
+
+        # Session should remain on the same question
+        db_session.expire_all()
+        sess_invalid = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        assert sess_invalid.state == "DYNAMIC_QUESTION"
+        assert sess_invalid.current_question_id == sess.current_question_id
+
+        # Step 5b: Skip image upload (reply "skip") -> CONFIRMATION state
         with patch(
             "app.services.whatsapp_service.SessionLocal",
             return_value=db_session,

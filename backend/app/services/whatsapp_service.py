@@ -432,13 +432,6 @@ def _build_whatsapp_summary(
 
 async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
     """Route an inbound Meta webhook payload through the state machine."""
-    logger.info(
-        "WhatsApp webhook payload keys: %s | SmsStatus=%s MessageStatus=%s From=%s",  # noqa
-        list(payload.keys()),
-        payload.get("SmsStatus"),
-        payload.get("MessageStatus"),
-        payload.get("From"),
-    )
     # Ignore Twilio status callbacks (e.g. sent, delivered, read, etc.)
     sms_status = payload.get("SmsStatus")
     message_status = payload.get("MessageStatus")
@@ -786,6 +779,15 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                         )
                         await _send_message(phone, prompt)
                         return
+                else:
+                    # Unsupported message type (sticker, location, etc.)
+                    prompt = (
+                        "Tafadhali tuma picha/video au jibu *skip*."
+                        if lang == "sw"
+                        else "Please send a photo/video or reply *skip*."
+                    )
+                    await _send_message(phone, prompt)
+                    return
 
             else:
                 # Text/number or fallback input types
