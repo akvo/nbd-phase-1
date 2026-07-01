@@ -309,28 +309,25 @@ export default function FormManagementPage() {
                             {loadingEditId === form.id ? "Loading..." : "Edit"}
                           </span>
                         </button>
-                        {form.status === 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handlePublishClick(form)}
-                            disabled={
-                              loadingPublishId !== null ||
-                              loadingEditId !== null
-                            }
-                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-sky-200 hover:bg-sky-50 text-sky-700 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            {loadingPublishId === form.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Globe className="w-3.5 h-3.5" />
-                            )}
-                            <span>
-                              {loadingPublishId === form.id
-                                ? "Publishing..."
-                                : "Publish"}
-                            </span>
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handlePublishClick(form)}
+                          disabled={
+                            loadingPublishId !== null || loadingEditId !== null
+                          }
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-sky-200 hover:bg-sky-50 text-sky-700 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {loadingPublishId === form.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Globe className="w-3.5 h-3.5" />
+                          )}
+                          <span>
+                            {loadingPublishId === form.id
+                              ? "Publishing..."
+                              : "Publish"}
+                          </span>
+                        </button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
@@ -529,7 +526,7 @@ export default function FormManagementPage() {
               ) : (
                 <>
                   <Globe className="w-4 h-4" />
-                  <span>Publish Draft</span>
+                  <span>Publish</span>
                 </>
               )}
             </Button>
