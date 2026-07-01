@@ -365,7 +365,7 @@ class BlueprintQuestionSchema(BaseModel):
             extra=q.extra,
             tooltip=q.tooltip,
             fn=q.fn,
-            pre=q.pre,
+            pre=q.pre or {},
             displayOnly=q.display_only or False,
             hiddenString=extra.get("hiddenString", False),
             requiredDoubleEntry=extra.get("requiredDoubleEntry", False),
