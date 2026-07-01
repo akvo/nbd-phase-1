@@ -323,16 +323,12 @@ export default function Home() {
             });
           });
           if (foundOptions.length > 0) {
-            setIncidentTypeOptions([
-              { value: "", label: t("filters.allTypes") },
-              ...foundOptions,
-            ]);
+            setIncidentTypeOptions(foundOptions);
             return;
           }
         }
         // Fallback static options
         setIncidentTypeOptions([
-          { value: "", label: t("filters.allTypes") },
           { value: "1", label: t("filters.optionWaterColour") },
           { value: "2", label: t("filters.optionSmell") },
           { value: "3", label: t("filters.optionFishKills") },
@@ -344,7 +340,6 @@ export default function Home() {
       .catch((err) => {
         console.error("Error fetching questionnaire options:", err);
         setIncidentTypeOptions([
-          { value: "", label: t("filters.allTypes") },
           { value: "1", label: t("filters.optionWaterColour") },
           { value: "2", label: t("filters.optionSmell") },
           { value: "3", label: t("filters.optionFishKills") },
