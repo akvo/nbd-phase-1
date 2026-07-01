@@ -5,6 +5,61 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.models.form import QuestionType
 from app.services.translation import get_translation
 
+# ─── Language normalisation helpers ─────────────────────────────────────────
+# akvo-react-form-editor builds its locale dropdown from `locale-codes`, which
+# joins windows-locale entries with iso639-codes by exact language name.
+# "Kiswahili" (windows-locale sw/sw-KE) ≠ "Swahili" (iso639-codes), so "sw"
+# has no iso639-1 mapping and is absent from the editor's 121-code locale list.
+# Sending "sw" (or "sw-KE") in the `languages` array crashes the editor's
+# ExistingTranslation component with "findLang is undefined".
+#
+# Rule: normalise to plain 2-letter ISO 639-1 codes; drop unsupported ones.
+
+# Verbose English names → 2-letter ISO 639-1
+_VERBOSE_TO_ISO = {
+    "english": "en",
+    "swahili": "sw",
+    "kiswahili": "sw",
+    "french": "fr",
+    "spanish": "es",
+    "indonesian": "id",
+    "portuguese": "pt",
+    "arabic": "ar",
+    "german": "de",
+}
+
+# Codes confirmed absent from akvo-react-form-editor's localeDropdownValue
+# (121 codes derived from locale-codes 1.x with lodash uniqBy on iso639-1).
+# "sw" fails because windows-locale calls it "Kiswahili" while iso639-codes
+# calls it "Swahili" — the name join produces no iso639-1 entry.
+_EDITOR_UNSUPPORTED = {"sw", "swc"}
+
+
+def _to_editor_lang_code(raw: str) -> Optional[str]:
+    """Return the 2-letter ISO 639-1 code the editor expects, or None."""
+    cleaned = raw.strip().lower()
+    # Map verbose names first
+    if cleaned in _VERBOSE_TO_ISO:
+        cleaned = _VERBOSE_TO_ISO[cleaned]
+    # Strip regional suffix: "en-US" → "en", "sw-KE" → "sw"
+    base = cleaned.split("-")[0]
+    if base in _EDITOR_UNSUPPORTED:
+        return None
+    return base if len(base) >= 2 else None
+
+
+def _normalize_blueprint_languages(langs: List[str]) -> List[str]:
+    """Filter and normalise a language list for editor compatibility."""
+    seen: List[str] = []
+    for lang in langs or []:
+        code = _to_editor_lang_code(str(lang))
+        if code and code not in seen:
+            seen.append(code)
+    return seen or ["en"]
+
+
+# ────────────────────────────────────────────────────────────────────────────
+
 
 class OptionBase(BaseModel):
     label: Optional[str] = None
@@ -453,13 +508,35 @@ class FormBlueprintResponse(BaseModel):
             # Normalize question_groups to question_group
             if "question_groups" in data and "question_group" not in data:
                 data["question_group"] = data.pop("question_groups")
+
+            # Normalize languages to 2-letter ISO 639-1 codes compatible with
+            # akvo-react-form-editor's localeDropdownValue (which uses iso639-1
+            # codes from locale-codes). Regional codes ("en-US") are stripped
+            # to their base ("en"). Codes with no matching entry in the
+            # editor's 121-code locale list (e.g. "sw" — Kiswahili name
+            # mismatch) are dropped to prevent ExistingTranslation crashes.
+            if "languages" in data and data["languages"]:
+                data["languages"] = _normalize_blueprint_languages(
+                    data["languages"]
+                )
+                if "defaultLanguage" in data and data["defaultLanguage"]:
+                    base = _to_editor_lang_code(str(data["defaultLanguage"]))
+                    # Fall back to first valid language
+                    # if default is unsupported
+                    data["defaultLanguage"] = (
+                        base
+                        if base in data["languages"]
+                        else (
+                            data["languages"][0] if data["languages"] else "en"
+                        )
+                    )
         return data
 
     @classmethod
     def from_orm_model(cls, db_form, active_groups):
         langs = db_form.languages or ["en"]
-        # Derive defaultLanguage from the first entry in the languages list
-        default_lang = langs[0] if langs else "en"
+        normalized_langs = _normalize_blueprint_languages(langs)
+        default_lang = normalized_langs[0] if normalized_langs else "en"
         groups = [
             BlueprintQuestionGroupSchema.from_orm_model(g)
             for g in active_groups
@@ -469,7 +546,7 @@ class FormBlueprintResponse(BaseModel):
             name=db_form.name,
             type=db_form.type,
             version=db_form.version,
-            languages=langs,
+            languages=normalized_langs,
             defaultLanguage=default_lang,
             translations=db_form.translations or [],
             question_group=groups,
