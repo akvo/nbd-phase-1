@@ -64,8 +64,9 @@ async def _send_message(phone: str, text: str) -> None:
     }
 
     import asyncio
+    import random
 
-    max_retries = 3
+    max_retries = 5
     base_delay = 1.0  # seconds
 
     for attempt in range(max_retries + 1):
@@ -81,7 +82,17 @@ async def _send_message(phone: str, text: str) -> None:
                     sleep_time = (
                         float(retry_after)
                         if retry_after
-                        else (base_delay * (2**attempt))
+                        else (
+                            (base_delay * (2**attempt))
+                            + random.uniform(0.1, 1.0)
+                        )
+                    )
+                    logger.warning(
+                        "Twilio API rate limited (429). "
+                        "Retrying attempt %d/%d in %.2fs...",
+                        attempt + 1,
+                        max_retries,
+                        sleep_time,
                     )
                     await asyncio.sleep(sleep_time)
                     continue
