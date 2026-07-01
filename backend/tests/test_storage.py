@@ -9,7 +9,7 @@ from tests.conftest import make_auth_headers
 client = TestClient(app)
 
 # Use a temporary test storage directory
-TEST_STORAGE_DIR = "./test_storage_mount"
+TEST_STORAGE_DIR = "/tmp/test_storage_mount"
 
 
 @pytest.fixture(autouse=True)
