@@ -476,3 +476,29 @@ class TestSessionCleanup:
         )
         assert remaining_old == 0
         assert remaining_new == 1
+
+
+def test_extract_message_ignores_caption_on_media():
+    from app.services.whatsapp_service import _extract_message
+
+    payload = {
+        "Body": "My image caption",
+        "NumMedia": "1",
+        "MediaContentType0": "image/jpeg",
+        "MediaUrl0": "https://example.com/media0",
+    }
+    extracted = _extract_message(payload)
+    assert extracted["type"] == "image"
+    assert extracted["text"]["body"] == ""
+
+
+def test_extract_message_keeps_body_on_text_only():
+    from app.services.whatsapp_service import _extract_message
+
+    payload = {
+        "Body": "Hello world",
+        "NumMedia": "0",
+    }
+    extracted = _extract_message(payload)
+    assert extracted["type"] == "text"
+    assert extracted["text"]["body"] == "Hello world"

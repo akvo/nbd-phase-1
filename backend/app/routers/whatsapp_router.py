@@ -83,12 +83,6 @@ async def receive_webhook(
         if request.url.query:
             url += f"?{request.url.query}"
 
-        print(f"[TWILIO DEBUG] URL: {url}", flush=True)
-        print(f"[TWILIO DEBUG] Signature: {signature}", flush=True)
-        print(f"[TWILIO DEBUG] Params: {params}", flush=True)
-        token_prefix = config.auth_token[:4]
-        print(f"[TWILIO DEBUG] Auth Token: {token_prefix}...", flush=True)
-
         if not _verify_signature(url, params, signature, config.auth_token):
             status_code = 403
             raise HTTPException(

@@ -124,7 +124,7 @@ def _extract_message(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         media_url = payload.get("MediaUrl0")
         return {
             "type": msg_type,
-            "text": {"body": body},
+            "text": {"body": ""},
             "mime_type": mime_type,
             "image": {"id": media_url, "mime_type": mime_type},
             "video": {"id": media_url, "mime_type": mime_type},
