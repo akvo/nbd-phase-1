@@ -10,7 +10,7 @@ echo ""
 
 # Find runnable python files under app/scripts and app/seeds
 # Excludes __init__.py and helper files
-files=($(find app/scripts app/seeds -name "*.py" ! -name "__init__.py" ! -name "*helper.py" | sort))
+files=($(find app/scripts app/seeds -name "*.py" ! -name "__init__.py" \( ! -name "*helper.py" -o -name "form_seeder_helper.py" \) | sort))
 
 if [ ${#files[@]} -eq 0 ]; then
   echo "No runnable scripts found."
