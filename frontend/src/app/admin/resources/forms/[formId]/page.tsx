@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
-import { initReactCompat, useDynamicStylesheet } from "@/lib/react-compat";
+import { initReactCompat, useAntdStyleCleanup } from "@/lib/react-compat";
 
 initReactCompat();
 
@@ -32,7 +32,7 @@ const ALLOWED_QUESTION_TYPES = [
 ];
 
 export default function FormEditPage() {
-  useDynamicStylesheet("/akvo-react-form-editor.css");
+  useAntdStyleCleanup();
   const params = useParams();
 
   const router = useRouter();

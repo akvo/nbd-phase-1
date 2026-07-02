@@ -1,3 +1,12 @@
+/* Establish antd as a lower-priority layer than all Tailwind layers.
+ * Must appear BEFORE @import "tailwindcss" so it has the lowest priority.
+ * Layer priority (highest → lowest): unlayered > utilities > components > base > theme > antd
+ */
+@layer antd;
+
+@import "../../public/akvo-react-form.css" layer(antd);
+@import "../../public/akvo-react-form-editor.css" layer(antd);
+
 @import "tailwindcss";
 
 @theme {
@@ -521,16 +530,72 @@
 }
 /* End Akvo React Form Editor styles */
 
-/* Protect app buttons from Ant Design global styles */
-/* These selectors target our Tailwind-styled buttons */
-button:where([class*="rounded-lg"]),
-button:where([class*="transition-colors"]) {
-  font-family: var(--font-sans) !important;
-  box-shadow: none !important;
-  text-shadow: none !important;
+/* Protect all non-form elements from Ant Design/third-party font leaks */
+body,
+body
+  *:not(.arf-container):not(.arf-container *):not(.arfe-container):not(
+    .arfe-container *
+  ):not(.arfe-editor-wrapper):not(.arfe-editor-wrapper *) {
+  font-family:
+    var(--font-sans),
+    var(--font-inter),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif !important;
 }
 
-/* Ensure our styled buttons keep their appearance */
-button:where(.cursor-pointer) {
-  font-family: var(--font-sans) !important;
+/* Explicitly protect global layout elements (header, sidebar, nav links, headings, tables, buttons) */
+header,
+header *,
+aside,
+aside *,
+nav,
+nav *,
+table,
+table *,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.bg-slate-900,
+.bg-slate-900 * {
+  font-family:
+    var(--font-sans),
+    var(--font-inter),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif !important;
+}
+
+/*
+ * Prevent Ant Design's injected `a { color: #1890ff }` (unlayered) from overriding
+ * Tailwind utility color classes (which live in @layer utilities, lower priority).
+ * This uses !important to beat Ant Design even without layer isolation.
+ */
+header a,
+header nav a,
+aside a,
+aside nav a,
+.bg-slate-900 a,
+.admin-tabs-container a {
+  color: inherit !important;
+  text-decoration: inherit !important;
+}
+
+/* Protect app buttons from Ant Design global style resets */
+button:where([class*="rounded-lg"]),
+button:where([class*="transition-all"]),
+button:where([class*="transition-colors"]) {
+  box-shadow: none !important;
+  text-shadow: none !important;
 }

@@ -28,7 +28,10 @@ export default function Sidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 text-slate-200 flex flex-col h-full">
+    <aside
+      className="w-64 bg-slate-900 border-r border-slate-800 text-slate-200 flex flex-col h-full"
+      style={{ fontFamily: "inherit" }}
+    >
       <div className="h-16 flex items-center px-6 border-b border-slate-800">
         <span className="font-bold text-lg text-sky-400">Nile Voice</span>
       </div>

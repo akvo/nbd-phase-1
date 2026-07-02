@@ -6,7 +6,7 @@ import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import L from "leaflet";
 // Dynamically import Webform from akvo-react-form to prevent SSR issues
 import dynamic from "next/dynamic";
-import { initReactCompat, useDynamicStylesheet } from "@/lib/react-compat";
+import { initReactCompat, useAntdStyleCleanup } from "@/lib/react-compat";
 
 initReactCompat(L);
 
@@ -31,7 +31,7 @@ interface NewFormPageProps {
 }
 
 export default function NewFormPage({ params }: NewFormPageProps) {
-  useDynamicStylesheet("/akvo-react-form.css");
+  useAntdStyleCleanup();
   const { formId } = use(params);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

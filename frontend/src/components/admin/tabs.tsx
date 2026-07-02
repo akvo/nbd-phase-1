@@ -21,7 +21,7 @@ export default function Tabs() {
   const { isAdmin } = useAuth();
 
   return (
-    <div className="flex border border-slate-200 rounded-lg p-0.5 bg-slate-100/50 w-fit">
+    <div className="flex border border-slate-200 rounded-lg p-0.5 bg-slate-100/50 w-fit admin-tabs-container">
       {tabItems.map((tab) => {
         const isActive =
           pathname === tab.href || pathname.startsWith(tab.href + "/");

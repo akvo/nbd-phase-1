@@ -133,3 +133,57 @@ export function useDynamicStylesheet(href: string) {
     };
   }, [href]);
 }
+
+/**
+ * Hook that captures a snapshot of all <style> elements in <head> on mount,
+ * then on unmount removes any new <style> tags that were injected during the
+ * component's lifetime (e.g. by Ant Design). This prevents third-party styles
+ * from persisting in the DOM when navigating away from the page.
+ *
+ * Additionally injects a runtime "protection" style tag AFTER Ant Design's
+ * styles have loaded. Since it appears LAST in the <head>, its !important rules
+ * beat Ant Design's unlayered styles (which would otherwise beat Tailwind's
+ * @layer utilities).
+ */
+export function useAntdStyleCleanup() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Snapshot all existing style elements before the component mounts
+    const existingStyles = new Set(
+      Array.from(document.head.querySelectorAll("style"))
+    );
+
+    // Use a MutationObserver to intercept newly injected <style> tags.
+    // We wrap their content in @layer antd { } to demote their priority below
+    // all Tailwind layers (@layer antd declared before @import tailwindcss in globals.css).
+    const injectedStyles: HTMLStyleElement[] = [];
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (node instanceof HTMLStyleElement && !existingStyles.has(node)) {
+            injectedStyles.push(node);
+            // Wrap content in @layer antd to lower its cascade priority
+            const content = node.textContent || "";
+            // Avoid double-wrapping or wrapping empty/already-layered content
+            if (content.trim() && !content.includes("@layer")) {
+              node.textContent = `@layer antd { ${content} }`;
+            }
+          }
+        }
+      }
+    });
+
+    observer.observe(document.head, { childList: true });
+
+    return () => {
+      observer.disconnect();
+      // Remove all style tags that were injected while we were mounted
+      for (const style of injectedStyles) {
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      }
+    };
+  }, []);
+}

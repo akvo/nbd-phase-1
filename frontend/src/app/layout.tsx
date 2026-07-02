@@ -27,8 +27,15 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={inter.variable}>
-      <body style={{ margin: 0, padding: 0 }} className={inter.className}>
+    <html
+      lang={locale}
+      className={inter.variable}
+      style={{ fontFamily: inter.style?.fontFamily }}
+    >
+      <body
+        style={{ margin: 0, padding: 0, fontFamily: inter.style?.fontFamily }}
+        className={inter.className}
+      >
         <NextIntlClientProvider messages={messages}>
           <DomainProvider>
             <AuthProvider>{children}</AuthProvider>
