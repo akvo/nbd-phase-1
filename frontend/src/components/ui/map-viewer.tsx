@@ -40,12 +40,19 @@ interface MapViewerProps {
   selectedSubCounty?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSelectSubCounty?: (feature: any) => void;
+  ndviTileUrl?: string;
+  waterTileUrl?: string;
+  ndviAttribution?: string;
+  waterAttribution?: string;
+  ndviLegend?: Array<{ value: number; color: string; label: string }>;
+  waterLegend?: Array<{ value: number; color: string; label: string }>;
 }
 
 function MapController({
   basinGeometry,
   wetlandGeometry,
   choroplethLayers,
+  onOverlayChange,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   basinGeometry: any;
@@ -53,8 +60,26 @@ function MapController({
   wetlandGeometry: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   choroplethLayers: any;
+  onOverlayChange: (layerName: string | null) => void;
 }) {
   const map = useMap();
+
+  useEffect(() => {
+    const handleOverlayAdd = (e: any) => {
+      onOverlayChange(e.name);
+    };
+    const handleOverlayRemove = () => {
+      onOverlayChange(null);
+    };
+
+    map.on("overlayadd", handleOverlayAdd);
+    map.on("overlayremove", handleOverlayRemove);
+
+    return () => {
+      map.off("overlayadd", handleOverlayAdd);
+      map.off("overlayremove", handleOverlayRemove);
+    };
+  }, [map, onOverlayChange]);
 
   useEffect(() => {
     const targetGeom =
@@ -95,8 +120,15 @@ export default function MapViewer({
   choroplethLayers = [],
   selectedSubCounty,
   onSelectSubCounty,
+  ndviTileUrl,
+  waterTileUrl,
+  ndviAttribution,
+  waterAttribution,
+  ndviLegend,
+  waterLegend,
 }: MapViewerProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const [activeOverlay, setActiveOverlay] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -225,12 +257,33 @@ export default function MapViewer({
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
           </LayersControl.BaseLayer>
+
+          {ndviTileUrl && (
+            <LayersControl.Overlay name="NDVI Vegetation Index">
+              <TileLayer
+                attribution={ndviAttribution || "Sentinel-2 / GEE"}
+                url={ndviTileUrl}
+                opacity={0.7}
+              />
+            </LayersControl.Overlay>
+          )}
+
+          {waterTileUrl && (
+            <LayersControl.Overlay name="Water Surface Extent">
+              <TileLayer
+                attribution={waterAttribution || "Sentinel-1 / GEE"}
+                url={waterTileUrl}
+                opacity={0.7}
+              />
+            </LayersControl.Overlay>
+          )}
         </LayersControl>
         <ZoomControl position="bottomright" />
         <MapController
           basinGeometry={basinGeometry}
           wetlandGeometry={wetlandGeometry}
           choroplethLayers={choroplethLayers}
+          onOverlayChange={setActiveOverlay}
         />
 
         {choroplethLayers && choroplethLayers.length > 0 && (
@@ -345,6 +398,40 @@ export default function MapViewer({
           );
         })}
       </MapContainer>
+
+      {activeOverlay && (
+        <div className="absolute bottom-5 left-5 bg-white/95 backdrop-blur-sm p-4 rounded-xl border border-slate-200 shadow-lg z-[1000] w-64 max-w-sm">
+          <h4 className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider">
+            {activeOverlay}
+          </h4>
+          <div className="flex flex-col gap-1.5">
+            <div
+              className="h-3 w-full rounded-full bg-gradient-to-r"
+              style={{
+                backgroundImage:
+                  activeOverlay === "NDVI Vegetation Index"
+                    ? "linear-gradient(to right, #fef08a, #a3e635, #166534)"
+                    : "linear-gradient(to right, #f1f5f9, #1d4ed8)",
+              }}
+            />
+            <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+              {activeOverlay === "NDVI Vegetation Index" && ndviLegend
+                ? ndviLegend.map((item, idx) => (
+                    <span key={idx} style={{ color: item.color }}>
+                      {item.label} ({item.value})
+                    </span>
+                  ))
+                : activeOverlay === "Water Surface Extent" && waterLegend
+                  ? waterLegend.map((item, idx) => (
+                      <span key={idx} style={{ color: item.color }}>
+                        {item.label} ({item.value})
+                      </span>
+                    ))
+                  : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

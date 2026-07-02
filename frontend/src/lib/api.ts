@@ -142,3 +142,26 @@ export const getForm = async (
   const response = await apiClient.get(`/forms/${formId}`, { params });
   return response.data;
 };
+
+export interface RasterLegendItem {
+  value: number;
+  color: string;
+  label: string;
+}
+
+export interface RasterLayerDetail {
+  name: string;
+  url: string;
+  attribution: string;
+  legend: RasterLegendItem[];
+}
+
+export interface RasterLayersResponse {
+  ndvi: RasterLayerDetail;
+  water_extent: RasterLayerDetail;
+}
+
+export const getRasterLayers = async (): Promise<RasterLayersResponse> => {
+  const response = await apiClient.get("/raster-layers");
+  return response.data;
+};
