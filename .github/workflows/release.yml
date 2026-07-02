@@ -1,0 +1,168 @@
+name: Deploy to Production Cluster
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: deploy-to-production
+  cancel-in-progress: false
+
+jobs:
+  run-tests:
+    name: Run Tests
+    uses: ./.github/workflows/test-reusable.yml
+    secrets: inherit
+
+  build-push:
+    name: Build and Push to Production Registry
+    runs-on: ubuntu-latest
+    needs: run-tests
+    environment:
+      name: Production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          path: src
+
+      - name: Checkout Akvo composite actions
+        uses: actions/checkout@v5
+        with:
+          repository: akvo/composite-actions
+          path: composite-actions
+          ref: 0.0.10
+
+      - name: Node Operations
+        working-directory: src
+        run: |
+          docker run --rm \
+            --volume "$(pwd)/frontend:/app" \
+            --workdir "/app" \
+            --entrypoint /bin/sh \
+            -e NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }} \
+            akvo/akvo-node-24-alpine:20250923.073213.57d80cd \
+            -c "yarn install --no-progress --frozen-lockfile && yarn build"
+
+      - name: Docker Build Nginx
+        uses: ./composite-actions/.github/actions/docker-build
+        with:
+          app-name: "nbd"
+          service-name: "nginx"
+          dockerfile-location: "nginx"
+          cluster-name: "production"
+
+      - name: Docker Build Frontend
+        uses: ./composite-actions/.github/actions/docker-build
+        with:
+          app-name: "nbd"
+          service-name: "frontend"
+          dockerfile-location: "frontend"
+          cluster-name: "production"
+
+      - name: Docker Build Backend
+        uses: ./composite-actions/.github/actions/docker-build
+        with:
+          app-name: "nbd"
+          service-name: "backend"
+          dockerfile-location: "backend"
+          cluster-name: "production"
+
+      - name: Docker Build Worker
+        uses: ./composite-actions/.github/actions/docker-build
+        with:
+          app-name: "nbd"
+          service-name: "worker"
+          dockerfile-location: "backend"
+          cluster-name: "production"
+
+      - name: Docker Push Nginx
+        uses: ./composite-actions/.github/actions/docker-push
+        with:
+          app-name: "nbd"
+          service-name: "nginx"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_REGISTRY }}
+          cluster-name: "production"
+
+      - name: Docker Push Frontend
+        uses: ./composite-actions/.github/actions/docker-push
+        with:
+          app-name: "nbd"
+          service-name: "frontend"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_REGISTRY }}
+          cluster-name: "production"
+
+      - name: Docker Push Backend
+        uses: ./composite-actions/.github/actions/docker-push
+        with:
+          app-name: "nbd"
+          service-name: "backend"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_REGISTRY }}
+          cluster-name: "production"
+
+      - name: Docker Push Worker
+        uses: ./composite-actions/.github/actions/docker-push
+        with:
+          app-name: "nbd"
+          service-name: "worker"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_REGISTRY }}
+          cluster-name: "production"
+
+  rollout:
+    name: Rollout to Production Server
+    needs: build-push
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          path: src
+
+      - name: Checkout Akvo composite actions
+        uses: actions/checkout@v5
+        with:
+          repository: akvo/composite-actions
+          path: composite-actions
+          ref: 0.0.10
+
+      - name: Rollout Nginx
+        uses: ./composite-actions/.github/actions/k8s-rollout
+        with:
+          app-name: "nbd"
+          deployment-name: "nginx-deployment"
+          container-name: "nginx"
+          cluster-name: "production"
+          namespace-name: "nbd-namespace"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_K8S }}
+
+      - name: Rollout Frontend
+        uses: ./composite-actions/.github/actions/k8s-rollout
+        with:
+          app-name: "nbd"
+          deployment-name: "frontend-deployment"
+          container-name: "frontend"
+          cluster-name: "production"
+          namespace-name: "nbd-namespace"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_K8S }}
+
+      - name: Rollout Backend
+        uses: ./composite-actions/.github/actions/k8s-rollout
+        with:
+          app-name: "nbd"
+          deployment-name: "backend-deployment"
+          container-name: "backend"
+          cluster-name: "production"
+          namespace-name: "nbd-namespace"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_K8S }}
+
+      - name: Rollout Worker
+        uses: ./composite-actions/.github/actions/k8s-rollout
+        with:
+          app-name: "nbd"
+          deployment-name: "worker-deployment"
+          container-name: "worker"
+          cluster-name: "production"
+          namespace-name: "nbd-namespace"
+          gcloud-sa: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_K8S }}
