@@ -117,6 +117,19 @@ def update_form(
         payload_group_ids = set()
         groups_data = payload.question_group or []
 
+        # Get all existing active questions for the form to track
+        # and update across groups
+        existing_questions = (
+            db.query(Question)
+            .filter(
+                Question.form_id == form_id,
+                Question.deleted_at.is_(None),
+            )
+            .all()
+        )
+        existing_q_ids = {q.id for q in existing_questions}
+        payload_q_ids = set()
+
         for g_order, g_data in enumerate(groups_data):
             questions_data = g_data.question or []
 
@@ -148,18 +161,6 @@ def update_form(
                 db.add(db_group)
                 db.flush()  # Get the ID
 
-            # Sync questions within this group
-            existing_questions = (
-                db.query(Question)
-                .filter(
-                    Question.question_group_id == db_group.id,
-                    Question.deleted_at.is_(None),
-                )
-                .all()
-            )
-            existing_q_ids = {q.id for q in existing_questions}
-            payload_q_ids = set()
-
             for q_order, q_data in enumerate(questions_data):
                 options_data = q_data.option or []
                 # Handle string option (cascade reference)
@@ -178,20 +179,34 @@ def update_form(
                 if q_data.allow_other_text:
                     extra["allowOtherText"] = q_data.allow_other_text
 
-                if q_data.id and q_data.id in existing_q_ids:
-                    # Update existing question
-                    payload_q_ids.add(q_data.id)
+                db_q = None
+                if q_data.id:
                     db_q = (
                         db.query(Question)
                         .filter(Question.id == q_data.id)
                         .first()
                     )
+                if not db_q and q_data.name:
+                    # Find by name on this form (can be active or soft-deleted)
+                    db_q = (
+                        db.query(Question)
+                        .filter(
+                            Question.form_id == form_id,
+                            Question.name == q_data.name,
+                        )
+                        .first()
+                    )
+
+                if db_q:
+                    # Update existing question
+                    payload_q_ids.add(db_q.id)
+                    db_q.question_group_id = db_group.id
                     db_q.name = q_data.name
                     db_q.label = q_data.label
                     db_q.short_label = q_data.short_label
                     db_q.type = q_data.type
                     db_q.required = q_data.required
-                    db_q.order = q_data.order if q_data.order else q_order
+                    db_q.order = q_order  # Respect current order in group
                     db_q.meta = q_data.meta
                     db_q.rule = q_data.rule
                     db_q.dependency = q_data.dependency
@@ -203,6 +218,7 @@ def update_form(
                     db_q.pre = q_data.pre
                     db_q.display_only = q_data.display_only
                     db_q.translations = q_data.translations
+                    db_q.deleted_at = None  # Restore if soft-deleted
                 else:
                     # Create new question
                     db_q = Question(
@@ -228,6 +244,7 @@ def update_form(
                     )
                     db.add(db_q)
                     db.flush()
+                    payload_q_ids.add(db_q.id)
 
                 # Sync options within this question
                 existing_options = (
@@ -286,12 +303,12 @@ def update_form(
                 for opt_id in existing_opt_ids - payload_opt_ids:
                     db.query(Option).filter(Option.id == opt_id).delete()
 
-            # Soft-delete removed questions
-            for q_id in existing_q_ids - payload_q_ids:
-                db.query(Question).filter(Question.id == q_id).update(
-                    {Question.deleted_at: datetime.utcnow()},
-                    synchronize_session="fetch",
-                )
+        # Soft-delete removed questions (globally across the form)
+        for q_id in existing_q_ids - payload_q_ids:
+            db.query(Question).filter(Question.id == q_id).update(
+                {Question.deleted_at: datetime.utcnow()},
+                synchronize_session="fetch",
+            )
 
         # Soft-delete removed groups
         for g_id in existing_group_ids - payload_group_ids:
