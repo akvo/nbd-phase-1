@@ -291,7 +291,7 @@ if __name__ == "__main__":
     scheduler.add_job(cleanup_whatsapp_sessions, "cron", hour="*")
 
     # Schedule webhook watchdog check (every minute)
-    scheduler.add_job(monitor_webhook_endpoints, "cron", minute="*")
+    # scheduler.add_job(monitor_webhook_endpoints, "cron", minute="*")
 
     logger.info("Scheduler configured. Starting loop...")
     try:
