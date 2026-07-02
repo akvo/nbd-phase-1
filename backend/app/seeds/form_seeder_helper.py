@@ -45,7 +45,37 @@ def seed_forms(db: Session):
         if form_id:
             form = db.query(Form).filter(Form.id == form_id).first()
         if not form:
-            form = db.query(Form).filter(Form.name == form_name).first()
+            form = db.query(Form).filter(Form.name.ilike(form_name)).first()
+
+        if form:
+            import sys
+
+            should_replace = False
+            # Check if running in pytest/tests to always overwrite
+            is_testing = (
+                "pytest" in sys.modules or os.getenv("TESTING") == "true"
+            )
+            if is_testing:
+                should_replace = True
+            elif sys.stdin.isatty():
+                try:
+                    prompt_msg = (
+                        f"\nWarning: Form '{form_name}' (ID: {form.id}) "
+                        "already exists in the database. Seeding will "
+                        "OVERWRITE your edits. Do you want to replace it? (y/N): "  # noqa
+                    )
+                    user_input = input(prompt_msg)
+                    if user_input.lower() in ["y", "yes"]:
+                        should_replace = True
+                except Exception:
+                    pass
+
+            if not should_replace:
+                logger.info(
+                    "Form '%s' already exists. Skipping to preserve edits.",
+                    form_name,
+                )
+                continue
 
         languages = form_data.get("languages", ["en"])
         translations = form_data.get("translations", [])
@@ -104,7 +134,7 @@ def seed_forms(db: Session):
                     db.query(QuestionGroup)
                     .filter(
                         QuestionGroup.form_id == form.id,
-                        QuestionGroup.name == group_name,
+                        QuestionGroup.name.ilike(group_name),
                         QuestionGroup.deleted_at.is_(None),
                     )
                     .first()
@@ -188,7 +218,7 @@ def seed_forms(db: Session):
                         db.query(Question)
                         .filter(
                             Question.form_id == form.id,
-                            Question.name == q_id,
+                            Question.name.ilike(q_id),
                             Question.deleted_at.is_(None),
                         )
                         .first()

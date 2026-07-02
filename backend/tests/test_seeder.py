@@ -6,7 +6,7 @@ from app.models.form import (
     Question,
     Option,
 )
-from app.seeds.seeder import seed_forms
+from app.seeds.form_seeder_helper import seed_forms
 
 
 def test_seed_forms_success(db_session: Session):

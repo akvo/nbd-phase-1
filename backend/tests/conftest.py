@@ -90,3 +90,8 @@ def make_auth_headers(
 def auth_headers(db_session):
     """Pytest fixture that returns valid Admin auth headers."""
     return make_auth_headers(db_session)
+
+
+def pytest_configure(config):
+    """Set the TESTING environment variable before running tests."""
+    os.environ["TESTING"] = "true"

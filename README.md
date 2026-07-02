@@ -20,6 +20,7 @@ The application is structured as a multi-container stack orchestrated via Docker
 ## 📍 Spatial Infrastructure Hierarchy
 
 All environmental data, sampling records, and pollution reports collected by the platform are anchored to exactly one level of the geographic hierarchy:
+
 1. **Basin** (`basins` table): Watershed boundaries (MultiPolygon).
 2. **Wetland** (`wetlands` table): Wetland zones belonging to a Basin (Polygon).
 3. **Site** (`sites` table): Fixed sampling points belonging to a Wetland (Point).
@@ -120,10 +121,22 @@ You can run these scripts inside the backend container for setup and maintenance
   ./dc.sh exec backend python app/scripts/sync_kobo.py
   ```
 
-- **Database Reference Seeder**: Seeds spatial reference basins/sub-counties and form blueprints.
+- **Database Reference Seeder (Spatial)**: Seeds spatial reference basins and sub-counties.
 
   ```bash
-  ./dc.sh exec backend python app/seeds/seeder.py
+  ./dc.sh exec backend python -m app.seeds.seed_spatial
+  ```
+
+- **Database Reference Seeder (Form Blueprints)**: Seeds form blueprints (warning: prompts before overwriting any custom webform edits).
+
+  ```bash
+  ./dc.sh exec backend python -m app.seeds.form_seeder_helper
+  ```
+
+- **Interactive Script Runner**: Run any backend scripts or seeders interactively.
+
+  ```bash
+  ./dc.sh exec backend ./run_script.sh
   ```
 
 ---
@@ -133,7 +146,9 @@ You can run these scripts inside the backend container for setup and maintenance
 When modifying, extending, or creating form blueprints, specific rules must be followed to maintain compatibility with the platform's automated moderation and scoring engine pipelines:
 
 ### 1. Form Type Assignments
+
 The database `Form.type` field determines which ingestion pipeline or scoring rule applies:
+
 - **`1` (`CITIZEN_REPORTER`)**: Citizen pollution reports (USSD/WhatsApp). Mapped visually but not mathematically scored.
 - **`2` (`CITIZEN_SCIENTIST`)**: **[Triggers Scoring Engine]** Monthly structured citizen wetland sampling records containing physico-chemical parameters.
 - **`3` (`INDIGENOUS_KNOWLEDGE`)**: Community Focus Group Discussions (FGD). Aggregated into the Indigenous Knowledge (IK) Signal for soft fuzzy-logic adjustments.
@@ -141,7 +156,9 @@ The database `Form.type` field determines which ingestion pipeline or scoring ru
 - **`5` (`EXTERNAL_SATELLITE`)**: Google Earth Engine climate and Sentinel overlays.
 
 ### 2. Core Mapped Fields for Type 2 (Scoring)
+
 The backend status moderation logic (`PATCH /api/v1/submissions/{id}/status`) and WQI scoring engine rely on **exact question identifier names** (lowercased) in the form JSON structure:
+
 - **`ph`**: Triggers pH quality ratings ($q_{\text{pH}}$) and is required (non-null).
 - **`do`**: Triggers Dissolved Oxygen quality ratings ($q_{\text{DO}}$) and is required (non-null).
 - **`temp`**: Triggers Water Temperature logging and is required (non-null).
@@ -149,6 +166,7 @@ The backend status moderation logic (`PATCH /api/v1/submissions/{id}/status`) an
 - **`water_level`**: Triggers water level mapping for the Catchment Group Score (looks for option codes `"HIGH"`, `"MEDIUM"`, `"LOW"`; defaults to `"MEDIUM"` if omitted).
 
 ### 3. Modifying & Extending Blueprints
+
 - **Blueprint Renaming**: You can safely change display labels or question orders in form blueprints. However, if you modify the machine-name identifiers of the core questions (`ph`, `temp`, `do`, `invasive_percent`, `water_level`), you **must** update the string matches inside [submission_router.py](backend/app/routers/submission_router.py) to prevent `HTTP 400` validation failures.
 - **Adding New Parameters**: Ingesting new structured water quality parameters (e.g. salinity) will require an Alembic database migration to add target columns to the `sampling_records` table, updating the router extraction logic, and adjusting the WQI weights ($W_n$) in the scoring service.
 
@@ -158,4 +176,3 @@ The backend status moderation logic (`PATCH /api/v1/submissions/{id}/status`) an
 
 - The canonical source of truth for the Solution Design Document is located in [final-docs/Final SDD.pdf](final-docs/Final%20SDD.pdf) and [design-docs/solution-design-technical.md](design-docs/solution-design-technical.md).
 - Visual system architecture diagrams are stored under [final-docs/diagrams/](final-docs/diagrams/).
-

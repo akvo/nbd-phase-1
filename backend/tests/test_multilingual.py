@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.main import app
 from app.models.form import Form, QuestionGroup, Question, Option
 from app.services.translation import get_translation
-from app.seeds.seeder import seed_forms
+from app.seeds.form_seeder_helper import seed_forms
 from app.seeds.spatial_seeder_helper import seed_spatial
 
 client = TestClient(app)

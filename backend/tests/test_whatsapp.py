@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.main import app
 from app.models.whatsapp_session import WhatsAppSession
-from app.seeds.seeder import seed_forms
+from app.seeds.form_seeder_helper import seed_forms
 from app.seeds.spatial_seeder_helper import seed_spatial
 
 client = TestClient(app)

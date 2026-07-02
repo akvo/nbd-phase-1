@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from app.main import app
-from app.seeds.seeder import seed_forms
+from app.seeds.form_seeder_helper import seed_forms
 from app.seeds.spatial_seeder_helper import seed_spatial
 from app.models.submission import Datapoint, Answer
 from app.models.form import Question
