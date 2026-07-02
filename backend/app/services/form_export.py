@@ -221,18 +221,22 @@ class FormExportService:
                         )
                         if cascade_level:
                             filter_val = f"list_name='{cascade_level}'"
-                elif q_type == "integer":
-                    xls_type = "integer"
-                elif q_type == "decimal" or q_type == "number":
-                    xls_type = "decimal"
-                elif q_type == "date":
+                elif q_type in ("integer", QuestionType.number.value):
+                    xls_type = "integer" if q_type == "integer" else "decimal"
+                elif q_type == QuestionType.text.value:
+                    xls_type = "text"
+                elif q_type == QuestionType.date.value:
                     xls_type = "date"
-                elif q_type == "image" or q_type == "photo":
+                elif q_type in (QuestionType.image.value, "photo"):
                     xls_type = "image"
-                elif q_type == "geopoint" or q_type == "gps":
+                elif q_type in (QuestionType.geo.value, "geopoint", "gps"):
                     xls_type = "geopoint"
-                elif q_type in ("select_one", "select_multiple", "option"):
-
+                elif q_type in (
+                    QuestionType.option.value,
+                    QuestionType.multiple_option.value,
+                    "select_one",
+                    "select_multiple",
+                ):
                     # Check if it uses external file for cascade
                     q_extra = q.get("extra") or {}
                     if q_extra.get("cascade") or "cascade" in q_name.lower():
@@ -244,7 +248,11 @@ class FormExportService:
                     else:
                         prefix_val = (
                             "select_multiple"
-                            if q_type == "select_multiple"
+                            if q_type
+                            in (
+                                QuestionType.multiple_option.value,
+                                "select_multiple",
+                            )
                             else "select_one"
                         )
                         xls_type = f"{prefix_val} option_{q_name}"
@@ -268,7 +276,13 @@ class FormExportService:
 
                 # Populate choices if multiple choice and not external cascade
                 if (
-                    q_type in ("select_one", "select_multiple", "option")
+                    q_type
+                    in (
+                        QuestionType.option.value,
+                        QuestionType.multiple_option.value,
+                        "select_one",
+                        "select_multiple",
+                    )
                     and not is_cascade
                 ):
                     options = q.get("option") or []
