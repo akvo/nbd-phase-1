@@ -16,6 +16,7 @@
 FR-001, FR-002, FR-003, FR-004, FR-005.
 
 **Out of Scope for this LLD**:
+
 - Storing dynamic per-date tiles in PostgreSQL.
 - Real-time on-demand token generation with Google Earth Engine (MVP will use pre-cached or mock tiles).
 
@@ -48,11 +49,11 @@ classDiagram
 
 **Component Responsibilities**:
 
-| Component | Responsibility | SOLID Principle |
-| :--- | :--- | :--- |
-| `PublicRouter` | Serves mock/pre-rendered tile layer templates and legends | SRP — Endpoint concerns only |
-| `ApiLib` | Axios wrapper querying backend and returning typed responses | SRP |
-| `MapViewer` | Leaflet container rendering TileLayers within `<LayersControl>` | OCP — Open to new overlays |
+| Component      | Responsibility                                                  | SOLID Principle              |
+| :------------- | :-------------------------------------------------------------- | :--------------------------- |
+| `PublicRouter` | Serves mock/pre-rendered tile layer templates and legends       | SRP — Endpoint concerns only |
+| `ApiLib`       | Axios wrapper querying backend and returning typed responses    | SRP                          |
+| `MapViewer`    | Leaflet container rendering TileLayers within `<LayersControl>` | OCP — Open to new overlays   |
 
 ---
 
@@ -93,6 +94,7 @@ sequenceDiagram
 | `Content-Type` | Yes | `application/json` |
 
 **Success Response** `200 OK`:
+
 ```json
 {
   "ndvi": {
@@ -100,9 +102,9 @@ sequenceDiagram
     "url": "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
     "attribution": "Google Earth Engine / Sentinel-2",
     "legend": [
-      {"value": -0.1, "color": "#fef08a", "label": "Bare Soil"},
-      {"value": 0.3, "color": "#a3e635", "label": "Sparse"},
-      {"value": 0.9, "color": "#166534", "label": "Dense Papyrus"}
+      { "value": -0.1, "color": "#fef08a", "label": "Bare Soil" },
+      { "value": 0.3, "color": "#a3e635", "label": "Sparse" },
+      { "value": 0.9, "color": "#166534", "label": "Dense Papyrus" }
     ]
   },
   "water_extent": {
@@ -110,8 +112,8 @@ sequenceDiagram
     "url": "https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
     "attribution": "Google Earth Engine / Sentinel-1",
     "legend": [
-      {"value": 0.0, "color": "#f1f5f9", "label": "Dry Land"},
-      {"value": 1.0, "color": "#1d4ed8", "label": "Open Water"}
+      { "value": 0.0, "color": "#f1f5f9", "label": "Dry Land" },
+      { "value": 1.0, "color": "#1d4ed8", "label": "Open Water" }
     ]
   }
 }
@@ -131,6 +133,7 @@ No database migrations are needed for the MVP. Configurations and mock tile temp
 
 In React-Leaflet, overlays must reside inside `<LayersControl>`.
 To prevent the raster overlay from blocking marker clicks or vector outline styling:
+
 1. The raster overlays are rendered as `<LayersControl.Overlay>` components.
 2. The `<TileLayer>` inside each overlay must be set to `interactive={false}`.
 3. The legend display state is bound to Leaflet overlay change events:
@@ -147,10 +150,10 @@ To prevent the raster overlay from blocking marker clicks or vector outline styl
 
 ## 8. Error Handling & Edge Cases
 
-| Scenario | Detection | Response | Fallback |
-| :--- | :--- | :--- | :--- |
-| API call fails | HTTP 500 or network error | Log to console, do not crash | Fallback to empty configs (no overlays option shown) |
-| Tile loading fails | Leaflet `tileerror` event | Leaflet displays broken tile indicator | Fail silently, keep map pan operational |
+| Scenario           | Detection                 | Response                               | Fallback                                             |
+| :----------------- | :------------------------ | :------------------------------------- | :--------------------------------------------------- |
+| API call fails     | HTTP 500 or network error | Log to console, do not crash           | Fallback to empty configs (no overlays option shown) |
+| Tile loading fails | Leaflet `tileerror` event | Leaflet displays broken tile indicator | Fail silently, keep map pan operational              |
 
 ---
 
@@ -158,6 +161,33 @@ To prevent the raster overlay from blocking marker clicks or vector outline styl
 
 - **Caching**: Mock URLs are static and easily cacheable at the gateway/browser layer.
 - **Accessibility**: Layers control is Leaflet's standard component, satisfying keyboard navigation out of the box.
+
+---
+
+## 10. GEE Live Integration Roadmap (Future Phase)
+
+When transitioning from mock layers to a live Google Earth Engine (GEE) connection:
+
+1. **Credentials & Secrets**:
+   - Store GEE service account email (`EE_SERVICE_ACCOUNT`) and private key JSON string (`EE_PRIVATE_KEY_JSON`) in the `.env` file and GCP Secret Manager.
+   - Do not commit any credential files directly to Git.
+
+2. **Backend Library**:
+   - Install `earthengine-api` in `backend/` and initialize it during server startup:
+     ```python
+     import ee
+     credentials = ee.ServiceAccountCredentials(settings.EE_SERVICE_ACCOUNT, settings.EE_PRIVATE_KEY_JSON)
+     ee.Initialize(credentials)
+     ```
+
+3. **API Logic Swap**:
+   - Refactor `GET /api/v1/raster-layers` in `public_router.py` to calculate index layers dynamically (NDVI from Sentinel-2 or Water Extent from Sentinel-1 image collections filtered by the current month).
+   - Use `getMapId()` to fetch GEE's temporary tile URL templates:
+     ```python
+     map_info = ndvi_image.getMapId({'min': -0.1, 'max': 0.9, 'palette': ['yellow', 'green']})
+     tile_url = map_info['tile_fetcher'].url_format
+     ```
+   - Return this dynamic `tile_url` template in the JSON response payload. The frontend `<TileLayer>` will dynamically fetch the new tiles without needing code adjustments.
 
 ---
 
