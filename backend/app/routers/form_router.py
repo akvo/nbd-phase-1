@@ -187,13 +187,14 @@ def update_form(
                         .first()
                     )
                 if not db_q and q_data.name:
-                    # Find by name on this form (can be active or soft-deleted)
+                    # Find by name on this form prioritizing active questions
                     db_q = (
                         db.query(Question)
                         .filter(
                             Question.form_id == form_id,
                             Question.name == q_data.name,
                         )
+                        .order_by(Question.deleted_at.asc().nullsfirst())
                         .first()
                     )
 
@@ -219,6 +220,7 @@ def update_form(
                     db_q.display_only = q_data.display_only
                     db_q.translations = q_data.translations
                     db_q.deleted_at = None  # Restore if soft-deleted
+                    db.flush()
                 else:
                     # Create new question
                     db_q = Question(
@@ -302,6 +304,10 @@ def update_form(
                 # Delete removed options
                 for opt_id in existing_opt_ids - payload_opt_ids:
                     db.query(Option).filter(Option.id == opt_id).delete()
+
+        # Flush all updates (including group changes) to DB
+        # before running bulk soft-deletes
+        db.flush()
 
         # Soft-delete removed questions (globally across the form)
         for q_id in existing_q_ids - payload_q_ids:
