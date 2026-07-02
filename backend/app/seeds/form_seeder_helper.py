@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.form import (
@@ -27,12 +28,10 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
         if f.endswith(".json") and f.startswith("form_")
     ]
     # Exclude form seeds with _vX suffix (e.g., _v2.json) by default
-    # or during testing to avoid breaking tests.
+    # to avoid breaking general test cases.
     import re
-    import sys
 
-    is_testing = "pytest" in sys.modules or os.getenv("TESTING") == "true"
-    if not filename_filter or is_testing:
+    if not filename_filter:
         json_files = [
             f for f in json_files if not re.search(r"_v\d+\.json$", f)
         ]
@@ -113,6 +112,7 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                 form_type,
             )
         else:
+            form.name = form_name
             form.translations = translations
             form.languages = languages
             form.type = form_type
@@ -123,6 +123,9 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                 form.id,
                 form_type,
             )
+        processed_group_ids = []
+        processed_question_ids = []
+
         # 2. Iterate and Upsert Question Groups
         groups = form_data.get("question_group", [])
         for idx, group_data in enumerate(groups, start=1):
@@ -132,27 +135,16 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             repeat_text = group_data.get("repeat_text")
             g_translations = group_data.get("translations", [])
 
-            g_id = group_data.get("id")
-            q_group = None
-            if g_id:
-                q_group = (
-                    db.query(QuestionGroup)
-                    .filter(
-                        QuestionGroup.id == g_id,
-                        QuestionGroup.form_id == form.id,
-                    )
-                    .first()
+            # Lookup group by form_id and group_name slug (case insensitive)
+            q_group = (
+                db.query(QuestionGroup)
+                .filter(
+                    QuestionGroup.form_id == form.id,
+                    QuestionGroup.name.ilike(group_name),
+                    QuestionGroup.deleted_at.is_(None),
                 )
-            if not q_group:
-                q_group = (
-                    db.query(QuestionGroup)
-                    .filter(
-                        QuestionGroup.form_id == form.id,
-                        QuestionGroup.name.ilike(group_name),
-                        QuestionGroup.deleted_at.is_(None),
-                    )
-                    .first()
-                )
+                .first()
+            )
 
             if not q_group:
                 q_group = QuestionGroup(
@@ -176,13 +168,14 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                 q_group.repeatable = repeatable
                 q_group.repeat_text = repeat_text
                 q_group.translations = g_translations
-                q_group.deleted_at = None
                 db.flush()
                 logger.info(
                     "  Updated/Verified QuestionGroup: %s (ID: %s)",
                     group_name,
                     q_group.id,
                 )
+
+            processed_group_ids.append(q_group.id)
 
             # 3. Iterate and Upsert Questions
             questions = group_data.get("question", [])
@@ -202,14 +195,14 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     # New schema style
                     q_name = q_data.get("name")
                     q_label = q_data.get("label") or q_name
-                    db_pk = q_pk if isinstance(q_pk, int) else None
                 else:
                     # Old legacy schema style
                     q_name = str(
                         q_pk
                     )  # "id" contains the string slug (e.g. "incident_type")
-                    q_label = q_data.get("name") or q_name
-                    db_pk = None
+                    q_label = (
+                        q_data.get("label") or q_data.get("name") or q_name
+                    )
 
                 # Rule extraction
                 rule = q_data.get("rule", {})
@@ -228,53 +221,18 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     if "comment" in q_data and "comment" not in api_config:
                         api_config["comment"] = q_data.get("comment")
 
-                # Lookup question
+                # Lookup question by form_id and name slug (case-insensitive)
                 q = None
-
-                if db_pk is not None:
-                    q = (
-                        db.query(Question)
-                        .filter(
-                            Question.id == db_pk,
-                        )
-                        .first()
-                    )
-                if not q and q_name:
-                    q = (
-                        db.query(Question)
-                        .filter(
-                            Question.form_id == form.id,
-                            Question.name.ilike(q_name),
-                            Question.deleted_at.is_(None),
-                        )
-                        .first()
-                    )
-
-                # Prevent unique constraint violations (form_id, name)
-                # by deleting any conflicting question with the same name
                 if q_name:
-                    conflict_q = (
+                    q = (
                         db.query(Question)
                         .filter(
                             Question.form_id == form.id,
                             Question.name.ilike(q_name),
-                            Question.id != (q.id if q else -1),
                             Question.deleted_at.is_(None),
                         )
                         .first()
                     )
-                    if conflict_q:
-                        # Safe approach:
-                        # Rename name slug to avoid unique violation,
-                        # preserve existing answers, and soft-delete the
-                        # duplicate question record.
-                        from datetime import datetime
-
-                        conflict_q.name = (
-                            f"{conflict_q.name}_archived_{conflict_q.id}"
-                        )
-                        conflict_q.deleted_at = datetime.utcnow()
-                        db.flush()
 
                 if not q:
                     q = Question(
@@ -290,15 +248,13 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                         api=api_config,
                         extra=q_data.get("extra"),
                     )
-                    # Assign database PK if it's explicitly an integer
-                    if db_pk is not None:
-                        q.id = db_pk
                     db.add(q)
                     db.flush()
                     logger.info(
                         "    Created Question: %s (ID: %s)", q_name, q.id
                     )
                 else:
+                    q.question_group_id = q_group.id
                     q.name = q_name
                     q.label = q_label
                     q.order = q_order
@@ -313,6 +269,8 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     logger.info(
                         "    Updated Question: %s (ID: %s)", q_name, q.id
                     )
+
+                processed_question_ids.append(q.id)
 
                 # 4. Recreate Options Freshly to avoid
                 # unique/duplicate violations
@@ -344,7 +302,32 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                         opt.id if hasattr(opt, "id") else "None",
                     )
 
-        # 5. Publish Form to make it active and generate a schema snapshot
+        # 5. Soft-delete legacy question groups and questions
+        # that are not present in the JSON seed
+
+        if processed_question_ids:
+            db.query(Question).filter(
+                Question.form_id == form.id,
+                Question.id.not_in(processed_question_ids),
+                Question.deleted_at.is_(None),
+            ).update(
+                {Question.deleted_at: datetime.utcnow()},
+                synchronize_session=False,
+            )
+            db.flush()
+
+        if processed_group_ids:
+            db.query(QuestionGroup).filter(
+                QuestionGroup.form_id == form.id,
+                QuestionGroup.id.not_in(processed_group_ids),
+                QuestionGroup.deleted_at.is_(None),
+            ).update(
+                {QuestionGroup.deleted_at: datetime.utcnow()},
+                synchronize_session=False,
+            )
+            db.flush()
+
+        # 6. Publish Form to make it active and generate a schema snapshot
         publish_form_snapshot(form, db)
 
     logger.info("Database seeding successfully completed!")
