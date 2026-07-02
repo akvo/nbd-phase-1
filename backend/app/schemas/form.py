@@ -352,6 +352,8 @@ class BlueprintQuestionSchema(BaseModel):
     hiddenString: bool = False
     requiredDoubleEntry: bool = False
     requiredSign: Optional[str] = None
+    allowOther: bool = False
+    allowOtherText: Optional[str] = None
     meta: bool = False
     translations: List[Dict[str, Any]] = []
     option: Optional[Any] = None
@@ -377,6 +379,10 @@ class BlueprintQuestionSchema(BaseModel):
                     data["requiredDoubleEntry"] = val
             if "required_sign" in data and "requiredSign" not in data:
                 data["requiredSign"] = data.pop("required_sign")
+            if "allow_other" in data and "allowOther" not in data:
+                data["allowOther"] = data.pop("allow_other")
+            if "allow_other_text" in data and "allowOtherText" not in data:
+                data["allowOtherText"] = data.pop("allow_other_text")
             # Normalize options to option
             if "options" in data and "option" not in data:
                 data["option"] = data.pop("options")
@@ -397,11 +403,17 @@ class BlueprintQuestionSchema(BaseModel):
             if sorted_options
             else []
         )
-        extra = q.extra or {}
+        extra = dict(q.extra) if q.extra else {}
 
         opt_val = opts if opts else None
         if extra and "option" in extra and isinstance(extra["option"], str):
-            opt_val = extra["option"]
+            opt_val = extra.pop("option")
+
+        hidden_string = extra.pop("hiddenString", False)
+        required_double_entry = extra.pop("requiredDoubleEntry", False)
+        required_sign = extra.pop("requiredSign", None)
+        allow_other = extra.pop("allowOther", False)
+        allow_other_text = extra.pop("allowOtherText", None)
 
         q_type_str = q.type.value if hasattr(q.type, "value") else str(q.type)
 
@@ -417,14 +429,16 @@ class BlueprintQuestionSchema(BaseModel):
             dependency=q.dependency,
             dependencyRule=q.dependency_rule,
             api=q.api,
-            extra=q.extra,
+            extra=extra if extra else None,
             tooltip=q.tooltip,
             fn=q.fn,
             pre=q.pre or {},
             displayOnly=q.display_only or False,
-            hiddenString=extra.get("hiddenString", False),
-            requiredDoubleEntry=extra.get("requiredDoubleEntry", False),
-            requiredSign=extra.get("requiredSign"),
+            hiddenString=hidden_string,
+            requiredDoubleEntry=required_double_entry,
+            requiredSign=required_sign,
+            allowOther=allow_other,
+            allowOtherText=allow_other_text,
             meta=q.meta,
             translations=q.translations or [],
             option=opt_val,
@@ -588,6 +602,8 @@ class QuestionUpdate(BaseModel):
     hidden_string: bool = False
     required_double_entry: bool = False
     required_sign: Optional[str] = None
+    allow_other: bool = False
+    allow_other_text: Optional[str] = None
     translations: List[Dict[str, Any]] = []
     option: Optional[List[OptionUpdate]] = None
 
@@ -610,6 +626,10 @@ class QuestionUpdate(BaseModel):
                     data["required_double_entry"] = val
             if "requiredSign" in data and "required_sign" not in data:
                 data["required_sign"] = data.pop("requiredSign")
+            if "allowOther" in data and "allow_other" not in data:
+                data["allow_other"] = data.pop("allowOther")
+            if "allowOtherText" in data and "allow_other_text" not in data:
+                data["allow_other_text"] = data.pop("allowOtherText")
             # Normalize options to option
             if "options" in data and "option" not in data:
                 data["option"] = data.pop("options")

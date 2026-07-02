@@ -165,7 +165,6 @@ def update_form(
                 # Handle string option (cascade reference)
                 if isinstance(options_data, str):
                     options_data = []
-
                 # Build extra dict for special fields
                 extra = q_data.extra or {}
                 if q_data.hidden_string:
@@ -174,6 +173,10 @@ def update_form(
                     extra["requiredDoubleEntry"] = True
                 if q_data.required_sign:
                     extra["requiredSign"] = q_data.required_sign
+                if q_data.allow_other:
+                    extra["allowOther"] = True
+                if q_data.allow_other_text:
+                    extra["allowOtherText"] = q_data.allow_other_text
 
                 if q_data.id and q_data.id in existing_q_ids:
                     # Update existing question
