@@ -16,6 +16,7 @@
     "filters": {
       "all": "All",
       "allTypes": "All types",
+      "selectIncidentType": "Select incident types",
       "optionWaterColour": "Water colour (darker/murkier)",
       "optionSmell": "Smell (bad odour)",
       "optionFishKills": "Fish or animal kills",

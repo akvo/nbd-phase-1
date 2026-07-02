@@ -334,7 +334,29 @@ class TestConsentState:
             sess.location,
         )
 
-        # Step 5: Skip image upload (reply "skip") -> CONFIRMATION state
+        # Step 5a: Provide invalid answer to image upload
+        # (reply "1" instead of image or "skip")
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "1"))
+
+        # Verify re-prompt is sent
+        last_msg = mock_send.call_args[0][1]
+        assert "Please send a photo/video or reply *skip*." in last_msg
+
+        # Session should remain on the same question
+        db_session.expire_all()
+        sess_invalid = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        assert sess_invalid.state == "DYNAMIC_QUESTION"
+        assert sess_invalid.current_question_id == sess.current_question_id
+
+        # Step 5b: Skip image upload (reply "skip") -> CONFIRMATION state
         with patch(
             "app.services.whatsapp_service.SessionLocal",
             return_value=db_session,
@@ -476,3 +498,47 @@ class TestSessionCleanup:
         )
         assert remaining_old == 0
         assert remaining_new == 1
+
+
+def test_extract_message_ignores_caption_on_media():
+    from app.services.whatsapp_service import _extract_message
+
+    payload = {
+        "Body": "My image caption",
+        "NumMedia": "1",
+        "MediaContentType0": "image/jpeg",
+        "MediaUrl0": "https://example.com/media0",
+    }
+    extracted = _extract_message(payload)
+    assert extracted["type"] == "image"
+    assert extracted["text"]["body"] == ""
+
+
+def test_extract_message_keeps_body_on_text_only():
+    from app.services.whatsapp_service import _extract_message
+
+    payload = {
+        "Body": "Hello world",
+        "NumMedia": "0",
+    }
+    extracted = _extract_message(payload)
+    assert extracted["type"] == "text"
+    assert extracted["text"]["body"] == "Hello world"
+
+
+@pytest.mark.asyncio
+async def test_send_message_drops_on_429():
+    """On Twilio 429, _send_message should log a warning
+    and return without retrying."""
+    from unittest.mock import patch, AsyncMock, MagicMock
+    from app.services.whatsapp_service import _send_message
+
+    mock_resp_429 = MagicMock()
+    mock_resp_429.status_code = 429
+    mock_resp_429.headers = {}
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp_429
+        # Should not raise, should return silently after exactly 1 attempt
+        await _send_message("12345678", "Hello")
+        assert mock_post.call_count == 1

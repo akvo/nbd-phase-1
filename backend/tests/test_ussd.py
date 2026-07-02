@@ -318,6 +318,6 @@ def test_ussd_redo_restores_session_loop(db_session: Session):
     # Should show the incident selection screen again
     # (since consent and lang are kept)
     assert (
-        response.text.startswith("CON Choose Location")
+        response.text.startswith("CON Select Sub-County")
         or "Report an incident" in response.text
     )

@@ -12,6 +12,9 @@ USSD router logic.
 import uuid  # noqa: F401
 import logging
 import httpx
+import asyncio
+import time
+
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 
@@ -40,8 +43,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+_last_send_time = 0.0
+_send_lock = asyncio.Lock()
+
+
 async def _send_message(phone: str, text: str) -> None:
     """Send a text message via the Twilio WhatsApp Business API."""
+    global _last_send_time
     from app.dependencies.whatsapp_config import get_whatsapp_config
 
     config = get_whatsapp_config()
@@ -63,13 +71,28 @@ async def _send_message(phone: str, text: str) -> None:
         "Body": text,
     }
 
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(
-            url,
-            data=payload,
-            auth=(config.account_sid, config.auth_token),
-        )
-        resp.raise_for_status()
+    async with _send_lock:
+        now = time.time()
+        elapsed = now - _last_send_time
+        if elapsed < 1.0:
+            await asyncio.sleep(1.0 - elapsed)
+
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    url,
+                    data=payload,
+                    auth=(config.account_sid, config.auth_token),
+                )
+                if resp.status_code == 429:
+                    logger.warning(
+                        "Twilio API rate limited (429) for %s — dropping message",  # noqa
+                        phone,
+                    )
+                    return
+                resp.raise_for_status()
+        finally:
+            _last_send_time = time.time()
 
 
 async def _get_media_url(media_id: str) -> str:
@@ -124,7 +147,7 @@ def _extract_message(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         media_url = payload.get("MediaUrl0")
         return {
             "type": msg_type,
-            "text": {"body": body},
+            "text": {"body": ""},
             "mime_type": mime_type,
             "image": {"id": media_url, "mime_type": mime_type},
             "video": {"id": media_url, "mime_type": mime_type},
@@ -409,6 +432,19 @@ def _build_whatsapp_summary(
 
 async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
     """Route an inbound Meta webhook payload through the state machine."""
+    # Ignore Twilio status callbacks (e.g. sent, delivered, read, etc.)
+    sms_status = payload.get("SmsStatus")
+    message_status = payload.get("MessageStatus")
+    if (sms_status and sms_status != "received") or (
+        message_status and message_status != "received"
+    ):
+        logger.info(
+            "Ignoring Twilio status callback (SmsStatus: %s, MessageStatus: %s)",  # noqa
+            sms_status,
+            message_status,
+        )
+        return
+
     msg = _extract_message(payload)
     phone = _sender_phone(payload)
     if not msg or not phone:
@@ -743,6 +779,15 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                         )
                         await _send_message(phone, prompt)
                         return
+                else:
+                    # Unsupported message type (sticker, location, etc.)
+                    prompt = (
+                        "Tafadhali tuma picha/video au jibu *skip*."
+                        if lang == "sw"
+                        else "Please send a photo/video or reply *skip*."
+                    )
+                    await _send_message(phone, prompt)
+                    return
 
             else:
                 # Text/number or fallback input types
@@ -893,11 +938,7 @@ async def _prompt_question(
     if q.type == "cascade":
         subcounties = _fetch_subcounties(db)
         menu = _format_location_menu(subcounties, lang)
-        prompt = (
-            f"Chagua eneo lako:\n\n{menu}"
-            if lang == "sw"
-            else f"Choose your location:\n\n{menu}"
-        )
+        prompt = f"{q_label}\n\n{menu}"
         await _send_message(phone, prompt)
 
     elif q.type == "option":
@@ -911,19 +952,20 @@ async def _prompt_question(
             f"{i}: {get_translation(o.translations, lang, o.label)}"
             for i, o in enumerate(options, 1)
         )
-        prompt = (
-            f"Je, ungependa kuripoti nini?\n\n{menu}"
-            if lang == "sw"
-            else f"What would you like to report?\n\n{menu}"
-        )
+        prompt = f"{q_label}\n\n{menu}"
         await _send_message(phone, prompt)
 
     elif q.type in ("image", "attachment"):
-        prompt = (
-            f"Tafadhali tuma picha au video ya tukio (au jibu *skip* kuendelea bila picha/video)."  # noqa
-            if lang == "sw"
-            else f"Please send a photo or video of the incident (or reply *skip* to continue without media)."  # noqa
-        )
+        if "skip" in q_label.lower():
+            prompt = q_label
+        else:
+            base_label = q_label.rstrip(".")
+            skip_instruction = (
+                " (au jibu *skip* kuendelea bila picha/video)."
+                if lang == "sw"
+                else " (or reply *skip* to continue without media)."
+            )
+            prompt = f"{base_label}{skip_instruction}"
         await _send_message(phone, prompt)
 
     else:

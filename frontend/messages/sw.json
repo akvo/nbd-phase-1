@@ -16,6 +16,7 @@
     "filters": {
       "all": "Zote",
       "allTypes": "Aina zote",
+      "selectIncidentType": "Chagua aina ya tukio",
       "optionWaterColour": "Rangi ya maji (nyeusi/chafu)",
       "optionSmell": "Harufu (harufu mbaya)",
       "optionFishKills": "Vifo vya samaki au wanyama",

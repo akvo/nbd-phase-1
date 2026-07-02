@@ -40,7 +40,13 @@ def seed_forms(db: Session):
             continue
 
         # 1. Upsert Form
-        form = db.query(Form).filter(Form.name == form_name).first()
+        form_id = form_data.get("form_id") or form_data.get("id")
+        form = None
+        if form_id:
+            form = db.query(Form).filter(Form.id == form_id).first()
+        if not form:
+            form = db.query(Form).filter(Form.name == form_name).first()
+
         languages = form_data.get("languages", ["en"])
         translations = form_data.get("translations", [])
         form_type = form_data.get("type", 1)
@@ -72,7 +78,6 @@ def seed_forms(db: Session):
                 form.id,
                 form_type,
             )
-
         # 2. Iterate and Upsert Question Groups
         groups = form_data.get("question_group", [])
         for idx, group_data in enumerate(groups, start=1):
@@ -82,15 +87,28 @@ def seed_forms(db: Session):
             repeat_text = group_data.get("repeat_text")
             g_translations = group_data.get("translations", [])
 
-            q_group = (
-                db.query(QuestionGroup)
-                .filter(
-                    QuestionGroup.form_id == form.id,
-                    QuestionGroup.name == group_name,
-                    QuestionGroup.deleted_at.is_(None),
+            g_id = group_data.get("id")
+            q_group = None
+            if g_id:
+                q_group = (
+                    db.query(QuestionGroup)
+                    .filter(
+                        QuestionGroup.id == g_id,
+                        QuestionGroup.form_id == form.id,
+                        QuestionGroup.deleted_at.is_(None),
+                    )
+                    .first()
                 )
-                .first()
-            )
+            if not q_group:
+                q_group = (
+                    db.query(QuestionGroup)
+                    .filter(
+                        QuestionGroup.form_id == form.id,
+                        QuestionGroup.name == group_name,
+                        QuestionGroup.deleted_at.is_(None),
+                    )
+                    .first()
+                )
 
             if not q_group:
                 q_group = QuestionGroup(
@@ -152,15 +170,29 @@ def seed_forms(db: Session):
                     if "comment" in q_data and "comment" not in api_config:
                         api_config["comment"] = q_data.get("comment")
 
-                q = (
-                    db.query(Question)
-                    .filter(
-                        Question.form_id == form.id,
-                        Question.name == q_id,
-                        Question.deleted_at.is_(None),
+                # Lookup question by database primary key (if integer type)
+                q_pk = q_data.get("id")
+                q = None
+
+                if isinstance(q_pk, int):
+                    q = (
+                        db.query(Question)
+                        .filter(
+                            Question.id == q_pk,
+                            Question.deleted_at.is_(None),
+                        )
+                        .first()
                     )
-                    .first()
-                )
+                if not q:
+                    q = (
+                        db.query(Question)
+                        .filter(
+                            Question.form_id == form.id,
+                            Question.name == q_id,
+                            Question.deleted_at.is_(None),
+                        )
+                        .first()
+                    )
 
                 if not q:
                     q = Question(
@@ -219,13 +251,28 @@ def seed_forms(db: Session):
                     db.add(opt)
                     db.flush()
                     logger.info(
-                        "      Created Option: %s -> %s",
+                        "      Created Option: %s -> %s (ID: %s)",
                         opt_val,
                         opt_label,
+                        opt.id if hasattr(opt, "id") else "None",
                     )
 
         # 5. Publish Form to make it active and generate a schema snapshot
         publish_form_snapshot(form, db)
 
-    db.commit()
     logger.info("Database seeding successfully completed!")
+
+
+if __name__ == "__main__":
+    from app.database import SessionLocal
+
+    logging.basicConfig(level=logging.INFO)
+    db_session = SessionLocal()
+    try:
+        seed_forms(db_session)
+        db_session.commit()
+    except Exception as e:
+        db_session.rollback()
+        raise e
+    finally:
+        db_session.close()
