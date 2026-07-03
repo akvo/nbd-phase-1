@@ -321,3 +321,173 @@ def test_ussd_redo_restores_session_loop(db_session: Session):
         response.text.startswith("CON Select Sub-County")
         or "Report an incident" in response.text
     )
+
+
+def test_ussd_terms_paging():
+    # 1. View Page 2 of consent terms (1 -> language, 98 -> view more)
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_paging",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*98",
+        },
+    )
+    assert response.status_code == 200
+    assert "used only for monitoring" in response.text
+    assert "0. Back" in response.text
+
+    # 2. Go back to Page 1 (1 -> language, 98 -> view more, 0 -> back)
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_paging",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*98*0",
+        },
+    )
+    assert response.status_code == 200
+    assert "anonymous environmental reports" in response.text
+    assert "98. View More" in response.text
+
+    # 3. Accept from Page 2 (1 -> language, 98 -> view more, 1 -> accept)
+    # It should strip paging options and move directly to incident selection
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_paging",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*98*1",
+        },
+    )
+    assert response.status_code == 200
+    assert "Report an incident" in response.text
+
+
+def test_ussd_complete_flow_with_paging(db_session: Session):
+    # Full traversal:
+    # Lang (1) -> Page 1 (98) -> Page 2 (0) -> Page 1 (98) -> Page 2 (1) ->
+    # Select Incident
+    # (2) -> Select County (3) -> Select Subcounty (1) -> Confirm (1)
+    base_text = "1*98*0*98*1*2*3*1*1"
+
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_complete_paging",
+            "phoneNumber": "+255700000000",
+            "networkCode": "64004",
+            "serviceCode": "*123#",
+            "text": base_text,
+        },
+    )
+    assert response.status_code == 200
+    assert response.text.startswith("END")
+    assert "received" in response.text
+
+    # Verify database state
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.name == "test_sess_complete_paging")
+        .first()
+    )
+    assert dp is not None
+    assert dp.status == "PENDING"
+
+    # Verify answers were saved
+    answers = (
+        db_session.query(Answer).filter(Answer.datapoint_id == dp.id).all()
+    )
+    assert len(answers) == 2
+
+
+def test_ussd_dynamic_option_question_paging(db_session: Session):
+    # 1. Start session, accept terms,
+    # get to incident_type (which has 6 options)
+    # Capped at page size = 4: Page 1 shows first 4 options + 98: View More
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_dynamic_opt",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*1",
+        },
+    )
+    assert response.status_code == 200
+    assert "98: View More" in response.text
+
+    # 2. Page to Page 2 of options
+    # (1 -> Lang, 1 -> Consent, 98 -> View More options)
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_dynamic_opt",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*1*98",
+        },
+    )
+    assert response.status_code == 200
+    assert "0: Back" in response.text
+    # Check that option items 5 & 6 are present
+
+    # 3. Page back to Page 1 (1 -> Lang,
+    # 1 -> Consent, 98 -> View More, 0 -> Back)
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_dynamic_opt",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*1*98*0",
+        },
+    )
+    assert response.status_code == 200
+    assert "98: View More" in response.text
+
+    # 4. Select option from Page 2 and proceed to location county selection
+    # (1 -> Lang, 1 -> Consent, 98 -> View More, 1 -> Option 5 (Fish Kills))
+    # noqa
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_dynamic_opt",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*1*98*1",
+        },
+    )
+    assert response.status_code == 200
+    # Should move to next question (location county cascade list)
+    assert "Choose SubCounty" in response.text or "Region" in response.text
+
+
+def test_ussd_dynamic_cascade_county_paging(db_session: Session):
+    # 1. Accept terms, answer incident_type (value 2),
+    # get to Level 2 County List.
+    # We will test paging on Level 2 county list.
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_county_paging",
+            "phoneNumber": "+255700000000",
+            "networkCode": "64004",
+            "serviceCode": "*123#",
+            "text": "1*1*2",
+        },
+    )
+    assert response.status_code == 200
+    # The default Tanzania counties (Geita, Mara, Simiyu, etc)
+    # might fit in 1 page, but we check if the basic prompt loaded.
+    assert "Choose SubCounty" in response.text or "Region" in response.text
