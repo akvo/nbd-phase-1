@@ -255,7 +255,15 @@ class FormExportService:
                             )
                             else "select_one"
                         )
-                        xls_type = f"{prefix_val} option_{q_name}"
+                        suffix = ""
+                        if (
+                            q.get("allowOther")
+                            or q.get("allow_other")
+                            or q_extra.get("allowOther")
+                            or q_extra.get("allow_other")
+                        ):
+                            suffix = " or_other"
+                        xls_type = f"{prefix_val} option_{q_name}{suffix}"
 
                 param_val = ""
                 if is_cascade:

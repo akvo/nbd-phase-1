@@ -106,7 +106,7 @@ No database migrations are required. The exporter operates entirely on read-only
   - Append `begin_group` row: `type="begin_group"`, `name=group.name`, `label=group.label`.
   - Process each child `Question` in group order:
     - **Name Mapping (Unique Identifier)**: Set the `name` column to `question.name`. This must match exactly to serve as the unique key linking Kobo submission payloads back to our database `question.name`.
-    - **Multiple Choice**: `type="select_one option_{question.name}"` or `type="select_multiple option_{question.name}"`.
+    - **Multiple Choice**: `type="select_one option_{question.name}"` or `type="select_multiple option_{question.name}"`. If the question has `allowOther` set to true, `or_other` is appended to the type (e.g. `select_one option_{question.name} or_other`).
     - **Text / Numbers**: `type="text"` or `type="integer"` or `type="decimal"`.
     - **Cascade Selection**: `type="select_one_from_file spatial_cascade.csv"`.
     - Map `label::English (en)` to `question.label`, `label::Swahili (sw)` to the Swahili translation, `required` (yes/no), and constraints.
