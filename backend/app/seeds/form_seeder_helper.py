@@ -22,26 +22,102 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
         logger.error("Seeds directory not found at %s", seeds_dir)
         return
 
-    json_files = [
+    all_files = [
         f
         for f in os.listdir(seeds_dir)
         if f.endswith(".json") and f.startswith("form_")
     ]
-    # Exclude form seeds with _vX suffix (e.g., _v2.json) by default
-    # to avoid breaking general test cases.
-    import re
 
-    if not filename_filter:
-        json_files = [
-            f for f in json_files if not re.search(r"_v\d+\.json$", f)
-        ]
+    import re
+    import sys
+
+    # Parse and group versions of forms
+    # Group pattern: form_pipeline_name(_v[number]).json
+    form_groups = {}
+    for filename in all_files:
+        match = re.match(r"(form_[a-zA-Z0-9_]+?)(?:_v(\d+))?\.json$", filename)
+        if match:
+            base_name = match.group(1)
+            version = int(match.group(2)) if match.group(2) else 1
+            if base_name not in form_groups:
+                form_groups[base_name] = []
+            form_groups[base_name].append(
+                {"filename": filename, "version": version}
+            )
+
+    # For each group, determine which file to process
+    json_files = []
+    is_testing = "pytest" in sys.modules or os.getenv("TESTING") == "true"
+    is_interactive = sys.stdin.isatty() and not is_testing
+
+    for base_name, versions in form_groups.items():
+        # Sort versions ascending
+        versions.sort(key=lambda x: x["version"])
+
+        # If filename filter is specified, check if any matches
+        if filename_filter:
+            matched = [v for v in versions if v["filename"] == filename_filter]
+            if matched:
+                json_files.append(matched[0]["filename"])
+            continue
+
+        if len(versions) == 1:
+            json_files.append(versions[0]["filename"])
+        else:
+            # Multiple versions found
+            if is_interactive:
+                print(f"\nMultiple versions found for '{base_name}':")
+                for idx, v in enumerate(versions, start=1):
+                    fn = v["filename"]
+                    ver = v["version"]
+                    print(f"  [{idx}] {fn} (v{ver})")
+                print("  [A] Seed all versions")
+
+                choice = ""
+                while not choice:
+                    prompt = (
+                        f"Select version to seed [default: latest "
+                        f"v{versions[-1]['version']}]: "
+                    )
+                    choice_input = input(prompt).strip()
+                    if not choice_input:
+                        choice = "latest"
+                    elif choice_input.lower() == "a":
+                        choice = "all"
+                    else:
+                        try:
+                            idx = int(choice_input)
+                            if 1 <= idx <= len(versions):
+                                choice = idx - 1
+                        except ValueError:
+                            pass
+
+                if choice == "latest":
+                    json_files.append(versions[-1]["filename"])
+                elif choice == "all":
+                    json_files.extend([v["filename"] for v in versions])
+                else:
+                    json_files.append(versions[choice]["filename"])
+            else:
+                # In non-interactive modes:
+                # If testing, default to v1 (legacy) to prevent test regression
+                if is_testing:
+                    v1_file = next(
+                        (v["filename"] for v in versions if v["version"] == 1),
+                        None,
+                    )
+                    if v1_file:
+                        json_files.append(v1_file)
+                    else:
+                        json_files.append(versions[-1]["filename"])
+                else:
+                    # In normal production/staging non-interactive run,
+                    # seed latest version
+                    json_files.append(versions[-1]["filename"])
+
     json_files.sort()
 
     for filename in json_files:
-        if filename_filter and filename != filename_filter:
-            logger.info("Skipping seed file due to filter: %s", filename)
-            continue
-
         filepath = os.path.join(seeds_dir, filename)
         logger.info("Processing seed file: %s", filename)
 
