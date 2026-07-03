@@ -336,7 +336,7 @@ def test_ussd_terms_paging():
         },
     )
     assert response.status_code == 200
-    assert "restricted to monitoring" in response.text
+    assert "used only for monitoring" in response.text
     assert "0. Back" in response.text
 
     # 2. Go back to Page 1 (1 -> language, 98 -> view more, 0 -> back)
@@ -351,7 +351,7 @@ def test_ussd_terms_paging():
         },
     )
     assert response.status_code == 200
-    assert "saved anonymously" in response.text
+    assert "anonymous environmental reports" in response.text
     assert "98. View More" in response.text
 
     # 3. Accept from Page 2 (1 -> language, 98 -> view more, 1 -> accept)

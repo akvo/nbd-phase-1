@@ -216,33 +216,31 @@ def _handle_ussd_core(
         if consent_page == 1:
             if lang == "sw":
                 response_text = (
-                    "CON Karibu kwenye NBD Wetland Watch. "
-                    "Jukwaa hili linakusanya taarifa za matukio "
-                    "ya mazingira. Ripoti yako inahifadhiwa bila jina.\n"
+                    "CON Karibu NBD Wetland Watch. "
+                    "Tunakusanya taarifa za mazingira bila jina.\n"
                     "98. Angalia zaidi\n"
-                    "2. Kataa masharti"
+                    "2. Kataa"
                 )
             else:
                 response_text = (
                     "CON Welcome to NBD Wetland Watch. "
-                    "This platform collects environmental incident reports. "
-                    "Your report is saved anonymously.\n"
+                    "We collect anonymous environmental reports.\n"
                     "98. View More\n"
-                    "2. Decline terms"
+                    "2. Decline"
                 )
         else:  # Page 2
             if lang == "sw":
                 response_text = (
-                    "CON Matumizi ya data yamezuiliwa kwa mipango "
-                    "ya ufuatiliaji. Kwa kuendelea, unakubali masharti haya.\n"
-                    "1. Kubali na Anza kuripoti\n"
+                    "CON Data inatumika kwa ufuatiliaji tu. "
+                    "Kuendelea ni kukubali masharti.\n"
+                    "1. Kubali na kuanza\n"
                     "0. Rudi nyuma"
                 )
             else:
                 response_text = (
-                    "CON Data usage is restricted to monitoring programs. "
-                    "By proceeding, you agree to these terms.\n"
-                    "1. Accept & Start reporting\n"
+                    "CON Data is used only for monitoring. "
+                    "Proceeding means you agree.\n"
+                    "1. Accept & Start\n"
                     "0. Back"
                 )
         return PlainTextResponse(clean_ussd_response(response_text))
