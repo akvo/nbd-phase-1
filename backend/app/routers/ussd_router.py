@@ -111,6 +111,36 @@ def handle_ussd(
             db.rollback()
 
 
+def paginate_options(options, inputs_for_question, page_size=4):
+    """
+    Traverses the page navigation inputs (98 / 0) for a single question
+    and returns:
+        - current_page_index (0-based)
+        - final_selection_index (or None if still paging)
+        - consumed_input_count
+    """
+    page = 0
+    max_pages = (len(options) - 1) // page_size + 1
+    consumed = 0
+
+    for item in inputs_for_question:
+        consumed += 1
+        val = item.strip()
+        if val == "98" and page < max_pages - 1:
+            page += 1
+        elif val == "0" and page > 0:
+            page -= 1
+        else:
+            try:
+                choice = int(val) - 1
+                actual_idx = page * page_size + choice
+                if 0 <= actual_idx < len(options):
+                    return page, actual_idx, consumed
+            except ValueError:
+                pass
+    return page, None, consumed
+
+
 def _handle_ussd_core(
     sessionId: str,
     phoneNumber: str,
@@ -303,8 +333,8 @@ def _handle_ussd_core(
                 user_input = parts[input_idx].strip()
 
                 if q.type == "cascade":
-                    # For location cascade,
-                    # it consumes 1 or 2 parts depending on levels
+                    # For location cascade, it consumes
+                    # 1 or 2 parts depending on levels
                     # Level 2 (County) selection
                     counties = (
                         db.query(SpatialBoundary)
@@ -317,19 +347,71 @@ def _handle_ussd_core(
                         )
                         .all()
                     )
-                    try:
-                        county_choice = int(user_input) - 1
-                        if county_choice < 0 or county_choice >= len(counties):
-                            raise ValueError()
-                        selected_county = counties[county_choice]
-                    except (ValueError, TypeError):
-                        err_txt = (
-                            "END Uteuzi wa mahali sio sahihi. Kikao kimefungwa."  # noqa
-                            if lang == "sw"
-                            else "END Invalid location selection. Session closed."  # noqa
+
+                    # Dynamic paging for Level 2 counties list
+                    q_inputs = parts[input_idx:]
+                    page_size = 4
+                    page, county_idx, consumed = paginate_options(
+                        counties, q_inputs, page_size
+                    )
+
+                    if county_idx is not None:
+                        selected_county = counties[county_idx]
+                        # Replace Level 2 paging sequence in parts
+                        # with the single final selection index
+                        parts = (
+                            parts[:input_idx]
+                            + [str(county_idx + 1)]
+                            + parts[input_idx + consumed :]  # noqa
                         )
-                        processed_sessions[sessionId] = err_txt
-                        return PlainTextResponse(clean_ussd_response(err_txt))
+                    else:
+                        # Display the current page of counties
+                        max_pages = (len(counties) - 1) // page_size + 1
+                        start_idx = page * page_size
+                        end_idx = start_idx + page_size
+                        page_slice = counties[start_idx:end_idx]
+
+                        menu_lines = []
+                        current_parent_id = None
+                        for i, sc in enumerate(page_slice, start_idx + 1):
+                            if sc.parent_id != current_parent_id:
+                                current_parent_id = sc.parent_id
+                                parent = sc.parent
+                                if parent:
+                                    if menu_lines:
+                                        menu_lines.append("")
+                                    menu_lines.append(
+                                        f"{parent.name} (Mkoa):"
+                                        if lang == "sw"
+                                        else f"{parent.name} (Region):"
+                                    )
+                            # Render index relative to the current
+                            # page on screen (1 to 4)
+                            screen_idx = i - start_idx
+                            menu_lines.append(f"  {screen_idx}. {sc.name}")
+
+                        if page < max_pages - 1:
+                            menu_lines.append(
+                                "  98. Angalia zaidi"
+                                if lang == "sw"
+                                else "  98. View More"
+                            )
+                        if page > 0:
+                            menu_lines.append(
+                                "  0. Rudi nyuma"
+                                if lang == "sw"
+                                else "  0. Back"
+                            )
+
+                        q_label = get_translation(
+                            q.translations, lang, q.label
+                        )
+                        prompt_text = f"CON {q_label}:\n" + "\n".join(
+                            menu_lines
+                        )
+                        return PlainTextResponse(
+                            clean_ussd_response(prompt_text)
+                        )
 
                     sub_counties = (
                         db.query(SpatialBoundary)
@@ -343,35 +425,51 @@ def _handle_ussd_core(
 
                     if sub_counties:
                         # Check if there is another input part for sub-county
-                        if input_idx + 1 < len(parts):
-                            sub_input = parts[input_idx + 1].strip()
-                            try:
-                                sub_choice = int(sub_input) - 1
-                                if sub_choice < 0 or sub_choice >= len(
-                                    sub_counties
-                                ):
-                                    raise ValueError()
-                                selected_sc = sub_counties[sub_choice]
-                            except (ValueError, TypeError):
-                                err_txt = (
-                                    "END Uteuzi wa wilaya ndogo sio sahihi. Kikao kimefungwa."  # noqa
-                                    if lang == "sw"
-                                    else "END Invalid sub-county selection. Session closed."  # noqa
-                                )
-                                processed_sessions[sessionId] = err_txt
-                                return PlainTextResponse(
-                                    clean_ussd_response(err_txt)
-                                )
+                        # Since sub-counties list might be long,
+                        # we support dynamic paging
+                        sub_inputs = parts[input_idx + 1 :]  # noqa
+                        page_size = 4
+                        page, sc_idx, consumed = paginate_options(
+                            sub_counties, sub_inputs, page_size
+                        )
+
+                        if sc_idx is not None:
+                            selected_sc = sub_counties[sc_idx]
                             current_answers[q.id] = str(selected_sc.id)
                             current_answers[q.name] = str(selected_sc.id)
+                            # Cleanse parts for the sub-county pagination
+                            parts = (
+                                parts[: input_idx + 1]
+                                + [str(sc_idx + 1)]
+                                + parts[input_idx + 1 + consumed :]  # noqa
+                            )
                             input_idx += 2
                         else:
-                            # We have Level 2,
-                            # but we need Level 3 sub-county! Prompt it.
+                            # Prompt the current page of sub-counties
+                            max_pages = (
+                                len(sub_counties) - 1
+                            ) // page_size + 1
+                            start_idx = page * page_size
+                            end_idx = start_idx + page_size
+                            page_slice = sub_counties[start_idx:end_idx]
+
                             sub_menu_lines = [
-                                f"  {idx}. {sc.name}"
-                                for idx, sc in enumerate(sub_counties, 1)
+                                f"  {i}. {sc.name}"
+                                for i, sc in enumerate(page_slice, 1)
                             ]
+                            if page < max_pages - 1:
+                                sub_menu_lines.append(
+                                    "  98. Angalia zaidi"
+                                    if lang == "sw"
+                                    else "  98. View More"
+                                )
+                            if page > 0:
+                                sub_menu_lines.append(
+                                    "  0. Rudi nyuma"
+                                    if lang == "sw"
+                                    else "  0. Back"
+                                )
+
                             prompt_text = (
                                 f"CON Chagua Wilaya ndogo ya {selected_county.name}:\n"  # noqa
                                 + "\n".join(sub_menu_lines)
@@ -395,23 +493,57 @@ def _handle_ussd_core(
                         .order_by(Option.order.asc())
                         .all()
                     )
-                    try:
-                        choice_idx = int(user_input) - 1
-                        if choice_idx < 0 or choice_idx >= len(options):
-                            raise ValueError()
-                        selected_opt = options[choice_idx]
-                    except (ValueError, TypeError):
-                        err_txt = (
-                            "END Uteuzi sio sahihi. Kikao kimefungwa."
-                            if lang == "sw"
-                            else "END Invalid selection. Session closed."
-                        )
-                        processed_sessions[sessionId] = err_txt
-                        return PlainTextResponse(clean_ussd_response(err_txt))
 
-                    current_answers[q.id] = selected_opt.value
-                    current_answers[q.name] = selected_opt.value
-                    input_idx += 1
+                    # Track paging inputs starting
+                    # from this question input index
+                    q_inputs = parts[input_idx:]
+                    page_size = 4
+                    page, opt_idx, consumed = paginate_options(
+                        options, q_inputs, page_size
+                    )
+
+                    if opt_idx is not None:
+                        selected_opt = options[opt_idx]
+                        current_answers[q.id] = selected_opt.value
+                        current_answers[q.name] = selected_opt.value
+                        # Cleanse parts to replace paging
+                        # inputs with single selected option index
+                        parts = (
+                            parts[:input_idx]
+                            + [str(opt_idx + 1)]
+                            + parts[input_idx + consumed :]  # noqa
+                        )
+                        input_idx += 1
+                    else:
+                        max_pages = (len(options) - 1) // page_size + 1
+                        start_idx = page * page_size
+                        end_idx = start_idx + page_size
+                        page_slice = options[start_idx:end_idx]
+
+                        menu_items = [
+                            f"{i}: {get_translation(opt.translations, lang, opt.label)}"  # noqa
+                            for i, opt in enumerate(page_slice, 1)
+                        ]
+                        if page < max_pages - 1:
+                            menu_items.append(
+                                "98: Angalia zaidi"
+                                if lang == "sw"
+                                else "98: View More"
+                            )
+                        if page > 0:
+                            menu_items.append(
+                                "0: Rudi nyuma" if lang == "sw" else "0: Back"
+                            )
+
+                        q_label = get_translation(
+                            q.translations, lang, q.label
+                        )
+                        prompt_text = f"CON {q_label}:\n" + "\n".join(
+                            menu_items
+                        )
+                        return PlainTextResponse(
+                            clean_ussd_response(prompt_text)
+                        )
 
                 else:
                     current_answers[q.id] = user_input
@@ -435,9 +567,13 @@ def _handle_ussd_core(
                         )
                         .all()
                     )
+                    page_size = 4
+                    page_slice = counties[:page_size]
+                    max_pages = (len(counties) - 1) // page_size + 1
+
                     menu_lines = []
                     current_parent_id = None
-                    for idx, sc in enumerate(counties, 1):
+                    for idx, sc in enumerate(page_slice, 1):
                         if sc.parent_id != current_parent_id:
                             current_parent_id = sc.parent_id
                             parent = sc.parent
@@ -451,6 +587,13 @@ def _handle_ussd_core(
                                 )
                         menu_lines.append(f"  {idx}. {sc.name}")
 
+                    if max_pages > 1:
+                        menu_lines.append(
+                            "  98. Angalia zaidi"
+                            if lang == "sw"
+                            else "  98. View More"
+                        )
+
                     q_label = get_translation(q.translations, lang, q.label)
                     prompt_text = f"CON {q_label}:\n" + "\n".join(menu_lines)
                     return PlainTextResponse(clean_ussd_response(prompt_text))
@@ -462,10 +605,21 @@ def _handle_ussd_core(
                         .order_by(Option.order.asc())
                         .all()
                     )
+                    page_size = 4
+                    page_slice = options[:page_size]
+                    max_pages = (len(options) - 1) // page_size + 1
+
                     menu_items = [
                         f"{idx}: {get_translation(opt.translations, lang, opt.label)}"  # noqa
-                        for idx, opt in enumerate(options, 1)
+                        for idx, opt in enumerate(page_slice, 1)
                     ]
+                    if max_pages > 1:
+                        menu_items.append(
+                            "98: Angalia zaidi"
+                            if lang == "sw"
+                            else "98: View More"
+                        )
+
                     q_label = get_translation(q.translations, lang, q.label)
                     prompt_text = f"CON {q_label}:\n" + "\n".join(menu_items)
                     return PlainTextResponse(clean_ussd_response(prompt_text))
