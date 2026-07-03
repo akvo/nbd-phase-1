@@ -156,9 +156,9 @@ def test_ussd_multilingual_flow(db_session: Session):
     )
     assert resp.status_code == 200
     assert "Karibu kwenye NBD Wetland Watch" in resp.text
-    assert "Bonyeza 1 kukubali" in resp.text
+    assert "98. Angalia zaidi" in resp.text
 
-    # Step 2: Incident Selection (Accepted terms)
+    # Step 1.1: Consent Page 2 (98 chosen)
     resp = client.post(
         "/api/v1/ussd",
         data={
@@ -166,7 +166,22 @@ def test_ussd_multilingual_flow(db_session: Session):
             "phoneNumber": "+254700000000",
             "networkCode": "63902",
             "serviceCode": "*123#",
-            "text": "2*1",
+            "text": "2*98",
+        },
+    )
+    assert resp.status_code == 200
+    assert "Matumizi ya data yamezuiliwa" in resp.text
+    assert "1. Kubali na Anza kuripoti" in resp.text
+
+    # Step 2: Incident Selection (Accepted terms via 2*98*1)
+    resp = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_sw_1",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "2*98*1",
         },
     )
     assert resp.status_code == 200

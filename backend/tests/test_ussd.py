@@ -321,3 +321,87 @@ def test_ussd_redo_restores_session_loop(db_session: Session):
         response.text.startswith("CON Select Sub-County")
         or "Report an incident" in response.text
     )
+
+
+def test_ussd_terms_paging():
+    # 1. View Page 2 of consent terms (1 -> language, 98 -> view more)
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_paging",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*98",
+        },
+    )
+    assert response.status_code == 200
+    assert "restricted to monitoring" in response.text
+    assert "0. Back" in response.text
+
+    # 2. Go back to Page 1 (1 -> language, 98 -> view more, 0 -> back)
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_paging",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*98*0",
+        },
+    )
+    assert response.status_code == 200
+    assert "saved anonymously" in response.text
+    assert "98. View More" in response.text
+
+    # 3. Accept from Page 2 (1 -> language, 98 -> view more, 1 -> accept)
+    # It should strip paging options and move directly to incident selection
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_paging",
+            "phoneNumber": "+254700000000",
+            "networkCode": "63902",
+            "serviceCode": "*123#",
+            "text": "1*98*1",
+        },
+    )
+    assert response.status_code == 200
+    assert "Report an incident" in response.text
+
+
+def test_ussd_complete_flow_with_paging(db_session: Session):
+    # Full traversal:
+    # Lang (1) -> Page 1 (98) -> Page 2 (0) -> Page 1 (98) -> Page 2 (1) ->
+    # Select Incident
+    # (2) -> Select County (3) -> Select Subcounty (1) -> Confirm (1)
+    base_text = "1*98*0*98*1*2*3*1*1"
+
+    response = client.post(
+        "/api/v1/ussd",
+        data={
+            "sessionId": "test_sess_complete_paging",
+            "phoneNumber": "+255700000000",
+            "networkCode": "64004",
+            "serviceCode": "*123#",
+            "text": base_text,
+        },
+    )
+    assert response.status_code == 200
+    assert response.text.startswith("END")
+    assert "received" in response.text
+
+    # Verify database state
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.name == "test_sess_complete_paging")
+        .first()
+    )
+    assert dp is not None
+    assert dp.status == "PENDING"
+
+    # Verify answers were saved
+    answers = (
+        db_session.query(Answer).filter(Answer.datapoint_id == dp.id).all()
+    )
+    assert len(answers) == 2

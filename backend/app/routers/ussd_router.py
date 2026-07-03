@@ -180,31 +180,74 @@ def _handle_ussd_core(
     else:
         lang = "en"
 
-    # Step 1: Consent Gate (translated)
-    if depth == 1:
-        if lang == "sw":
-            response_text = (
-                "CON Karibu kwenye NBD Wetland Watch. Jukwaa hili linakusanya "
-                "taarifa za matukio ya mazingira. Ripoti yako inahifadhiwa "
-                "bila jina. Matumizi ya data yamezuiliwa kwa mipango "
-                "ya ufuatiliaji.\n"
-                "Bonyeza 1 kukubali na kuanza kuripoti.\n"
-                "Bonyeza 2 kukataa masharti."
-            )
-        else:
-            response_text = (
-                "CON Welcome to NBD Wetland Watch. This platform collects "
-                "environmental incident reports. Your report is saved "
-                "anonymously. Data usage is restricted to monitoring "
-                "programs.\n"
-                "Press 1 to accept and start reporting.\n"
-                "Press 2 to decline terms."
-            )
+    # Step 1: Consent Gate (translated & paginated)
+    # The user inputs after language selection (parts[1:]) are parsed to
+    # determine if they are on Consent Page 1, Page 2, accepted, or declined.
+    consent_page = 1
+    consent_accepted = False
+    consent_declined = False
+
+    # We will traverse parts[1:] to calculate final state
+    processed_count = 0  # Number of items in parts consumed by consent step
+    for part in parts[1:]:
+        processed_count += 1
+        part_clean = part.strip()
+        if consent_page == 1:
+            if part_clean == "98":
+                consent_page = 2
+            elif part_clean == "1":
+                consent_accepted = True
+                break
+            elif part_clean == "2":
+                consent_declined = True
+                break
+        elif consent_page == 2:
+            if part_clean == "0":
+                consent_page = 1
+            elif part_clean == "1":
+                consent_accepted = True
+                break
+            elif part_clean == "2":
+                consent_declined = True
+                break
+
+    # If they haven't explicitly accepted or declined yet, show current page
+    if not consent_accepted and not consent_declined:
+        if consent_page == 1:
+            if lang == "sw":
+                response_text = (
+                    "CON Karibu kwenye NBD Wetland Watch. "
+                    "Jukwaa hili linakusanya taarifa za matukio "
+                    "ya mazingira. Ripoti yako inahifadhiwa bila jina.\n"
+                    "98. Angalia zaidi\n"
+                    "2. Kataa masharti"
+                )
+            else:
+                response_text = (
+                    "CON Welcome to NBD Wetland Watch. "
+                    "This platform collects environmental incident reports. "
+                    "Your report is saved anonymously.\n"
+                    "98. View More\n"
+                    "2. Decline terms"
+                )
+        else:  # Page 2
+            if lang == "sw":
+                response_text = (
+                    "CON Matumizi ya data yamezuiliwa kwa mipango "
+                    "ya ufuatiliaji. Kwa kuendelea, unakubali masharti haya.\n"
+                    "1. Kubali na Anza kuripoti\n"
+                    "0. Rudi nyuma"
+                )
+            else:
+                response_text = (
+                    "CON Data usage is restricted to monitoring programs. "
+                    "By proceeding, you agree to these terms.\n"
+                    "1. Accept & Start reporting\n"
+                    "0. Back"
+                )
         return PlainTextResponse(clean_ussd_response(response_text))
 
-    # Parse consent choice
-    consent = parts[1]
-    if consent != "1":
+    if consent_declined:
         if lang == "sw":
             response_text = (
                 "END Masharti ya data lazima yakubalike ili kuripoti. "
@@ -216,6 +259,12 @@ def _handle_ussd_core(
             )
         processed_sessions[sessionId] = response_text
         return PlainTextResponse(clean_ussd_response(response_text))
+
+    # If consent was accepted:
+    # We must rebuild/clean the parts array to remove paging traversal values.
+    # Dynamic questions start at index 2, expecting parts[0] = language,
+    # parts[1] = accept (1)
+    parts = parts[:1] + ["1"] + parts[1 + processed_count :]  # noqa
 
     from app.services.translation import get_translation
     from app.services.form_engine import is_question_active
