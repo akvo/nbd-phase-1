@@ -84,7 +84,12 @@ def _apply_env_filter(form_name: str) -> str | None:
     suffix = os.getenv("KOBO_FORM_NAME_SUFFIX", "").strip().lower()
     name_lower = form_name.lower()
 
+    print(
+        f"[KOBO SYNC] Processing Kobo Form: '{form_name}' (Prefix config: '{prefix}', Suffix config: '{suffix}')"  # noqa
+    )
+
     if prefix and not name_lower.startswith(prefix):
+        print(f"[KOBO SYNC] - SKIPPED: does not match prefix '{prefix}'")
         logger.debug(
             f"Skipping Kobo form '{form_name}': "
             f"does not match prefix '{prefix}'"
@@ -92,6 +97,7 @@ def _apply_env_filter(form_name: str) -> str | None:
         return None
 
     if suffix and not name_lower.endswith(suffix):
+        print(f"[KOBO SYNC] - SKIPPED: does not match suffix '{suffix}'")
         logger.debug(
             f"Skipping Kobo form '{form_name}': "
             f"does not match suffix '{suffix}'"
@@ -105,7 +111,9 @@ def _apply_env_filter(form_name: str) -> str | None:
     if suffix:
         stripped = stripped[: len(stripped) - len(suffix)]
 
-    return stripped.strip().lower()
+    normalized = stripped.strip().lower()
+    print(f"[KOBO SYNC] - MATCHED: Normalized name is '{normalized}'")
+    return normalized
 
 
 def sync_kobo_submissions(db: Session) -> Dict[str, Any]:
