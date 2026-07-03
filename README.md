@@ -38,6 +38,7 @@ For more detailed technical specifications, refer to [spatial_infrastructure_lld
 ├── db/                 # PostgreSQL initialization script structure
 ├── pgadmin4/           # Pre-configured server profiles for PGAdmin4
 ├── docs/               # Platform schemas, user roles, API contracts
+├── docs/production-release-guide.md # Step-by-step production release workflow guide
 ├── project-docs/       # Reference requirements and inception reports (read-only)
 ├── design-docs/        # solution-design-technical.md (SDD source of truth)
 ├── final-docs/         # Client-delivered PDF snapshots and SVG diagrams
@@ -176,3 +177,4 @@ The backend status moderation logic (`PATCH /api/v1/submissions/{id}/status`) an
 
 - The canonical source of truth for the Solution Design Document is located in [final-docs/Final SDD.pdf](final-docs/Final%20SDD.pdf) and [design-docs/solution-design-technical.md](design-docs/solution-design-technical.md).
 - Visual system architecture diagrams are stored under [final-docs/diagrams/](final-docs/diagrams/).
+- For steps on deploying and promoting code to the production environment, consult the [docs/production-release-guide.md](docs/production-release-guide.md).

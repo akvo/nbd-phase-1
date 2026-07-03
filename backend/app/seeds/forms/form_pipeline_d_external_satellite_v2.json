@@ -1,0 +1,82 @@
+{
+  "name": "External Satellite & Climate Data",
+  "type": 5,
+  "form_id": 5,
+  "version": 3,
+  "question_groups": [
+    {
+      "id": 12,
+      "name": "Sentinel-2 NDVI",
+      "label": "Sentinel-2 NDVI",
+      "order": 1,
+      "questions": [
+        {
+          "fn": null,
+          "id": 47,
+          "api": null,
+          "pre": null,
+          "name": "ndvi",
+          "rule": { "max": 1, "min": -1, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "NDVI",
+          "options": [],
+          "tooltip": null,
+          "required": true,
+          "dependency": null,
+          "short_label": null,
+          "display_only": false,
+          "dependency_rule": null
+        },
+        {
+          "fn": null,
+          "id": 48,
+          "api": null,
+          "pre": null,
+          "name": "water_extent_km2",
+          "rule": { "min": 0, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "Water Extent (km2)",
+          "options": [],
+          "tooltip": null,
+          "required": true,
+          "dependency": null,
+          "short_label": null,
+          "display_only": false,
+          "dependency_rule": null
+        }
+      ],
+      "repeatable": false,
+      "repeat_text": null
+    },
+    {
+      "id": 13,
+      "name": "CHIRPS Precipitation",
+      "label": "CHIRPS Precipitation",
+      "order": 2,
+      "questions": [
+        {
+          "fn": null,
+          "id": 49,
+          "api": null,
+          "pre": null,
+          "name": "precipitation_mm",
+          "rule": { "min": 0, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "Precipitation (mm)",
+          "options": [],
+          "tooltip": null,
+          "required": true,
+          "dependency": null,
+          "short_label": null,
+          "display_only": false,
+          "dependency_rule": null
+        }
+      ],
+      "repeatable": false,
+      "repeat_text": null
+    }
+  ]
+}
