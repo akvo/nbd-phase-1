@@ -2,8 +2,8 @@
   "name": "Pollution Reporting Form",
   "type": 1,
   "form_id": 1,
-  "version": 5,
-  "languages": ["en", "sw"],
+  "version": 6,
+  "languages": ["en"],
   "translations": [
     { "name": "Pollution Reporting Form", "language": "en" },
     { "name": "Fomu ya Kuripoti Uchafuzi", "language": "sw" }
@@ -109,6 +109,7 @@
           ],
           "tooltip": null,
           "required": true,
+          "allowOther": false,
           "dependency": null,
           "shortLabel": null,
           "displayOnly": false,
@@ -118,6 +119,7 @@
             { "name": "Report an incident", "language": "en" },
             { "name": "Ripoti tukio", "language": "sw" }
           ],
+          "allowOtherText": null,
           "dependencyRule": null,
           "requiredDoubleEntry": false
         },
@@ -150,6 +152,7 @@
           "option": null,
           "tooltip": null,
           "required": true,
+          "allowOther": false,
           "dependency": null,
           "shortLabel": null,
           "displayOnly": false,
@@ -159,6 +162,7 @@
             { "name": "Select Sub-County", "language": "en" },
             { "name": "Chagua Kaunti Ndogo", "language": "sw" }
           ],
+          "allowOtherText": null,
           "dependencyRule": null,
           "requiredDoubleEntry": false
         },
@@ -170,13 +174,14 @@
           "meta": false,
           "name": "media_attachment",
           "rule": null,
-          "type": "text",
+          "type": "image",
           "extra": null,
           "label": "Please share a photo as proof",
           "order": 3,
           "option": null,
           "tooltip": null,
           "required": false,
+          "allowOther": false,
           "dependency": null,
           "shortLabel": null,
           "displayOnly": false,
@@ -186,6 +191,7 @@
             { "name": "Photo Evidence", "language": "en" },
             { "name": "Uthibitisho wa Picha", "language": "sw" }
           ],
+          "allowOtherText": null,
           "dependencyRule": null,
           "requiredDoubleEntry": false
         }
