@@ -17,6 +17,7 @@ from app.models.form import (
 )
 from app.models.submission import Datapoint, Answer
 from app.models.citizen import Citizen
+from app.services.ussd_pager import USSDDynamicPager
 
 router = APIRouter(prefix="/api/v1/ussd", tags=["ussd"])
 
@@ -109,36 +110,6 @@ def handle_ussd(
             db.commit()
         except Exception:
             db.rollback()
-
-
-def paginate_options(options, inputs_for_question, page_size=4):
-    """
-    Traverses the page navigation inputs (98 / 0) for a single question
-    and returns:
-        - current_page_index (0-based)
-        - final_selection_index (or None if still paging)
-        - consumed_input_count
-    """
-    page = 0
-    max_pages = (len(options) - 1) // page_size + 1
-    consumed = 0
-
-    for item in inputs_for_question:
-        consumed += 1
-        val = item.strip()
-        if val == "98" and page < max_pages - 1:
-            page += 1
-        elif val == "0" and page > 0:
-            page -= 1
-        else:
-            try:
-                choice = int(val) - 1
-                actual_idx = page * page_size + choice
-                if 0 <= actual_idx < len(options):
-                    return page, actual_idx, consumed
-            except ValueError:
-                pass
-    return page, None, consumed
 
 
 def _handle_ussd_core(
@@ -333,8 +304,6 @@ def _handle_ussd_core(
                 user_input = parts[input_idx].strip()
 
                 if q.type == "cascade":
-                    # For location cascade, it consumes
-                    # 1 or 2 parts depending on levels
                     # Level 2 (County) selection
                     counties = (
                         db.query(SpatialBoundary)
@@ -348,69 +317,28 @@ def _handle_ussd_core(
                         .all()
                     )
 
-                    # Dynamic paging for Level 2 counties list
-                    q_inputs = parts[input_idx:]
-                    page_size = 4
-                    page, county_idx, consumed = paginate_options(
-                        counties, q_inputs, page_size
+                    pager = USSDDynamicPager(page_size=4)
+                    q_label = get_translation(q.translations, lang, q.label)
+                    res = pager.render_page(
+                        counties,
+                        parts[input_idx:],
+                        f"{q_label}:",
+                        lang=lang,
+                        is_cascade=True,
                     )
 
-                    if county_idx is not None:
-                        selected_county = counties[county_idx]
-                        # Replace Level 2 paging sequence in parts
-                        # with the single final selection index
+                    if res["selected"] is not None:
+                        selected_county = res["selected"]
+                        # Cleanse parts to replace paging path
+                        # with the selected option value
                         parts = (
                             parts[:input_idx]
-                            + [str(county_idx + 1)]
-                            + parts[input_idx + consumed :]  # noqa
+                            + [res["final_value"]]
+                            + parts[input_idx + res["consumed"] :]  # noqa
                         )
                     else:
-                        # Display the current page of counties
-                        max_pages = (len(counties) - 1) // page_size + 1
-                        start_idx = page * page_size
-                        end_idx = start_idx + page_size
-                        page_slice = counties[start_idx:end_idx]
-
-                        menu_lines = []
-                        current_parent_id = None
-                        for i, sc in enumerate(page_slice, start_idx + 1):
-                            if sc.parent_id != current_parent_id:
-                                current_parent_id = sc.parent_id
-                                parent = sc.parent
-                                if parent:
-                                    if menu_lines:
-                                        menu_lines.append("")
-                                    menu_lines.append(
-                                        f"{parent.name} (Mkoa):"
-                                        if lang == "sw"
-                                        else f"{parent.name} (Region):"
-                                    )
-                            # Render index relative to the current
-                            # page on screen (1 to 4)
-                            screen_idx = i - start_idx
-                            menu_lines.append(f"  {screen_idx}. {sc.name}")
-
-                        if page < max_pages - 1:
-                            menu_lines.append(
-                                "  98. Angalia zaidi"
-                                if lang == "sw"
-                                else "  98. View More"
-                            )
-                        if page > 0:
-                            menu_lines.append(
-                                "  0. Rudi nyuma"
-                                if lang == "sw"
-                                else "  0. Back"
-                            )
-
-                        q_label = get_translation(
-                            q.translations, lang, q.label
-                        )
-                        prompt_text = f"CON {q_label}:\n" + "\n".join(
-                            menu_lines
-                        )
                         return PlainTextResponse(
-                            clean_ussd_response(prompt_text)
+                            clean_ussd_response(f"CON {res['prompt_text']}")
                         )
 
                     sub_counties = (
@@ -424,61 +352,42 @@ def _handle_ussd_core(
                     )
 
                     if sub_counties:
-                        # Check if there is another input part for sub-county
-                        # Since sub-counties list might be long,
-                        # we support dynamic paging
-                        sub_inputs = parts[input_idx + 1 :]  # noqa
-                        page_size = 4
-                        page, sc_idx, consumed = paginate_options(
-                            sub_counties, sub_inputs, page_size
+                        # Dynamic paging for sub-county selection
+                        pager_sc = USSDDynamicPager(page_size=4)
+                        sc_inputs = parts[input_idx + 1 :]  # noqa
+                        sc_label = (
+                            f"Chagua Wilaya ndogo ya {selected_county.name}:"
+                            if lang == "sw"
+                            else f"Choose Sub-County of {selected_county.name}:"  # noqa
+                        )
+                        res_sc = pager_sc.render_page(
+                            sub_counties,
+                            sc_inputs,
+                            sc_label,
+                            lang=lang,
+                            is_cascade=True,
                         )
 
-                        if sc_idx is not None:
-                            selected_sc = sub_counties[sc_idx]
+                        if res_sc["selected"] is not None:
+                            selected_sc = res_sc["selected"]
                             current_answers[q.id] = str(selected_sc.id)
                             current_answers[q.name] = str(selected_sc.id)
                             # Cleanse parts for the sub-county pagination
                             parts = (
                                 parts[: input_idx + 1]
-                                + [str(sc_idx + 1)]
-                                + parts[input_idx + 1 + consumed :]  # noqa
+                                + [res_sc["final_value"]]
+                                + parts[
+                                    input_idx
+                                    + 1
+                                    + res_sc["consumed"] :  # noqa
+                                ]
                             )
                             input_idx += 2
                         else:
-                            # Prompt the current page of sub-counties
-                            max_pages = (
-                                len(sub_counties) - 1
-                            ) // page_size + 1
-                            start_idx = page * page_size
-                            end_idx = start_idx + page_size
-                            page_slice = sub_counties[start_idx:end_idx]
-
-                            sub_menu_lines = [
-                                f"  {i}. {sc.name}"
-                                for i, sc in enumerate(page_slice, 1)
-                            ]
-                            if page < max_pages - 1:
-                                sub_menu_lines.append(
-                                    "  98. Angalia zaidi"
-                                    if lang == "sw"
-                                    else "  98. View More"
-                                )
-                            if page > 0:
-                                sub_menu_lines.append(
-                                    "  0. Rudi nyuma"
-                                    if lang == "sw"
-                                    else "  0. Back"
-                                )
-
-                            prompt_text = (
-                                f"CON Chagua Wilaya ndogo ya {selected_county.name}:\n"  # noqa
-                                + "\n".join(sub_menu_lines)
-                                if lang == "sw"
-                                else f"CON Choose Sub-County of {selected_county.name}:\n"  # noqa
-                                + "\n".join(sub_menu_lines)
-                            )
                             return PlainTextResponse(
-                                clean_ussd_response(prompt_text)
+                                clean_ussd_response(
+                                    f"CON {res_sc['prompt_text']}"
+                                )
                             )
                     else:
                         selected_sc = selected_county
@@ -494,55 +403,26 @@ def _handle_ussd_core(
                         .all()
                     )
 
-                    # Track paging inputs starting
-                    # from this question input index
-                    q_inputs = parts[input_idx:]
-                    page_size = 4
-                    page, opt_idx, consumed = paginate_options(
-                        options, q_inputs, page_size
+                    pager = USSDDynamicPager(page_size=4)
+                    q_label = get_translation(q.translations, lang, q.label)
+                    res = pager.render_page(
+                        options, parts[input_idx:], f"{q_label}:", lang=lang
                     )
 
-                    if opt_idx is not None:
-                        selected_opt = options[opt_idx]
+                    if res["selected"] is not None:
+                        selected_opt = res["selected"]
                         current_answers[q.id] = selected_opt.value
                         current_answers[q.name] = selected_opt.value
-                        # Cleanse parts to replace paging
-                        # inputs with single selected option index
+                        # Cleanse parts
                         parts = (
                             parts[:input_idx]
-                            + [str(opt_idx + 1)]
-                            + parts[input_idx + consumed :]  # noqa
+                            + [res["final_value"]]
+                            + parts[input_idx + res["consumed"] :]  # noqa
                         )
                         input_idx += 1
                     else:
-                        max_pages = (len(options) - 1) // page_size + 1
-                        start_idx = page * page_size
-                        end_idx = start_idx + page_size
-                        page_slice = options[start_idx:end_idx]
-
-                        menu_items = [
-                            f"{i}: {get_translation(opt.translations, lang, opt.label)}"  # noqa
-                            for i, opt in enumerate(page_slice, 1)
-                        ]
-                        if page < max_pages - 1:
-                            menu_items.append(
-                                "98: Angalia zaidi"
-                                if lang == "sw"
-                                else "98: View More"
-                            )
-                        if page > 0:
-                            menu_items.append(
-                                "0: Rudi nyuma" if lang == "sw" else "0: Back"
-                            )
-
-                        q_label = get_translation(
-                            q.translations, lang, q.label
-                        )
-                        prompt_text = f"CON {q_label}:\n" + "\n".join(
-                            menu_items
-                        )
                         return PlainTextResponse(
-                            clean_ussd_response(prompt_text)
+                            clean_ussd_response(f"CON {res['prompt_text']}")
                         )
 
                 else:
@@ -567,36 +447,14 @@ def _handle_ussd_core(
                         )
                         .all()
                     )
-                    page_size = 4
-                    page_slice = counties[:page_size]
-                    max_pages = (len(counties) - 1) // page_size + 1
-
-                    menu_lines = []
-                    current_parent_id = None
-                    for idx, sc in enumerate(page_slice, 1):
-                        if sc.parent_id != current_parent_id:
-                            current_parent_id = sc.parent_id
-                            parent = sc.parent
-                            if parent:
-                                if menu_lines:
-                                    menu_lines.append("")
-                                menu_lines.append(
-                                    f"{parent.name} (Mkoa):"
-                                    if lang == "sw"
-                                    else f"{parent.name} (Region):"
-                                )
-                        menu_lines.append(f"  {idx}. {sc.name}")
-
-                    if max_pages > 1:
-                        menu_lines.append(
-                            "  98. Angalia zaidi"
-                            if lang == "sw"
-                            else "  98. View More"
-                        )
-
+                    pager = USSDDynamicPager(page_size=4)
                     q_label = get_translation(q.translations, lang, q.label)
-                    prompt_text = f"CON {q_label}:\n" + "\n".join(menu_lines)
-                    return PlainTextResponse(clean_ussd_response(prompt_text))
+                    res = pager.render_page(
+                        counties, [], f"{q_label}:", lang=lang, is_cascade=True
+                    )
+                    return PlainTextResponse(
+                        clean_ussd_response(f"CON {res['prompt_text']}")
+                    )
 
                 elif q.type == "option":
                     options = (
@@ -605,24 +463,14 @@ def _handle_ussd_core(
                         .order_by(Option.order.asc())
                         .all()
                     )
-                    page_size = 4
-                    page_slice = options[:page_size]
-                    max_pages = (len(options) - 1) // page_size + 1
-
-                    menu_items = [
-                        f"{idx}: {get_translation(opt.translations, lang, opt.label)}"  # noqa
-                        for idx, opt in enumerate(page_slice, 1)
-                    ]
-                    if max_pages > 1:
-                        menu_items.append(
-                            "98: Angalia zaidi"
-                            if lang == "sw"
-                            else "98: View More"
-                        )
-
+                    pager = USSDDynamicPager(page_size=4)
                     q_label = get_translation(q.translations, lang, q.label)
-                    prompt_text = f"CON {q_label}:\n" + "\n".join(menu_items)
-                    return PlainTextResponse(clean_ussd_response(prompt_text))
+                    res = pager.render_page(
+                        options, [], f"{q_label}:", lang=lang
+                    )
+                    return PlainTextResponse(
+                        clean_ussd_response(f"CON {res['prompt_text']}")
+                    )
 
                 else:
                     q_label = get_translation(q.translations, lang, q.label)
