@@ -317,7 +317,7 @@ def _handle_ussd_core(
                         .all()
                     )
 
-                    pager = USSDDynamicPager(page_size=4)
+                    pager = USSDDynamicPager(page_size=3)
                     q_label = get_translation(q.translations, lang, q.label)
                     res = pager.render_page(
                         counties,
@@ -353,7 +353,7 @@ def _handle_ussd_core(
 
                     if sub_counties:
                         # Dynamic paging for sub-county selection
-                        pager_sc = USSDDynamicPager(page_size=4)
+                        pager_sc = USSDDynamicPager(page_size=3)
                         sc_inputs = parts[input_idx + 1 :]  # noqa
                         sc_label = (
                             f"Chagua Wilaya ndogo ya {selected_county.name}:"
@@ -403,7 +403,7 @@ def _handle_ussd_core(
                         .all()
                     )
 
-                    pager = USSDDynamicPager(page_size=4)
+                    pager = USSDDynamicPager(page_size=3)
                     q_label = get_translation(q.translations, lang, q.label)
                     res = pager.render_page(
                         options, parts[input_idx:], f"{q_label}:", lang=lang
@@ -447,7 +447,7 @@ def _handle_ussd_core(
                         )
                         .all()
                     )
-                    pager = USSDDynamicPager(page_size=4)
+                    pager = USSDDynamicPager(page_size=3)
                     q_label = get_translation(q.translations, lang, q.label)
                     res = pager.render_page(
                         counties, [], f"{q_label}:", lang=lang, is_cascade=True
@@ -463,7 +463,7 @@ def _handle_ussd_core(
                         .order_by(Option.order.asc())
                         .all()
                     )
-                    pager = USSDDynamicPager(page_size=4)
+                    pager = USSDDynamicPager(page_size=3)
                     q_label = get_translation(q.translations, lang, q.label)
                     res = pager.render_page(
                         options, [], f"{q_label}:", lang=lang
