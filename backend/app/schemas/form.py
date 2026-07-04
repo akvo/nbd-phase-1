@@ -676,3 +676,9 @@ class FormBlueprintUpdate(BaseModel):
             if "question_groups" in data and "question_group" not in data:
                 data["question_group"] = data.pop("question_groups")
         return data
+
+
+class FormSettingsUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[int] = None
+    status: Optional[int] = None

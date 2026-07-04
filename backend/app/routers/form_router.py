@@ -77,6 +77,41 @@ def get_form(
     return db_form
 
 
+@router.patch(
+    "/forms/{form_id}/settings",
+    response_model=schemas.FormResponse,
+    dependencies=[Depends(RoleChecker(["Admin"]))],
+)
+def update_form_settings(
+    form_id: int,
+    payload: schemas.FormSettingsUpdate,
+    db: Session = Depends(get_db),
+):
+    """Partially update form table attributes directly."""
+    db_form = db.query(Form).filter(Form.id == form_id).first()
+    if not db_form:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Form not found"
+        )
+
+    try:
+        if payload.name is not None:
+            db_form.name = payload.name
+        if payload.type is not None:
+            db_form.type = payload.type
+        if payload.status is not None:
+            db_form.status = payload.status
+
+        db.commit()
+        db.refresh(db_form)
+        return db_form
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        )
+
+
 @router.put(
     "/forms/{form_id}",
     response_model=schemas.FormBlueprintResponse,

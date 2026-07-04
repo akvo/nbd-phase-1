@@ -392,3 +392,23 @@ def test_form_update_group_and_question_reordering(db_session):
     q2_db = db_session.query(Question).filter(Question.id == q2_id).first()
     assert q1_db.order == 1  # Updated to index order in the payload
     assert q2_db.order == 0  # Updated to index order in the payload
+
+
+def test_update_form_settings(db_session):
+    headers = get_auth_headers(db_session, email="settings_admin@nbd.org")
+    # Create initial form
+    form_data = {"name": "Old Name", "type": 1, "status": 1}
+    res = client.post("/api/v1/forms", json=form_data, headers=headers)
+    assert res.status_code == 201
+    form_id = res.json()["id"]
+
+    # Partially update form type and name
+    patch_data = {"name": "New Name", "type": 2}
+    patch_res = client.patch(
+        f"/api/v1/forms/{form_id}/settings", json=patch_data, headers=headers
+    )
+    assert patch_res.status_code == 200
+    res_data = patch_res.json()
+    assert res_data["name"] == "New Name"
+    assert res_data["type"] == 2
+    assert res_data["status"] == 1  # Unchanged

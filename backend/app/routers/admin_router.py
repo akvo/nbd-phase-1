@@ -37,7 +37,7 @@ router = APIRouter(
     response_model=List[schemas.DatapointResponse],
 )
 def list_admin_submissions(
-    form_type: Optional[int] = None,
+    form_id: Optional[int] = None,
     status: Optional[str] = None,
     basin: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -55,8 +55,8 @@ def list_admin_submissions(
         )
     )
 
-    if form_type is not None:
-        query = query.filter(Form.type == form_type)
+    if form_id is not None:
+        query = query.filter(Datapoint.form_id == form_id)
     if status is not None:
         query = query.filter(Datapoint.status == status)
     if basin is not None:
@@ -137,10 +137,55 @@ def update_submission_status(
             status_code=404, detail=f"Submission with ID {id} not found."
         )
 
-    if dp.status in ("APPROVED", "REJECTED"):
+    if dp.status == payload.status:
         raise HTTPException(
             status_code=400, detail=f"Submission is already {dp.status}."
         )
+
+    # Clean up generated records if transitioning from APPROVED
+    # to another status
+    if dp.status == "APPROVED" and payload.status != "APPROVED":
+        from app.models.sampling_record import SamplingRecord
+        from app.models.health_score import HealthScore
+        from app.models.fgd_record import FgdRecord
+        from app.models.reconciliation import ReconciliationLog
+
+        # Find the sampling record to get its UUID
+        # for ReconciliationLog cleanup
+        sr = (
+            db.query(SamplingRecord)
+            .filter(
+                SamplingRecord.site_id == dp.site_id,
+                SamplingRecord.sampled_at == dp.created_at,
+            )
+            .first()
+        )
+
+        if sr:
+            # Clean up Reconciliation logs linked to this Citizen record
+            db.query(ReconciliationLog).filter(
+                ReconciliationLog.citizen_datapoint_id == sr.id
+            ).delete()
+
+            # 1. Clean up Sampling Records
+            db.delete(sr)
+
+        # Clean up Reconciliation logs linked to this Lab record (if type 4)
+        db.query(ReconciliationLog).filter(
+            ReconciliationLog.lab_datapoint_id == dp.id
+        ).delete()
+
+        # 2. Clean up Health Scores
+        db.query(HealthScore).filter(
+            HealthScore.site_id == dp.site_id,
+            HealthScore.calculated_at == dp.created_at,
+        ).delete()
+
+        # 3. Clean up FGD Records
+        db.query(FgdRecord).filter(
+            FgdRecord.wetland_id == dp.wetland_id,
+            FgdRecord.conducted_at == dp.created_at,
+        ).delete()
 
     dp.status = payload.status
 
@@ -225,6 +270,51 @@ def delete_submission(
         )
 
     try:
+        # Clean up generated records if the submission was APPROVED
+        if dp.status == "APPROVED":
+            from app.models.sampling_record import SamplingRecord
+            from app.models.health_score import HealthScore
+            from app.models.fgd_record import FgdRecord
+            from app.models.reconciliation import ReconciliationLog
+
+            # Find the sampling record to get its UUID for
+            # ReconciliationLog cleanup
+            sr = (
+                db.query(SamplingRecord)
+                .filter(
+                    SamplingRecord.site_id == dp.site_id,
+                    SamplingRecord.sampled_at == dp.created_at,
+                )
+                .first()
+            )
+
+            if sr:
+                # Clean up Reconciliation logs linked to this Citizen record
+                db.query(ReconciliationLog).filter(
+                    ReconciliationLog.citizen_datapoint_id == sr.id
+                ).delete()
+
+                # 1. Clean up Sampling Records
+                db.delete(sr)
+
+            # Clean up Reconciliation logs linked
+            # to this Lab record (if type 4)
+            db.query(ReconciliationLog).filter(
+                ReconciliationLog.lab_datapoint_id == dp.id
+            ).delete()
+
+            # 2. Clean up Health Scores
+            db.query(HealthScore).filter(
+                HealthScore.site_id == dp.site_id,
+                HealthScore.calculated_at == dp.created_at,
+            ).delete()
+
+            # 3. Clean up FGD Records
+            db.query(FgdRecord).filter(
+                FgdRecord.wetland_id == dp.wetland_id,
+                FgdRecord.conducted_at == dp.created_at,
+            ).delete()
+
         # Delete the datapoint (cascades to answers table)
         db.delete(dp)
 

@@ -256,7 +256,7 @@ def test_internal_generic_submit_ingestion(
     assert dp.status == "PENDING"
 
 
-TEST_STORAGE_DIR = "./test_internal_storage_mount"
+TEST_STORAGE_DIR = "/tmp/test_internal_storage_mount"
 
 
 @pytest.fixture(autouse=True)
@@ -498,3 +498,107 @@ def test_internal_generic_submit_resolves_basin_from_sub_county(
     )  # Resolved correct Sio Siteko basin via name!
     assert dp_name.wetland_id is None
     assert dp_name.site_id is None
+
+
+def test_internal_submit_resolves_spatial_anchors_from_options(
+    auth_header, setup_lab_data, db_session: Session
+):
+    # 1. Setup spatial anchors
+    from app.models.spatial import Site
+    from app.models.form import QuestionGroup, Question
+
+    form = setup_lab_data["form"]
+    wetland = db_session.query(Wetland).filter_by(code="WET-LAB").first()
+    basin = db_session.query(Basin).filter_by(code="MARA-LAB").first()
+
+    site = Site(
+        code="SITE-INGEST-01",
+        name="Ingest Site 01",
+        wetland_id=wetland.id,
+        geom="SRID=4326;POINT(34.55 -1.45)",
+    )
+    db_session.add(site)
+    db_session.commit()
+
+    q_group = (
+        db_session.query(QuestionGroup).filter_by(form_id=form.id).first()
+    )
+
+    # Add question fields for site, wetland, basin
+    q_site = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="site_id",
+        type="option",
+        label="Select Site",
+        order=11,
+    )
+    q_wetland = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="wetland_id",
+        type="option",
+        label="Select Wetland",
+        order=12,
+    )
+    q_basin = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="basin_id",
+        type="option",
+        label="Select Basin",
+        order=13,
+    )
+    db_session.add_all([q_site, q_wetland, q_basin])
+    db_session.commit()
+
+    # 2. Test site_id resolution (case-insensitive option value)
+    payload_site = {
+        "form_id": form.id,
+        "answers": [
+            {
+                "question_id": q_site.id,
+                "value": "site-ingest-01",  # lowercase code
+            }
+        ],
+    }
+    resp = client.post(
+        "/api/v1/internal/submit", json=payload_site, headers=auth_header
+    )
+    assert resp.status_code == 200
+    dp_site = db_session.query(Datapoint).get(resp.json()["datapoint_id"])
+    assert dp_site.site_id == site.id
+
+    # 3. Test wetland_id resolution (case-insensitive name)
+    payload_wetland = {
+        "form_id": form.id,
+        "answers": [
+            {
+                "question_id": q_wetland.id,
+                "value": "lab wetland",  # lowercase name
+            }
+        ],
+    }
+    resp = client.post(
+        "/api/v1/internal/submit", json=payload_wetland, headers=auth_header
+    )
+    assert resp.status_code == 200
+    dp_wetland = db_session.query(Datapoint).get(resp.json()["datapoint_id"])
+    assert dp_wetland.wetland_id == wetland.id
+
+    # 4. Test basin_id resolution
+    payload_basin = {
+        "form_id": form.id,
+        "answers": [
+            {
+                "question_id": q_basin.id,
+                "value": "MARA-LAB",
+            }
+        ],
+    }
+    resp = client.post(
+        "/api/v1/internal/submit", json=payload_basin, headers=auth_header
+    )
+    assert resp.status_code == 200
+    dp_basin = db_session.query(Datapoint).get(resp.json()["datapoint_id"])
+    assert dp_basin.basin_id == basin.id

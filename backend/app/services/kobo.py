@@ -263,8 +263,14 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                 site_obj = (
                                     db.query(Site)
                                     .filter(
-                                        (Site.code == str(val))
-                                        | (Site.name == str(val))
+                                        (
+                                            func.lower(Site.code)
+                                            == func.lower(str(val))
+                                        )
+                                        | (
+                                            func.lower(Site.name)
+                                            == func.lower(str(val))
+                                        )
                                     )
                                     .first()
                                 )
