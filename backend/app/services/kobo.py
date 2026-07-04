@@ -317,7 +317,7 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                         form_id=db_form.id,
                         published_version_id=db_form.active_version_id,
                         name=f"kobotoolbox_{sub.get('_id')}",
-                        submitter=sub.get("_submitted_by", "KoboToolbox"),
+                        submitter=sub.get("_submitted_by") or "KoboToolbox",
                         created_at=sub_time,
                         site_id=selected_site_id,
                         basin_id=selected_basin_id,
@@ -384,7 +384,17 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                 if isinstance(val, list):
                                     options_val = val
                                 else:
-                                    options_val = [str(val)]
+                                    if (
+                                        question.type == "multiple_option"
+                                        and isinstance(val, str)
+                                    ):
+                                        options_val = [
+                                            x.strip()
+                                            for x in val.split(" ")
+                                            if x.strip()
+                                        ]
+                                    else:
+                                        options_val = [str(val)]
                             elif question.type in ("image", "attachment"):
                                 attachments = sub.get("_attachments", [])
                                 attachment = next(
