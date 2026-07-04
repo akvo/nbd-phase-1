@@ -280,8 +280,20 @@ if __name__ == "__main__":
     logger.info("Initializing APScheduler daemon...")
     scheduler = BlockingScheduler()
 
-    # Schedule hourly KoboToolbox pulls
-    scheduler.add_job(hourly_kobotoolbox_pull, "cron", hour="*")
+    # Schedule KoboToolbox pulls based on interval
+    kobo_interval_str = os.getenv("KOBO_SYNC_INTERVAL_MINUTES", "60")
+    try:
+        kobo_interval = int(kobo_interval_str)
+    except ValueError:
+        logger.warning(
+            "Invalid KOBO_SYNC_INTERVAL_MINUTES value '%s', "
+            "falling back to 60 minutes.",
+            kobo_interval_str,
+        )
+        kobo_interval = 60
+    scheduler.add_job(
+        hourly_kobotoolbox_pull, "interval", minutes=kobo_interval
+    )
 
     # Schedule monthly GEE batch ingestions
     # (runs on the 1st of every month at 00:00)
