@@ -33,6 +33,7 @@ def test_monthly_gee_ingest(monkeypatch):
 
 def test_scheduler_main_execution(monkeypatch):
     monkeypatch.setattr(time, "sleep", lambda x: None)
+    monkeypatch.delenv("KOBO_SYNC_INTERVAL_MINUTES", raising=False)
 
     # scheduler catches SystemExit and exits gracefully,
     # so no exception is raised to the caller
@@ -45,9 +46,37 @@ def test_scheduler_main_execution(monkeypatch):
     call_2 = mock_scheduler_instance.add_job.call_args_list[1]
 
     assert call_1[0][0].__name__ == "hourly_kobotoolbox_pull"
-    assert call_1[0][1] == "cron"
-    assert call_1[1] == {"hour": "*"}
+    assert call_1[0][1] == "interval"
+    assert call_1[1] == {"minutes": 60}
 
     assert call_2[0][0].__name__ == "monthly_gee_ingest"
     assert call_2[0][1] == "cron"
     assert call_2[1] == {"day": 1, "hour": 0, "minute": 0}
+
+
+def test_scheduler_custom_interval(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda x: None)
+    monkeypatch.setenv("KOBO_SYNC_INTERVAL_MINUTES", "15")
+
+    mock_scheduler_instance.add_job.reset_mock()
+    runpy.run_module("app.scheduler", run_name="__main__")
+
+    assert mock_scheduler_instance.add_job.call_count == 3
+    call_1 = mock_scheduler_instance.add_job.call_args_list[0]
+    assert call_1[0][0].__name__ == "hourly_kobotoolbox_pull"
+    assert call_1[0][1] == "interval"
+    assert call_1[1] == {"minutes": 15}
+
+
+def test_scheduler_invalid_interval(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda x: None)
+    monkeypatch.setenv("KOBO_SYNC_INTERVAL_MINUTES", "invalid_value")
+
+    mock_scheduler_instance.add_job.reset_mock()
+    runpy.run_module("app.scheduler", run_name="__main__")
+
+    assert mock_scheduler_instance.add_job.call_count == 3
+    call_1 = mock_scheduler_instance.add_job.call_args_list[0]
+    assert call_1[0][0].__name__ == "hourly_kobotoolbox_pull"
+    assert call_1[0][1] == "interval"
+    assert call_1[1] == {"minutes": 60}
