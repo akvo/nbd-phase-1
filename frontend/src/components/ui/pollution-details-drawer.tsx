@@ -28,6 +28,7 @@ export function PollutionDetailsDrawer({
   const imageUrls = React.useMemo(() => {
     return incidents
       .map((incident) => {
+        if (incident.image_url) return incident.image_url;
         return incident.answers?.find(
           (a: any) => a.read_url && a.read_url.trim() !== ""
         )?.read_url;

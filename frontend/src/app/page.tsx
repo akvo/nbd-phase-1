@@ -617,6 +617,16 @@ export default function Home() {
     }
 
     const matched = filteredIncidents.filter((incident) => {
+      // 1. Direct match on resolved sub-county name from backend
+      if (
+        incident.reported_location &&
+        incident.reported_location.toString().trim().toLowerCase() ===
+          selectedSubCounty.properties?.name?.toString().trim().toLowerCase()
+      ) {
+        return true;
+      }
+
+      // 2. Fallback to location_id answer (for backward compatibility if answers are populated)
       const locationAns = incident.answers?.find(
         (a) =>
           a.question_name === "location_id" &&
@@ -626,6 +636,7 @@ export default function Home() {
       );
       if (locationAns) return true;
 
+      // 3. Fallback to point-in-polygon check
       const coords = incident.geo?.coordinates;
       if (!coords || coords.length < 2) return false;
       try {
