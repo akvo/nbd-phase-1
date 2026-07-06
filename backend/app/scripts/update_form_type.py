@@ -68,6 +68,15 @@ def main():
         if new_name:
             selected_form.name = new_name
 
+        # 2b. Edit Kobo UID / Asset ID
+        current_kobo = selected_form.kobo_asset_id or "None"
+        new_kobo_id = input(f"New Kobo UID [{current_kobo}]: ").strip()
+        if new_kobo_id:
+            if new_kobo_id.lower() == "none":
+                selected_form.kobo_asset_id = None
+            else:
+                selected_form.kobo_asset_id = new_kobo_id
+
         # 3. Edit Type
         print("\nAvailable Form Types:")
         for t in FormType:

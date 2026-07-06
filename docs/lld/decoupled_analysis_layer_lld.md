@@ -12,6 +12,7 @@
 ### 1.1 Database Migration & Cutover Strategy (Alembic)
 
 The migration script will execute a safe transition using the following sequence inside the `upgrade()` method:
+
 1. **Schema Expansion**: Add the new JSONB columns as nullable columns.
 2. **Data Migration**: Copy existing flat values into the JSONB structures.
 3. **Cutover**: Alter columns to `sa.Column('parameters', postgresql.JSONB, nullable=False)` and drop the legacy flat columns.
@@ -70,14 +71,21 @@ def upgrade():
 
       @hybrid_property
       def ph_value(self):
-          return float(self.parameters.get("ph")) if self.parameters and "ph" in self.parameters else None
+          if self.parameters and "ph" in self.parameters:
+              return float(self.parameters["ph"])
+          return float(self.ph_value_legacy) if hasattr(self, "ph_value_legacy") and self.ph_value_legacy is not None else None
 
       @ph_value.setter
       def ph_value(self, value):
           if not self.parameters: self.parameters = {}
           self.parameters["ph"] = value
-      
+          # Double-write support during deprecation period
+          if hasattr(self, "ph_value_legacy"):
+              self.ph_value_legacy = value
+
       # Similar hybrid properties mapped for temp_value, do_value, water_level, invasive_macrophytes, and cpue_value.
+      # All hybrid property getters prioritize JSONB parameters, defaulting to legacy columns if JSONB is empty/missing.
+      # Setters perform double-writes to both JSONB and legacy columns to preserve compatibility with existing pipelines.
   ```
 
 - **`FgdRecord`** (`backend/app/models/fgd_record.py`):
@@ -169,7 +177,7 @@ comparisons = [
 ]
 ```
 
-*(This maps parameter lookups directly to the JSONB schema, preventing compile-time coupling to database columns).*
+_(This maps parameter lookups directly to the JSONB schema, preventing compile-time coupling to database columns)._
 
 ---
 
@@ -223,12 +231,14 @@ Update the `SiteDrawer` to iterate dynamically over `ui_config` lists for both p
 For example, instead of rendering hardcoded cards, it will iterate over `site.details.ui_config.score_breakdown`:
 
 ```tsx
-{site.details.ui_config.score_breakdown.map((item) => (
-  <div key={item.key}>
-    <span>{item.label}</span>
-    <Progress value={site.details.score_breakdown[item.key].score * 100} />
-  </div>
-))}
+{
+  site.details.ui_config.score_breakdown.map((item) => (
+    <div key={item.key}>
+      <span>{item.label}</span>
+      <Progress value={site.details.score_breakdown[item.key].score * 100} />
+    </div>
+  ));
+}
 ```
 
 ---
@@ -238,13 +248,14 @@ For example, instead of rendering hardcoded cards, it will iterate over `site.de
 ### Seed Scripts & Test Suites Updates
 
 Refactor the following code files to instantiate models using the new JSONB structures:
-* **Seeder**: `backend/app/seeds/seed_fake_submissions.py` (instantiate `HealthScore` using `breakdown` dict).
-* **Backend Tests**: Update all `SamplingRecord`, `FgdRecord`, and `HealthScore` instantiations in:
-  * `backend/tests/test_public_api.py`
-  * `backend/tests/test_scoring.py`
-  * `backend/tests/test_remaining_schemas.py`
-  * `backend/tests/test_reconciliation.py`
-  * `backend/tests/test_submission_moderation.py`
+
+- **Seeder**: `backend/app/seeds/seed_fake_submissions.py` (instantiate `HealthScore` using `breakdown` dict).
+- **Backend Tests**: Update all `SamplingRecord`, `FgdRecord`, and `HealthScore` instantiations in:
+  - `backend/tests/test_public_api.py`
+  - `backend/tests/test_scoring.py`
+  - `backend/tests/test_remaining_schemas.py`
+  - `backend/tests/test_reconciliation.py`
+  - `backend/tests/test_submission_moderation.py`
 
 ### Automated Tests
 

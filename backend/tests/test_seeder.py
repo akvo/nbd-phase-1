@@ -190,7 +190,7 @@ def test_seed_form_v2_and_cleanup(db_session: Session):
         data = original_json_load(fp)
         if (
             isinstance(data, dict)
-            and data.get("name") == "Monthly Wetland Sampling test"
+            and data.get("name") == "Monthly Wetland Sampling"
         ):
             data = data.copy()
             data["form_id"] = sampling_form.id
@@ -206,7 +206,7 @@ def test_seed_form_v2_and_cleanup(db_session: Session):
     db_session.expire_all()
     updated_form = (
         db_session.query(Form)
-        .filter(Form.name == "Monthly Wetland Sampling test")
+        .filter(Form.name == "Monthly Wetland Sampling")
         .first()
     )
     assert updated_form is not None
