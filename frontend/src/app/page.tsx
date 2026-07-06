@@ -410,7 +410,7 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(true);
-    getSubmissions({ status: "APPROVED", domain: selectedDomain })
+    getSubmissions({ status: "APPROVED", domain: selectedDomain, brief: true })
       .then((subsData) => {
         setDbIncidents(subsData as unknown as IncidentSummary[]);
         setLoading(false);
@@ -453,11 +453,11 @@ export default function Home() {
     if (!matchesBasin) return false;
 
     // Resolve incident type and map to severity status
-    const qIncidentAns = incident.answers.find(
+    const qIncidentAns = incident.answers?.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (a: any) => a.question_name === "incident_type"
     );
-    const optionVal = qIncidentAns?.options?.[0];
+    const optionVal = qIncidentAns?.options?.[0] || incident.incident_type_id;
 
     // Filter by incident type
     if (selectedIncidentTypes.length > 0) {
@@ -554,7 +554,11 @@ export default function Home() {
                 feature.properties?.name?.toString().trim().toLowerCase()
           );
 
-          let isInside = !!locationAns;
+          let isInside =
+            !!locationAns ||
+            (!!incident.reported_location &&
+              incident.reported_location.toString().trim().toLowerCase() ===
+                feature.properties?.name?.toString().trim().toLowerCase());
 
           if (!isInside) {
             const coords = incident.geo?.coordinates;
@@ -573,7 +577,8 @@ export default function Home() {
             const qIncidentAns = incident.answers?.find(
               (a: any) => a.question_name === "incident_type"
             );
-            const typeLabel = qIncidentAns?.value || "Unknown";
+            const typeLabel =
+              qIncidentAns?.value || incident.incident_type_name || "Unknown";
             breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
           }
         });
@@ -913,22 +918,12 @@ export default function Home() {
                   )
                 ) : sidebarIncidents.length > 0 ? (
                   sidebarIncidents.map((incident, idx) => {
-                    const qIncidentAns = incident.answers?.find(
-                      (a) => a.question_name === "incident_type"
-                    );
                     const incidentTypeName =
-                      qIncidentAns?.value || "Pollution Report";
-
-                    // Find image answer
-                    const imageUrl = incident.answers?.find(
-                      (a) => a.read_url && a.read_url.trim() !== ""
-                    )?.read_url;
-
-                    // Find sub-county name
-                    const locationAns = incident.answers?.find(
-                      (a) => a.question_name === "location_id"
-                    );
-                    let subCountyName = locationAns?.value;
+                      incident.incident_type_name ||
+                      incident.name ||
+                      "Pollution Report";
+                    const imageUrl = incident.image_url;
+                    let subCountyName = incident.reported_location;
 
                     if (!subCountyName) {
                       const subCountyFeature =

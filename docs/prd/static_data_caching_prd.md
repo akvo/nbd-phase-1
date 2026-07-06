@@ -58,3 +58,16 @@ The Nile Voice landing page (`frontend/src/app/page.tsx`) queries several static
 
 - **TAC 1**: The network inspector must show exactly zero duplicate requests for `/basins` and `/forms` during map navigation.
 - **TAC 2**: All React testing library assertions and vitest suites must pass with mock providers in place.
+
+---
+
+## V. Submissions Scalability Roadmap (Phase 2)
+
+As submissions grow into the thousands, loading full datasets on-mount becomes a performance bottleneck. To safeguard scalability, the following lazy-loading strategy is planned for Phase 2:
+
+1. **Lightweight List Payload (`brief=true`)**:
+   - Refactor `GET /api/v1/submissions?brief=true` to only return essential indexing data: `id`, `geo`, `created_at`, `name` (representing type), and `image_url` (extracted thumbnail).
+   - This keeps the on-mount network payload small (~200 KB for 1,000 items vs. 5+ MB).
+2. **On-Demand Detail Fetch**:
+   - Add a public `GET /api/v1/submissions/{id}` endpoint to fetch the full nested answers list.
+   - Refactor the frontend details drawers (`incident-drawer.tsx`, `pollution-details-drawer.tsx`) to pull the full details dynamically only when a specific card or marker is clicked.

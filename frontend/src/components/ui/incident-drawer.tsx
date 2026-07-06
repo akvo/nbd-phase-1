@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { IncidentSummary } from "@/lib/api";
+import { IncidentSummary, getSubmissionDetails } from "@/lib/api";
 import { useTranslations } from "next-intl";
 import { isVideoUrl } from "@/lib/utils";
 import {
@@ -11,36 +11,14 @@ import {
   MapPin,
   User,
   Image as ImageIcon,
+  Loader2,
 } from "lucide-react";
-
-type Severity = "Critical" | "Elevated" | "Moderate";
 
 interface IncidentDrawerProps {
   incident: IncidentSummary | null;
   basinName?: string;
   onClose: () => void;
 }
-
-const SEVERITY_STYLES: Record<
-  Severity,
-  { badge: string; text: string; circle: string }
-> = {
-  Critical: {
-    badge: "bg-red-50 text-red-700 border-red-200",
-    text: "text-red-600",
-    circle: "bg-red-500 text-red-50",
-  },
-  Elevated: {
-    badge: "bg-amber-50 text-amber-700 border-amber-200",
-    text: "text-amber-600",
-    circle: "bg-amber-500 text-amber-50",
-  },
-  Moderate: {
-    badge: "bg-slate-50 text-slate-600 border-slate-200",
-    text: "text-slate-500",
-    circle: "bg-slate-500 text-slate-50",
-  },
-};
 
 export function IncidentDrawer({
   incident,
@@ -50,32 +28,55 @@ export function IncidentDrawer({
   const t = useTranslations("incidentDrawer");
   const tLanding = useTranslations("landing");
 
+  const [detailedIncident, setDetailedIncident] =
+    React.useState<IncidentSummary | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (incident?.id) {
+      if (incident.answers && incident.answers.length > 0) {
+        setDetailedIncident(incident);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      getSubmissionDetails(incident.id)
+        .then((data) => {
+          setDetailedIncident(data as unknown as IncidentSummary);
+        })
+        .catch((err) => {
+          console.error("Error loading incident details:", err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      setDetailedIncident(null);
+    }
+  }, [incident]);
+
   if (!incident) return null;
 
-  // Resolve severity
-  const qIncidentAns = incident.answers?.find(
-    (a) => a.name === "incident_type" || a.question_id === 2
-  );
-  const optionVal = qIncidentAns?.options?.[0];
-  let severity: Severity = "Moderate";
-  if (optionVal !== undefined) {
-    const valStr = String(optionVal);
-    if (valStr === "3") severity = "Critical";
-    else if (["1", "2"].includes(valStr)) severity = "Elevated";
-  }
+  const activeIncident = detailedIncident || incident;
 
-  const styles = SEVERITY_STYLES[severity];
-  const incidentTypeName = qIncidentAns?.value || tLanding("pollutionReport");
-  const formattedDate = incident.created_at
-    ? new Date(incident.created_at).toLocaleString()
+  const qIncidentAns = activeIncident.answers?.find(
+    (a: any) => a.name === "incident_type" || a.question_id === 2
+  );
+  const incidentTypeName =
+    qIncidentAns?.value ||
+    activeIncident.incident_type_name ||
+    tLanding("pollutionReport");
+  const formattedDate = activeIncident.created_at
+    ? new Date(activeIncident.created_at).toLocaleString()
     : tLanding("unknownDate");
 
   // Find image answers
   const imageAnswers =
-    incident.answers?.filter((a) => a.read_url && a.read_url.trim() !== "") ||
-    [];
+    activeIncident.answers?.filter(
+      (a: any) => a.read_url && a.read_url.trim() !== ""
+    ) || [];
 
-  const coords = incident.geo?.coordinates;
+  const coords = activeIncident.geo?.coordinates;
 
   return (
     <div className="fixed inset-y-0 right-0 z-60 w-full max-w-md bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in">
@@ -120,7 +121,7 @@ export function IncidentDrawer({
               <span className="font-semibold block text-slate-500">
                 {t("reporter")}
               </span>
-              <span>{incident.name || t("anonymousCitizen")}</span>
+              <span>{activeIncident.name || t("anonymousCitizen")}</span>
             </div>
           </div>
           {basinName && (
@@ -149,15 +150,23 @@ export function IncidentDrawer({
           )}
         </div>
 
+        {/* Loading Spinner */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12 text-slate-400 space-y-2">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+            <span className="text-xs">Loading incident details...</span>
+          </div>
+        )}
+
         {/* Photos section */}
-        {imageAnswers.length > 0 && (
+        {!loading && imageAnswers.length > 0 && (
           <div className="space-y-2">
             <h3 className="font-bold text-slate-800 uppercase tracking-wider text-xs flex items-center gap-1.5">
               <ImageIcon className="w-4 h-4 text-slate-500" />
               {t("attachedMedia", { count: imageAnswers.length })}
             </h3>
             <div className="grid grid-cols-1 gap-4">
-              {imageAnswers.map((img, i) => (
+              {imageAnswers.map((img: any, i: number) => (
                 <div
                   key={img.question_id ?? i}
                   className="relative rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100 aspect-video group"
@@ -185,36 +194,38 @@ export function IncidentDrawer({
         )}
 
         {/* Full answers list */}
-        {incident.answers && incident.answers.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              {t("questionnaireAnswers")}
-            </h3>
-            <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
-              {incident.answers
-                .filter(
-                  (ans) =>
-                    ans.value !== undefined &&
-                    ans.value !== null &&
-                    ans.value !== ""
-                )
-                .map((ans, idx) => (
-                  <div
-                    key={ans.question_id ?? idx}
-                    className="p-3 bg-white flex justify-between gap-4"
-                  >
-                    <span className="text-slate-500 font-medium shrink-0">
-                      {ans.question_label ||
-                        t("questionFallback", { id: ans.question_id ?? idx })}
-                    </span>
-                    <span className="text-slate-800 text-right">
-                      {String(ans.value)}
-                    </span>
-                  </div>
-                ))}
+        {!loading &&
+          activeIncident.answers &&
+          activeIncident.answers.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                {t("questionnaireAnswers")}
+              </h3>
+              <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
+                {activeIncident.answers
+                  .filter(
+                    (ans: any) =>
+                      ans.value !== undefined &&
+                      ans.value !== null &&
+                      ans.value !== ""
+                  )
+                  .map((ans: any, idx: number) => (
+                    <div
+                      key={ans.question_id ?? idx}
+                      className="p-3 bg-white flex justify-between gap-4"
+                    >
+                      <span className="text-slate-500 font-medium shrink-0">
+                        {ans.question_label ||
+                          t("questionFallback", { id: ans.question_id ?? idx })}
+                      </span>
+                      <span className="text-slate-800 text-right">
+                        {String(ans.value)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
     </div>
   );

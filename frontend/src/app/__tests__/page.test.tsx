@@ -44,6 +44,7 @@ vi.mock("@/lib/api", () => {
     getBasins: vi.fn().mockResolvedValue([]),
     getSites: vi.fn().mockResolvedValue([]),
     getSubmissions: vi.fn().mockResolvedValue([]),
+    getSubmissionDetails: vi.fn().mockResolvedValue({}),
     getForms: vi.fn().mockResolvedValue([]),
     getForm: vi.fn().mockResolvedValue({}),
   };

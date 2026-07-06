@@ -286,6 +286,10 @@ class DatapointResponse(DatapointBase):
     site_name: Optional[str] = None
     creator_name: Optional[str] = None
     creator_email: Optional[str] = None
+    image_url: Optional[str] = None
+    incident_type_name: Optional[str] = None
+    incident_type_id: Optional[int] = None
+    reported_location: Optional[str] = None
     answers: List[AnswerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

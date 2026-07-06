@@ -84,3 +84,32 @@ Any vitest file rendering components wrapping maps or drawers (e.g. `page.test.t
 
 - Wrap test instances in `<StaticDataProvider>` with mocked state values to prevent real network calls during component execution.
 - Maintain consistent interface shape definitions across the mocks.
+
+---
+
+## 5. Submissions Caching & Lazy Loading (Phase 2 LLD)
+
+To optimize network performance, submissions loading will transition to a lazy-load pattern:
+
+1. **API Parameter Mapping**:
+   - The `GET /api/v1/submissions` endpoint will take `brief: bool`. When `true`, SQL query utilizes `defer(Datapoint.answers)` to prevent retrieving the joined answer rows, returning only core indexing fields.
+2. **Details Fetch Hook**:
+   - Create a React hook `useSubmissionDetails(submissionId: string)` in `frontend/src/lib/hooks.ts`:
+
+     ```typescript
+     export function useSubmissionDetails(id: string) {
+       const [data, setData] = useState<IncidentSummary | null>(null);
+       const [loading, setLoading] = useState(false);
+       useEffect(() => {
+         if (!id) return;
+         setLoading(true);
+         apiClient
+           .get(`/submissions/${id}`)
+           .then((res) => setData(res.data))
+           .finally(() => setLoading(false));
+       }, [id]);
+       return { data, loading };
+     }
+     ```
+
+   - Details drawers will trigger this hook upon mounting, keeping initial list rendering overhead at zero.
