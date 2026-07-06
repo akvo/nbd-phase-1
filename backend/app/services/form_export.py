@@ -140,8 +140,18 @@ class FormExportService:
             lang_name = language_map.get(lang, f"{lang.upper()} ({lang})")
             survey_headers.append(f"label::{lang_name}")
         survey_headers.extend(
-            ["required", "hint", "relevant", "filter", "parameters"]
+            [
+                "required",
+                "hint",
+                "relevant",
+                "filter",
+                "parameters",
+                "constraint",
+            ]
         )
+        for lang in languages:
+            lang_name = language_map.get(lang, f"{lang.upper()} ({lang})")
+            survey_headers.append(f"constraint_message::{lang_name}")
         survey_sheet.append(survey_headers)
 
         choices_headers = ["list_name", "name"]
@@ -167,8 +177,10 @@ class FormExportService:
 
             row = ["begin_group", group_name]
             row.extend(group_labels)
-            # required, hint, relevant, filter, parameters
-            row.extend(["", "", "", "", ""])
+            # required, hint, relevant, filter, parameters, constraint
+            row.extend(["", "", "", "", "", ""])
+            # constraint_message for each language
+            row.extend(["" for _ in languages])
             survey_sheet.append(row)
 
             questions = group.get("question", [])
@@ -269,6 +281,90 @@ class FormExportService:
                 if is_cascade:
                     param_val = "value=name label=label"
 
+                constraint_val = ""
+                constraint_messages = []
+                rule_val = q.get("rule")
+                if rule_val and isinstance(rule_val, dict):
+                    min_val = rule_val.get("min")
+                    max_val = rule_val.get("max")
+                    if min_val is not None and max_val is not None:
+                        constraint_val = f". >= {min_val} and . <= {max_val}"
+                    elif min_val is not None:
+                        constraint_val = f". >= {min_val}"
+                    elif max_val is not None:
+                        constraint_val = f". <= {max_val}"
+
+                for lang in languages:
+                    msg = ""
+                    if constraint_val and rule_val:
+                        min_val = rule_val.get("min")
+                        max_val = rule_val.get("max")
+                        if lang == "sw":
+                            if min_val is not None and max_val is not None:
+                                msg = (
+                                    f"Thamani lazima iwe kati ya "
+                                    f"{min_val} na {max_val}"
+                                )
+                            elif min_val is not None:
+                                msg = (
+                                    f"Thamani lazima iwe kubwa kuliko "
+                                    f"au sawa na {min_val}"
+                                )
+                            elif max_val is not None:
+                                msg = (
+                                    f"Thamani lazima iwe ndogo kuliko "
+                                    f"au sawa na {max_val}"
+                                )
+                        elif lang == "fr":
+                            if min_val is not None and max_val is not None:
+                                msg = (
+                                    f"La valeur doit être comprise entre "
+                                    f"{min_val} et {max_val}"
+                                )
+                            elif min_val is not None:
+                                msg = (
+                                    f"La valeur doit être supérieure "
+                                    f"ou égale à {min_val}"
+                                )
+                            elif max_val is not None:
+                                msg = (
+                                    f"La valeur doit être inférieure "
+                                    f"ou égale à {max_val}"
+                                )
+                        elif lang == "es":
+                            if min_val is not None and max_val is not None:
+                                msg = (
+                                    f"El valor debe estar entre "
+                                    f"{min_val} y {max_val}"
+                                )
+                            elif min_val is not None:
+                                msg = (
+                                    f"El valor debe ser mayor "
+                                    f"o igual a {min_val}"
+                                )
+                            elif max_val is not None:
+                                msg = (
+                                    f"El valor debe ser menor "
+                                    f"o igual a {max_val}"
+                                )
+                        else:  # en or other default
+                            if min_val is not None and max_val is not None:
+                                msg = (
+                                    f"Value must be between "
+                                    f"{min_val} and {max_val}"
+                                )
+                            elif min_val is not None:
+                                msg = (
+                                    f"Value must be greater than "
+                                    f"or equal to {min_val}"
+                                )
+                            elif max_val is not None:
+                                msg = (
+                                    f"Value must be less than "
+                                    f"or equal to {max_val}"
+                                )
+                    constraint_messages.append(msg)
+
                 q_row = [xls_type, q_name]
                 q_row.extend(q_labels)
                 q_row.extend(
@@ -278,8 +374,10 @@ class FormExportService:
                         relevant_val,
                         filter_val,
                         param_val,
+                        constraint_val,
                     ]
                 )
+                q_row.extend(constraint_messages)
                 survey_sheet.append(q_row)
 
                 # Populate choices if multiple choice and not external cascade
@@ -315,8 +413,10 @@ class FormExportService:
             # Write group end
             end_row = ["end_group", ""]
             end_row.extend(["" for _ in languages])
-            # required, hint, relevant, filter, parameters
-            end_row.extend(["", "", "", "", ""])
+            # required, hint, relevant, filter, parameters, constraint
+            end_row.extend(["", "", "", "", "", ""])
+            # constraint_message for each language
+            end_row.extend(["" for _ in languages])
             survey_sheet.append(end_row)
 
         file_stream = io.BytesIO()
