@@ -228,10 +228,12 @@ export function PollutionDetailsDrawer({
                     key={idx}
                     className="aspect-square rounded-xl overflow-hidden border border-slate-100 bg-slate-50 relative group cursor-pointer hover:border-slate-300 transition-colors"
                     onClick={() => {
-                      const matchingIncident = incidents.find((inc: any) =>
-                        inc.answers?.find(
-                          (a: { read_url?: string }) => a.read_url === url
-                        )
+                      const matchingIncident = incidents.find(
+                        (inc: any) =>
+                          inc.image_url === url ||
+                          inc.answers?.find(
+                            (a: { read_url?: string }) => a.read_url === url
+                          )
                       );
                       if (matchingIncident && onClickIncident) {
                         onClickIncident(matchingIncident);
