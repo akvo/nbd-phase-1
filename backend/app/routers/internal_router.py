@@ -246,7 +246,122 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
             )
         )
 
-    # Cast to UUID if they are valid UUID strings
+    # 1. Cast metadata anchors to UUID objects if they are
+    # passed as valid UUID strings. If they are not valid UUIDs,
+    # set them to None to allow fallback option resolution.
+    if resolved_wetland_id:
+        if isinstance(resolved_wetland_id, str):
+            try:
+                resolved_wetland_id = UUID(resolved_wetland_id)
+            except ValueError:
+                resolved_wetland_id = None
+        elif not isinstance(resolved_wetland_id, UUID):
+            resolved_wetland_id = None
+
+    if resolved_site_id:
+        if isinstance(resolved_site_id, str):
+            try:
+                resolved_site_id = UUID(resolved_site_id)
+            except ValueError:
+                resolved_site_id = None
+        elif not isinstance(resolved_site_id, UUID):
+            resolved_site_id = None
+
+    if resolved_basin_id:
+        if isinstance(resolved_basin_id, str):
+            try:
+                resolved_basin_id = UUID(resolved_basin_id)
+            except ValueError:
+                resolved_basin_id = None
+        elif not isinstance(resolved_basin_id, UUID):
+            resolved_basin_id = None
+
+    # 2. Try to resolve site_id, wetland_id, or basin_id from
+    # option answers if not explicitly passed
+    from sqlalchemy import func
+
+    if not resolved_site_id:
+        from app.models.spatial import Site
+
+        for ans in answers:
+            q = q_map.get(ans.question_id)
+            if q and q.name in ("site", "site_id", "site_code", "location_id"):
+                val_str = None
+                if ans.options:
+                    val_str = ans.options[0]
+                elif ans.name:
+                    val_str = ans.name
+                elif ans.value:
+                    val_str = str(ans.value)
+
+                if val_str:
+                    site_obj = (
+                        db.query(Site)
+                        .filter(
+                            (func.lower(Site.code) == func.lower(val_str))
+                            | (func.lower(Site.name) == func.lower(val_str))
+                        )
+                        .first()
+                    )
+                    if site_obj:
+                        resolved_site_id = site_obj.id
+                        break
+
+    if not resolved_wetland_id:
+        from app.models.spatial import Wetland
+
+        for ans in answers:
+            q = q_map.get(ans.question_id)
+            if q and q.name in ("wetland", "wetland_id", "wetland_code"):
+                val_str = None
+                if ans.options:
+                    val_str = ans.options[0]
+                elif ans.name:
+                    val_str = ans.name
+                elif ans.value:
+                    val_str = str(ans.value)
+
+                if val_str:
+                    wetland_obj = (
+                        db.query(Wetland)
+                        .filter(
+                            (func.lower(Wetland.code) == func.lower(val_str))
+                            | (func.lower(Wetland.name) == func.lower(val_str))
+                        )
+                        .first()
+                    )
+                    if wetland_obj:
+                        resolved_wetland_id = wetland_obj.id
+                        break
+
+    if not resolved_basin_id:
+        from app.models.spatial import Basin
+
+        for ans in answers:
+            q = q_map.get(ans.question_id)
+            if q and q.name in ("basin", "basin_id", "basin_code"):
+                val_str = None
+                if ans.options:
+                    val_str = ans.options[0]
+                elif ans.name:
+                    val_str = ans.name
+                elif ans.value:
+                    val_str = str(ans.value)
+
+                if val_str:
+                    basin_obj = (
+                        db.query(Basin)
+                        .filter(
+                            (func.lower(Basin.code) == func.lower(val_str))
+                            | (func.lower(Basin.name) == func.lower(val_str))
+                        )
+                        .first()
+                    )
+                    if basin_obj:
+                        resolved_basin_id = basin_obj.id
+                        break
+
+    # 3. Final cast check for resolved string values
     if resolved_wetland_id and isinstance(resolved_wetland_id, str):
         try:
             resolved_wetland_id = UUID(resolved_wetland_id)

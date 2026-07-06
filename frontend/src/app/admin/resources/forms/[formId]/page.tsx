@@ -29,6 +29,7 @@ const ALLOWED_QUESTION_TYPES = [
   "multiple_option",
   "cascade",
   "geo",
+  "image",
 ];
 
 export default function FormEditPage() {

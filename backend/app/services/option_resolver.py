@@ -72,7 +72,26 @@ def populate_answers_option_labels(
     for ans in answers_to_resolve:
         resolved = []
         q_id = ans.question_id
+        # Flatten and resolve values. If a value contains spaces but matches
+        # directly, keep it intact. Otherwise, split it into separate values.
+        flat_options = []
         for val in ans.options:
+            val_str = str(val).strip()
+            # If the option value is directly matched in
+            # label_map, keep it intact
+            has_direct_match = (
+                (q_id, val_str) in label_map
+                or (q_id, val) in label_map
+                or is_valid_uuid(val_str)
+            )
+            if not has_direct_match and " " in val_str:
+                flat_options.extend(
+                    x.strip() for x in val_str.split(" ") if x.strip()
+                )
+            else:
+                flat_options.append(val_str)
+
+        for val in flat_options:
             if is_valid_uuid(val):
                 if val in label_map:
                     resolved.append(label_map[val])

@@ -17,6 +17,7 @@ from app.models.form import (
 )
 from app.models.submission import Datapoint, Answer
 from app.models.citizen import Citizen
+from app.services.ussd_pager import USSDDynamicPager
 
 router = APIRouter(prefix="/api/v1/ussd", tags=["ussd"])
 
@@ -180,31 +181,72 @@ def _handle_ussd_core(
     else:
         lang = "en"
 
-    # Step 1: Consent Gate (translated)
-    if depth == 1:
-        if lang == "sw":
-            response_text = (
-                "CON Karibu kwenye NBD Wetland Watch. Jukwaa hili linakusanya "
-                "taarifa za matukio ya mazingira. Ripoti yako inahifadhiwa "
-                "bila jina. Matumizi ya data yamezuiliwa kwa mipango "
-                "ya ufuatiliaji.\n"
-                "Bonyeza 1 kukubali na kuanza kuripoti.\n"
-                "Bonyeza 2 kukataa masharti."
-            )
-        else:
-            response_text = (
-                "CON Welcome to NBD Wetland Watch. This platform collects "
-                "environmental incident reports. Your report is saved "
-                "anonymously. Data usage is restricted to monitoring "
-                "programs.\n"
-                "Press 1 to accept and start reporting.\n"
-                "Press 2 to decline terms."
-            )
+    # Step 1: Consent Gate (translated & paginated)
+    # The user inputs after language selection (parts[1:]) are parsed to
+    # determine if they are on Consent Page 1, Page 2, accepted, or declined.
+    consent_page = 1
+    consent_accepted = False
+    consent_declined = False
+
+    # We will traverse parts[1:] to calculate final state
+    processed_count = 0  # Number of items in parts consumed by consent step
+    for part in parts[1:]:
+        processed_count += 1
+        part_clean = part.strip()
+        if consent_page == 1:
+            if part_clean == "98":
+                consent_page = 2
+            elif part_clean == "1":
+                consent_accepted = True
+                break
+            elif part_clean == "2":
+                consent_declined = True
+                break
+        elif consent_page == 2:
+            if part_clean == "0":
+                consent_page = 1
+            elif part_clean == "1":
+                consent_accepted = True
+                break
+            elif part_clean == "2":
+                consent_declined = True
+                break
+
+    # If they haven't explicitly accepted or declined yet, show current page
+    if not consent_accepted and not consent_declined:
+        if consent_page == 1:
+            if lang == "sw":
+                response_text = (
+                    "CON Karibu NBD Wetland Watch. "
+                    "Tunakusanya taarifa za mazingira bila jina.\n"
+                    "98. Angalia zaidi\n"
+                    "2. Kataa"
+                )
+            else:
+                response_text = (
+                    "CON Welcome to NBD Wetland Watch. "
+                    "We collect anonymous environmental reports.\n"
+                    "98. View More\n"
+                    "2. Decline"
+                )
+        else:  # Page 2
+            if lang == "sw":
+                response_text = (
+                    "CON Data inatumika kwa ufuatiliaji tu. "
+                    "Kuendelea ni kukubali masharti.\n"
+                    "1. Kubali na kuanza\n"
+                    "0. Rudi nyuma"
+                )
+            else:
+                response_text = (
+                    "CON Data is used only for monitoring. "
+                    "Proceeding means you agree.\n"
+                    "1. Accept & Start\n"
+                    "0. Back"
+                )
         return PlainTextResponse(clean_ussd_response(response_text))
 
-    # Parse consent choice
-    consent = parts[1]
-    if consent != "1":
+    if consent_declined:
         if lang == "sw":
             response_text = (
                 "END Masharti ya data lazima yakubalike ili kuripoti. "
@@ -216,6 +258,12 @@ def _handle_ussd_core(
             )
         processed_sessions[sessionId] = response_text
         return PlainTextResponse(clean_ussd_response(response_text))
+
+    # If consent was accepted:
+    # We must rebuild/clean the parts array to remove paging traversal values.
+    # Dynamic questions start at index 2, expecting parts[0] = language,
+    # parts[1] = accept (1)
+    parts = parts[:1] + ["1"] + parts[1 + processed_count :]  # noqa
 
     from app.services.translation import get_translation
     from app.services.form_engine import is_question_active
@@ -256,8 +304,6 @@ def _handle_ussd_core(
                 user_input = parts[input_idx].strip()
 
                 if q.type == "cascade":
-                    # For location cascade,
-                    # it consumes 1 or 2 parts depending on levels
                     # Level 2 (County) selection
                     counties = (
                         db.query(SpatialBoundary)
@@ -270,19 +316,30 @@ def _handle_ussd_core(
                         )
                         .all()
                     )
-                    try:
-                        county_choice = int(user_input) - 1
-                        if county_choice < 0 or county_choice >= len(counties):
-                            raise ValueError()
-                        selected_county = counties[county_choice]
-                    except (ValueError, TypeError):
-                        err_txt = (
-                            "END Uteuzi wa mahali sio sahihi. Kikao kimefungwa."  # noqa
-                            if lang == "sw"
-                            else "END Invalid location selection. Session closed."  # noqa
+
+                    pager = USSDDynamicPager(page_size=3)
+                    q_label = get_translation(q.translations, lang, q.label)
+                    res = pager.render_page(
+                        counties,
+                        parts[input_idx:],
+                        f"{q_label}:",
+                        lang=lang,
+                        is_cascade=True,
+                    )
+
+                    if res["selected"] is not None:
+                        selected_county = res["selected"]
+                        # Cleanse parts to replace paging path
+                        # with the selected option value
+                        parts = (
+                            parts[:input_idx]
+                            + [res["final_value"]]
+                            + parts[input_idx + res["consumed"] :]  # noqa
                         )
-                        processed_sessions[sessionId] = err_txt
-                        return PlainTextResponse(clean_ussd_response(err_txt))
+                    else:
+                        return PlainTextResponse(
+                            clean_ussd_response(f"CON {res['prompt_text']}")
+                        )
 
                     sub_counties = (
                         db.query(SpatialBoundary)
@@ -295,45 +352,42 @@ def _handle_ussd_core(
                     )
 
                     if sub_counties:
-                        # Check if there is another input part for sub-county
-                        if input_idx + 1 < len(parts):
-                            sub_input = parts[input_idx + 1].strip()
-                            try:
-                                sub_choice = int(sub_input) - 1
-                                if sub_choice < 0 or sub_choice >= len(
-                                    sub_counties
-                                ):
-                                    raise ValueError()
-                                selected_sc = sub_counties[sub_choice]
-                            except (ValueError, TypeError):
-                                err_txt = (
-                                    "END Uteuzi wa wilaya ndogo sio sahihi. Kikao kimefungwa."  # noqa
-                                    if lang == "sw"
-                                    else "END Invalid sub-county selection. Session closed."  # noqa
-                                )
-                                processed_sessions[sessionId] = err_txt
-                                return PlainTextResponse(
-                                    clean_ussd_response(err_txt)
-                                )
+                        # Dynamic paging for sub-county selection
+                        pager_sc = USSDDynamicPager(page_size=3)
+                        sc_inputs = parts[input_idx + 1 :]  # noqa
+                        sc_label = (
+                            f"Chagua Wilaya ndogo ya {selected_county.name}:"
+                            if lang == "sw"
+                            else f"Choose Sub-County of {selected_county.name}:"  # noqa
+                        )
+                        res_sc = pager_sc.render_page(
+                            sub_counties,
+                            sc_inputs,
+                            sc_label,
+                            lang=lang,
+                            is_cascade=True,
+                        )
+
+                        if res_sc["selected"] is not None:
+                            selected_sc = res_sc["selected"]
                             current_answers[q.id] = str(selected_sc.id)
                             current_answers[q.name] = str(selected_sc.id)
+                            # Cleanse parts for the sub-county pagination
+                            parts = (
+                                parts[: input_idx + 1]
+                                + [res_sc["final_value"]]
+                                + parts[
+                                    input_idx
+                                    + 1
+                                    + res_sc["consumed"] :  # noqa
+                                ]
+                            )
                             input_idx += 2
                         else:
-                            # We have Level 2,
-                            # but we need Level 3 sub-county! Prompt it.
-                            sub_menu_lines = [
-                                f"  {idx}. {sc.name}"
-                                for idx, sc in enumerate(sub_counties, 1)
-                            ]
-                            prompt_text = (
-                                f"CON Chagua Wilaya ndogo ya {selected_county.name}:\n"  # noqa
-                                + "\n".join(sub_menu_lines)
-                                if lang == "sw"
-                                else f"CON Choose Sub-County of {selected_county.name}:\n"  # noqa
-                                + "\n".join(sub_menu_lines)
-                            )
                             return PlainTextResponse(
-                                clean_ussd_response(prompt_text)
+                                clean_ussd_response(
+                                    f"CON {res_sc['prompt_text']}"
+                                )
                             )
                     else:
                         selected_sc = selected_county
@@ -348,23 +402,28 @@ def _handle_ussd_core(
                         .order_by(Option.order.asc())
                         .all()
                     )
-                    try:
-                        choice_idx = int(user_input) - 1
-                        if choice_idx < 0 or choice_idx >= len(options):
-                            raise ValueError()
-                        selected_opt = options[choice_idx]
-                    except (ValueError, TypeError):
-                        err_txt = (
-                            "END Uteuzi sio sahihi. Kikao kimefungwa."
-                            if lang == "sw"
-                            else "END Invalid selection. Session closed."
-                        )
-                        processed_sessions[sessionId] = err_txt
-                        return PlainTextResponse(clean_ussd_response(err_txt))
 
-                    current_answers[q.id] = selected_opt.value
-                    current_answers[q.name] = selected_opt.value
-                    input_idx += 1
+                    pager = USSDDynamicPager(page_size=3)
+                    q_label = get_translation(q.translations, lang, q.label)
+                    res = pager.render_page(
+                        options, parts[input_idx:], f"{q_label}:", lang=lang
+                    )
+
+                    if res["selected"] is not None:
+                        selected_opt = res["selected"]
+                        current_answers[q.id] = selected_opt.value
+                        current_answers[q.name] = selected_opt.value
+                        # Cleanse parts
+                        parts = (
+                            parts[:input_idx]
+                            + [res["final_value"]]
+                            + parts[input_idx + res["consumed"] :]  # noqa
+                        )
+                        input_idx += 1
+                    else:
+                        return PlainTextResponse(
+                            clean_ussd_response(f"CON {res['prompt_text']}")
+                        )
 
                 else:
                     current_answers[q.id] = user_input
@@ -388,25 +447,14 @@ def _handle_ussd_core(
                         )
                         .all()
                     )
-                    menu_lines = []
-                    current_parent_id = None
-                    for idx, sc in enumerate(counties, 1):
-                        if sc.parent_id != current_parent_id:
-                            current_parent_id = sc.parent_id
-                            parent = sc.parent
-                            if parent:
-                                if menu_lines:
-                                    menu_lines.append("")
-                                menu_lines.append(
-                                    f"{parent.name} (Mkoa):"
-                                    if lang == "sw"
-                                    else f"{parent.name} (Region):"
-                                )
-                        menu_lines.append(f"  {idx}. {sc.name}")
-
+                    pager = USSDDynamicPager(page_size=3)
                     q_label = get_translation(q.translations, lang, q.label)
-                    prompt_text = f"CON {q_label}:\n" + "\n".join(menu_lines)
-                    return PlainTextResponse(clean_ussd_response(prompt_text))
+                    res = pager.render_page(
+                        counties, [], f"{q_label}:", lang=lang, is_cascade=True
+                    )
+                    return PlainTextResponse(
+                        clean_ussd_response(f"CON {res['prompt_text']}")
+                    )
 
                 elif q.type == "option":
                     options = (
@@ -415,13 +463,14 @@ def _handle_ussd_core(
                         .order_by(Option.order.asc())
                         .all()
                     )
-                    menu_items = [
-                        f"{idx}: {get_translation(opt.translations, lang, opt.label)}"  # noqa
-                        for idx, opt in enumerate(options, 1)
-                    ]
+                    pager = USSDDynamicPager(page_size=3)
                     q_label = get_translation(q.translations, lang, q.label)
-                    prompt_text = f"CON {q_label}:\n" + "\n".join(menu_items)
-                    return PlainTextResponse(clean_ussd_response(prompt_text))
+                    res = pager.render_page(
+                        options, [], f"{q_label}:", lang=lang
+                    )
+                    return PlainTextResponse(
+                        clean_ussd_response(f"CON {res['prompt_text']}")
+                    )
 
                 else:
                     q_label = get_translation(q.translations, lang, q.label)

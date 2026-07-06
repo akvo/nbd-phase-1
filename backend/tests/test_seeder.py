@@ -6,7 +6,7 @@ from app.models.form import (
     Question,
     Option,
 )
-from app.seeds.seeder import seed_forms
+from app.seeds.form_seeder_helper import seed_forms
 
 
 def test_seed_forms_success(db_session: Session):
@@ -157,6 +157,97 @@ def test_seed_forms_success(db_session: Session):
         .first()
     )
     assert pollution_form_after.version == 2  # New published snapshot version
+
+
+def test_seed_form_v2_and_cleanup(db_session: Session):
+    from unittest.mock import patch
+    import json
+
+    # 1. First run default seeder to populate default forms (v1 format)
+    seed_forms(db_session)
+
+    # Verify initial questions count for Monthly Wetland Sampling
+    sampling_form = (
+        db_session.query(Form)
+        .filter(Form.name == "Monthly Wetland Sampling")
+        .first()
+    )
+    assert sampling_form is not None
+    q_count_before = (
+        db_session.query(Question)
+        .filter(
+            Question.form_id == sampling_form.id, Question.deleted_at.is_(None)
+        )
+        .count()
+    )
+    assert q_count_before > 0
+
+    # 2. Run with the v2 form JSON which includes label-based fields
+    # Patch json.load to map form_id dynamically to handle DB sequence changes
+    original_json_load = json.load
+
+    def mocked_json_load(fp):
+        data = original_json_load(fp)
+        if (
+            isinstance(data, dict)
+            and data.get("name") == "Monthly Wetland Sampling"
+        ):
+            data = data.copy()
+            data["form_id"] = sampling_form.id
+        return data
+
+    with patch("json.load", side_effect=mocked_json_load):
+        seed_forms(
+            db_session,
+            filename_filter="form_pipeline_b_citizen_scientist_v2.json",
+        )
+
+    # Fetch form again to inspect updates
+    db_session.expire_all()
+    updated_form = (
+        db_session.query(Form)
+        .filter(Form.name == "Monthly Wetland Sampling")
+        .first()
+    )
+    assert updated_form is not None
+
+    # Verify questions under updated form
+    active_questions = (
+        db_session.query(Question)
+        .filter(
+            Question.form_id == updated_form.id, Question.deleted_at.is_(None)
+        )
+        .all()
+    )
+    q_names = [q.name for q in active_questions]
+    # Verify new schema questions exist
+    assert "water_color" in q_names
+    assert "water_smell" in q_names
+    assert "main_activities_observed" in q_names
+
+    # Verify that the label is correctly mapped from the JSON "label" field
+    water_color_q = (
+        db_session.query(Question)
+        .filter(
+            Question.form_id == updated_form.id, Question.name == "water_color"
+        )
+        .first()
+    )
+    assert water_color_q is not None
+    assert water_color_q.label == "Water color"
+
+    # Verify that obsolete questions not present in v2 JSON are soft-deleted
+    # For example, "crops" is present in v1 but removed/changed in v2.
+    deleted_crops_q = (
+        db_session.query(Question)
+        .filter(
+            Question.form_id == updated_form.id,
+            Question.name == "crops",
+        )
+        .first()
+    )
+    assert deleted_crops_q is not None
+    assert deleted_crops_q.deleted_at is not None
 
 
 def test_seed_spatial_success(db_session: Session):

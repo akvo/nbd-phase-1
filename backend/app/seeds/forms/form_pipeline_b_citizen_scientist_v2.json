@@ -1,0 +1,1463 @@
+{
+  "name": "Monthly Wetland Sampling",
+  "type": 2,
+  "form_id": 2,
+  "version": 7,
+  "languages": ["en"],
+  "translations": [],
+  "question_group": [
+    {
+      "id": 2,
+      "name": "Site Details",
+      "label": "Site Details",
+      "order": 1,
+      "question": [
+        {
+          "fn": null,
+          "id": 4,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "site_id",
+          "rule": null,
+          "type": "option",
+          "extra": null,
+          "label": "Select Site",
+          "order": 0,
+          "option": [
+            {
+              "id": 92,
+              "name": "[Mara-Wetland] Nyansurura (Tarime)",
+              "color": null,
+              "label": "[Mara-Wetland] Nyansurura (Tarime)",
+              "order": 1,
+              "other": false,
+              "value": "nbd-mara-001",
+              "translations": []
+            },
+            {
+              "id": 93,
+              "name": "[Mara-Wetland] Kwiswa (Butiyama)",
+              "color": null,
+              "label": "[Mara-Wetland] Kwiswa (Butiyama)",
+              "order": 2,
+              "other": false,
+              "value": "nbd-mara-002",
+              "translations": []
+            },
+            {
+              "id": 94,
+              "name": "[Mara-Wetland] Nyamonyo river at Wegero (Butiyama)",
+              "color": null,
+              "label": "[Mara-Wetland] Nyamonyo river at Wegero (Butiyama)",
+              "order": 3,
+              "other": false,
+              "value": "nbd-mara-003",
+              "translations": []
+            },
+            {
+              "id": 95,
+              "name": "[Mara-Wetland] Kirumi bridge (Rorya)",
+              "color": null,
+              "label": "[Mara-Wetland] Kirumi bridge (Rorya)",
+              "order": 4,
+              "other": false,
+              "value": "nbd-mara-004",
+              "translations": []
+            },
+            {
+              "id": 96,
+              "name": "[Sio-Siteko] Musoma",
+              "color": null,
+              "label": "[Sio-Siteko] Musoma",
+              "order": 5,
+              "other": false,
+              "value": "nbd-sio-001",
+              "translations": []
+            },
+            {
+              "id": 97,
+              "name": "[Sio-Siteko] Majanji subcounty sitobelo",
+              "color": null,
+              "label": "[Sio-Siteko] Majanji subcounty sitobelo",
+              "order": 6,
+              "other": false,
+              "value": "nbd-sio-002",
+              "translations": []
+            },
+            {
+              "id": 98,
+              "name": "[Sio-Siteko] Nahyusi-Bunyandeti",
+              "color": null,
+              "label": "[Sio-Siteko] Nahyusi-Bunyandeti",
+              "order": 7,
+              "other": false,
+              "value": "nbd-sio-003",
+              "translations": []
+            },
+            {
+              "id": 99,
+              "name": "[Sio-Siteko] Siteko village",
+              "color": null,
+              "label": "[Sio-Siteko] Siteko village",
+              "order": 8,
+              "other": false,
+              "value": "nbd-sio-004",
+              "translations": []
+            }
+          ],
+          "tooltip": {
+            "text": "Select the monitoring site you are visiting from the list."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [
+            { "name": "Select Site", "language": "en" },
+            { "name": "Chagua Kituo", "language": "sw" }
+          ],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 6,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "site_photo",
+          "rule": null,
+          "type": "image",
+          "extra": null,
+          "label": "Site Photo",
+          "order": 1,
+          "option": null,
+          "tooltip": {
+            "text": "Take a photo of the site (a photo that captures river banks, waterbody and any ongoing activities) before you start testing."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 7,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "location",
+          "rule": null,
+          "type": "geo",
+          "extra": null,
+          "label": "GPS Reading",
+          "order": 2,
+          "option": null,
+          "tooltip": {
+            "text": "Stand at the water's edge and wait until the accuracy reaches 15 metres or less."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        }
+      ],
+      "repeatText": null,
+      "repeatable": false,
+      "description": "Site Details",
+      "translations": [],
+      "repeatButtonPlacement": null
+    },
+    {
+      "id": 6,
+      "name": "water_observation",
+      "label": "Water observation",
+      "order": 2,
+      "question": [
+        {
+          "fn": null,
+          "id": 51,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "water_color",
+          "rule": null,
+          "type": "option",
+          "extra": null,
+          "label": "Water color",
+          "order": 0,
+          "option": [
+            {
+              "id": 100,
+              "name": "Blue",
+              "color": null,
+              "label": "Blue",
+              "order": 1,
+              "other": false,
+              "value": "blue",
+              "translations": []
+            },
+            {
+              "id": 101,
+              "name": "Green",
+              "color": null,
+              "label": "Green",
+              "order": 2,
+              "other": false,
+              "value": "green",
+              "translations": []
+            },
+            {
+              "id": 102,
+              "name": "Brown",
+              "color": null,
+              "label": "Brown",
+              "order": 3,
+              "other": false,
+              "value": "brown",
+              "translations": []
+            },
+            {
+              "id": 103,
+              "name": "Yellow",
+              "color": null,
+              "label": "Yellow",
+              "order": 4,
+              "other": false,
+              "value": "yellow",
+              "translations": []
+            },
+            {
+              "id": 104,
+              "name": "Black",
+              "color": null,
+              "label": "Black",
+              "order": 5,
+              "other": false,
+              "value": "black",
+              "translations": []
+            },
+            {
+              "id": 105,
+              "name": "Red",
+              "color": null,
+              "label": "Red",
+              "order": 6,
+              "other": false,
+              "value": "red",
+              "translations": []
+            }
+          ],
+          "tooltip": {
+            "text": "Stand at the water's edge and describe the colour of the surface water — choose the closest match"
+          },
+          "required": false,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 52,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "water_smell",
+          "rule": null,
+          "type": "option",
+          "extra": null,
+          "label": "Water smell",
+          "order": 1,
+          "option": [
+            {
+              "id": 106,
+              "name": "Odourless",
+              "color": null,
+              "label": "Odourless",
+              "order": 1,
+              "other": false,
+              "value": "odourless",
+              "translations": []
+            },
+            {
+              "id": 107,
+              "name": "Pungent",
+              "color": null,
+              "label": "Pungent",
+              "order": 2,
+              "other": false,
+              "value": "pungent",
+              "translations": []
+            },
+            {
+              "id": 108,
+              "name": "Fishy",
+              "color": null,
+              "label": "Fishy",
+              "order": 3,
+              "other": false,
+              "value": "fishy",
+              "translations": []
+            },
+            {
+              "id": 109,
+              "name": "Septic",
+              "color": null,
+              "label": "Septic",
+              "order": 4,
+              "other": false,
+              "value": "septic",
+              "translations": []
+            },
+            {
+              "id": 110,
+              "name": "Earthy",
+              "color": null,
+              "label": "Earthy",
+              "order": 5,
+              "other": false,
+              "value": "earthy",
+              "translations": []
+            },
+            {
+              "id": 111,
+              "name": "Chemical",
+              "color": null,
+              "label": "Chemical",
+              "order": 6,
+              "other": false,
+              "value": "chemical",
+              "translations": []
+            },
+            {
+              "id": 112,
+              "name": "Rotten Egg",
+              "color": null,
+              "label": "Rotten Egg",
+              "order": 7,
+              "other": false,
+              "value": "rotten_egg",
+              "translations": []
+            }
+          ],
+          "tooltip": {
+            "text": "Lean carefully towards the water and describe any smell — do not put your face close to the water"
+          },
+          "required": false,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 17,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "water_level",
+          "rule": null,
+          "type": "option",
+          "extra": null,
+          "label": "Water Level",
+          "order": 2,
+          "option": [
+            {
+              "id": 57,
+              "name": "High",
+              "color": null,
+              "label": "High",
+              "order": 1,
+              "other": false,
+              "value": "high",
+              "translations": []
+            },
+            {
+              "id": 58,
+              "name": "Medium",
+              "color": null,
+              "label": "Medium",
+              "order": 2,
+              "other": false,
+              "value": "medium",
+              "translations": []
+            },
+            {
+              "id": 59,
+              "name": "Low",
+              "color": null,
+              "label": "Low",
+              "order": 3,
+              "other": false,
+              "value": "low",
+              "translations": []
+            }
+          ],
+          "tooltip": {
+            "text": "Choose High if banks are flooded, Medium if banks are visible, or Low if the river is trickling or the riverbed is showing."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        }
+      ],
+      "repeatText": null,
+      "repeatable": false,
+      "description": "Water observation",
+      "translations": [],
+      "repeatButtonPlacement": null
+    },
+    {
+      "id": 3,
+      "name": "Water Quality",
+      "label": "Water Quality",
+      "order": 3,
+      "question": [
+        {
+          "fn": null,
+          "id": 8,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "ph",
+          "rule": { "max": 10, "min": 2, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "pH Level",
+          "order": 0,
+          "option": null,
+          "tooltip": {
+            "text": "Dip the Hanna pH meter, wait for the number to stop changing, then enter the value (must be between 2 and 10)."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 9,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "temp",
+          "rule": { "max": 50, "min": 5, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "Water Temperature (°C)",
+          "order": 1,
+          "option": null,
+          "tooltip": {
+            "text": "Read the temperature from the Hanna DO meter after it stabilises in the water (must be between 5 and 50).\n"
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 10,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "do",
+          "rule": { "max": 35, "min": 0.5, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "Dissolved Oxygen (mg/L)",
+          "order": 2,
+          "option": null,
+          "tooltip": {
+            "text": "Dip the Hanna DO meter, stir gently, wait 1–2 minutes for the number to stop changing, then enter the value."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        }
+      ],
+      "repeatText": null,
+      "repeatable": false,
+      "description": "Water Quality",
+      "translations": [],
+      "repeatButtonPlacement": null
+    },
+    {
+      "id": 4,
+      "name": "ecological",
+      "label": "Ecological Observations",
+      "order": 4,
+      "question": [
+        {
+          "fn": null,
+          "id": 57,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "main_activities_observed",
+          "rule": null,
+          "type": "multiple_option",
+          "extra": null,
+          "label": "Main activities  observed",
+          "order": 0,
+          "option": [
+            {
+              "id": 187,
+              "name": "Intensive maize cultivation",
+              "color": null,
+              "label": "Intensive maize cultivation",
+              "order": 1,
+              "other": false,
+              "value": "intensive_maize_cultivation",
+              "translations": []
+            },
+            {
+              "id": 188,
+              "name": "Intensive sugarcane cultivation",
+              "color": null,
+              "label": "Intensive sugarcane cultivation",
+              "order": 2,
+              "other": false,
+              "value": "intensive_sugarcane_cultivation",
+              "translations": []
+            },
+            {
+              "id": 189,
+              "name": "Intensive potato cultivation",
+              "color": null,
+              "label": "Intensive potato cultivation",
+              "order": 3,
+              "other": false,
+              "value": "intensive_potato_cultivation",
+              "translations": []
+            },
+            {
+              "id": 190,
+              "name": "Intensive french beans cultivation",
+              "color": null,
+              "label": "Intensive french beans cultivation",
+              "order": 4,
+              "other": false,
+              "value": "intensive_french_beans_cultivation",
+              "translations": []
+            },
+            {
+              "id": 191,
+              "name": "Livestock overgrazing",
+              "color": null,
+              "label": "Livestock overgrazing",
+              "order": 5,
+              "other": false,
+              "value": "livestock_overgrazing",
+              "translations": []
+            },
+            {
+              "id": 192,
+              "name": "Commercial fishing",
+              "color": null,
+              "label": "Commercial fishing",
+              "order": 6,
+              "other": false,
+              "value": "commercial_fishing",
+              "translations": []
+            },
+            {
+              "id": 193,
+              "name": "Sand mining",
+              "color": null,
+              "label": "Sand mining",
+              "order": 7,
+              "other": false,
+              "value": "sand_mining",
+              "translations": []
+            },
+            {
+              "id": 194,
+              "name": "Papyrus harvesting",
+              "color": null,
+              "label": "Papyrus harvesting",
+              "order": 8,
+              "other": false,
+              "value": "papyrus_harvesting",
+              "translations": []
+            }
+          ],
+          "tooltip": {
+            "text": "Tick everything you can see at or within 50 metres of the water — select None if the area looks undisturbed"
+          },
+          "required": true,
+          "allowOther": true,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": "Others, please specify",
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 12,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "plants",
+          "rule": null,
+          "type": "multiple_option",
+          "extra": null,
+          "label": "Main plant species observed",
+          "order": 1,
+          "option": [
+            {
+              "id": 158,
+              "name": "Papyrus",
+              "color": null,
+              "label": "Papyrus",
+              "order": 1,
+              "other": false,
+              "value": "papyrus",
+              "translations": []
+            },
+            {
+              "id": 159,
+              "name": "Cattails (Mabilimbili)",
+              "color": null,
+              "label": "Cattails (Mabilimbili)",
+              "order": 2,
+              "other": false,
+              "value": "cattails_(mabilimbili)",
+              "translations": []
+            },
+            {
+              "id": 160,
+              "name": "Common Reed",
+              "color": null,
+              "label": "Common Reed",
+              "order": 3,
+              "other": false,
+              "value": "common_reed",
+              "translations": []
+            },
+            {
+              "id": 161,
+              "name": "Hippo Grass",
+              "color": null,
+              "label": "Hippo Grass",
+              "order": 4,
+              "other": false,
+              "value": "hippo_grass",
+              "translations": []
+            },
+            {
+              "id": 162,
+              "name": "Water Lily (White)",
+              "color": null,
+              "label": "Water Lily (White)",
+              "order": 5,
+              "other": false,
+              "value": "water_lily_(white)",
+              "translations": []
+            },
+            {
+              "id": 163,
+              "name": "Water Lily (Blue)",
+              "color": null,
+              "label": "Water Lily (Blue)",
+              "order": 6,
+              "other": false,
+              "value": "water_lily_(blue)",
+              "translations": []
+            },
+            {
+              "id": 164,
+              "name": "Water Lettuce",
+              "color": null,
+              "label": "Water Lettuce",
+              "order": 7,
+              "other": false,
+              "value": "water_lettuce",
+              "translations": []
+            },
+            {
+              "id": 165,
+              "name": "Water Fern (Nile Mosquito Fern)",
+              "color": null,
+              "label": "Water Fern (Nile Mosquito Fern)",
+              "order": 8,
+              "other": false,
+              "value": "water_fern_(nile_mosquito_fern)",
+              "translations": []
+            },
+            {
+              "id": 166,
+              "name": "Water Fern (Mosquito Fern)",
+              "color": null,
+              "label": "Water Fern (Mosquito Fern)",
+              "order": 9,
+              "other": false,
+              "value": "water_fern_(mosquito_fern)",
+              "translations": []
+            },
+            {
+              "id": 167,
+              "name": "Jackalberry",
+              "color": null,
+              "label": "Jackalberry",
+              "order": 10,
+              "other": false,
+              "value": "jackalberry",
+              "translations": []
+            },
+            {
+              "id": 168,
+              "name": "Yellow-Fever Tree",
+              "color": null,
+              "label": "Yellow-Fever Tree",
+              "order": 11,
+              "other": false,
+              "value": "yellow-fever_tree",
+              "translations": []
+            },
+            {
+              "id": 169,
+              "name": "Wild Fig",
+              "color": null,
+              "label": "Wild Fig",
+              "order": 12,
+              "other": false,
+              "value": "wild_fig",
+              "translations": []
+            },
+            {
+              "id": 170,
+              "name": "Flat-top Acacia",
+              "color": null,
+              "label": "Flat-top Acacia",
+              "order": 13,
+              "other": false,
+              "value": "flat-top_acacia",
+              "translations": []
+            },
+            {
+              "id": 171,
+              "name": "Umbrella Thorn Acacia",
+              "color": null,
+              "label": "Umbrella Thorn Acacia",
+              "order": 14,
+              "other": false,
+              "value": "umbrella_thorn_acacia",
+              "translations": []
+            },
+            {
+              "id": 172,
+              "name": "River Acacia",
+              "color": null,
+              "label": "River Acacia",
+              "order": 15,
+              "other": false,
+              "value": "river_acacia",
+              "translations": []
+            },
+            {
+              "id": 173,
+              "name": "Gum Arabic Tree",
+              "color": null,
+              "label": "Gum Arabic Tree",
+              "order": 16,
+              "other": false,
+              "value": "gum_arabic_tree",
+              "translations": []
+            },
+            {
+              "id": 174,
+              "name": "Whistling Thorn",
+              "color": null,
+              "label": "Whistling Thorn",
+              "order": 17,
+              "other": false,
+              "value": "whistling_thorn",
+              "translations": []
+            },
+            {
+              "id": 175,
+              "name": "Siam Weed",
+              "color": null,
+              "label": "Siam Weed",
+              "order": 18,
+              "other": false,
+              "value": "siam_weed",
+              "translations": []
+            },
+            {
+              "id": 176,
+              "name": "Water Hyacinth",
+              "color": null,
+              "label": "Water Hyacinth",
+              "order": 19,
+              "other": false,
+              "value": "water_hyacinth",
+              "translations": []
+            },
+            {
+              "id": 177,
+              "name": "Bamboo",
+              "color": null,
+              "label": "Bamboo",
+              "order": 20,
+              "other": false,
+              "value": "bamboo",
+              "translations": []
+            },
+            {
+              "id": 178,
+              "name": "Aloe Vera",
+              "color": null,
+              "label": "Aloe Vera",
+              "order": 21,
+              "other": false,
+              "value": "aloe_vera",
+              "translations": []
+            },
+            {
+              "id": 179,
+              "name": "Water Berry",
+              "color": null,
+              "label": "Water Berry",
+              "order": 22,
+              "other": false,
+              "value": "water_berry",
+              "translations": []
+            },
+            {
+              "id": 180,
+              "name": "Wild Date Palm",
+              "color": null,
+              "label": "Wild Date Palm",
+              "order": 23,
+              "other": false,
+              "value": "wild_date_palm",
+              "translations": []
+            },
+            {
+              "id": 181,
+              "name": "Sesbania",
+              "color": null,
+              "label": "Sesbania",
+              "order": 24,
+              "other": false,
+              "value": "sesbania",
+              "translations": []
+            },
+            {
+              "id": 182,
+              "name": "Arrowroot",
+              "color": null,
+              "label": "Arrowroot",
+              "order": 25,
+              "other": false,
+              "value": "arrowroot",
+              "translations": []
+            },
+            {
+              "id": 183,
+              "name": "Sugarcane",
+              "color": null,
+              "label": "Sugarcane",
+              "order": 26,
+              "other": false,
+              "value": "sugarcane",
+              "translations": []
+            },
+            {
+              "id": 184,
+              "name": "Sweet Potato",
+              "color": null,
+              "label": "Sweet Potato",
+              "order": 27,
+              "other": false,
+              "value": "sweet_potato",
+              "translations": []
+            },
+            {
+              "id": 185,
+              "name": "Maize",
+              "color": null,
+              "label": "Maize",
+              "order": 28,
+              "other": false,
+              "value": "maize",
+              "translations": []
+            },
+            {
+              "id": 186,
+              "name": "Blue Gum / Eucalyptus",
+              "color": null,
+              "label": "Blue Gum / Eucalyptus",
+              "order": 29,
+              "other": false,
+              "value": "blue_gum_eucalyptus",
+              "translations": []
+            }
+          ],
+          "tooltip": {
+            "text": "Select plant species in the catchement (can be multiple)"
+          },
+          "required": true,
+          "allowOther": true,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": "Others, please specify",
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 13,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "invasive_percent",
+          "rule": null,
+          "type": "number",
+          "extra": null,
+          "label": "% Invasive Macrophytes",
+          "order": 2,
+          "option": null,
+          "tooltip": {
+            "text": "Estimate what percentage of the water surface is covered by invasive plants like water hyacinth — enter 0 if none, 100% if completely covered and choose an interdiate percentage for partially covered water surface. Use discretion while selecting an intermediate percentage"
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 14,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "target_species",
+          "rule": null,
+          "type": "option",
+          "extra": null,
+          "label": "Main fish species (X) observed",
+          "order": 3,
+          "option": [
+            {
+              "id": 259,
+              "name": "Oyuso",
+              "color": null,
+              "label": "Oyuso",
+              "order": 1,
+              "other": false,
+              "value": "oyuso",
+              "translations": []
+            },
+            {
+              "id": 260,
+              "name": "Nsoga",
+              "color": null,
+              "label": "Nsoga",
+              "order": 2,
+              "other": false,
+              "value": "nsoga",
+              "translations": []
+            },
+            {
+              "id": 261,
+              "name": "Nyampemba",
+              "color": null,
+              "label": "Nyampemba",
+              "order": 3,
+              "other": false,
+              "value": "nyampemba",
+              "translations": []
+            },
+            {
+              "id": 262,
+              "name": "Sengenzera",
+              "color": null,
+              "label": "Sengenzera",
+              "order": 4,
+              "other": false,
+              "value": "sengenzera",
+              "translations": []
+            },
+            {
+              "id": 263,
+              "name": "Nyanka",
+              "color": null,
+              "label": "Nyanka",
+              "order": 5,
+              "other": false,
+              "value": "nyanka",
+              "translations": []
+            },
+            {
+              "id": 264,
+              "name": "Mumi",
+              "color": null,
+              "label": "Mumi",
+              "order": 6,
+              "other": false,
+              "value": "mumi",
+              "translations": []
+            },
+            {
+              "id": 265,
+              "name": "Domodomo",
+              "color": null,
+              "label": "Domodomo",
+              "order": 7,
+              "other": false,
+              "value": "domodomo",
+              "translations": []
+            },
+            {
+              "id": 266,
+              "name": "Nkonye",
+              "color": null,
+              "label": "Nkonye",
+              "order": 8,
+              "other": false,
+              "value": "nkonye",
+              "translations": []
+            },
+            {
+              "id": 267,
+              "name": "Sato",
+              "color": null,
+              "label": "Sato",
+              "order": 9,
+              "other": false,
+              "value": "sato",
+              "translations": []
+            },
+            {
+              "id": 268,
+              "name": "Ngololi",
+              "color": null,
+              "label": "Ngololi",
+              "order": 10,
+              "other": false,
+              "value": "ngololi",
+              "translations": []
+            },
+            {
+              "id": 269,
+              "name": "Mbiru",
+              "color": null,
+              "label": "Mbiru",
+              "order": 11,
+              "other": false,
+              "value": "mbiru",
+              "translations": []
+            },
+            {
+              "id": 270,
+              "name": "Kiboko",
+              "color": null,
+              "label": "Kiboko",
+              "order": 12,
+              "other": false,
+              "value": "kiboko",
+              "translations": []
+            },
+            {
+              "id": 271,
+              "name": "Furu",
+              "color": null,
+              "label": "Furu",
+              "order": 13,
+              "other": false,
+              "value": "furu",
+              "translations": []
+            },
+            {
+              "id": 272,
+              "name": "Hongwe",
+              "color": null,
+              "label": "Hongwe",
+              "order": 14,
+              "other": false,
+              "value": "hongwe",
+              "translations": []
+            },
+            {
+              "id": 273,
+              "name": "Karamata",
+              "color": null,
+              "label": "Karamata",
+              "order": 15,
+              "other": false,
+              "value": "karamata",
+              "translations": []
+            },
+            {
+              "id": 274,
+              "name": "Etota",
+              "color": null,
+              "label": "Etota",
+              "order": 16,
+              "other": false,
+              "value": "etota",
+              "translations": []
+            },
+            {
+              "id": 275,
+              "name": "Nembe",
+              "color": null,
+              "label": "Nembe",
+              "order": 17,
+              "other": false,
+              "value": "nembe",
+              "translations": []
+            },
+            {
+              "id": 276,
+              "name": "Gogogo",
+              "color": null,
+              "label": "Gogogo",
+              "order": 18,
+              "other": false,
+              "value": "gogogo",
+              "translations": []
+            },
+            {
+              "id": 277,
+              "name": "Sifa",
+              "color": null,
+              "label": "Sifa",
+              "order": 19,
+              "other": false,
+              "value": "sifa",
+              "translations": []
+            },
+            {
+              "id": 278,
+              "name": "Rangi Nyingi",
+              "color": null,
+              "label": "Rangi Nyingi",
+              "order": 20,
+              "other": false,
+              "value": "rangi_nyingi",
+              "translations": []
+            },
+            {
+              "id": 279,
+              "name": "Kasinja",
+              "color": null,
+              "label": "Kasinja",
+              "order": 21,
+              "other": false,
+              "value": "kasinja",
+              "translations": []
+            },
+            {
+              "id": 280,
+              "name": "Soga",
+              "color": null,
+              "label": "Soga",
+              "order": 22,
+              "other": false,
+              "value": "soga",
+              "translations": []
+            },
+            {
+              "id": 281,
+              "name": "Ebobo",
+              "color": null,
+              "label": "Ebobo",
+              "order": 23,
+              "other": false,
+              "value": "ebobo",
+              "translations": []
+            },
+            {
+              "id": 282,
+              "name": "Sungwa",
+              "color": null,
+              "label": "Sungwa",
+              "order": 24,
+              "other": false,
+              "value": "sungwa",
+              "translations": []
+            },
+            {
+              "id": 283,
+              "name": "Kamongo",
+              "color": null,
+              "label": "Kamongo",
+              "order": 25,
+              "other": false,
+              "value": "kamongo",
+              "translations": []
+            },
+            {
+              "id": 284,
+              "name": "Msirinyonga",
+              "color": null,
+              "label": "Msirinyonga",
+              "order": 26,
+              "other": false,
+              "value": "msirinyonga",
+              "translations": []
+            },
+            {
+              "id": 285,
+              "name": "Ngege",
+              "color": null,
+              "label": "Ngege",
+              "order": 27,
+              "other": false,
+              "value": "ngege",
+              "translations": []
+            },
+            {
+              "id": 286,
+              "name": "Mkange",
+              "color": null,
+              "label": "Mkange",
+              "order": 28,
+              "other": false,
+              "value": "mkange",
+              "translations": []
+            },
+            {
+              "id": 287,
+              "name": "Okoko",
+              "color": null,
+              "label": "Okoko",
+              "order": 29,
+              "other": false,
+              "value": "okoko",
+              "translations": []
+            },
+            {
+              "id": 288,
+              "name": "Suli",
+              "color": null,
+              "label": "Suli",
+              "order": 30,
+              "other": false,
+              "value": "suli",
+              "translations": []
+            },
+            {
+              "id": 289,
+              "name": "Nsunu",
+              "color": null,
+              "label": "Nsunu",
+              "order": 31,
+              "other": false,
+              "value": "nsunu",
+              "translations": []
+            },
+            {
+              "id": 290,
+              "name": "Ningu",
+              "color": null,
+              "label": "Ningu",
+              "order": 32,
+              "other": false,
+              "value": "ningu",
+              "translations": []
+            },
+            {
+              "id": 291,
+              "name": "Odede",
+              "color": null,
+              "label": "Odede",
+              "order": 33,
+              "other": false,
+              "value": "odede",
+              "translations": []
+            },
+            {
+              "id": 292,
+              "name": "Mbelele",
+              "color": null,
+              "label": "Mbelele",
+              "order": 34,
+              "other": false,
+              "value": "mbelele",
+              "translations": []
+            },
+            {
+              "id": 293,
+              "name": "Vidonge",
+              "color": null,
+              "label": "Vidonge",
+              "order": 35,
+              "other": false,
+              "value": "vidonge",
+              "translations": []
+            },
+            {
+              "id": 294,
+              "name": "Chisiire",
+              "color": null,
+              "label": "Chisiire",
+              "order": 36,
+              "other": false,
+              "value": "chisiire",
+              "translations": []
+            }
+          ],
+          "tooltip": {
+            "text": "Enter the name of the main fish species that local fishers are targeting at this site today."
+          },
+          "required": true,
+          "allowOther": true,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": "Others, please specify",
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 15,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "total_catch",
+          "rule": null,
+          "type": "number",
+          "extra": null,
+          "label": "Total species caught (Y)",
+          "order": 4,
+          "option": null,
+          "tooltip": {
+            "text": "caught (Y)Enter the total number of fish caught during the fishing effort you are recording."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 64,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "fishing_effort",
+          "rule": null,
+          "type": "number",
+          "extra": null,
+          "label": "Active fishing hours",
+          "order": 5,
+          "option": null,
+          "tooltip": {
+            "text": "Enter hours of active fishing only — do not include travel time or breaks."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        }
+      ],
+      "repeatText": null,
+      "repeatable": false,
+      "description": "Ecological Observations",
+      "translations": [],
+      "repeatButtonPlacement": null
+    }
+  ],
+  "defaultLanguage": "en"
+}

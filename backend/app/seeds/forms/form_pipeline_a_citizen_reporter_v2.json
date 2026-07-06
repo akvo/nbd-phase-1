@@ -1,0 +1,210 @@
+{
+  "name": "Pollution Reporting Form",
+  "type": 1,
+  "form_id": 1,
+  "version": 6,
+  "languages": ["en"],
+  "translations": [
+    { "name": "Pollution Reporting Form", "language": "en" },
+    { "name": "Fomu ya Kuripoti Uchafuzi", "language": "sw" }
+  ],
+  "question_group": [
+    {
+      "id": 1,
+      "name": "Incident Details",
+      "label": "Incident Details",
+      "order": 1,
+      "question": [
+        {
+          "fn": null,
+          "id": 1,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "incident_type",
+          "rule": null,
+          "type": "option",
+          "extra": null,
+          "label": "Report a change",
+          "order": 1,
+          "option": [
+            {
+              "id": 51,
+              "name": "Water colour (darker/murkier)",
+              "color": null,
+              "label": "Water colour (darker/murkier)",
+              "order": 1,
+              "other": false,
+              "value": "1",
+              "translations": [
+                { "name": "Water colour (darker/murkier)", "language": "en" },
+                { "name": "Rangi ya maji (nyeusi/chafu)", "language": "sw" }
+              ]
+            },
+            {
+              "id": 52,
+              "name": "Smell (bad odour)",
+              "color": null,
+              "label": "Smell (bad odour)",
+              "order": 2,
+              "other": false,
+              "value": "2",
+              "translations": [
+                { "name": "Smell (bad odour)", "language": "en" },
+                { "name": "Harufu (harufu mbaya)", "language": "sw" }
+              ]
+            },
+            {
+              "id": 53,
+              "name": "Fish or animal kills",
+              "color": null,
+              "label": "Fish or animal kills",
+              "order": 3,
+              "other": false,
+              "value": "3",
+              "translations": [
+                { "name": "Fish or animal kills", "language": "en" },
+                { "name": "Vifo vya samaki au wanyama", "language": "sw" }
+              ]
+            },
+            {
+              "id": 54,
+              "name": "Storm event",
+              "color": null,
+              "label": "Storm event",
+              "order": 4,
+              "other": false,
+              "value": "4",
+              "translations": [
+                { "name": "Storm event", "language": "en" },
+                { "name": "Tukio la dhoruba", "language": "sw" }
+              ]
+            },
+            {
+              "id": 55,
+              "name": "High water level",
+              "color": null,
+              "label": "High water level",
+              "order": 5,
+              "other": false,
+              "value": "5",
+              "translations": [
+                { "name": "High water level", "language": "en" },
+                { "name": "Kiwango cha juu cha maji", "language": "sw" }
+              ]
+            },
+            {
+              "id": 56,
+              "name": "Low water level",
+              "color": null,
+              "label": "Low water level",
+              "order": 6,
+              "other": false,
+              "value": "6",
+              "translations": [
+                { "name": "Low water level", "language": "en" },
+                { "name": "Kiwango cha chini cha maji", "language": "sw" }
+              ]
+            }
+          ],
+          "tooltip": null,
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [
+            { "name": "Report an incident", "language": "en" },
+            { "name": "Ripoti tukio", "language": "sw" }
+          ],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 2,
+          "api": {
+            "list": false,
+            "comment": "External API dependency for hierarchical sub-county list",
+            "initial": 0,
+            "endpoint": "/api/v1/reference/sub-counties"
+          },
+          "pre": {},
+          "meta": false,
+          "name": "location_id",
+          "rule": null,
+          "type": "cascade",
+          "extra": {
+            "content": "Please select County then Sub-County",
+            "placement": "before",
+            "translations": [
+              {
+                "content": "Tafadhali chagua Kaunti kisha Kaunti Ndogo",
+                "language": "sw"
+              }
+            ]
+          },
+          "label": "Select a Sub-County",
+          "order": 2,
+          "option": null,
+          "tooltip": null,
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [
+            { "name": "Select Sub-County", "language": "en" },
+            { "name": "Chagua Kaunti Ndogo", "language": "sw" }
+          ],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 3,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "media_attachment",
+          "rule": null,
+          "type": "image",
+          "extra": null,
+          "label": "Please share a photo as proof",
+          "order": 3,
+          "option": null,
+          "tooltip": null,
+          "required": false,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [
+            { "name": "Photo Evidence", "language": "en" },
+            { "name": "Uthibitisho wa Picha", "language": "sw" }
+          ],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        }
+      ],
+      "repeatText": null,
+      "repeatable": false,
+      "description": "Incident Details",
+      "translations": [
+        { "name": "Incident Details", "language": "en" },
+        { "name": "Maelezo ya Tukio", "language": "sw" }
+      ],
+      "repeatButtonPlacement": null
+    }
+  ],
+  "defaultLanguage": "en"
+}

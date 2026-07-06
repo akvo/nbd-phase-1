@@ -291,6 +291,7 @@ class WetlandScoringHandler(BaseScoringHandler):
             ik_signal_value=ik_signal_value,
             adjusted_score=adjusted_score,
             health_class=health_class,
+            calculated_at=datapoint.created_at or datetime.utcnow(),
         )
         db.add(health_score_rec)
         db.flush()

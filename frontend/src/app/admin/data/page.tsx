@@ -57,7 +57,7 @@ export default function DataOverviewPage() {
   useEffect(() => {
     const params: Record<string, string | number> = {};
     if (formFilter) {
-      params.form_type = parseInt(formFilter, 10);
+      params.form_id = parseInt(formFilter, 10);
     }
     if (statusFilter) {
       params.status = statusFilter.toUpperCase();
@@ -197,7 +197,7 @@ export default function DataOverviewPage() {
             >
               <option value="">Select a form</option>
               {forms.map((f) => (
-                <option key={f.id} value={String(f.type)}>
+                <option key={f.id} value={String(f.id)}>
                   {f.name}
                 </option>
               ))}
