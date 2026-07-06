@@ -12,6 +12,7 @@ import { IncidentDrawer } from "@/components/ui/incident-drawer";
 import { MapFilter } from "@/components/ui/map-filter";
 import { useTranslations, useLocale } from "next-intl";
 import { useDomain } from "@/context/domain-context";
+import { useStaticData } from "@/context/static-data-context";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { point } from "@turf/helpers";
 import { PollutionDetailsDrawer } from "@/components/ui/pollution-details-drawer";
@@ -24,14 +25,7 @@ import {
   Waves,
 } from "lucide-react";
 
-import {
-  getBasins,
-  getSites,
-  getSubmissions,
-  IncidentSummary,
-  getForms,
-  getForm,
-} from "@/lib/api";
+import { getSubmissions, IncidentSummary } from "@/lib/api";
 
 const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
   ssr: false,
@@ -232,6 +226,8 @@ export default function Home() {
     pollutionRange,
     setPollutionRange,
   } = useDomain();
+  const { basins, sites, getFormsList, getFormDetails } = useStaticData();
+
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   const locale = useLocale();
   const [incidentTypeOptions, setIncidentTypeOptions] = useState<
@@ -248,10 +244,13 @@ export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [subcountyGeometry, setSubcountyGeometry] = useState<any>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [basins, setBasins] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [dbSites, setDbSites] = useState<any[]>([]);
+  const dbSites = useMemo(() => {
+    return sites.filter((site) => {
+      const siteBasin = site.code?.includes("SIO") ? "SIO_SITEKO" : "MARA";
+      return siteBasin === selectedBasin;
+    });
+  }, [sites, selectedBasin]);
+
   const [dbIncidents, setDbIncidents] = useState<IncidentSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -301,11 +300,11 @@ export default function Home() {
 
   // Fetch dynamic incident type options from questionnaire
   useEffect(() => {
-    getForms({ lang: locale })
+    getFormsList(locale)
       .then((formsList) => {
         const pForm = formsList.find((f) => f.type === 1);
         if (pForm) {
-          return getForm(pForm.id, { lang: locale });
+          return getFormDetails(pForm.id, locale);
         }
         return null;
       })
@@ -348,7 +347,7 @@ export default function Home() {
           { value: "6", label: t("filters.optionLowWater") },
         ]);
       });
-  }, [locale, t]);
+  }, [locale, t, getFormsList, getFormDetails]);
 
   // Synchronize filter resets whenever selectedDomain changes
   useEffect(() => {
@@ -385,25 +384,21 @@ export default function Home() {
   ]);
 
   useEffect(() => {
-    getBasins()
-      .then((data) => {
-        setBasins(data);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const geomMap: Record<string, any> = {};
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data.forEach((b: any) => {
-          if (b.code && b.geom) {
-            geomMap[b.code] = b.geom;
-          }
-        });
-        setBasinGeometries(geomMap);
-        if (geomMap[selectedBasin]) {
-          setActiveGeometry(geomMap[selectedBasin]);
+    if (basins.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const geomMap: Record<string, any> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      basins.forEach((b: any) => {
+        if (b.code && b.geom) {
+          geomMap[b.code] = b.geom;
         }
-      })
-      .catch((err) => console.error("Error loading basin geometries:", err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      });
+      setBasinGeometries(geomMap);
+      if (geomMap[selectedBasin]) {
+        setActiveGeometry(geomMap[selectedBasin]);
+      }
+    }
+  }, [basins, selectedBasin]);
 
   useEffect(() => {
     if (basinGeometries[selectedBasin]) {
@@ -415,12 +410,8 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      getSites({ basin: selectedBasin }),
-      getSubmissions({ status: "APPROVED", domain: selectedDomain }),
-    ])
-      .then(([sitesData, subsData]) => {
-        setDbSites(sitesData);
+    getSubmissions({ status: "APPROVED", domain: selectedDomain })
+      .then((subsData) => {
         setDbIncidents(subsData as unknown as IncidentSummary[]);
         setLoading(false);
       })
@@ -428,7 +419,7 @@ export default function Home() {
         console.error("Error loading database map data:", err);
         setLoading(false);
       });
-  }, [selectedBasin, selectedDomain]);
+  }, [selectedDomain]);
 
   // 1. Filtered sites based on health and wetland selector
   const filteredSites = dbSites.filter((site) => {
