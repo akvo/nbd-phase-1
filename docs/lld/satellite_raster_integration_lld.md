@@ -189,6 +189,14 @@ When transitioning from mock layers to a live Google Earth Engine (GEE) connecti
      ```
    - Return this dynamic `tile_url` template in the JSON response payload. The frontend `<TileLayer>` will dynamically fetch the new tiles without needing code adjustments.
 
+4. **Background Batch Ingestion (Worker)**:
+   - Replace the placeholder task `monthly_gee_ingest()` in `backend/app/scheduler.py` with real calculation logic.
+   - For numerical indices (like mean NDVI and precipitation per site), the worker must:
+     - Query active monitoring sites from the database and retrieve their GeoJSON spatial polygon coordinates.
+     - Fetch Sentinel-2 (NDVI) or CHIRPS (precipitation) collections for the past month via the GEE API.
+     - Compute spatial region reductions (`ee.Reducer.mean()`) within the site polygons.
+     - Insert/update the resulting metrics directly into the PostgreSQL database to support fast public page and trend chart rendering.
+
 ---
 
 ## Exit Criterion
