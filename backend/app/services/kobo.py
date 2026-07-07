@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 import logging
 from typing import List, Dict, Any
@@ -243,6 +244,10 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
         latest_submission_time = None
 
         for sub in submissions:
+            payload_str = json.dumps(sub, indent=2)
+            print(
+                f"[KOBO SYNC] Fetched raw submission payload:\n{payload_str}"
+            )
             sub_uuid_str = sub.get("_uuid")
             sub_time_str = sub.get("_submission_time")
 
@@ -372,20 +377,63 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
 
                     # Map answers dynamically
                     for question in db_form.questions:
-                        # Direct lookup first
-                        val = sub.get(question.name)
-                        # Suffix lookup for nested group keys
-                        if val is None and question.name:
-                            suffix = f"/{question.name}"
-                            for key, k_val in sub.items():
-                                if key.endswith(suffix):
-                                    val = k_val
-                                    break
-                        # Fallback to ID lookup
-                        if val is None:
-                            val = sub.get(str(question.id))
+                        # 1. Determine if this question
+                        # belongs to a repeatable group
+                        is_repeat = (
+                            question.question_group.repeatable
+                            if question.question_group
+                            else False
+                        )
 
-                        if val is not None:
+                        # Collect list of (value, index) to process
+                        mappings = []
+
+                        if is_repeat:
+                            repeat_list = None
+                            suffix = f"/{question.name}"
+                            for k, v in sub.items():
+                                if (
+                                    isinstance(v, list)
+                                    and len(v) > 0
+                                    and isinstance(v[0], dict)
+                                ):
+                                    # Verify if this list belongs
+                                    # to our repeatable question
+                                    first_item = v[0]
+                                    if question.name in first_item or any(
+                                        rk.endswith(suffix)
+                                        for rk in first_item.keys()
+                                    ):
+                                        repeat_list = v
+                                        break
+                            if repeat_list:
+                                for idx, item in enumerate(repeat_list):
+                                    item_val = item.get(question.name)
+                                    if item_val is None:
+                                        for rk, rv in item.items():
+                                            if rk.endswith(suffix):
+                                                item_val = rv
+                                                break
+                                    if item_val is not None:
+                                        mappings.append((item_val, idx))
+                        else:
+                            # Direct lookup first
+                            val = sub.get(question.name)
+                            # Suffix lookup for nested group keys
+                            if val is None and question.name:
+                                suffix = f"/{question.name}"
+                                for key, k_val in sub.items():
+                                    if key.endswith(suffix):
+                                        val = k_val
+                                        break
+                            # Fallback to ID lookup
+                            if val is None:
+                                val = sub.get(str(question.id))
+
+                            if val is not None:
+                                mappings.append((val, 0))
+
+                        for val, idx in mappings:
                             name_val = None
                             float_val = None
                             options_val = None
@@ -495,6 +543,7 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                 value=float_val,
                                 options=options_val,
                                 created_at=sub_time,
+                                index=idx,
                             )
                             db.add(answer)
 
