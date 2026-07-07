@@ -265,7 +265,7 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
 
         for sub in submissions:
             payload_str = json.dumps(sub, indent=2)
-            print(
+            logger.debug(
                 f"[KOBO SYNC] Fetched raw submission payload:\n{payload_str}"
             )
             sub_uuid_str = sub.get("_uuid")
