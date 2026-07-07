@@ -67,6 +67,43 @@ def parse_kobo_timestamp(ts_str: str | None) -> datetime:
         return datetime.utcnow()
 
 
+def _resolve_kobo_other_text(sub: dict, question_name: str) -> str | None:
+    """
+    Looks up the free-text "allow other" companion field from a Kobo
+    submission payload.
+
+    Kobo is inconsistent with its naming: the companion key may appear
+    as any of the four patterns below.  We try them in order and return
+    the first non-empty value found, or None.
+
+    Patterns tried (for question_name='plants'):
+        1. others_plants
+        2. other_plants
+        3. plants_other
+        4. plants_others
+
+    Each pattern is also checked as a nested-group suffix
+    (e.g. ``group/others_plants``) to handle XLSForm groups.
+    """
+    candidates = [
+        f"others_{question_name}",
+        f"other_{question_name}",
+        f"{question_name}_other",
+        f"{question_name}_others",
+    ]
+    for candidate in candidates:
+        # Direct key lookup
+        val = sub.get(candidate)
+        if val is not None:
+            return str(val)
+        # Nested group suffix lookup (e.g. "group/others_plants")
+        suffix = f"/{candidate}"
+        for key, k_val in sub.items():
+            if key.endswith(suffix) and k_val is not None:
+                return str(k_val)
+    return None
+
+
 def _apply_env_filter(form_name: str) -> str | None:
     """
     Applies environment-specific Kobo form name filtering.
@@ -401,6 +438,20 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                         ]
                                     else:
                                         options_val = [str(val)]
+                                # Capture free-text "allow other" companion
+                                # field if the question has allowOther=True.
+                                # The extra JSONB may store the flag as
+                                # camelCase (JSON seed) or snake_case (router).
+                                q_extra = question.extra or {}
+                                has_allow_other = q_extra.get(
+                                    "allowOther"
+                                ) or q_extra.get("allow_other")
+                                if has_allow_other and question.name:
+                                    other_text = _resolve_kobo_other_text(
+                                        sub, question.name
+                                    )
+                                    if other_text:
+                                        name_val = other_text
                             elif question.type in ("image", "attachment"):
                                 attachments = sub.get("_attachments", [])
                                 attachment = next(

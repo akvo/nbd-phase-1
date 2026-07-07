@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from unittest.mock import MagicMock, patch
-from app.services.kobo import KoboService
+from app.services.kobo import KoboService, _resolve_kobo_other_text
 
 
 @patch("app.services.kobo.httpx.Client")
@@ -94,3 +94,53 @@ def test_kobo_service_get_submissions_with_timestamp(mock_client_class):
             "query": '{"_submission_time":{"$gt":"2026-06-09T08:00:00+0000"}}'
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# _resolve_kobo_other_text helper tests
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_kobo_other_text_others_prefix():
+    """Kobo key: others_{name}  (e.g. others_plants)"""
+    sub = {"others_plants": "Wild reed", "plants": "papyrus others"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Wild reed"
+
+
+def test_resolve_kobo_other_text_other_prefix():
+    """Kobo key: other_{name}  (e.g. other_plants)"""
+    sub = {"other_plants": "Reeds", "plants": "papyrus other"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Reeds"
+
+
+def test_resolve_kobo_other_text_name_other_suffix():
+    """Kobo key: {name}_other  (e.g. plants_other)"""
+    sub = {"plants_other": "Water fern", "plants": "papyrus other"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Water fern"
+
+
+def test_resolve_kobo_other_text_name_others_suffix():
+    """Kobo key: {name}_others  (e.g. plants_others)"""
+    sub = {"plants_others": "Lotus", "plants": "papyrus others"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Lotus"
+
+
+def test_resolve_kobo_other_text_nested_group():
+    """Nested group key suffix: group/others_plants"""
+    sub = {
+        "observations/others_plants": "Sedge",
+        "observations/plants": "papyrus others",
+    }
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Sedge"
+
+
+def test_resolve_kobo_other_text_missing():
+    """No companion key present → returns None"""
+    sub = {"plants": "papyrus cattails"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result is None
