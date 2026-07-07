@@ -42,7 +42,7 @@ def test_option_resolver_scenarios(db_session: Session):
     db_session.add(q_opt)
     db_session.flush()
 
-    # Question 2: select multiple option
+    # Question 2: select multiple option (allow_other=True)
     q_mult = Question(
         form_id=form.id,
         question_group_id=group.id,
@@ -50,6 +50,7 @@ def test_option_resolver_scenarios(db_session: Session):
         label="Activities",
         type=QuestionType.multiple_option.value,
         order=2,
+        extra={"allowOther": True, "allowOtherText": "Others, please specify"},
     )
     db_session.add(q_mult)
     db_session.flush()
@@ -170,6 +171,24 @@ def test_option_resolver_scenarios(db_session: Session):
         index=0,
     )
 
+    # Case 6: allow_other — 'other' token replaced by free-text from ans.name
+    ans_allow_other = Answer(
+        datapoint_id=dp.id,
+        question_id=q_mult.id,
+        options=["sugarcane", "other"],
+        name="spring fed pond",
+        index=2,
+    )
+
+    # Case 7: XLSForm or_other uses '_other' token (underscore prefix)
+    ans_allow_other_underscore = Answer(
+        datapoint_id=dp.id,
+        question_id=q_mult.id,
+        options=["potato", "_other"],
+        name="lotus plant",
+        index=3,
+    )
+
     db_session.add_all(
         [
             ans_opt_id,
@@ -177,6 +196,8 @@ def test_option_resolver_scenarios(db_session: Session):
             ans_mult_split,
             ans_space_val,
             ans_cascade,
+            ans_allow_other,
+            ans_allow_other_underscore,
         ]
     )
     db_session.flush()
@@ -202,3 +223,13 @@ def test_option_resolver_scenarios(db_session: Session):
 
     # Case 5 resolved label (UUID lookup)
     assert ans_cascade._resolved_value == "Bomet County"
+
+    # Case 6: allow_other — 'other' token replaced by free-text from ans.name
+    assert ans_allow_other._resolved_value == (
+        "Intensive Sugarcane, Other: spring fed pond"
+    )
+
+    # Case 7: XLSForm '_other' token (underscore prefix) also resolved
+    assert ans_allow_other_underscore._resolved_value == (
+        "Intensive Potato, Other: lotus plant"
+    )

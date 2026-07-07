@@ -121,4 +121,20 @@ def populate_answers_option_labels(
         ):
             ans._resolved_value = resolved[-1]
         else:
+            # Surface free-text "allow other" value stored in ans.name.
+            # When a respondent picks "Other" and types a custom answer,
+            # kobo.py stores the selected token in options and the typed
+            # text in Answer.name.  Replace the bare "other"/"others"
+            # token with the labelled free-text so the display reads
+            # e.g. "Papyrus, Other: spring fed pond".
+            if ans.name:
+                resolved = [
+                    (
+                        f"Other: {ans.name}"
+                        if r.lower()
+                        in ("other", "others", "_other", "_others")
+                        else r
+                    )
+                    for r in resolved
+                ]
             ans._resolved_value = ", ".join(resolved)
