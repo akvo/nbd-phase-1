@@ -631,6 +631,7 @@ class QuestionUpdate(BaseModel):
     required_sign: Optional[str] = None
     allow_other: bool = False
     allow_other_text: Optional[str] = None
+    is_repeat_identifier: bool = False
     translations: List[Dict[str, Any]] = []
     option: Optional[List[OptionUpdate]] = None
 
@@ -657,6 +658,11 @@ class QuestionUpdate(BaseModel):
                 data["allow_other"] = data.pop("allowOther")
             if "allowOtherText" in data and "allow_other_text" not in data:
                 data["allow_other_text"] = data.pop("allowOtherText")
+            if (
+                "isRepeatIdentifier" in data
+                and "is_repeat_identifier" not in data
+            ):
+                data["is_repeat_identifier"] = data.pop("isRepeatIdentifier")
             # Normalize options to option
             if "options" in data and "option" not in data:
                 data["option"] = data.pop("options")
@@ -671,6 +677,9 @@ class QuestionGroupUpdate(BaseModel):
     order: Optional[int] = None
     repeatable: bool = False
     repeat_text: Optional[str] = None
+    repeat_button_placement: Optional[str] = None
+    leading_question: bool = False
+    show_repeat_in_question_level: bool = False
     translations: List[Dict[str, Any]] = []
     question: List[QuestionUpdate] = []
 
@@ -684,6 +693,22 @@ class QuestionGroupUpdate(BaseModel):
             # Normalize repeatText to repeat_text
             if "repeatText" in data and "repeat_text" not in data:
                 data["repeat_text"] = data.pop("repeatText")
+            if (
+                "repeatButtonPlacement" in data
+                and "repeat_button_placement" not in data
+            ):
+                data["repeat_button_placement"] = data.pop(
+                    "repeatButtonPlacement"
+                )
+            if "leadingQuestion" in data and "leading_question" not in data:
+                data["leading_question"] = data.pop("leadingQuestion")
+            if (
+                "showRepeatInQuestionLevel" in data
+                and "show_repeat_in_question_level" not in data
+            ):
+                data["show_repeat_in_question_level"] = data.pop(
+                    "showRepeatInQuestionLevel"
+                )
         return data
 
 

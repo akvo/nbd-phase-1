@@ -181,10 +181,12 @@ def update_form(
                 db_group.order = g_data.order if g_data.order else g_order
                 db_group.repeatable = g_data.repeatable
                 db_group.repeat_text = g_data.repeat_text
-                db_group.repeat_button_placement = g_data.repeatButtonPlacement
-                db_group.leading_question = g_data.leadingQuestion
+                db_group.repeat_button_placement = (
+                    g_data.repeat_button_placement
+                )
+                db_group.leading_question = g_data.leading_question
                 db_group.show_repeat_in_question_level = (
-                    g_data.showRepeatInQuestionLevel
+                    g_data.show_repeat_in_question_level
                 )
                 db_group.translations = g_data.translations
             else:
@@ -196,10 +198,10 @@ def update_form(
                     order=g_data.order if g_data.order else g_order,
                     repeatable=g_data.repeatable,
                     repeat_text=g_data.repeat_text,
-                    repeat_button_placement=g_data.repeatButtonPlacement,
-                    leading_question=g_data.leadingQuestion,
+                    repeat_button_placement=g_data.repeat_button_placement,
+                    leading_question=g_data.leading_question,
                     show_repeat_in_question_level=(
-                        g_data.showRepeatInQuestionLevel
+                        g_data.show_repeat_in_question_level
                     ),
                     translations=g_data.translations,
                 )
@@ -263,7 +265,7 @@ def update_form(
                     db_q.fn = q_data.fn
                     db_q.pre = q_data.pre
                     db_q.display_only = q_data.display_only
-                    db_q.is_repeat_identifier = q_data.isRepeatIdentifier
+                    db_q.is_repeat_identifier = q_data.is_repeat_identifier
                     db_q.translations = q_data.translations
                     db_q.deleted_at = None  # Restore if soft-deleted
                     db.flush()
@@ -288,7 +290,7 @@ def update_form(
                         fn=q_data.fn,
                         pre=q_data.pre,
                         display_only=q_data.display_only,
-                        is_repeat_identifier=q_data.isRepeatIdentifier,
+                        is_repeat_identifier=q_data.is_repeat_identifier,
                         translations=q_data.translations,
                     )
                     db.add(db_q)
