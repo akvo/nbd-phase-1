@@ -1,8 +1,8 @@
 {
   "name": "Monthly Wetland Sampling",
-  "type": 2,
+  "type": 1,
   "form_id": 2,
-  "version": 7,
+  "version": 8,
   "languages": ["en"],
   "translations": [],
   "question_group": [
@@ -122,7 +122,8 @@
           ],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -150,7 +151,8 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -178,14 +180,17 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         }
       ],
       "repeatText": null,
       "repeatable": false,
-      "description": "Site Details",
+      "description": null,
       "translations": [],
-      "repeatButtonPlacement": null
+      "leading_question": null,
+      "repeatButtonPlacement": null,
+      "show_repeat_in_question_level": false
     },
     {
       "id": 6,
@@ -280,7 +285,8 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -379,7 +385,8 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -438,14 +445,17 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         }
       ],
       "repeatText": null,
       "repeatable": false,
-      "description": "Water observation",
+      "description": null,
       "translations": [],
-      "repeatButtonPlacement": null
+      "leading_question": null,
+      "repeatButtonPlacement": null,
+      "show_repeat_in_question_level": false
     },
     {
       "id": 3,
@@ -455,7 +465,7 @@
       "question": [
         {
           "fn": null,
-          "id": 8,
+          "id": 66,
           "api": null,
           "pre": {},
           "meta": false,
@@ -463,7 +473,7 @@
           "rule": { "max": 10, "min": 2, "allowDecimal": true },
           "type": "number",
           "extra": null,
-          "label": "pH Level",
+          "label": "pH Level (Reading 1)",
           "order": 0,
           "option": null,
           "tooltip": {
@@ -479,7 +489,66 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
+        },
+        {
+          "fn": null,
+          "id": 65,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "ph_2",
+          "rule": { "max": 10, "min": 2, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "pH Level (Reading 2)",
+          "order": 1,
+          "option": null,
+          "tooltip": {
+            "text": "Dip the Hanna pH meter, wait for the number to stop changing, then enter the value (must be between 2 and 10)."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
+        },
+        {
+          "fn": null,
+          "id": 8,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "ph_3",
+          "rule": { "max": 10, "min": 2, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "pH Level (Reading 3)",
+          "order": 2,
+          "option": null,
+          "tooltip": {
+            "text": "Dip the Hanna pH meter, wait for the number to stop changing, then enter the value (must be between 2 and 10)."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -492,7 +561,7 @@
           "type": "number",
           "extra": null,
           "label": "Water Temperature (°C)",
-          "order": 1,
+          "order": 3,
           "option": null,
           "tooltip": {
             "text": "Read the temperature from the Hanna DO meter after it stabilises in the water (must be between 5 and 50).\n"
@@ -507,7 +576,37 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
+        },
+        {
+          "fn": null,
+          "id": 67,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "do_raw_ai_reading",
+          "rule": { "max": 35, "min": 0.5, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "Dissolved Oxygen (mg/L) Raw air reading",
+          "order": 4,
+          "option": null,
+          "tooltip": {
+            "text": "Fill 1/3 of plastic beaker distilled water, Dip the probe inside the beaker without touching the water. Wait until temperature stablizes"
+          },
+          "required": false,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -519,8 +618,8 @@
           "rule": { "max": 35, "min": 0.5, "allowDecimal": true },
           "type": "number",
           "extra": null,
-          "label": "Dissolved Oxygen (mg/L)",
-          "order": 2,
+          "label": "Dissolved Oxygen (mg/L) Sample Reading 1",
+          "order": 5,
           "option": null,
           "tooltip": {
             "text": "Dip the Hanna DO meter, stir gently, wait 1–2 minutes for the number to stop changing, then enter the value."
@@ -535,14 +634,75 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
+        },
+        {
+          "fn": null,
+          "id": 68,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "do_2",
+          "rule": { "max": 35, "min": 0.5, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "Dissolved Oxygen (mg/L) Sample Reading 2",
+          "order": 6,
+          "option": null,
+          "tooltip": {
+            "text": "Dip the Hanna DO meter, stir gently, wait 1–2 minutes for the number to stop changing, then enter the value."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
+        },
+        {
+          "fn": null,
+          "id": 69,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "do_3",
+          "rule": { "max": 35, "min": 0.5, "allowDecimal": true },
+          "type": "number",
+          "extra": null,
+          "label": "Dissolved Oxygen (mg/L) Sample Reading 3",
+          "order": 7,
+          "option": null,
+          "tooltip": {
+            "text": "Dip the Hanna DO meter, stir gently, wait 1–2 minutes for the number to stop changing, then enter the value."
+          },
+          "required": true,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         }
       ],
       "repeatText": null,
       "repeatable": false,
-      "description": "Water Quality",
+      "description": null,
       "translations": [],
-      "repeatButtonPlacement": null
+      "leading_question": null,
+      "repeatButtonPlacement": null,
+      "show_repeat_in_question_level": false
     },
     {
       "id": 4,
@@ -657,7 +817,8 @@
           "translations": [],
           "allowOtherText": "Others, please specify",
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -976,7 +1137,8 @@
           "translations": [],
           "allowOtherText": "Others, please specify",
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -1004,7 +1166,8 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -1014,7 +1177,7 @@
           "meta": false,
           "name": "target_species",
           "rule": null,
-          "type": "option",
+          "type": "multiple_option",
           "extra": null,
           "label": "Main fish species (X) observed",
           "order": 3,
@@ -1393,25 +1556,26 @@
           "translations": [],
           "allowOtherText": "Others, please specify",
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
-          "id": 15,
+          "id": 70,
           "api": null,
           "pre": {},
           "meta": false,
-          "name": "total_catch",
-          "rule": null,
+          "name": "fist_caught_weight",
+          "rule": { "max": 500, "min": 0 },
           "type": "number",
           "extra": null,
-          "label": "Total species caught (Y)",
+          "label": "What is the total weight of the fish caught today (In Kilograms)?",
           "order": 4,
           "option": null,
           "tooltip": {
-            "text": "caught (Y)Enter the total number of fish caught during the fishing effort you are recording."
+            "text": "One crate is 35kgs, 1 basin is 15kgs and 1 gunia is 50kgs"
           },
-          "required": true,
+          "required": false,
           "allowOther": false,
           "dependency": null,
           "shortLabel": null,
@@ -1421,7 +1585,35 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
+        },
+        {
+          "fn": null,
+          "id": 71,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "boat_crew",
+          "rule": { "max": 20, "min": 1 },
+          "type": "number",
+          "extra": null,
+          "label": "How many crew did you have on the boat?",
+          "order": 5,
+          "option": null,
+          "tooltip": null,
+          "required": false,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         },
         {
           "fn": null,
@@ -1434,7 +1626,7 @@
           "type": "number",
           "extra": null,
           "label": "Active fishing hours",
-          "order": 5,
+          "order": 6,
           "option": null,
           "tooltip": {
             "text": "Enter hours of active fishing only — do not include travel time or breaks."
@@ -1449,14 +1641,86 @@
           "translations": [],
           "allowOtherText": null,
           "dependencyRule": null,
-          "requiredDoubleEntry": false
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
         }
       ],
       "repeatText": null,
       "repeatable": false,
-      "description": "Ecological Observations",
+      "description": null,
       "translations": [],
-      "repeatButtonPlacement": null
+      "leading_question": null,
+      "repeatButtonPlacement": null,
+      "show_repeat_in_question_level": false
+    },
+    {
+      "id": 25,
+      "name": "total_target_species_pct",
+      "label": "Total percentage of fish caught",
+      "order": 5,
+      "question": [
+        {
+          "fn": null,
+          "id": 73,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "species_label",
+          "rule": null,
+          "type": "input",
+          "extra": null,
+          "label": "Fish species name",
+          "order": 0,
+          "option": null,
+          "tooltip": null,
+          "required": false,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": true
+        },
+        {
+          "fn": null,
+          "id": 72,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "pct_species",
+          "rule": { "max": 100, "min": 0 },
+          "type": "number",
+          "extra": null,
+          "label": "What is the percentage of each fish species caught today",
+          "order": 1,
+          "option": null,
+          "tooltip": null,
+          "required": false,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
+        }
+      ],
+      "repeatText": null,
+      "repeatable": true,
+      "description": null,
+      "translations": [],
+      "leading_question": null,
+      "repeatButtonPlacement": null,
+      "show_repeat_in_question_level": true
     }
   ],
   "defaultLanguage": "en"

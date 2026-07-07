@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.form import (
     Form,
@@ -12,7 +13,9 @@ from app.models.form import (
 logger = logging.getLogger(__name__)
 
 
-def publish_form_snapshot(form: Form, db: Session):
+def publish_form_snapshot(
+    form: Form, db: Session, version_override: Optional[int] = None
+):
     # Fetch active groups and questions
     active_groups = (
         db.query(QuestionGroup)
@@ -68,6 +71,7 @@ def publish_form_snapshot(form: Form, db: Session):
                     "fn": q.fn,
                     "pre": q.pre,
                     "display_only": q.display_only,
+                    "is_repeat_identifier": q.is_repeat_identifier,
                     "options": options_schema,
                 }
             )
@@ -80,22 +84,31 @@ def publish_form_snapshot(form: Form, db: Session):
                 "order": g.order,
                 "repeatable": g.repeatable,
                 "repeat_text": g.repeat_text,
+                "repeat_button_placement": g.repeat_button_placement,
+                "leading_question": g.leading_question,
+                "show_repeat_in_question_level": (
+                    g.show_repeat_in_question_level
+                ),
                 "questions": questions_schema,
             }
         )
+
+    # Increment version
+    if version_override is not None:
+        next_version = version_override
+    else:
+        next_version = (
+            db.query(FormPublishedVersion).filter_by(form_id=form.id).count()
+            or 0
+        ) + 1
 
     schema_snapshot = {
         "form_id": form.id,
         "name": form.name,
         "type": form.type,
-        "version": form.version,
+        "version": next_version,
         "question_groups": question_groups_schema,
     }
-
-    # Increment version
-    next_version = (
-        db.query(FormPublishedVersion).filter_by(form_id=form.id).count() or 0
-    ) + 1
 
     published_version = FormPublishedVersion(
         form_id=form.id,

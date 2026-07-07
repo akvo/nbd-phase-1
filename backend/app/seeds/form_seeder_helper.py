@@ -16,7 +16,12 @@ from app.seeds.form_publisher import publish_form_snapshot
 logger = logging.getLogger(__name__)
 
 
-def seed_forms(db: Session, filename_filter: Optional[str] = None):
+def seed_forms(
+    db: Session,
+    filename_filter: Optional[str] = None,
+    version_override: Optional[int] = None,
+    publish_override: Optional[bool] = None,
+):
     seeds_dir = os.path.join(os.path.dirname(__file__), "forms")
     if not os.path.exists(seeds_dir):
         logger.error("Seeds directory not found at %s", seeds_dir)
@@ -170,10 +175,15 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
         languages = form_data.get("languages", ["en"])
         translations = form_data.get("translations", [])
         form_type = form_data.get("type", 1)
+        form_version = (
+            version_override
+            if version_override is not None
+            else form_data.get("version", 1)
+        )
         if not form:
             form = Form(
                 name=form_name,
-                version=1,
+                version=form_version,
                 type=form_type,
                 status=1,
                 translations=translations,
@@ -189,6 +199,7 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             )
         else:
             form.name = form_name
+            form.version = form_version
             form.translations = translations
             form.languages = languages
             form.type = form_type
@@ -209,7 +220,23 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             order = group_data.get("order", idx)
             repeatable = group_data.get("repeatable", False)
             repeat_text = group_data.get("repeat_text")
+            repeat_button_placement = (
+                group_data.get("repeatButtonPlacement")
+                if group_data.get("repeatButtonPlacement") is not None
+                else group_data.get("repeat_button_placement")
+            )
+            leading_question = (
+                group_data.get("leadingQuestion")
+                if group_data.get("leadingQuestion") is not None
+                else group_data.get("leading_question")
+            )
+            show_repeat_in_question_level = (
+                group_data.get("showRepeatInQuestionLevel")
+                if group_data.get("showRepeatInQuestionLevel") is not None
+                else group_data.get("show_repeat_in_question_level", False)
+            )
             g_translations = group_data.get("translations", [])
+            group_label = group_data.get("label") or group_name
 
             # Lookup group by form_id and group_name slug (case insensitive)
             q_group = (
@@ -226,11 +253,16 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                 q_group = QuestionGroup(
                     form_id=form.id,
                     name=group_name,
-                    label=group_name,
+                    label=group_label,
                     translations=g_translations,
                     order=order,
                     repeatable=repeatable,
                     repeat_text=repeat_text,
+                    repeat_button_placement=repeat_button_placement,
+                    leading_question=leading_question,
+                    show_repeat_in_question_level=(
+                        show_repeat_in_question_level
+                    ),
                 )
                 db.add(q_group)
                 db.flush()
@@ -240,9 +272,15 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     q_group.id,
                 )
             else:
+                q_group.label = group_label
                 q_group.order = order
                 q_group.repeatable = repeatable
                 q_group.repeat_text = repeat_text
+                q_group.repeat_button_placement = repeat_button_placement
+                q_group.leading_question = leading_question
+                q_group.show_repeat_in_question_level = (
+                    show_repeat_in_question_level
+                )
                 q_group.translations = g_translations
                 db.flush()
                 logger.info(
@@ -297,6 +335,54 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     if "comment" in q_data and "comment" not in api_config:
                         api_config["comment"] = q_data.get("comment")
 
+                # Extract extra attributes and other question fields
+                extra = q_data.get("extra") or {}
+                if not isinstance(extra, dict):
+                    extra = {}
+                else:
+                    extra = dict(extra)
+
+                for key_camel, key_snake in [
+                    ("hiddenString", "hidden_string"),
+                    ("requiredDoubleEntry", "required_double_entry"),
+                    ("requiredSign", "required_sign"),
+                    ("allowOther", "allow_other"),
+                    ("allowOtherText", "allow_other_text"),
+                ]:
+                    val = (
+                        q_data.get(key_camel)
+                        if q_data.get(key_camel) is not None
+                        else q_data.get(key_snake)
+                    )
+                    if val is not None:
+                        extra[key_camel] = val
+
+                q_short_label = (
+                    q_data.get("shortLabel")
+                    if q_data.get("shortLabel") is not None
+                    else q_data.get("short_label")
+                )
+                q_dependency = q_data.get("dependency")
+                q_dependency_rule = (
+                    q_data.get("dependencyRule")
+                    if q_data.get("dependencyRule") is not None
+                    else q_data.get("dependency_rule")
+                )
+                q_tooltip = q_data.get("tooltip")
+                q_fn = q_data.get("fn")
+                q_pre = q_data.get("pre")
+                q_display_only = (
+                    q_data.get("displayOnly")
+                    if q_data.get("displayOnly") is not None
+                    else q_data.get("display_only", False)
+                )
+                q_meta = q_data.get("meta", False)
+                q_is_repeat_identifier = (
+                    q_data.get("isRepeatIdentifier")
+                    if q_data.get("isRepeatIdentifier") is not None
+                    else q_data.get("is_repeat_identifier", False)
+                )
+
                 # Lookup question by form_id and name slug (case-insensitive)
                 q = None
                 if q_name:
@@ -316,13 +402,22 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                         question_group_id=q_group.id,
                         name=q_name,
                         label=q_label,
+                        short_label=q_short_label,
                         translations=q_translations,
                         order=q_order,
                         type=q_type,
+                        meta=q_meta,
                         required=q_required,
                         rule=rule if rule else None,
+                        dependency=q_dependency,
+                        dependency_rule=q_dependency_rule,
                         api=api_config,
-                        extra=q_data.get("extra"),
+                        extra=extra if extra else None,
+                        tooltip=q_tooltip,
+                        fn=q_fn,
+                        pre=q_pre,
+                        display_only=q_display_only,
+                        is_repeat_identifier=q_is_repeat_identifier,
                     )
                     db.add(q)
                     db.flush()
@@ -333,12 +428,21 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     q.question_group_id = q_group.id
                     q.name = q_name
                     q.label = q_label
+                    q.short_label = q_short_label
                     q.order = q_order
                     q.type = q_type
+                    q.meta = q_meta
                     q.required = q_required
                     q.rule = rule if rule else None
+                    q.dependency = q_dependency
+                    q.dependency_rule = q_dependency_rule
                     q.api = api_config
-                    q.extra = q_data.get("extra")
+                    q.extra = extra if extra else None
+                    q.tooltip = q_tooltip
+                    q.fn = q_fn
+                    q.pre = q_pre
+                    q.display_only = q_display_only
+                    q.is_repeat_identifier = q_is_repeat_identifier
                     q.translations = q_translations
                     q.deleted_at = None
                     db.flush()
@@ -404,7 +508,11 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             db.flush()
 
         # 6. Publish Form to make it active and generate a schema snapshot
-        publish_form_snapshot(form, db)
+        should_publish = (
+            publish_override if publish_override is not None else True
+        )
+        if should_publish:
+            publish_form_snapshot(form, db, version_override=version_override)
 
     logger.info("Database seeding successfully completed!")
 
@@ -419,7 +527,84 @@ if __name__ == "__main__":
         # Check if a filename filter parameter is passed,
         # e.g. python form_seeder_helper.py form_v2.json
         filename_filter = sys.argv[1] if len(sys.argv) > 1 else None
-        seed_forms(db_session, filename_filter=filename_filter)
+        version_override = None
+        publish_override = None
+
+        # Check if we should enter interactive mode
+        # (when no arguments are passed and stdin is a TTY)
+        if filename_filter is None and sys.stdin.isatty():
+            seeds_dir = os.path.join(os.path.dirname(__file__), "forms")
+            if os.path.exists(seeds_dir):
+                all_files = sorted(
+                    [
+                        f
+                        for f in os.listdir(seeds_dir)
+                        if f.endswith(".json") and f.startswith("form_")
+                    ]
+                )
+                print("\nAvailable form blueprints:")
+                print("  [0] Seed all forms (default)")
+                for idx, filename in enumerate(all_files, start=1):
+                    try:
+                        filepath = os.path.join(seeds_dir, filename)
+                        with open(filepath, "r") as f:
+                            data = json.load(f)
+                            form_name = data.get("name", "Unnamed")
+                            version = data.get("version", 1)
+                            print(
+                                f"  [{idx}] {filename} - "
+                                f"{form_name} (v{version})"
+                            )
+                    except Exception:
+                        print(f"  [{idx}] {filename}")
+
+                choice_prompt = (
+                    f"\nSelect a form to seed (0-{len(all_files)}): "
+                )
+                choice_input = input(choice_prompt).strip()
+                if choice_input and choice_input != "0":
+                    try:
+                        choice_idx = int(choice_input) - 1
+                        if 0 <= choice_idx < len(all_files):
+                            filename_filter = all_files[choice_idx]
+
+                            filepath = os.path.join(seeds_dir, filename_filter)
+                            with open(filepath, "r") as f:
+                                data = json.load(f)
+                                default_version = data.get("version", 1)
+
+                            ver_prompt = (
+                                "Enter version number override "
+                                "(press Enter to keep JSON version "
+                                f"{default_version}): "
+                            )
+                            ver_input = input(ver_prompt).strip()
+                            if ver_input:
+                                try:
+                                    version_override = int(ver_input)
+                                except ValueError:
+                                    print(
+                                        "Invalid version. "
+                                        "Keeping JSON version."
+                                    )
+
+                            pub_prompt = (
+                                "Publish this form to make it active? (Y/n): "
+                            )
+                            pub_input = input(pub_prompt).strip().lower()
+                            if pub_input in ["n", "no"]:
+                                publish_override = False
+                            else:
+                                publish_override = True
+                    except ValueError:
+                        print("Invalid choice. Seeding all forms.")
+
+        seed_forms(
+            db_session,
+            filename_filter=filename_filter,
+            version_override=version_override,
+            publish_override=publish_override,
+        )
         db_session.commit()
     except Exception as e:
         db_session.rollback()

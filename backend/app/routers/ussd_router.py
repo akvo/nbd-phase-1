@@ -152,7 +152,7 @@ def _handle_ussd_core(
     # Fetch all questions in order of Group Order, then Question Order
     active_questions = (
         db.query(Question)
-        .join(QuestionGroup)
+        .join(QuestionGroup, Question.question_group_id == QuestionGroup.id)
         .filter(
             Question.form_id == form.id,
             Question.deleted_at.is_(None),
