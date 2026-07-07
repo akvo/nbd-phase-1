@@ -209,6 +209,21 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             order = group_data.get("order", idx)
             repeatable = group_data.get("repeatable", False)
             repeat_text = group_data.get("repeat_text")
+            repeat_button_placement = (
+                group_data.get("repeatButtonPlacement")
+                if group_data.get("repeatButtonPlacement") is not None
+                else group_data.get("repeat_button_placement")
+            )
+            leading_question = (
+                group_data.get("leadingQuestion")
+                if group_data.get("leadingQuestion") is not None
+                else group_data.get("leading_question", False)
+            )
+            show_repeat_in_question_level = (
+                group_data.get("showRepeatInQuestionLevel")
+                if group_data.get("showRepeatInQuestionLevel") is not None
+                else group_data.get("show_repeat_in_question_level", False)
+            )
             g_translations = group_data.get("translations", [])
 
             # Lookup group by form_id and group_name slug (case insensitive)
@@ -231,6 +246,11 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     order=order,
                     repeatable=repeatable,
                     repeat_text=repeat_text,
+                    repeat_button_placement=repeat_button_placement,
+                    leading_question=leading_question,
+                    show_repeat_in_question_level=(
+                        show_repeat_in_question_level
+                    ),
                 )
                 db.add(q_group)
                 db.flush()
@@ -243,6 +263,11 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                 q_group.order = order
                 q_group.repeatable = repeatable
                 q_group.repeat_text = repeat_text
+                q_group.repeat_button_placement = repeat_button_placement
+                q_group.leading_question = leading_question
+                q_group.show_repeat_in_question_level = (
+                    show_repeat_in_question_level
+                )
                 q_group.translations = g_translations
                 db.flush()
                 logger.info(
@@ -339,6 +364,11 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     else q_data.get("display_only", False)
                 )
                 q_meta = q_data.get("meta", False)
+                q_is_repeat_identifier = (
+                    q_data.get("isRepeatIdentifier")
+                    if q_data.get("isRepeatIdentifier") is not None
+                    else q_data.get("is_repeat_identifier", False)
+                )
 
                 # Lookup question by form_id and name slug (case-insensitive)
                 q = None
@@ -374,6 +404,7 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                         fn=q_fn,
                         pre=q_pre,
                         display_only=q_display_only,
+                        is_repeat_identifier=q_is_repeat_identifier,
                     )
                     db.add(q)
                     db.flush()
@@ -398,6 +429,7 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     q.fn = q_fn
                     q.pre = q_pre
                     q.display_only = q_display_only
+                    q.is_repeat_identifier = q_is_repeat_identifier
                     q.translations = q_translations
                     q.deleted_at = None
                     db.flush()
