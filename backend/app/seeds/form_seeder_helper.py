@@ -16,7 +16,12 @@ from app.seeds.form_publisher import publish_form_snapshot
 logger = logging.getLogger(__name__)
 
 
-def seed_forms(db: Session, filename_filter: Optional[str] = None):
+def seed_forms(
+    db: Session,
+    filename_filter: Optional[str] = None,
+    version_override: Optional[int] = None,
+    publish_override: Optional[bool] = None,
+):
     seeds_dir = os.path.join(os.path.dirname(__file__), "forms")
     if not os.path.exists(seeds_dir):
         logger.error("Seeds directory not found at %s", seeds_dir)
@@ -170,10 +175,15 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
         languages = form_data.get("languages", ["en"])
         translations = form_data.get("translations", [])
         form_type = form_data.get("type", 1)
+        form_version = (
+            version_override
+            if version_override is not None
+            else form_data.get("version", 1)
+        )
         if not form:
             form = Form(
                 name=form_name,
-                version=1,
+                version=form_version,
                 type=form_type,
                 status=1,
                 translations=translations,
@@ -189,6 +199,7 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             )
         else:
             form.name = form_name
+            form.version = form_version
             form.translations = translations
             form.languages = languages
             form.type = form_type
@@ -217,7 +228,7 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             leading_question = (
                 group_data.get("leadingQuestion")
                 if group_data.get("leadingQuestion") is not None
-                else group_data.get("leading_question", False)
+                else group_data.get("leading_question")
             )
             show_repeat_in_question_level = (
                 group_data.get("showRepeatInQuestionLevel")
@@ -495,7 +506,11 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             db.flush()
 
         # 6. Publish Form to make it active and generate a schema snapshot
-        publish_form_snapshot(form, db)
+        should_publish = (
+            publish_override if publish_override is not None else True
+        )
+        if should_publish:
+            publish_form_snapshot(form, db, version_override=version_override)
 
     logger.info("Database seeding successfully completed!")
 
@@ -510,7 +525,84 @@ if __name__ == "__main__":
         # Check if a filename filter parameter is passed,
         # e.g. python form_seeder_helper.py form_v2.json
         filename_filter = sys.argv[1] if len(sys.argv) > 1 else None
-        seed_forms(db_session, filename_filter=filename_filter)
+        version_override = None
+        publish_override = None
+
+        # Check if we should enter interactive mode
+        # (when no arguments are passed and stdin is a TTY)
+        if filename_filter is None and sys.stdin.isatty():
+            seeds_dir = os.path.join(os.path.dirname(__file__), "forms")
+            if os.path.exists(seeds_dir):
+                all_files = sorted(
+                    [
+                        f
+                        for f in os.listdir(seeds_dir)
+                        if f.endswith(".json") and f.startswith("form_")
+                    ]
+                )
+                print("\nAvailable form blueprints:")
+                print("  [0] Seed all forms (default)")
+                for idx, filename in enumerate(all_files, start=1):
+                    try:
+                        filepath = os.path.join(seeds_dir, filename)
+                        with open(filepath, "r") as f:
+                            data = json.load(f)
+                            form_name = data.get("name", "Unnamed")
+                            version = data.get("version", 1)
+                            print(
+                                f"  [{idx}] {filename} - "
+                                f"{form_name} (v{version})"
+                            )
+                    except Exception:
+                        print(f"  [{idx}] {filename}")
+
+                choice_prompt = (
+                    f"\nSelect a form to seed (0-{len(all_files)}): "
+                )
+                choice_input = input(choice_prompt).strip()
+                if choice_input and choice_input != "0":
+                    try:
+                        choice_idx = int(choice_input) - 1
+                        if 0 <= choice_idx < len(all_files):
+                            filename_filter = all_files[choice_idx]
+
+                            filepath = os.path.join(seeds_dir, filename_filter)
+                            with open(filepath, "r") as f:
+                                data = json.load(f)
+                                default_version = data.get("version", 1)
+
+                            ver_prompt = (
+                                "Enter version number override "
+                                "(press Enter to keep JSON version "
+                                f"{default_version}): "
+                            )
+                            ver_input = input(ver_prompt).strip()
+                            if ver_input:
+                                try:
+                                    version_override = int(ver_input)
+                                except ValueError:
+                                    print(
+                                        "Invalid version. "
+                                        "Keeping JSON version."
+                                    )
+
+                            pub_prompt = (
+                                "Publish this form to make it active? (Y/n): "
+                            )
+                            pub_input = input(pub_prompt).strip().lower()
+                            if pub_input in ["n", "no"]:
+                                publish_override = False
+                            else:
+                                publish_override = True
+                    except ValueError:
+                        print("Invalid choice. Seeding all forms.")
+
+        seed_forms(
+            db_session,
+            filename_filter=filename_filter,
+            version_override=version_override,
+            publish_override=publish_override,
+        )
         db_session.commit()
     except Exception as e:
         db_session.rollback()
