@@ -171,13 +171,22 @@ def test_option_resolver_scenarios(db_session: Session):
         index=0,
     )
 
-    # Case 6: allow_other — options has 'other' token + name holds free text
+    # Case 6: allow_other — 'other' token replaced by free-text from ans.name
     ans_allow_other = Answer(
         datapoint_id=dp.id,
         question_id=q_mult.id,
         options=["sugarcane", "other"],
         name="spring fed pond",
         index=2,
+    )
+
+    # Case 7: XLSForm or_other uses '_other' token (underscore prefix)
+    ans_allow_other_underscore = Answer(
+        datapoint_id=dp.id,
+        question_id=q_mult.id,
+        options=["potato", "_other"],
+        name="lotus plant",
+        index=3,
     )
 
     db_session.add_all(
@@ -188,6 +197,7 @@ def test_option_resolver_scenarios(db_session: Session):
             ans_space_val,
             ans_cascade,
             ans_allow_other,
+            ans_allow_other_underscore,
         ]
     )
     db_session.flush()
@@ -217,4 +227,9 @@ def test_option_resolver_scenarios(db_session: Session):
     # Case 6: allow_other — 'other' token replaced by free-text from ans.name
     assert ans_allow_other._resolved_value == (
         "Intensive Sugarcane, Other: spring fed pond"
+    )
+
+    # Case 7: XLSForm '_other' token (underscore prefix) also resolved
+    assert ans_allow_other_underscore._resolved_value == (
+        "Intensive Potato, Other: lotus plant"
     )

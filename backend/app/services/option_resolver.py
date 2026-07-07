@@ -131,7 +131,8 @@ def populate_answers_option_labels(
                 resolved = [
                     (
                         f"Other: {ans.name}"
-                        if r.lower() in ("other", "others")
+                        if r.lower()
+                        in ("other", "others", "_other", "_others")
                         else r
                     )
                     for r in resolved
