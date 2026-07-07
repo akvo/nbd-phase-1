@@ -144,3 +144,15 @@ def test_resolve_kobo_other_text_missing():
     sub = {"plants": "papyrus cattails"}
     result = _resolve_kobo_other_text(sub, "plants")
     assert result is None
+
+
+def test_resolve_kobo_other_text_truncated():
+    """Kobo key truncated due to XLSForm limits:
+    others_main_activities_observe
+    """
+    sub = {
+        "ecological/others_main_activities_observe": "Activity",
+        "ecological/main_activities_observed": "other",
+    }
+    result = _resolve_kobo_other_text(sub, "main_activities_observed")
+    assert result == "Activity"

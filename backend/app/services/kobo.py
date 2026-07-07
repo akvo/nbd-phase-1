@@ -102,6 +102,26 @@ def _resolve_kobo_other_text(sub: dict, question_name: str) -> str | None:
         for key, k_val in sub.items():
             if key.endswith(suffix) and k_val is not None:
                 return str(k_val)
+
+    # Fallback to fuzzy substring match for truncated keys (XLSForm limits)
+    # e.g. "ecological/others_main_activities_observe"
+    # for "main_activities_observed"
+    if len(question_name) > 10:
+        prefix_part = question_name[:10]
+        for key, k_val in sub.items():
+            if k_val is not None:
+                key_lower = key.lower()
+                if prefix_part in key_lower:
+                    last_part = key_lower.split("/")[-1]
+                    if (
+                        last_part.startswith("others_")
+                        or last_part.startswith("other_")
+                        or last_part.endswith("_other")
+                        or last_part.endswith("_others")
+                        or "others_" in last_part
+                        or "other_" in last_part
+                    ):
+                        return str(k_val)
     return None
 
 
