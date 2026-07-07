@@ -355,7 +355,7 @@ class BlueprintQuestionSchema(BaseModel):
     allowOther: bool = False
     allowOtherText: Optional[str] = None
     meta: bool = False
-    isRepeatIdentifier: bool = False
+    is_repeat_identifier: bool = False
     translations: List[Dict[str, Any]] = []
     option: Optional[Any] = None
 
@@ -385,10 +385,10 @@ class BlueprintQuestionSchema(BaseModel):
             if "allow_other_text" in data and "allowOtherText" not in data:
                 data["allowOtherText"] = data.pop("allow_other_text")
             if (
-                "is_repeat_identifier" in data
-                and "isRepeatIdentifier" not in data
+                "isRepeatIdentifier" in data
+                and "is_repeat_identifier" not in data
             ):
-                data["isRepeatIdentifier"] = data.pop("is_repeat_identifier")
+                data["is_repeat_identifier"] = data.pop("isRepeatIdentifier")
             # Normalize options to option
             if "options" in data and "option" not in data:
                 data["option"] = data.pop("options")
@@ -461,8 +461,8 @@ class BlueprintQuestionGroupSchema(BaseModel):
     repeatable: bool = False
     repeatText: Optional[str] = None
     repeatButtonPlacement: Optional[str] = None
-    leadingQuestion: Optional[int] = None
-    showRepeatInQuestionLevel: bool = False
+    leading_question: Optional[int] = None
+    show_repeat_in_question_level: bool = False
     translations: List[Dict[str, Any]] = []
     question: List[BlueprintQuestionSchema] = []
 
@@ -485,14 +485,14 @@ class BlueprintQuestionGroupSchema(BaseModel):
                 data["repeatButtonPlacement"] = data.pop(
                     "repeat_button_placement"
                 )
-            if "leading_question" in data and "leadingQuestion" not in data:
-                data["leadingQuestion"] = data.pop("leading_question")
+            if "leadingQuestion" in data and "leading_question" not in data:
+                data["leading_question"] = data.pop("leadingQuestion")
             if (
-                "show_repeat_in_question_level" in data
-                and "showRepeatInQuestionLevel" not in data
+                "showRepeatInQuestionLevel" in data
+                and "show_repeat_in_question_level" not in data
             ):
-                data["showRepeatInQuestionLevel"] = data.pop(
-                    "show_repeat_in_question_level"
+                data["show_repeat_in_question_level"] = data.pop(
+                    "showRepeatInQuestionLevel"
                 )
         return data
 
@@ -518,7 +518,7 @@ class BlueprintQuestionGroupSchema(BaseModel):
             id=g.id,
             name=g.name,
             label=g.label,
-            description=g.label,
+            description=None,
             order=g.order,
             repeatable=g.repeatable,
             repeatText=g.repeat_text,

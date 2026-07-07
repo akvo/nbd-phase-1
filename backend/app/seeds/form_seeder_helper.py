@@ -236,6 +236,7 @@ def seed_forms(
                 else group_data.get("show_repeat_in_question_level", False)
             )
             g_translations = group_data.get("translations", [])
+            group_label = group_data.get("label") or group_name
 
             # Lookup group by form_id and group_name slug (case insensitive)
             q_group = (
@@ -252,7 +253,7 @@ def seed_forms(
                 q_group = QuestionGroup(
                     form_id=form.id,
                     name=group_name,
-                    label=group_name,
+                    label=group_label,
                     translations=g_translations,
                     order=order,
                     repeatable=repeatable,
@@ -271,6 +272,7 @@ def seed_forms(
                     q_group.id,
                 )
             else:
+                q_group.label = group_label
                 q_group.order = order
                 q_group.repeatable = repeatable
                 q_group.repeat_text = repeat_text
