@@ -141,7 +141,7 @@ class Form(Base):
     )
     published_versions = relationship(
         "FormPublishedVersion",
-        foreign_keys="[FormPublishedVersion.form_id]",
+        foreign_keys="FormPublishedVersion.form_id",
         cascade="all, delete-orphan",
         back_populates="form",
     )
@@ -161,7 +161,16 @@ class QuestionGroup(Base):
     repeatable = Column(Boolean, default=False, nullable=False)
     repeat_text = Column(String(255), nullable=True)
     repeat_button_placement = Column(String(255), nullable=True)
-    leading_question = Column(Boolean, default=False, nullable=False)
+    leading_question = Column(
+        Integer,
+        ForeignKey(
+            "question.id",
+            use_alter=True,
+            name="fk_question_group_leading_question",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+    )
     show_repeat_in_question_level = Column(
         Boolean, default=False, nullable=False
     )
@@ -171,6 +180,7 @@ class QuestionGroup(Base):
     questions = relationship(
         "Question",
         back_populates="question_group",
+        foreign_keys="Question.question_group_id",
         cascade="all, delete-orphan",
     )
 
@@ -218,7 +228,11 @@ class Question(Base):
     deleted_at = Column(DateTime, nullable=True)
 
     form = relationship("Form", back_populates="questions")
-    question_group = relationship("QuestionGroup", back_populates="questions")
+    question_group = relationship(
+        "QuestionGroup",
+        back_populates="questions",
+        foreign_keys="Question.question_group_id",
+    )
     options = relationship(
         "Option", back_populates="question", cascade="all, delete-orphan"
     )

@@ -461,7 +461,7 @@ class BlueprintQuestionGroupSchema(BaseModel):
     repeatable: bool = False
     repeatText: Optional[str] = None
     repeatButtonPlacement: Optional[str] = None
-    leadingQuestion: bool = False
+    leadingQuestion: Optional[int] = None
     showRepeatInQuestionLevel: bool = False
     translations: List[Dict[str, Any]] = []
     question: List[BlueprintQuestionSchema] = []
@@ -523,7 +523,7 @@ class BlueprintQuestionGroupSchema(BaseModel):
             repeatable=g.repeatable,
             repeatText=g.repeat_text,
             repeatButtonPlacement=g.repeat_button_placement,
-            leadingQuestion=g.leading_question or False,
+            leadingQuestion=g.leading_question,
             showRepeatInQuestionLevel=g.show_repeat_in_question_level or False,
             translations=g.translations or [],
             question=qs,
@@ -678,7 +678,7 @@ class QuestionGroupUpdate(BaseModel):
     repeatable: bool = False
     repeat_text: Optional[str] = None
     repeat_button_placement: Optional[str] = None
-    leading_question: bool = False
+    leading_question: Optional[int] = None
     show_repeat_in_question_level: bool = False
     translations: List[Dict[str, Any]] = []
     question: List[QuestionUpdate] = []
