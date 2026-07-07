@@ -209,6 +209,21 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
             order = group_data.get("order", idx)
             repeatable = group_data.get("repeatable", False)
             repeat_text = group_data.get("repeat_text")
+            repeat_button_placement = (
+                group_data.get("repeatButtonPlacement")
+                if group_data.get("repeatButtonPlacement") is not None
+                else group_data.get("repeat_button_placement")
+            )
+            leading_question = (
+                group_data.get("leadingQuestion")
+                if group_data.get("leadingQuestion") is not None
+                else group_data.get("leading_question", False)
+            )
+            show_repeat_in_question_level = (
+                group_data.get("showRepeatInQuestionLevel")
+                if group_data.get("showRepeatInQuestionLevel") is not None
+                else group_data.get("show_repeat_in_question_level", False)
+            )
             g_translations = group_data.get("translations", [])
 
             # Lookup group by form_id and group_name slug (case insensitive)
@@ -231,6 +246,11 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     order=order,
                     repeatable=repeatable,
                     repeat_text=repeat_text,
+                    repeat_button_placement=repeat_button_placement,
+                    leading_question=leading_question,
+                    show_repeat_in_question_level=(
+                        show_repeat_in_question_level
+                    ),
                 )
                 db.add(q_group)
                 db.flush()
@@ -243,6 +263,11 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                 q_group.order = order
                 q_group.repeatable = repeatable
                 q_group.repeat_text = repeat_text
+                q_group.repeat_button_placement = repeat_button_placement
+                q_group.leading_question = leading_question
+                q_group.show_repeat_in_question_level = (
+                    show_repeat_in_question_level
+                )
                 q_group.translations = g_translations
                 db.flush()
                 logger.info(
@@ -297,6 +322,54 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     if "comment" in q_data and "comment" not in api_config:
                         api_config["comment"] = q_data.get("comment")
 
+                # Extract extra attributes and other question fields
+                extra = q_data.get("extra") or {}
+                if not isinstance(extra, dict):
+                    extra = {}
+                else:
+                    extra = dict(extra)
+
+                for key_camel, key_snake in [
+                    ("hiddenString", "hidden_string"),
+                    ("requiredDoubleEntry", "required_double_entry"),
+                    ("requiredSign", "required_sign"),
+                    ("allowOther", "allow_other"),
+                    ("allowOtherText", "allow_other_text"),
+                ]:
+                    val = (
+                        q_data.get(key_camel)
+                        if q_data.get(key_camel) is not None
+                        else q_data.get(key_snake)
+                    )
+                    if val is not None:
+                        extra[key_camel] = val
+
+                q_short_label = (
+                    q_data.get("shortLabel")
+                    if q_data.get("shortLabel") is not None
+                    else q_data.get("short_label")
+                )
+                q_dependency = q_data.get("dependency")
+                q_dependency_rule = (
+                    q_data.get("dependencyRule")
+                    if q_data.get("dependencyRule") is not None
+                    else q_data.get("dependency_rule")
+                )
+                q_tooltip = q_data.get("tooltip")
+                q_fn = q_data.get("fn")
+                q_pre = q_data.get("pre")
+                q_display_only = (
+                    q_data.get("displayOnly")
+                    if q_data.get("displayOnly") is not None
+                    else q_data.get("display_only", False)
+                )
+                q_meta = q_data.get("meta", False)
+                q_is_repeat_identifier = (
+                    q_data.get("isRepeatIdentifier")
+                    if q_data.get("isRepeatIdentifier") is not None
+                    else q_data.get("is_repeat_identifier", False)
+                )
+
                 # Lookup question by form_id and name slug (case-insensitive)
                 q = None
                 if q_name:
@@ -316,13 +389,22 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                         question_group_id=q_group.id,
                         name=q_name,
                         label=q_label,
+                        short_label=q_short_label,
                         translations=q_translations,
                         order=q_order,
                         type=q_type,
+                        meta=q_meta,
                         required=q_required,
                         rule=rule if rule else None,
+                        dependency=q_dependency,
+                        dependency_rule=q_dependency_rule,
                         api=api_config,
-                        extra=q_data.get("extra"),
+                        extra=extra if extra else None,
+                        tooltip=q_tooltip,
+                        fn=q_fn,
+                        pre=q_pre,
+                        display_only=q_display_only,
+                        is_repeat_identifier=q_is_repeat_identifier,
                     )
                     db.add(q)
                     db.flush()
@@ -333,12 +415,21 @@ def seed_forms(db: Session, filename_filter: Optional[str] = None):
                     q.question_group_id = q_group.id
                     q.name = q_name
                     q.label = q_label
+                    q.short_label = q_short_label
                     q.order = q_order
                     q.type = q_type
+                    q.meta = q_meta
                     q.required = q_required
                     q.rule = rule if rule else None
+                    q.dependency = q_dependency
+                    q.dependency_rule = q_dependency_rule
                     q.api = api_config
-                    q.extra = q_data.get("extra")
+                    q.extra = extra if extra else None
+                    q.tooltip = q_tooltip
+                    q.fn = q_fn
+                    q.pre = q_pre
+                    q.display_only = q_display_only
+                    q.is_repeat_identifier = q_is_repeat_identifier
                     q.translations = q_translations
                     q.deleted_at = None
                     db.flush()

@@ -160,6 +160,11 @@ class QuestionGroup(Base):
     order = Column(BigInteger, nullable=True)
     repeatable = Column(Boolean, default=False, nullable=False)
     repeat_text = Column(String(255), nullable=True)
+    repeat_button_placement = Column(String(255), nullable=True)
+    leading_question = Column(Boolean, default=False, nullable=False)
+    show_repeat_in_question_level = Column(
+        Boolean, default=False, nullable=False
+    )
     deleted_at = Column(DateTime, nullable=True)
 
     form = relationship("Form", back_populates="question_groups")
@@ -209,6 +214,7 @@ class Question(Base):
     fn = Column(JSONB, nullable=True)
     pre = Column(JSONB, nullable=True)
     display_only = Column(Boolean, default=False, nullable=True)
+    is_repeat_identifier = Column(Boolean, default=False, nullable=False)
     deleted_at = Column(DateTime, nullable=True)
 
     form = relationship("Form", back_populates="questions")

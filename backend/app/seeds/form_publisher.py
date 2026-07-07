@@ -68,6 +68,7 @@ def publish_form_snapshot(form: Form, db: Session):
                     "fn": q.fn,
                     "pre": q.pre,
                     "display_only": q.display_only,
+                    "is_repeat_identifier": q.is_repeat_identifier,
                     "options": options_schema,
                 }
             )
@@ -80,6 +81,11 @@ def publish_form_snapshot(form: Form, db: Session):
                 "order": g.order,
                 "repeatable": g.repeatable,
                 "repeat_text": g.repeat_text,
+                "repeat_button_placement": g.repeat_button_placement,
+                "leading_question": g.leading_question,
+                "show_repeat_in_question_level": (
+                    g.show_repeat_in_question_level
+                ),
                 "questions": questions_schema,
             }
         )
