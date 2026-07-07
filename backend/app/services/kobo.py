@@ -24,13 +24,14 @@ class KoboService:
             "KOBOTOOLBOX_API_URL", "https://eu.kobotoolbox.org"
         ).rstrip("/")
         self.api_token = os.getenv("KOBOTOOLBOX_API_TOKEN")
+        self.timeout = float(os.getenv("KOBOTOOLBOX_API_TIMEOUT", "60.0"))
         self.headers = {}
         if self.api_token:
             self.headers["Authorization"] = f"Token {self.api_token}"
 
     def get_forms(self) -> List[Dict[str, Any]]:
         url = f"{self.api_url}/api/v2/assets.json"
-        with httpx.Client() as client:
+        with httpx.Client(timeout=self.timeout) as client:
             response = client.get(url, headers=self.headers)
             response.raise_for_status()
             data = response.json()
@@ -48,7 +49,7 @@ class KoboService:
                 dt = since_timestamp
             since_str = dt.strftime("%Y-%m-%dT%H:%M:%S+0000")
             params["query"] = f'{{"_submission_time":{{"$gt":"{since_str}"}}}}'
-        with httpx.Client() as client:
+        with httpx.Client(timeout=self.timeout) as client:
             response = client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()
@@ -544,7 +545,9 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                     )
                                     blob_path = build_blob_path("kobo", ext)
                                     response = httpx.get(
-                                        download_url, headers=service.headers
+                                        download_url,
+                                        headers=service.headers,
+                                        timeout=service.timeout,
                                     )
                                     response.raise_for_status()
                                     StorageService().upload_file(

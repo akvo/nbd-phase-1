@@ -156,3 +156,39 @@ def test_resolve_kobo_other_text_truncated():
     }
     result = _resolve_kobo_other_text(sub, "main_activities_observed")
     assert result == "Activity"
+
+
+def test_kobo_service_custom_timeout():
+    # Test default timeout
+    if "KOBOTOOLBOX_API_TIMEOUT" in os.environ:
+        del os.environ["KOBOTOOLBOX_API_TIMEOUT"]
+    service = KoboService()
+    assert service.timeout == 60.0
+
+    # Test custom timeout env var
+    os.environ["KOBOTOOLBOX_API_TIMEOUT"] = "30.0"
+    service = KoboService()
+    assert service.timeout == 30.0
+
+    # Clean up
+    del os.environ["KOBOTOOLBOX_API_TIMEOUT"]
+
+
+@patch("app.services.kobo.httpx.Client")
+def test_kobo_service_timeout_passed_to_client(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value.__enter__.return_value = mock_client
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"results": []}
+    mock_client.get.return_value = mock_response
+
+    os.environ["KOBOTOOLBOX_API_TIMEOUT"] = "15.5"
+    service = KoboService()
+    service.get_forms()
+
+    mock_client_class.assert_called_with(timeout=15.5)
+
+    if "KOBOTOOLBOX_API_TIMEOUT" in os.environ:
+        del os.environ["KOBOTOOLBOX_API_TIMEOUT"]
