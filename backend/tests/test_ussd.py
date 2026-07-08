@@ -158,10 +158,11 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
     # Verify database state
     dp = (
         db_session.query(Datapoint)
-        .filter(Datapoint.submitter == "USSD")
+        .filter(Datapoint.submitter.like("ussd-%"))
         .first()
     )
     assert dp is not None
+    assert dp.submitter == "ussd-+255700000000"
     assert dp.status == "PENDING"
     assert dp.basin_id is not None
 

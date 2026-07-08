@@ -395,10 +395,11 @@ class TestConsentState:
 
         dp = (
             db_session.query(Datapoint)
-            .filter(Datapoint.submitter == "WHATSAPP")
+            .filter(Datapoint.submitter.like("wa-%"))
             .first()
         )
         assert dp is not None
+        assert dp.submitter == f"wa-{phone}"
         assert dp.status == "PENDING"
 
         answers = (

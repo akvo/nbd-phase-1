@@ -564,7 +564,7 @@ def test_submission_name_pii_masking(db_session: Session):
         uuid=uuid.uuid4(),
         form_id=form.id,
         site_id=site.id,
-        submitter="WHATSAPP",
+        submitter="wa-+254712345678",
         status="PENDING",
         name="wa-+254712345678",
     )
@@ -572,12 +572,13 @@ def test_submission_name_pii_masking(db_session: Session):
     db_session.commit()
 
     # 2. Query public GET /api/v1/submissions
-    # Verify name is masked in the response
+    # Verify name and submitter are masked in the response
     response = client.get(f"/api/v1/submissions?site_id={site.id}")
     assert response.status_code == 200
     res_json = response.json()
     assert len(res_json) == 1
     assert res_json[0]["name"] == "wa-+254******678"
+    assert res_json[0]["submitter"] == "wa-+254******678"
 
     # 3. Create Admin user and generate JWT token
     email = "admin_test_mask@nbd.org"
@@ -590,7 +591,7 @@ def test_submission_name_pii_masking(db_session: Session):
     headers = {"Authorization": f"Bearer {token}"}
 
     # 4. Query admin GET /api/v1/admin/submissions
-    # Verify name is NOT masked in the response for Admin
+    # Verify name and submitter are NOT masked in the response for Admin
     response = client.get(
         "/api/v1/admin/submissions?status=PENDING", headers=headers
     )
@@ -599,6 +600,7 @@ def test_submission_name_pii_masking(db_session: Session):
     admin_dp = next((d for d in res_json if d["uuid"] == str(dp.uuid)), None)
     assert admin_dp is not None
     assert admin_dp["name"] == "wa-+254712345678"
+    assert admin_dp["submitter"] == "wa-+254712345678"
 
 
 def test_submission_answers_option_labels_resolution(db_session: Session):
