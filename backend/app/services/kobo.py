@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 import logging
 from typing import List, Dict, Any
@@ -8,7 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.form import Form
 from app.models.spatial import Basin, Site
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.sync_watermark import SyncWatermark
 from app.models.dead_letter import DeadLetter
 from app.mail import EmailService
@@ -23,13 +24,14 @@ class KoboService:
             "KOBOTOOLBOX_API_URL", "https://eu.kobotoolbox.org"
         ).rstrip("/")
         self.api_token = os.getenv("KOBOTOOLBOX_API_TOKEN")
+        self.timeout = float(os.getenv("KOBOTOOLBOX_API_TIMEOUT", "60.0"))
         self.headers = {}
         if self.api_token:
             self.headers["Authorization"] = f"Token {self.api_token}"
 
     def get_forms(self) -> List[Dict[str, Any]]:
         url = f"{self.api_url}/api/v2/assets.json"
-        with httpx.Client() as client:
+        with httpx.Client(timeout=self.timeout) as client:
             response = client.get(url, headers=self.headers)
             response.raise_for_status()
             data = response.json()
@@ -47,7 +49,7 @@ class KoboService:
                 dt = since_timestamp
             since_str = dt.strftime("%Y-%m-%dT%H:%M:%S+0000")
             params["query"] = f'{{"_submission_time":{{"$gt":"{since_str}"}}}}'
-        with httpx.Client() as client:
+        with httpx.Client(timeout=self.timeout) as client:
             response = client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()
@@ -65,6 +67,63 @@ def parse_kobo_timestamp(ts_str: str | None) -> datetime:
         return dt
     except ValueError:
         return datetime.utcnow()
+
+
+def _resolve_kobo_other_text(sub: dict, question_name: str) -> str | None:
+    """
+    Looks up the free-text "allow other" companion field from a Kobo
+    submission payload.
+
+    Kobo is inconsistent with its naming: the companion key may appear
+    as any of the four patterns below.  We try them in order and return
+    the first non-empty value found, or None.
+
+    Patterns tried (for question_name='plants'):
+        1. others_plants
+        2. other_plants
+        3. plants_other
+        4. plants_others
+
+    Each pattern is also checked as a nested-group suffix
+    (e.g. ``group/others_plants``) to handle XLSForm groups.
+    """
+    candidates = [
+        f"others_{question_name}",
+        f"other_{question_name}",
+        f"{question_name}_other",
+        f"{question_name}_others",
+    ]
+    for candidate in candidates:
+        # Direct key lookup
+        val = sub.get(candidate)
+        if val is not None:
+            return str(val)
+        # Nested group suffix lookup (e.g. "group/others_plants")
+        suffix = f"/{candidate}"
+        for key, k_val in sub.items():
+            if key.endswith(suffix) and k_val is not None:
+                return str(k_val)
+
+    # Fallback to fuzzy substring match for truncated keys (XLSForm limits)
+    # e.g. "ecological/others_main_activities_observe"
+    # for "main_activities_observed"
+    if len(question_name) > 10:
+        prefix_part = question_name[:10]
+        for key, k_val in sub.items():
+            if k_val is not None:
+                key_lower = key.lower()
+                if prefix_part in key_lower:
+                    last_part = key_lower.split("/")[-1]
+                    if (
+                        last_part.startswith("others_")
+                        or last_part.startswith("other_")
+                        or last_part.endswith("_other")
+                        or last_part.endswith("_others")
+                        or "others_" in last_part
+                        or "other_" in last_part
+                    ):
+                        return str(k_val)
+    return None
 
 
 def _apply_env_filter(form_name: str) -> str | None:
@@ -206,6 +265,10 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
         latest_submission_time = None
 
         for sub in submissions:
+            payload_str = json.dumps(sub, indent=2)
+            logger.debug(
+                f"[KOBO SYNC] Fetched raw submission payload:\n{payload_str}"
+            )
             sub_uuid_str = sub.get("_uuid")
             sub_time_str = sub.get("_submission_time")
 
@@ -327,7 +390,7 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                         created_at=sub_time,
                         site_id=selected_site_id,
                         basin_id=selected_basin_id,
-                        status="PENDING",
+                        status=SubmissionStatus.PENDING,
                         geo=geo_json,
                     )
                     db.add(datapoint)
@@ -335,20 +398,63 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
 
                     # Map answers dynamically
                     for question in db_form.questions:
-                        # Direct lookup first
-                        val = sub.get(question.name)
-                        # Suffix lookup for nested group keys
-                        if val is None and question.name:
-                            suffix = f"/{question.name}"
-                            for key, k_val in sub.items():
-                                if key.endswith(suffix):
-                                    val = k_val
-                                    break
-                        # Fallback to ID lookup
-                        if val is None:
-                            val = sub.get(str(question.id))
+                        # 1. Determine if this question
+                        # belongs to a repeatable group
+                        is_repeat = (
+                            question.question_group.repeatable
+                            if question.question_group
+                            else False
+                        )
 
-                        if val is not None:
+                        # Collect list of (value, index) to process
+                        mappings = []
+
+                        if is_repeat:
+                            repeat_list = None
+                            suffix = f"/{question.name}"
+                            for k, v in sub.items():
+                                if (
+                                    isinstance(v, list)
+                                    and len(v) > 0
+                                    and isinstance(v[0], dict)
+                                ):
+                                    # Verify if this list belongs
+                                    # to our repeatable question
+                                    first_item = v[0]
+                                    if question.name in first_item or any(
+                                        rk.endswith(suffix)
+                                        for rk in first_item.keys()
+                                    ):
+                                        repeat_list = v
+                                        break
+                            if repeat_list:
+                                for idx, item in enumerate(repeat_list):
+                                    item_val = item.get(question.name)
+                                    if item_val is None:
+                                        for rk, rv in item.items():
+                                            if rk.endswith(suffix):
+                                                item_val = rv
+                                                break
+                                    if item_val is not None:
+                                        mappings.append((item_val, idx))
+                        else:
+                            # Direct lookup first
+                            val = sub.get(question.name)
+                            # Suffix lookup for nested group keys
+                            if val is None and question.name:
+                                suffix = f"/{question.name}"
+                                for key, k_val in sub.items():
+                                    if key.endswith(suffix):
+                                        val = k_val
+                                        break
+                            # Fallback to ID lookup
+                            if val is None:
+                                val = sub.get(str(question.id))
+
+                            if val is not None:
+                                mappings.append((val, 0))
+
+                        for val, idx in mappings:
                             name_val = None
                             float_val = None
                             options_val = None
@@ -401,6 +507,20 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                         ]
                                     else:
                                         options_val = [str(val)]
+                                # Capture free-text "allow other" companion
+                                # field if the question has allowOther=True.
+                                # The extra JSONB may store the flag as
+                                # camelCase (JSON seed) or snake_case (router).
+                                q_extra = question.extra or {}
+                                has_allow_other = q_extra.get(
+                                    "allowOther"
+                                ) or q_extra.get("allow_other")
+                                if has_allow_other and question.name:
+                                    other_text = _resolve_kobo_other_text(
+                                        sub, question.name
+                                    )
+                                    if other_text:
+                                        name_val = other_text
                             elif question.type in ("image", "attachment"):
                                 attachments = sub.get("_attachments", [])
                                 attachment = next(
@@ -425,7 +545,9 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                     )
                                     blob_path = build_blob_path("kobo", ext)
                                     response = httpx.get(
-                                        download_url, headers=service.headers
+                                        download_url,
+                                        headers=service.headers,
+                                        timeout=service.timeout,
                                     )
                                     response.raise_for_status()
                                     StorageService().upload_file(
@@ -444,6 +566,7 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                 value=float_val,
                                 options=options_val,
                                 created_at=sub_time,
+                                index=idx,
                             )
                             db.add(answer)
 

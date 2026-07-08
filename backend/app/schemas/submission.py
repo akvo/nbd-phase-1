@@ -3,6 +3,8 @@ from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from app.models.submission import SubmissionStatus
+
 
 class AnswerBase(BaseModel):
     question_id: int
@@ -257,7 +259,7 @@ class DatapointBase(BaseModel):
     geo: Optional[Dict[str, Any]] = None
     duration: int = 0
     submitter: Optional[str] = None
-    status: str = "PENDING"
+    status: str = SubmissionStatus.PENDING
 
 
 class DatapointCreate(DatapointBase):
@@ -286,6 +288,10 @@ class DatapointResponse(DatapointBase):
     site_name: Optional[str] = None
     creator_name: Optional[str] = None
     creator_email: Optional[str] = None
+    image_url: Optional[str] = None
+    incident_type_name: Optional[str] = None
+    incident_type_id: Optional[int] = None
+    reported_location: Optional[str] = None
     answers: List[AnswerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -296,8 +302,13 @@ class SubmissionStatusUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_status(self) -> "SubmissionStatusUpdate":
-        if self.status not in ("APPROVED", "REJECTED"):
-            raise ValueError("Status must be either APPROVED or REJECTED")
+        if self.status not in (
+            SubmissionStatus.APPROVED,
+            SubmissionStatus.REJECTED,
+        ):
+            raise ValueError(
+                f"Status must be either {SubmissionStatus.APPROVED.value} or {SubmissionStatus.REJECTED.value}"  # noqa
+            )
         return self
 
 
@@ -322,6 +333,30 @@ class PublicDatapointResponse(DatapointResponse):
                     self.name = phone[:4] + "*" * (len(phone) - 7) + phone[-3:]
                 else:
                     self.name = "***"
+
+        if self.submitter:
+            if self.submitter.startswith("wa-"):
+                parts = self.submitter.split("-")
+                if len(parts) > 1:
+                    phone = parts[1]
+                    if len(phone) > 6:
+                        masked_phone = (
+                            phone[:4] + "*" * (len(phone) - 7) + phone[-3:]
+                        )
+                        self.submitter = f"wa-{masked_phone}"
+                    else:
+                        self.submitter = "wa-***"
+            elif self.submitter.startswith("ussd-"):
+                parts = self.submitter.split("-")
+                if len(parts) > 1:
+                    phone = parts[1]
+                    if len(phone) > 6:
+                        masked_phone = (
+                            phone[:4] + "*" * (len(phone) - 7) + phone[-3:]
+                        )
+                        self.submitter = f"ussd-{masked_phone}"
+                    else:
+                        self.submitter = "ussd-***"
         return self
 
 

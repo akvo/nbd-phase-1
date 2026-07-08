@@ -66,8 +66,16 @@ export const getSubmissions = async (params?: {
   status?: string;
   form_id?: number;
   domain?: string;
+  brief?: boolean;
 }): Promise<Record<string, unknown>[]> => {
   const response = await apiClient.get("/submissions", { params });
+  return response.data;
+};
+
+export const getSubmissionDetails = async (
+  id: string | number
+): Promise<Record<string, unknown>> => {
+  const response = await apiClient.get(`/submissions/${id}`);
   return response.data;
 };
 
@@ -117,6 +125,10 @@ export interface IncidentSummary {
   status: string;
   description?: string;
   name?: string;
+  image_url?: string;
+  incident_type_name?: string;
+  incident_type_id?: number | string;
+  reported_location?: string;
   answers: Array<{
     name?: string;
     question_id?: number;

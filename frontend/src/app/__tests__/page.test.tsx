@@ -19,6 +19,22 @@ vi.mock("@/components/ui/echarts-chart", () => {
   };
 });
 
+vi.mock("@/context/static-data-context", () => {
+  return {
+    useStaticData: () => ({
+      basins: [],
+      sites: [],
+      getFormsList: vi.fn().mockResolvedValue([]),
+      getFormDetails: vi.fn().mockResolvedValue({}),
+      isLoading: { basins: false, sites: false, forms: false },
+      refreshData: vi.fn().mockResolvedValue(undefined),
+    }),
+    StaticDataProvider: ({ children }: { children: React.ReactNode }) => (
+      <>{children}</>
+    ),
+  };
+});
+
 vi.mock("@/lib/api", () => {
   return {
     apiClient: {
@@ -28,6 +44,7 @@ vi.mock("@/lib/api", () => {
     getBasins: vi.fn().mockResolvedValue([]),
     getSites: vi.fn().mockResolvedValue([]),
     getSubmissions: vi.fn().mockResolvedValue([]),
+    getSubmissionDetails: vi.fn().mockResolvedValue({}),
     getForms: vi.fn().mockResolvedValue([]),
     getForm: vi.fn().mockResolvedValue({}),
     getRasterLayers: vi.fn().mockResolvedValue({

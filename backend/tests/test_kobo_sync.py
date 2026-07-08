@@ -959,3 +959,103 @@ def test_sync_env_no_filter_syncs_all(
             os.environ["KOBO_FORM_NAME_PREFIX"] = prefix
         if suffix is not None:
             os.environ["KOBO_FORM_NAME_SUFFIX"] = suffix
+
+
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+def test_sync_kobo_submissions_repeatable_groups(
+    mock_get_submissions, mock_get_forms, db_session: Session
+):
+    # Setup database dependencies
+    basin = Basin(
+        code="TEST_BASIN_REP",
+        name="Test Basin Repeatable",
+        geom="SRID=4326;MULTIPOLYGON(((30 10, 40 40, 20 40, 10 20, 30 10)))",
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    form = Form(name="Monthly Repeatable Sampling", version=1)
+    db_session.add(form)
+    db_session.commit()
+
+    q_group = QuestionGroup(
+        form_id=form.id, name="total_target_species_pct", repeatable=True
+    )
+    db_session.add(q_group)
+    db_session.commit()
+
+    question_label = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="species_label",
+        label="species_label",
+        type="input",
+        is_repeat_identifier=True,
+        order=1,
+    )
+    question_pct = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="pct_species",
+        label="pct_species",
+        type="number",
+        order=2,
+    )
+    db_session.add_all([question_label, question_pct])
+    db_session.commit()
+
+    # Configure mock responses
+    mock_get_forms.return_value = [
+        {"uid": "kobo_form_rep_123", "name": "Monthly Repeatable Sampling"}
+    ]
+
+    sub_uuid = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid,
+            "_id": 1001,
+            "_submission_time": "2026-06-09T07:00:00Z",
+            "_submitted_by": "surveyor_rep",
+            "rep_target_species": [
+                {
+                    "rep_target_species/species_label": "oyuso",
+                    "rep_target_species/pct_species": "30",
+                },
+                {
+                    "rep_target_species/species_label": "nsoga",
+                    "rep_target_species/pct_species": "70",
+                },
+            ],
+        }
+    ]
+
+    res = sync_kobo_submissions(db_session)
+    assert res["processed_forms"] == 1
+    assert res["ingested_records"] == 1
+    assert len(res["errors"]) == 0
+
+    # Assert Answers created with correct indexes
+    answers_label = (
+        db_session.query(Answer)
+        .filter(Answer.question_id == question_label.id)
+        .order_by(Answer.index)
+        .all()
+    )
+    assert len(answers_label) == 2
+    assert answers_label[0].name == "oyuso"
+    assert answers_label[0].index == 0
+    assert answers_label[1].name == "nsoga"
+    assert answers_label[1].index == 1
+
+    answers_pct = (
+        db_session.query(Answer)
+        .filter(Answer.question_id == question_pct.id)
+        .order_by(Answer.index)
+        .all()
+    )
+    assert len(answers_pct) == 2
+    assert answers_pct[0].value == 30.0
+    assert answers_pct[0].index == 0
+    assert answers_pct[1].value == 70.0
+    assert answers_pct[1].index == 1

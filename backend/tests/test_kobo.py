@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from unittest.mock import MagicMock, patch
-from app.services.kobo import KoboService
+from app.services.kobo import KoboService, _resolve_kobo_other_text
 
 
 @patch("app.services.kobo.httpx.Client")
@@ -94,3 +94,101 @@ def test_kobo_service_get_submissions_with_timestamp(mock_client_class):
             "query": '{"_submission_time":{"$gt":"2026-06-09T08:00:00+0000"}}'
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# _resolve_kobo_other_text helper tests
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_kobo_other_text_others_prefix():
+    """Kobo key: others_{name}  (e.g. others_plants)"""
+    sub = {"others_plants": "Wild reed", "plants": "papyrus others"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Wild reed"
+
+
+def test_resolve_kobo_other_text_other_prefix():
+    """Kobo key: other_{name}  (e.g. other_plants)"""
+    sub = {"other_plants": "Reeds", "plants": "papyrus other"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Reeds"
+
+
+def test_resolve_kobo_other_text_name_other_suffix():
+    """Kobo key: {name}_other  (e.g. plants_other)"""
+    sub = {"plants_other": "Water fern", "plants": "papyrus other"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Water fern"
+
+
+def test_resolve_kobo_other_text_name_others_suffix():
+    """Kobo key: {name}_others  (e.g. plants_others)"""
+    sub = {"plants_others": "Lotus", "plants": "papyrus others"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Lotus"
+
+
+def test_resolve_kobo_other_text_nested_group():
+    """Nested group key suffix: group/others_plants"""
+    sub = {
+        "observations/others_plants": "Sedge",
+        "observations/plants": "papyrus others",
+    }
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result == "Sedge"
+
+
+def test_resolve_kobo_other_text_missing():
+    """No companion key present → returns None"""
+    sub = {"plants": "papyrus cattails"}
+    result = _resolve_kobo_other_text(sub, "plants")
+    assert result is None
+
+
+def test_resolve_kobo_other_text_truncated():
+    """Kobo key truncated due to XLSForm limits:
+    others_main_activities_observe
+    """
+    sub = {
+        "ecological/others_main_activities_observe": "Activity",
+        "ecological/main_activities_observed": "other",
+    }
+    result = _resolve_kobo_other_text(sub, "main_activities_observed")
+    assert result == "Activity"
+
+
+def test_kobo_service_custom_timeout():
+    # Test default timeout
+    if "KOBOTOOLBOX_API_TIMEOUT" in os.environ:
+        del os.environ["KOBOTOOLBOX_API_TIMEOUT"]
+    service = KoboService()
+    assert service.timeout == 60.0
+
+    # Test custom timeout env var
+    os.environ["KOBOTOOLBOX_API_TIMEOUT"] = "30.0"
+    service = KoboService()
+    assert service.timeout == 30.0
+
+    # Clean up
+    del os.environ["KOBOTOOLBOX_API_TIMEOUT"]
+
+
+@patch("app.services.kobo.httpx.Client")
+def test_kobo_service_timeout_passed_to_client(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value.__enter__.return_value = mock_client
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"results": []}
+    mock_client.get.return_value = mock_response
+
+    os.environ["KOBOTOOLBOX_API_TIMEOUT"] = "15.5"
+    service = KoboService()
+    service.get_forms()
+
+    mock_client_class.assert_called_with(timeout=15.5)
+
+    if "KOBOTOOLBOX_API_TIMEOUT" in os.environ:
+        del os.environ["KOBOTOOLBOX_API_TIMEOUT"]

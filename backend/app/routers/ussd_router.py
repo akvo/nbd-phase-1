@@ -15,7 +15,7 @@ from app.models.form import (
     FormNames,
     QuestionType,
 )
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.citizen import Citizen
 from app.services.ussd_pager import USSDDynamicPager
 
@@ -152,7 +152,7 @@ def _handle_ussd_core(
     # Fetch all questions in order of Group Order, then Question Order
     active_questions = (
         db.query(Question)
-        .join(QuestionGroup)
+        .join(QuestionGroup, Question.question_group_id == QuestionGroup.id)
         .filter(
             Question.form_id == form.id,
             Question.deleted_at.is_(None),
@@ -519,8 +519,8 @@ def _handle_ussd_core(
         uuid=uuid.uuid4(),
         form_id=form.id,
         published_version_id=form.active_version_id,
-        submitter="USSD",
-        status="PENDING",
+        submitter=f"ussd-{phoneNumber}",
+        status=SubmissionStatus.PENDING,
         name=sessionId,
     )
 

@@ -30,7 +30,7 @@ from app.models.form import (
     FormNames,
     QuestionType,
 )
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.spatial import SpatialBoundary, Basin
 from app.models.citizen import Citizen
 from app.services.storage import StorageService, build_blob_path
@@ -276,8 +276,8 @@ def _save_report(
         uuid=uuid.uuid4(),
         form_id=form.id,
         published_version_id=form.active_version_id,
-        submitter="WHATSAPP",
-        status="PENDING",
+        submitter=f"wa-{phone}",
+        status=SubmissionStatus.PENDING,
         name=f"wa-{phone}",
     )
 
@@ -471,7 +471,10 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
         # Fetch all questions in order of Group Order, then Question Order
         active_questions = (
             db.query(Question)
-            .join(QuestionGroup)
+            .join(
+                QuestionGroup,
+                Question.question_group_id == QuestionGroup.id,
+            )
             .filter(
                 Question.form_id == form.id,
                 Question.deleted_at.is_(None),

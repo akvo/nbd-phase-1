@@ -4,6 +4,7 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { DomainProvider } from "@/context/domain-context";
+import { StaticDataProvider } from "@/context/static-data-context";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
@@ -30,9 +31,11 @@ export default async function RootLayout({
     <html lang={locale} className={inter.variable}>
       <body style={{ margin: 0, padding: 0 }} className={inter.className}>
         <NextIntlClientProvider messages={messages}>
-          <DomainProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </DomainProvider>
+          <StaticDataProvider>
+            <DomainProvider>
+              <AuthProvider>{children}</AuthProvider>
+            </DomainProvider>
+          </StaticDataProvider>
         </NextIntlClientProvider>
       </body>
     </html>

@@ -188,12 +188,14 @@ def test_seed_form_v2_and_cleanup(db_session: Session):
 
     def mocked_json_load(fp):
         data = original_json_load(fp)
-        if (
-            isinstance(data, dict)
-            and data.get("name") == "Monthly Wetland Sampling"
+        if isinstance(data, dict) and "Monthly Wetland Sampling" in data.get(
+            "name", ""
         ):
             data = data.copy()
             data["form_id"] = sampling_form.id
+            # Also update name to match sampling_form.name
+            # so it updates in-place
+            data["name"] = sampling_form.name
         return data
 
     with patch("json.load", side_effect=mocked_json_load):

@@ -35,7 +35,15 @@ def setup_test_database() -> Generator[None, None, None]:
     Base.metadata.create_all(bind=engine_test)
     yield
     # Clean up after all tests are finished
-    Base.metadata.drop_all(bind=engine_test)
+    try:
+        Base.metadata.drop_all(bind=engine_test)
+    except Exception:
+        with engine_test.connect() as conn:
+            conn.execute(
+                text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
+            )
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+            conn.commit()
 
 
 @pytest.fixture(scope="function")
