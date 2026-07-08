@@ -519,7 +519,7 @@ def _handle_ussd_core(
         uuid=uuid.uuid4(),
         form_id=form.id,
         published_version_id=form.active_version_id,
-        submitter="USSD",
+        submitter=f"ussd-{phoneNumber}",
         status="PENDING",
         name=sessionId,
     )

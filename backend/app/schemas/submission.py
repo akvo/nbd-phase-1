@@ -322,6 +322,30 @@ class PublicDatapointResponse(DatapointResponse):
                     self.name = phone[:4] + "*" * (len(phone) - 7) + phone[-3:]
                 else:
                     self.name = "***"
+
+        if self.submitter:
+            if self.submitter.startswith("wa-"):
+                parts = self.submitter.split("-")
+                if len(parts) > 1:
+                    phone = parts[1]
+                    if len(phone) > 6:
+                        masked_phone = (
+                            phone[:4] + "*" * (len(phone) - 7) + phone[-3:]
+                        )
+                        self.submitter = f"wa-{masked_phone}"
+                    else:
+                        self.submitter = "wa-***"
+            elif self.submitter.startswith("ussd-"):
+                parts = self.submitter.split("-")
+                if len(parts) > 1:
+                    phone = parts[1]
+                    if len(phone) > 6:
+                        masked_phone = (
+                            phone[:4] + "*" * (len(phone) - 7) + phone[-3:]
+                        )
+                        self.submitter = f"ussd-{masked_phone}"
+                    else:
+                        self.submitter = "ussd-***"
         return self
 
 

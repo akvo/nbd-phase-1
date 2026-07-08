@@ -276,7 +276,7 @@ def _save_report(
         uuid=uuid.uuid4(),
         form_id=form.id,
         published_version_id=form.active_version_id,
-        submitter="WHATSAPP",
+        submitter=f"wa-{phone}",
         status="PENDING",
         name=f"wa-{phone}",
     )
