@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.user import User
 from app.dependencies.auth import get_current_user
 import logging
@@ -428,7 +428,7 @@ def submit_fgd(
         dp = Datapoint(
             form_id=payload.form_id,
             wetland_id=wetland_id,
-            status="APPROVED",
+            status=SubmissionStatus.APPROVED,
             created_by_id=user_id,
         )
         db.add(dp)
@@ -510,7 +510,7 @@ def submit_lab_qa(
             form_id=payload.form_id,
             site_id=site_id,
             submitter=sampling_period,  # store period in meta columns
-            status="APPROVED",
+            status=SubmissionStatus.APPROVED,
             created_by_id=user_id,
         )
         db.add(dp)
@@ -609,7 +609,7 @@ def submit_generic(
             basin_id=basin_id,
             wetland_id=wetland_id,
             site_id=site_id,
-            status="PENDING",
+            status=SubmissionStatus.PENDING,
             created_by_id=user_id,
         )
         db.add(dp)

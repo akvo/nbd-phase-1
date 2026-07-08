@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.audit_log import AuditLog
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.form import Form, Question, QuestionType
 from app.models.user import User
 from app.schemas import submission as schemas
@@ -227,14 +227,14 @@ def update_submission_status(
             status_code=404, detail=f"Submission with ID {id} not found."
         )
 
-    if dp.status in ("APPROVED", "REJECTED"):
+    if dp.status in (SubmissionStatus.APPROVED, SubmissionStatus.REJECTED):
         raise HTTPException(
             status_code=400, detail=f"Submission is already {dp.status}."
         )
 
     dp.status = payload.status
 
-    if payload.status == "APPROVED":
+    if payload.status == SubmissionStatus.APPROVED:
         # Check if site_id is present for forms that require it (type 2 and 4)
         if dp.form and dp.form.type in (2, 4):
             if dp.site_id is None:
@@ -260,7 +260,7 @@ def update_submission_status(
                 .filter(
                     Form.type == 4,
                     Datapoint.site_id == dp.site_id,
-                    Datapoint.status == "APPROVED",
+                    Datapoint.status == SubmissionStatus.APPROVED,
                 )
                 .all()
             )
@@ -291,7 +291,11 @@ def update_submission_status(
 
     try:
         # Log the action
-        action = "APPROVE" if payload.status == "APPROVED" else "REJECT"
+        action = (
+            "APPROVE"
+            if payload.status == SubmissionStatus.APPROVED
+            else "REJECT"
+        )
         audit_log = AuditLog(
             actor_id=current_user.id,
             action=action,

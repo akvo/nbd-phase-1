@@ -3,6 +3,8 @@ from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from app.models.submission import SubmissionStatus
+
 
 class AnswerBase(BaseModel):
     question_id: int
@@ -257,7 +259,7 @@ class DatapointBase(BaseModel):
     geo: Optional[Dict[str, Any]] = None
     duration: int = 0
     submitter: Optional[str] = None
-    status: str = "PENDING"
+    status: str = SubmissionStatus.PENDING
 
 
 class DatapointCreate(DatapointBase):
@@ -296,8 +298,13 @@ class SubmissionStatusUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_status(self) -> "SubmissionStatusUpdate":
-        if self.status not in ("APPROVED", "REJECTED"):
-            raise ValueError("Status must be either APPROVED or REJECTED")
+        if self.status not in (
+            SubmissionStatus.APPROVED,
+            SubmissionStatus.REJECTED,
+        ):
+            raise ValueError(
+                f"Status must be either {SubmissionStatus.APPROVED.value} or {SubmissionStatus.REJECTED.value}"  # noqa
+            )
         return self
 
 

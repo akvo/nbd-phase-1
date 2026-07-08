@@ -9,7 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.form import Form
 from app.models.spatial import Basin, Site
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.sync_watermark import SyncWatermark
 from app.models.dead_letter import DeadLetter
 from app.mail import EmailService
@@ -390,7 +390,7 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                         created_at=sub_time,
                         site_id=selected_site_id,
                         basin_id=selected_basin_id,
-                        status="PENDING",
+                        status=SubmissionStatus.PENDING,
                         geo=geo_json,
                     )
                     db.add(datapoint)
