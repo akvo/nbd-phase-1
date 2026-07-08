@@ -184,3 +184,135 @@ def test_db_check_constraint_no_anchors(db_session):
     db_session.add(dp)
     with pytest.raises(IntegrityError):
         db_session.commit()
+
+
+def test_list_submissions_brief(db_session):
+    headers = get_auth_headers(db_session, email="brief_test@nbd.org")
+    # Setup database elements
+    form_resp = client.post(
+        "/api/v1/forms",
+        json={"name": "Brief Form", "type": 1},
+        headers=headers,
+    )
+    form_id = form_resp.json()["id"]
+
+    basin_resp = client.post(
+        "/api/v1/basins",
+        json={
+            "code": "brief_basin",
+            "name": "Brief Basin",
+            "geom": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [30.0, -1.0],
+                            [31.0, -1.0],
+                            [31.0, 0.0],
+                            [30.0, 0.0],
+                            [30.0, -1.0],
+                        ]
+                    ]
+                ],
+            },
+        },
+        headers=headers,
+    )
+    basin_uuid = basin_resp.json()["id"]
+
+    group_resp = client.post(
+        "/api/v1/question-groups",
+        json={"form_id": form_id, "name": "g1", "label": "G1"},
+        headers=headers,
+    )
+    group_id = group_resp.json()["id"]
+
+    q_resp = client.post(
+        "/api/v1/questions",
+        json={
+            "form_id": form_id,
+            "question_group_id": group_id,
+            "name": "q1",
+            "label": "Q1",
+            "type": "text",
+        },
+        headers=headers,
+    )
+    q_id = q_resp.json()["id"]
+
+    # Submit
+    client.post(
+        "/api/v1/submissions",
+        json={
+            "form_id": form_id,
+            "basin_id": basin_uuid,
+            "answers": [
+                {"question_id": q_id, "name": "Q1", "value": "test-val"}
+            ],
+        },
+        headers=headers,
+    )
+
+    # Fetch brief (answers excluded)
+    resp_brief = client.get(
+        f"/api/v1/submissions?form_id={form_id}&brief=true"
+    )
+    assert resp_brief.status_code == 200
+    data_brief = resp_brief.json()
+    assert len(data_brief) > 0
+    assert len(data_brief[0]["answers"]) == 0
+
+    # Fetch normal (answers included)
+    resp_full = client.get(
+        f"/api/v1/submissions?form_id={form_id}&brief=false"
+    )
+    assert resp_full.status_code == 200
+    data_full = resp_full.json()
+    assert len(data_full) > 0
+    assert len(data_full[0]["answers"]) == 1
+
+
+def test_get_submission_detail_public(db_session):
+    headers = get_auth_headers(db_session, email="detail_test@nbd.org")
+    form_resp = client.post(
+        "/api/v1/forms",
+        json={"name": "Detail Form", "type": 1},
+        headers=headers,
+    )
+    form_id = form_resp.json()["id"]
+
+    basin_resp = client.post(
+        "/api/v1/basins",
+        json={
+            "code": "detail_basin",
+            "name": "Detail Basin",
+            "geom": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [30.0, -1.0],
+                            [31.0, -1.0],
+                            [31.0, 0.0],
+                            [30.0, 0.0],
+                            [30.0, -1.0],
+                        ]
+                    ]
+                ],
+            },
+        },
+        headers=headers,
+    )
+    basin_uuid = basin_resp.json()["id"]
+
+    sub_resp = client.post(
+        "/api/v1/submissions",
+        json={"form_id": form_id, "basin_id": basin_uuid, "answers": []},
+        headers=headers,
+    )
+    sub_id = sub_resp.json()["id"]
+
+    # Call public detail endpoint
+    resp = client.get(f"/api/v1/submissions/{sub_id}")
+    assert resp.status_code == 200
+    assert resp.json()["id"] == sub_id

@@ -138,3 +138,153 @@ def populate_answers_option_labels(
                     for r in resolved
                 ]
             ans._resolved_value = ", ".join(resolved)
+
+
+def resolve_datapoint_brief_attributes(
+    datapoint: Datapoint, db: Session, brief: bool = False
+):
+    """
+    Resolves top-level image_url, incident_type_name, incident_type_id, and
+    reported_location attributes from answers for a datapoint.
+    """
+    from app.models.form import Question, Option
+    from app.models.spatial import SpatialBoundary
+    from app.models.submission import Answer
+    from app.services.storage import StorageService
+    import uuid
+    from sqlalchemy import or_
+
+    image_url = None
+    incident_type_name = None
+    incident_type_id = None
+    reported_location = None
+
+    if brief:
+        # Resolve image
+        img_ans = (
+            db.query(Answer)
+            .filter(
+                Answer.datapoint_id == datapoint.id,
+                or_(
+                    Answer.name.ilike("%.jpg"),
+                    Answer.name.ilike("%.jpeg"),
+                    Answer.name.ilike("%.png"),
+                    Answer.name.ilike("%.webp"),
+                    Answer.name.ilike("%.gif"),
+                    Answer.name.ilike("%.mp4"),
+                    Answer.name.ilike("media/%"),
+                    Answer.name.ilike("webforms/%"),
+                ),
+            )
+            .first()
+        )
+        if img_ans:
+            try:
+                image_url = StorageService().generate_read_signed_url(
+                    img_ans.name
+                )
+            except Exception:
+                image_url = img_ans.name
+
+        # Resolve incident type dynamically by matching question name
+        type_ans = (
+            db.query(Answer)
+            .join(Question, Answer.question_id == Question.id)
+            .filter(
+                Answer.datapoint_id == datapoint.id,
+                Question.name == "incident_type",
+            )
+            .first()
+        )
+        if type_ans and type_ans.options:
+            incident_type_id = type_ans.options[0]
+            try:
+                opt_val_int = int(type_ans.options[0])
+            except (ValueError, TypeError):
+                opt_val_int = -9999
+
+            opt = (
+                db.query(Option)
+                .filter(
+                    Option.question_id == type_ans.question_id,
+                    or_(
+                        Option.id == opt_val_int,
+                        Option.value == str(type_ans.options[0]),
+                    ),
+                )
+                .first()
+            )
+            if opt:
+                incident_type_name = opt.label
+
+        # Resolve reported location
+        loc_ans = (
+            db.query(Answer)
+            .join(Question, Answer.question_id == Question.id)
+            .filter(
+                Answer.datapoint_id == datapoint.id,
+                Question.name == "location_id",
+            )
+            .first()
+        )
+        if loc_ans:
+            if loc_ans.options:
+                loc_val = loc_ans.options[0]
+                # Check if UUID
+                try:
+                    uuid.UUID(str(loc_val))
+                    is_uuid = True
+                except (ValueError, TypeError):
+                    is_uuid = False
+
+                if is_uuid:
+                    sb = (
+                        db.query(SpatialBoundary)
+                        .filter(SpatialBoundary.id == loc_val)
+                        .first()
+                    )
+                    if sb:
+                        reported_location = sb.name
+                else:
+                    reported_location = str(loc_val)
+            else:
+                reported_location = loc_ans.name
+    else:
+        for ans in datapoint.answers:
+            if ans.read_url:
+                image_url = ans.read_url
+            if (
+                ans.question and ans.question.name == "incident_type"
+            ) or ans.name == "incident_type":
+                incident_type_name = (
+                    getattr(ans, "_resolved_value", None) or ans.value
+                )
+                if ans.options:
+                    incident_type_id = ans.options[0]
+            if (
+                ans.question and ans.question.name == "location_id"
+            ) or ans.name == "location_id":
+                reported_location = getattr(ans, "_resolved_value", None)
+                if not reported_location:
+                    if ans.options:
+                        loc_val = ans.options[0]
+                        try:
+                            uuid.UUID(str(loc_val))
+                            is_uuid = True
+                        except (ValueError, TypeError):
+                            is_uuid = False
+
+                        if is_uuid:
+                            sb = (
+                                db.query(SpatialBoundary)
+                                .filter(SpatialBoundary.id == loc_val)
+                                .first()
+                            )
+                            if sb:
+                                reported_location = sb.name
+                        else:
+                            reported_location = str(loc_val)
+                    else:
+                        reported_location = ans.name or ans.value
+
+    return image_url, incident_type_name, incident_type_id, reported_location

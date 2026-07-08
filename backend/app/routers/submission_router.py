@@ -11,6 +11,7 @@ from app.models.form import Form, Question, QuestionType
 from app.models.user import User
 from app.schemas import submission as schemas
 from app.services.storage import StorageService
+from app.services.option_resolver import resolve_datapoint_brief_attributes
 
 router = APIRouter(prefix="/api/v1/submissions", tags=["submissions"])
 
@@ -168,6 +169,7 @@ def list_submissions(
     wetland_id: Optional[uuid.UUID] = None,
     site_id: Optional[uuid.UUID] = None,
     status: Optional[str] = None,
+    brief: bool = False,
     db: Session = Depends(get_db),
 ):
     from sqlalchemy.orm import joinedload
@@ -178,6 +180,9 @@ def list_submissions(
         joinedload(Datapoint.site),
         joinedload(Datapoint.created_by),
     )
+    if not brief:
+        query = query.options(joinedload(Datapoint.answers))
+
     if form_id is not None:
         query = query.filter(Datapoint.form_id == form_id)
     if domain is not None:
@@ -200,16 +205,110 @@ def list_submissions(
     if status is not None:
         query = query.filter(Datapoint.status == status)
     results = query.all()
+
+    if not brief:
+        try:
+            StorageService().populate_answers_read_urls(results)
+            from app.services.option_resolver import (
+                populate_answers_option_labels,
+            )
+
+            populate_answers_option_labels(results, db)
+        except Exception:
+            pass
+
+    # Map database models to dictionary format safely resolving answers cache
+    response_data = []
+    for r in results:
+        image_url, incident_type_name, incident_type_id, reported_location = (
+            resolve_datapoint_brief_attributes(r, db, brief)
+        )
+
+        creator_name = None
+        if r.created_by:
+            creator_name = r.created_by.display_name or r.created_by.email
+
+        response_data.append(
+            {
+                "id": r.id,
+                "uuid": r.uuid,
+                "form_id": r.form_id,
+                "published_version_id": r.published_version_id,
+                "name": r.name,
+                "basin_id": r.basin_id,
+                "wetland_id": r.wetland_id,
+                "site_id": r.site_id,
+                "geo": r.geo,
+                "duration": r.duration,
+                "submitter": r.submitter,
+                "status": r.status,
+                "created_at": r.created_at,
+                "updated_at": r.updated_at,
+                "form_name": r.form.name if r.form else None,
+                "basin_name": r.basin.name if r.basin else None,
+                "wetland_name": r.wetland.name if r.wetland else None,
+                "site_name": r.site.name if r.site else None,
+                "creator_name": creator_name,
+                "creator_email": r.created_by.email if r.created_by else None,
+                "image_url": image_url,
+                "incident_type_name": incident_type_name,
+                "incident_type_id": incident_type_id,
+                "reported_location": reported_location,
+                "answers": [] if brief else r.answers,
+            }
+        )
+    return response_data
+
+
+@router.get(
+    "/{id}",
+    response_model=schemas.PublicDatapointResponse,
+)
+def get_submission_detail(
+    id: int,
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy.orm import joinedload
+
+    datapoint = (
+        db.query(Datapoint)
+        .options(
+            joinedload(Datapoint.basin),
+            joinedload(Datapoint.wetland),
+            joinedload(Datapoint.site),
+            joinedload(Datapoint.created_by),
+            joinedload(Datapoint.answers),
+        )
+        .filter(Datapoint.id == id)
+        .first()
+    )
+    if not datapoint:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Submission with ID {id} not found.",
+        )
+
     try:
-        StorageService().populate_answers_read_urls(results)
+        StorageService().populate_answers_read_urls([datapoint])
         from app.services.option_resolver import (
             populate_answers_option_labels,
         )
 
-        populate_answers_option_labels(results, db)
+        populate_answers_option_labels([datapoint], db)
     except Exception:
         pass
-    return results
+
+    # Extract first image URL and incident type name using shared helper
+    image_url, incident_type_name, incident_type_id, reported_location = (
+        resolve_datapoint_brief_attributes(datapoint, db, brief=False)
+    )
+
+    datapoint.image_url = image_url
+    datapoint.incident_type_name = incident_type_name
+    datapoint.incident_type_id = incident_type_id
+    datapoint.reported_location = reported_location
+
+    return datapoint
 
 
 @router.patch("/{id}/status")
