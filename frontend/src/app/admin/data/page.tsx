@@ -101,10 +101,25 @@ export default function DataOverviewPage() {
                         .slice(0, 8)
                         .toUpperCase()}`),
               date: dateStr,
-              submittedBy: {
-                name: dp.creator_name || dp.submitter || "System / Unspecified",
-                email: dp.creator_email || null,
-              },
+              submittedBy: (() => {
+                const rawName =
+                  dp.creator_name || dp.submitter || "System / Unspecified";
+                let displayName = rawName;
+                const nameParts = rawName.split("-");
+                if (nameParts.length > 1) {
+                  const prefix = nameParts[0];
+                  const phone = nameParts.slice(1).join("-");
+                  if (prefix === "ussd") {
+                    displayName = `USSD (${phone})`;
+                  } else if (prefix === "wa") {
+                    displayName = `WhatsApp (${phone})`;
+                  }
+                }
+                return {
+                  name: displayName,
+                  email: dp.creator_email || null,
+                };
+              })(),
               status: statusMapped,
               rawStatus: dp.status || "PENDING",
               answers: dp.answers || [],
@@ -374,8 +389,10 @@ export default function DataOverviewPage() {
                                 Submission Details
                               </h4>
                               <p className="text-xs text-slate-500 mt-1">
-                                Submitter: {sub.submittedBy.name} (
-                                {sub.submittedBy.email})
+                                Submitter: {sub.submittedBy.name}
+                                {sub.submittedBy.email
+                                  ? ` (${sub.submittedBy.email})`
+                                  : ""}
                               </p>
                             </div>
                             <a

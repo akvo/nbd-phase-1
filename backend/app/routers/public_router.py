@@ -12,7 +12,7 @@ from app.models.health_score import HealthScore
 from app.models.sampling_record import SamplingRecord
 from app.models.management_action import ManagementAction
 from app.models.form import Form, Question, FormNames
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.schemas import spatial as schemas
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
@@ -776,7 +776,8 @@ def list_incidents(
 
     # Query all approved datapoints for the pollution form
     query = db.query(Datapoint).filter(
-        Datapoint.form_id == form.id, Datapoint.status == "APPROVED"
+        Datapoint.form_id == form.id,
+        Datapoint.status == SubmissionStatus.APPROVED,
     )
 
     # Date filters

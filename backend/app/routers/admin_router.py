@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies.auth import get_current_user, RoleChecker
 from app.models.audit_log import AuditLog
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.form import Form, FormType
 from app.models.user import User
 from app.models.dead_letter import DeadLetter
@@ -144,7 +144,10 @@ def update_submission_status(
 
     # Clean up generated records if transitioning from APPROVED
     # to another status
-    if dp.status == "APPROVED" and payload.status != "APPROVED":
+    if (
+        dp.status == SubmissionStatus.APPROVED
+        and payload.status != SubmissionStatus.APPROVED
+    ):
         from app.models.sampling_record import SamplingRecord
         from app.models.health_score import HealthScore
         from app.models.fgd_record import FgdRecord
@@ -189,7 +192,7 @@ def update_submission_status(
 
     dp.status = payload.status
 
-    if payload.status == "APPROVED":
+    if payload.status == SubmissionStatus.APPROVED:
         # Check if site_id is present for forms that require it (type 2 and 4)
         if dp.form and dp.form.type in (2, 4):
             if dp.site_id is None:
@@ -212,7 +215,7 @@ def update_submission_status(
                 .filter(
                     Form.type == 4,
                     Datapoint.site_id == dp.site_id,
-                    Datapoint.status == "APPROVED",
+                    Datapoint.status == SubmissionStatus.APPROVED,
                 )
                 .all()
             )
@@ -237,7 +240,11 @@ def update_submission_status(
 
     try:
         # Log the action
-        action = "APPROVE" if payload.status == "APPROVED" else "REJECT"
+        action = (
+            "APPROVE"
+            if payload.status == SubmissionStatus.APPROVED
+            else "REJECT"
+        )
         audit_log = AuditLog(
             actor_id=current_user.id,
             action=action,
@@ -271,7 +278,7 @@ def delete_submission(
 
     try:
         # Clean up generated records if the submission was APPROVED
-        if dp.status == "APPROVED":
+        if dp.status == SubmissionStatus.APPROVED:
             from app.models.sampling_record import SamplingRecord
             from app.models.health_score import HealthScore
             from app.models.fgd_record import FgdRecord
@@ -544,7 +551,7 @@ def submit_fgd(
         dp = Datapoint(
             form_id=payload.form_id,
             wetland_id=wetland_id,
-            status="APPROVED",
+            status=SubmissionStatus.APPROVED,
             created_by_id=current_user.id,
         )
         db.add(dp)
@@ -629,7 +636,7 @@ def submit_lab_qa(
             form_id=payload.form_id,
             site_id=site_id,
             submitter=sampling_period,
-            status="APPROVED",
+            status=SubmissionStatus.APPROVED,
             created_by_id=current_user.id,
         )
         db.add(dp)

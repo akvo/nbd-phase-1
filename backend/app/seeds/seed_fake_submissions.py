@@ -7,7 +7,7 @@ from geoalchemy2.shape import to_shape
 from app.database import SessionLocal
 from app.models.form import Form, Question, FormNames
 from app.models.spatial import Site, Wetland
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.health_score import HealthScore
 from app.models.sampling_record import SamplingRecord
 from app.models.management_action import ManagementAction
@@ -24,7 +24,7 @@ def create_fake_submission(
     basin_id: uuid.UUID = None,
     wetland_id: uuid.UUID = None,
     submitter: str = "System Test Seeder",
-    status: str = "APPROVED",
+    status: str = SubmissionStatus.APPROVED,
     created_at: datetime = None,
     answers: dict = None,
     geo: dict = None,
@@ -337,7 +337,7 @@ def seed_fake_submissions(
             form_id=sampling_form.id,
             site_id=site.id,
             submitter="System Test Seeder",
-            status="PENDING",
+            status=SubmissionStatus.PENDING,
             created_at=now,
             answers={
                 "site_id": str(site.id),
@@ -383,7 +383,7 @@ def seed_fake_submissions(
             form_id=lab_qa_form.id,
             site_id=site.id,
             submitter="System Test Seeder",
-            status="PENDING",
+            status=SubmissionStatus.PENDING,
             created_at=now,
             answers={
                 "site_id": str(site.id),
@@ -473,7 +473,7 @@ def seed_fake_submissions(
             form_id=pollution_form.id,
             site_id=site.id,
             submitter="System Test Seeder",
-            status="PENDING",
+            status=SubmissionStatus.PENDING,
             created_at=now,
             geo={"type": "Point", "coordinates": [coords[0], coords[1]]},
             answers={
@@ -571,7 +571,7 @@ def seed_fake_submissions(
             form_id=ik_form.id,
             wetland_id=wetland.id,
             submitter="System Test Seeder",
-            status="PENDING",
+            status=SubmissionStatus.PENDING,
             created_at=now,
             answers={
                 "wetland_id": str(wetland.id),

@@ -15,7 +15,7 @@ from app.models.form import (
     FormNames,
     QuestionType,
 )
-from app.models.submission import Datapoint, Answer
+from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.citizen import Citizen
 from app.services.ussd_pager import USSDDynamicPager
 
@@ -519,8 +519,8 @@ def _handle_ussd_core(
         uuid=uuid.uuid4(),
         form_id=form.id,
         published_version_id=form.active_version_id,
-        submitter="USSD",
-        status="PENDING",
+        submitter=f"ussd-{phoneNumber}",
+        status=SubmissionStatus.PENDING,
         name=sessionId,
     )
 
