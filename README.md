@@ -134,6 +134,9 @@ You can run these scripts inside the backend container for setup and maintenance
   ./dc.sh exec backend python -m app.seeds.form_seeder_helper
   ```
 
+  > [!NOTE]
+  > When syncing or seeding the forms (especially `form_pipeline_b_citizen_scientist_v2.json`) to production, the `leading_question` for repeat groups must be set to `null` in the JSON seeds and adjusted manually afterward via the admin panel or database. Hardcoding question database IDs inside JSON seeds can violate foreign key constraints if the referenced question has not yet been inserted.
+
 - **Interactive Script Runner**: Run any backend scripts or seeders interactively.
 
   ```bash

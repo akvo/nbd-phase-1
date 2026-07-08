@@ -714,7 +714,7 @@ class QuestionGroupUpdate(BaseModel):
 
 class FormBlueprintUpdate(BaseModel):
     name: str
-    type: int = 1
+    type: Optional[int] = None
     languages: List[str] = ["en"]
     defaultLanguage: str = "en"
     translations: List[Dict[str, Any]] = []

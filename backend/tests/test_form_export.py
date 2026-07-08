@@ -39,6 +39,54 @@ def test_export_json_endpoint(db_session):
     assert res_data["name"] == "Export Test Form"
 
 
+def test_export_json_published_type_persistence(db_session):
+    headers = get_auth_headers(db_session)
+    # Create form with type 2
+    form_res = client.post(
+        "/api/v1/forms",
+        json={"name": "Type 2 Export Test", "type": 2},
+        headers=headers,
+    )
+    assert form_res.status_code == 201
+    form_id = form_res.json()["id"]
+
+    # Publish the form (POST /forms/{form_id}/publish)
+    publish_res = client.post(
+        f"/api/v1/forms/{form_id}/publish",
+        headers=headers,
+    )
+    assert publish_res.status_code == 200
+
+    # Try exporting json (should read from pub_version.schema)
+    response = client.get(
+        f"/api/v1/forms/{form_id}/export/json", headers=headers
+    )
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["type"] == 2
+
+
+def test_update_form_preserves_type(db_session):
+    headers = get_auth_headers(db_session)
+    # Create form with type 2
+    form_res = client.post(
+        "/api/v1/forms",
+        json={"name": "Type 2 Preservation Test", "type": 2},
+        headers=headers,
+    )
+    assert form_res.status_code == 201
+    form_id = form_res.json()["id"]
+
+    # Update form settings without sending 'type' in the payload
+    update_res = client.put(
+        f"/api/v1/forms/{form_id}",
+        json={"name": "Updated Preservation Test", "question_group": []},
+        headers=headers,
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["type"] == 2
+
+
 def test_export_xlsform_endpoint(db_session):
     headers = get_auth_headers(db_session)
     form_res = client.post(

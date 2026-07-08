@@ -31,8 +31,11 @@ class FormExportService:
                 .first()
             )
             if pub_version and pub_version.schema:
-                # Return the pre-saved schema dict directly
-                return pub_version.schema
+                # Return the pre-saved schema dict, but ensure the type
+                # reflects the saved type in db
+                schema_dict = dict(pub_version.schema)
+                schema_dict["type"] = db_form.type
+                return schema_dict
 
         # Fallback to live relational database tables
         active_groups = (

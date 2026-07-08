@@ -132,7 +132,8 @@ def update_form(
     try:
         # Update form basic info
         db_form.name = payload.name
-        db_form.type = payload.type
+        if payload.type is not None:
+            db_form.type = payload.type
         db_form.languages = payload.languages
         db_form.translations = payload.translations
         db_form.status = FormStatus.DRAFT.value
