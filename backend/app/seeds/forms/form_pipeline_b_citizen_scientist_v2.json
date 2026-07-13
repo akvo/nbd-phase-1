@@ -1,8 +1,8 @@
 {
   "name": "Monthly Wetland Sampling",
-  "type": 2,
+  "type": 1,
   "form_id": 2,
-  "version": 10,
+  "version": 11,
   "languages": ["en"],
   "translations": [],
   "question_group": [
@@ -200,136 +200,6 @@
       "question": [
         {
           "fn": null,
-          "id": 57,
-          "api": null,
-          "pre": {},
-          "meta": false,
-          "name": "main_activities_observed",
-          "rule": null,
-          "type": "multiple_option",
-          "extra": null,
-          "label": "Main activities  observed",
-          "order": 0,
-          "option": [
-            {
-              "id": 187,
-              "name": "Intensive maize cultivation",
-              "color": null,
-              "label": "Intensive maize cultivation",
-              "order": 1,
-              "other": false,
-              "value": "intensive_maize_cultivation",
-              "translations": []
-            },
-            {
-              "id": 188,
-              "name": "Intensive sugarcane cultivation",
-              "color": null,
-              "label": "Intensive sugarcane cultivation",
-              "order": 2,
-              "other": false,
-              "value": "intensive_sugarcane_cultivation",
-              "translations": []
-            },
-            {
-              "id": 189,
-              "name": "Intensive potato cultivation",
-              "color": null,
-              "label": "Intensive potato cultivation",
-              "order": 3,
-              "other": false,
-              "value": "intensive_potato_cultivation",
-              "translations": []
-            },
-            {
-              "id": 190,
-              "name": "Intensive french beans cultivation",
-              "color": null,
-              "label": "Intensive french beans cultivation",
-              "order": 4,
-              "other": false,
-              "value": "intensive_french_beans_cultivation",
-              "translations": []
-            },
-            {
-              "id": 191,
-              "name": "Livestock overgrazing",
-              "color": null,
-              "label": "Livestock overgrazing",
-              "order": 5,
-              "other": false,
-              "value": "livestock_overgrazing",
-              "translations": []
-            },
-            {
-              "id": 192,
-              "name": "Commercial fishing",
-              "color": null,
-              "label": "Commercial fishing",
-              "order": 6,
-              "other": false,
-              "value": "commercial_fishing",
-              "translations": []
-            },
-            {
-              "id": 193,
-              "name": "Sand mining",
-              "color": null,
-              "label": "Sand mining",
-              "order": 7,
-              "other": false,
-              "value": "sand_mining",
-              "translations": []
-            },
-            {
-              "id": 194,
-              "name": "Papyrus harvesting",
-              "color": null,
-              "label": "Papyrus harvesting",
-              "order": 8,
-              "other": false,
-              "value": "papyrus_harvesting",
-              "translations": []
-            },
-            {
-              "id": 317,
-              "name": "Charcoal Burning",
-              "color": null,
-              "label": "Charcoal Burning",
-              "order": 9,
-              "other": false,
-              "value": "charcoal_burning",
-              "translations": []
-            },
-            {
-              "id": 318,
-              "name": "Pristine",
-              "color": null,
-              "label": "Pristine",
-              "order": 10,
-              "other": false,
-              "value": "pristine",
-              "translations": []
-            }
-          ],
-          "tooltip": {
-            "text": "Tick everything you can see at or within 50 metres of the water — select None if the area looks undisturbed"
-          },
-          "required": true,
-          "allowOther": true,
-          "dependency": null,
-          "shortLabel": null,
-          "displayOnly": false,
-          "hiddenString": false,
-          "requiredSign": null,
-          "translations": [],
-          "allowOtherText": "Others, please specify",
-          "dependencyRule": null,
-          "requiredDoubleEntry": false,
-          "is_repeat_identifier": false
-        },
-        {
-          "fn": null,
           "id": 12,
           "api": null,
           "pre": {},
@@ -339,7 +209,7 @@
           "type": "multiple_option",
           "extra": null,
           "label": "Main plant species observed",
-          "order": 1,
+          "order": 0,
           "option": [
             {
               "id": 158,
@@ -659,7 +529,7 @@
           "type": "number",
           "extra": null,
           "label": "% Invasive Macrophytes",
-          "order": 2,
+          "order": 1,
           "option": null,
           "tooltip": {
             "text": "Estimate what percentage of the water surface is covered by invasive plants like water hyacinth — enter 0 if none, 100% if completely covered and choose an interdiate percentage for partially covered water surface. Use discretion while selecting an intermediate percentage"
@@ -688,7 +558,7 @@
           "type": "multiple_option",
           "extra": null,
           "label": "Main fish species (X) observed",
-          "order": 3,
+          "order": 2,
           "option": [
             {
               "id": 259,
@@ -1118,7 +988,7 @@
           "type": "number",
           "extra": null,
           "label": "What is the total weight of the fish caught today (In Kilograms)?",
-          "order": 4,
+          "order": 3,
           "option": null,
           "tooltip": {
             "text": "One crate is 35kgs, 1 basin is 15kgs and 1 gunia is 50kgs"
@@ -1147,7 +1017,7 @@
           "type": "number",
           "extra": null,
           "label": "How many crew did you have on the boat?",
-          "order": 5,
+          "order": 4,
           "option": null,
           "tooltip": null,
           "required": false,
@@ -1174,7 +1044,7 @@
           "type": "number",
           "extra": null,
           "label": "Active fishing hours",
-          "order": 6,
+          "order": 5,
           "option": null,
           "tooltip": {
             "text": "Enter hours of active fishing only — do not include travel time or breaks."
@@ -1209,6 +1079,146 @@
       "question": [
         {
           "fn": null,
+          "id": 57,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "main_activities_observed",
+          "rule": null,
+          "type": "multiple_option",
+          "extra": null,
+          "label": "Main activities  observed",
+          "order": 0,
+          "option": [
+            {
+              "id": 187,
+              "name": "Intensive maize cultivation",
+              "color": null,
+              "label": "Intensive maize cultivation",
+              "order": 1,
+              "other": false,
+              "value": "intensive_maize_cultivation",
+              "translations": []
+            },
+            {
+              "id": 188,
+              "name": "Intensive sugarcane cultivation",
+              "color": null,
+              "label": "Intensive sugarcane cultivation",
+              "order": 2,
+              "other": false,
+              "value": "intensive_sugarcane_cultivation",
+              "translations": []
+            },
+            {
+              "id": 189,
+              "name": "Intensive potato cultivation",
+              "color": null,
+              "label": "Intensive potato cultivation",
+              "order": 3,
+              "other": false,
+              "value": "intensive_potato_cultivation",
+              "translations": []
+            },
+            {
+              "id": 190,
+              "name": "Intensive french beans cultivation",
+              "color": null,
+              "label": "Intensive french beans cultivation",
+              "order": 4,
+              "other": false,
+              "value": "intensive_french_beans_cultivation",
+              "translations": []
+            },
+            {
+              "id": 191,
+              "name": "Livestock overgrazing",
+              "color": null,
+              "label": "Livestock overgrazing",
+              "order": 5,
+              "other": false,
+              "value": "livestock_overgrazing",
+              "translations": []
+            },
+            {
+              "id": 192,
+              "name": "Commercial fishing",
+              "color": null,
+              "label": "Commercial fishing",
+              "order": 6,
+              "other": false,
+              "value": "commercial_fishing",
+              "translations": []
+            },
+            {
+              "id": 193,
+              "name": "Sand mining",
+              "color": null,
+              "label": "Sand mining",
+              "order": 7,
+              "other": false,
+              "value": "sand_mining",
+              "translations": []
+            },
+            {
+              "id": 194,
+              "name": "Papyrus harvesting",
+              "color": null,
+              "label": "Papyrus harvesting",
+              "order": 8,
+              "other": false,
+              "value": "papyrus_harvesting",
+              "translations": []
+            },
+            {
+              "id": 317,
+              "name": "Charcoal Burning",
+              "color": null,
+              "label": "Charcoal Burning",
+              "order": 9,
+              "other": false,
+              "value": "charcoal_burning",
+              "translations": []
+            },
+            {
+              "id": 318,
+              "name": "Pristine",
+              "color": null,
+              "label": "Pristine",
+              "order": 10,
+              "other": false,
+              "value": "pristine",
+              "translations": []
+            },
+            {
+              "id": 324,
+              "name": "Rice farming",
+              "color": null,
+              "label": "Rice farming",
+              "order": 11,
+              "other": false,
+              "value": "rice_farming",
+              "translations": []
+            }
+          ],
+          "tooltip": {
+            "text": "Tick everything you can see at or within 50 metres of the water — select None if the area looks undisturbed"
+          },
+          "required": true,
+          "allowOther": true,
+          "dependency": null,
+          "shortLabel": null,
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [],
+          "allowOtherText": "Others, please specify",
+          "dependencyRule": null,
+          "requiredDoubleEntry": false,
+          "is_repeat_identifier": false
+        },
+        {
+          "fn": null,
           "id": 51,
           "api": null,
           "pre": {},
@@ -1218,7 +1228,7 @@
           "type": "option",
           "extra": null,
           "label": "Water color",
-          "order": 0,
+          "order": 1,
           "option": [
             {
               "id": 100,
@@ -1318,7 +1328,7 @@
           "type": "option",
           "extra": null,
           "label": "Water smell",
-          "order": 1,
+          "order": 2,
           "option": [
             {
               "id": 106,
@@ -1418,7 +1428,7 @@
           "type": "option",
           "extra": null,
           "label": "Water Level",
-          "order": 2,
+          "order": 3,
           "option": [
             {
               "id": 57,
