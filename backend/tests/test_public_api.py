@@ -719,3 +719,15 @@ def test_submission_answers_option_labels_resolution(db_session: Session):
     assert ans_loc["question_name"] == "location_id"
     assert ans_loc["value"] == "Test Sub-Location"
     assert ans_loc["options"] == [str(boundary.id)]
+
+
+def test_get_raster_layers():
+    response = client.get("/api/v1/raster-layers")
+    assert response.status_code == 200
+    res_json = response.json()
+    assert "ndvi" in res_json
+    assert "water_extent" in res_json
+    assert res_json["ndvi"]["name"] == "NDVI Vegetation Index"
+    assert res_json["water_extent"]["name"] == "Water Surface Extent"
+    assert len(res_json["ndvi"]["legend"]) > 0
+    assert len(res_json["water_extent"]["legend"]) > 0
