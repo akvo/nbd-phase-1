@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -475,3 +475,21 @@ class GenericScoreHistory(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LegendItem(BaseModel):
+    value: float
+    color: str
+    label: str
+
+
+class RasterLayerDetail(BaseModel):
+    name: str
+    url: str
+    attribution: str
+    legend: List[LegendItem]
+
+
+class RasterLayersResponse(BaseModel):
+    ndvi: RasterLayerDetail
+    water_extent: RasterLayerDetail

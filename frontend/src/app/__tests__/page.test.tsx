@@ -47,6 +47,10 @@ vi.mock("@/lib/api", () => {
     getSubmissionDetails: vi.fn().mockResolvedValue({}),
     getForms: vi.fn().mockResolvedValue([]),
     getForm: vi.fn().mockResolvedValue({}),
+    getRasterLayers: vi.fn().mockResolvedValue({
+      ndvi: { name: "NDVI", url: "", attribution: "", legend: [] },
+      water_extent: { name: "Water", url: "", attribution: "", legend: [] },
+    }),
   };
 });
 

@@ -25,7 +25,12 @@ import {
   Waves,
 } from "lucide-react";
 
-import { getSubmissions, IncidentSummary } from "@/lib/api";
+import {
+  getSubmissions,
+  IncidentSummary,
+  getRasterLayers,
+  RasterLayersResponse,
+} from "@/lib/api";
 
 const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
   ssr: false,
@@ -243,6 +248,9 @@ export default function Home() {
   const [wetlandGeometry, setWetlandGeometry] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [subcountyGeometry, setSubcountyGeometry] = useState<any>(null);
+  const [rasterLayers, setRasterLayers] = useState<RasterLayersResponse | null>(
+    null
+  );
 
   const dbSites = useMemo(() => {
     return sites.filter((site) => {
@@ -297,6 +305,15 @@ export default function Home() {
       setSubcountyGeometry(null);
     }
   }, [selectedDomain, selectedBasin]);
+
+  // Fetch raster layers config on mount
+  useEffect(() => {
+    getRasterLayers()
+      .then((data) => setRasterLayers(data))
+      .catch((err) => {
+        console.error("Failed to fetch raster layers config:", err);
+      });
+  }, []);
 
   // Fetch dynamic incident type options from questionnaire
   useEffect(() => {
@@ -713,6 +730,34 @@ export default function Home() {
             markers={mapMarkers}
             basinGeometry={activeGeometry}
             wetlandGeometry={wetlandGeometry}
+            ndviTileUrl={
+              selectedDomain === "wetland" ? rasterLayers?.ndvi?.url : undefined
+            }
+            waterTileUrl={
+              selectedDomain === "wetland"
+                ? rasterLayers?.water_extent?.url
+                : undefined
+            }
+            ndviAttribution={
+              selectedDomain === "wetland"
+                ? rasterLayers?.ndvi?.attribution
+                : undefined
+            }
+            waterAttribution={
+              selectedDomain === "wetland"
+                ? rasterLayers?.water_extent?.attribution
+                : undefined
+            }
+            ndviLegend={
+              selectedDomain === "wetland"
+                ? rasterLayers?.ndvi?.legend
+                : undefined
+            }
+            waterLegend={
+              selectedDomain === "wetland"
+                ? rasterLayers?.water_extent?.legend
+                : undefined
+            }
             choroplethLayers={choroplethLayers}
             selectedSubCounty={selectedSubCounty}
             onSelectSubCounty={(subCounty) => {

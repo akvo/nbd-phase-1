@@ -885,3 +885,29 @@ def list_incidents(
                     pass
 
     return list(aggregates.values())
+
+
+@router.get("/raster-layers", response_model=schemas.RasterLayersResponse)
+@limiter.limit("60/minute")
+def get_raster_layers(request: Request):
+    return {
+        "ndvi": {
+            "name": "NDVI Vegetation Index",
+            "url": "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+            "attribution": "Google Earth Engine / Sentinel-2",
+            "legend": [
+                {"value": -0.1, "color": "#fef08a", "label": "Bare Soil"},
+                {"value": 0.3, "color": "#a3e635", "label": "Sparse"},
+                {"value": 0.9, "color": "#166534", "label": "Dense Papyrus"},
+            ],
+        },
+        "water_extent": {
+            "name": "Water Surface Extent",
+            "url": "https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
+            "attribution": "Google Earth Engine / Sentinel-1",
+            "legend": [
+                {"value": 0.0, "color": "#f1f5f9", "label": "Dry Land"},
+                {"value": 1.0, "color": "#1d4ed8", "label": "Open Water"},
+            ],
+        },
+    }
