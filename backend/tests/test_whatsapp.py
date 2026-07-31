@@ -19,6 +19,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.main import app
+from app.models.form import Question
 from app.models.whatsapp_session import WhatsAppSession
 from app.seeds.form_seeder_helper import seed_forms
 from app.seeds.spatial_seeder_helper import seed_spatial
@@ -75,7 +76,10 @@ def _post_webhook(payload: dict, token: str = AUTH_TOKEN) -> any:
 
 @pytest.fixture(autouse=True)
 def setup_seeds(db_session: Session):
-    seed_forms(db_session)
+    seed_forms(
+        db_session,
+        filename_filter="form_pipeline_a_citizen_reporter_v2.json",
+    )
     seed_spatial(db_session)
 
 
@@ -334,38 +338,45 @@ class TestConsentState:
             sess.location,
         )
 
-        # Step 5a: Provide invalid answer to image upload
-        # (reply "1" instead of image or "skip")
-        with patch(
-            "app.services.whatsapp_service.SessionLocal",
-            return_value=db_session,
-        ):
-            _post_webhook(_wa_payload(phone, "1"))
-
-        # Verify re-prompt is sent
-        last_msg = mock_send.call_args[0][1]
-        assert "Please send a photo/video or reply *skip*." in last_msg
-
-        # Session should remain on the same question
-        db_session.expire_all()
-        sess_invalid = (
-            db_session.query(WhatsAppSession)
-            .filter(WhatsAppSession.phone_number == phone)
-            .first()
-        )
-        assert sess_invalid.state == "DYNAMIC_QUESTION"
-        assert sess_invalid.current_question_id == sess.current_question_id
-
-        # Step 5b: Skip image upload (reply "skip") -> CONFIRMATION state
+        # Step 5a: Provide image upload answer (reply "skip")
+        # -> advances to photo_detail (Q4)
         with patch(
             "app.services.whatsapp_service.SessionLocal",
             return_value=db_session,
         ):
             _post_webhook(_wa_payload(phone, "skip"))
 
-        # Verify summary contains "Skipped" and is in CONFIRMATION state
         last_msg = mock_send.call_args[0][1]
-        assert "Skipped" in last_msg
+        assert (
+            "Would you like to add more details about the incident?"
+            in last_msg
+        )
+
+        db_session.expire_all()
+        sess = (
+            db_session.query(WhatsAppSession)
+            .filter(WhatsAppSession.phone_number == phone)
+            .first()
+        )
+        q_photo_detail = (
+            db_session.query(Question)
+            .filter(Question.name == "photo_detail")
+            .first()
+        )
+        assert q_photo_detail is not None
+        assert sess.state == "DYNAMIC_QUESTION"
+        assert sess.current_question_id == q_photo_detail.id
+
+        # Step 5b: Answer photo_detail with text description -> CONFIRMATION
+        desc = "Water turned dark brown near factory outlet"
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, desc))
+
+        last_msg = mock_send.call_args[0][1]
+        assert desc in last_msg
 
         db_session.expire_all()
         sess = (
@@ -543,3 +554,44 @@ async def test_send_message_drops_on_429():
         # Should not raise, should return silently after exactly 1 attempt
         await _send_message("12345678", "Hello")
         assert mock_post.call_count == 1
+
+
+@patch("app.services.whatsapp_service._send_message", new_callable=AsyncMock)
+def test_whatsapp_photo_detail_optional_skip(mock_send, db_session):
+    phone = "+254700001099"
+    q_photo_detail = (
+        db_session.query(Question)
+        .filter(Question.name == "photo_detail")
+        .first()
+    )
+    assert q_photo_detail is not None
+
+    sess = WhatsAppSession(
+        phone_number=phone,
+        state="DYNAMIC_QUESTION",
+        language="en",
+        current_question_id=q_photo_detail.id,
+        answers={
+            "1": "2",
+            "2": "1",
+            "3": "SKIPPED",
+        },
+    )
+    db_session.add(sess)
+    db_session.commit()
+
+    with patch(
+        "app.services.whatsapp_service.SessionLocal",
+        return_value=db_session,
+    ):
+        _post_webhook(_wa_payload(phone, "skip"))
+
+    db_session.expire_all()
+    updated = (
+        db_session.query(WhatsAppSession)
+        .filter(WhatsAppSession.phone_number == phone)
+        .first()
+    )
+    assert updated is not None
+    assert updated.state == "CONFIRMATION"
+    assert updated.answers.get(str(q_photo_detail.id)) == "SKIPPED"
