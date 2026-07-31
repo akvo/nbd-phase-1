@@ -419,7 +419,12 @@ def _build_whatsapp_summary(
             )
             val_label = sb.name if sb else str(val)
         else:
-            val_label = str(val)
+            if val == "SKIPPED":
+                val_label = "Skipped" if lang == "en" else "Imerukwa"
+            elif not val:
+                val_label = "None" if lang == "en" else "Hakuna"
+            else:
+                val_label = str(val)
 
         lines.append(f"• *{q_label}*: {val_label}")
     return "\n".join(lines)
@@ -771,7 +776,7 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                             valid = True
                 elif msg_type == "text":
                     skip_text = (msg.get("text") or {}).get("body", "").strip()
-                    if skip_text.lower() == "skip":
+                    if skip_text.lower() == "skip" or not curr_q.required:
                         parsed_val = "SKIPPED"
                         valid = True
                     else:
@@ -784,18 +789,28 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                         return
                 else:
                     # Unsupported message type (sticker, location, etc.)
-                    prompt = (
-                        "Tafadhali tuma picha/video au jibu *skip*."
-                        if lang == "sw"
-                        else "Please send a photo/video or reply *skip*."
-                    )
-                    await _send_message(phone, prompt)
-                    return
+                    if not curr_q.required:
+                        parsed_val = "SKIPPED"
+                        valid = True
+                    else:
+                        prompt = (
+                            "Tafadhali tuma picha/video au jibu *skip*."
+                            if lang == "sw"
+                            else "Please send a photo/video or reply *skip*."
+                        )
+                        await _send_message(phone, prompt)
+                        return
 
             else:
                 # Text/number or fallback input types
                 text_body = (msg.get("text") or {}).get("body", "").strip()
-                if text_body:
+                if not curr_q.required:
+                    if text_body.lower() in ("none", "skip", "-"):
+                        parsed_val = "SKIPPED"
+                    else:
+                        parsed_val = text_body
+                    valid = True
+                elif text_body:
                     parsed_val = text_body
                     valid = True
 
@@ -959,17 +974,7 @@ async def _prompt_question(
         await _send_message(phone, prompt)
 
     elif q.type in ("image", "attachment"):
-        if "skip" in q_label.lower():
-            prompt = q_label
-        else:
-            base_label = q_label.rstrip(".")
-            skip_instruction = (
-                " (au jibu *skip* kuendelea bila picha/video)."
-                if lang == "sw"
-                else " (or reply *skip* to continue without media)."
-            )
-            prompt = f"{base_label}{skip_instruction}"
-        await _send_message(phone, prompt)
+        await _send_message(phone, q_label)
 
     else:
         await _send_message(phone, f"{q_label}:")

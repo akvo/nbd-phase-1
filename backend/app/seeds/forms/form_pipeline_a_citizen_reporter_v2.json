@@ -2,7 +2,7 @@
   "name": "Pollution Reporting Form",
   "type": 1,
   "form_id": 1,
-  "version": 6,
+  "version": 7,
   "languages": ["en"],
   "translations": [
     { "name": "Pollution Reporting Form", "language": "en" },
@@ -190,6 +190,41 @@
           "translations": [
             { "name": "Photo Evidence", "language": "en" },
             { "name": "Uthibitisho wa Picha", "language": "sw" }
+          ],
+          "allowOtherText": null,
+          "dependencyRule": null,
+          "requiredDoubleEntry": false
+        },
+        {
+          "fn": null,
+          "id": 4,
+          "api": null,
+          "pre": {},
+          "meta": false,
+          "name": "photo_detail",
+          "rule": null,
+          "type": "text",
+          "extra": null,
+          "label": "Would you like to add more details about the incident?",
+          "order": 4,
+          "option": null,
+          "tooltip": null,
+          "required": false,
+          "allowOther": false,
+          "dependency": null,
+          "shortLabel": "Photo Details",
+          "displayOnly": false,
+          "hiddenString": false,
+          "requiredSign": null,
+          "translations": [
+            {
+              "name": "Would you like to add more details about the incident?",
+              "language": "en"
+            },
+            {
+              "name": "Je, ungependa kuongeza maelezo zaidi kuhusu tukio?",
+              "language": "sw"
+            }
           ],
           "allowOtherText": null,
           "dependencyRule": null,
