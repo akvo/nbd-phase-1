@@ -1,4 +1,4 @@
-# 001 — Photo Description Field Spec (Clean ARF Architecture)
+# 001 — Photo Description Field Spec
 
 **Author**: Galih Pratama
 **Date**: 2026-07-31
@@ -42,14 +42,14 @@ After a citizen reporter submits a photo during a WhatsApp pollution incident re
 
 ## 5W1H Analysis
 
-| Dimension | Detail                                                                                                                                                  |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Who**   | Citizen reporters submitting incident reports via WhatsApp                                                                                              |
-| **What**  | Optional `photo_detail` text question (`order: 4`) following media upload (`order: 3`)                                                                  |
+| Dimension | Detail |
+| --------- | ------ |
+| **Who**   | Citizen reporters submitting incident reports via WhatsApp |
+| **What**  | Optional `photo_detail` text question (`order: 4`) following media upload (`order: 3`) |
 | **Where** | `backend/app/seeds/forms/form_pipeline_a_citizen_reporter_v2.json` · `backend/app/services/whatsapp_service.py` · `backend/app/services/translation.py` |
-| **When**  | Immediately following media upload step during WhatsApp reporting                                                                                       |
-| **Why**   | Contextualizes incident reports while keeping form schema 100% compliant with standard ARF specifications                                               |
-| **How**   | Standard dynamic form engine advances through question order; text input stored in `Answer` model                                                       |
+| **When**  | Immediately following media upload step during WhatsApp reporting |
+| **Why**   | Contextualizes incident reports while keeping form schema 100% compliant with standard ARF specifications |
+| **How**   | Standard dynamic form engine advances through question order; text input stored in `Answer` model |
 
 ---
 
@@ -79,7 +79,7 @@ sequenceDiagram
 
 ### 1.1 Form Blueprint Seed (Standard ARF Format)
 
-**File**: [`backend/app/seeds/forms/form_pipeline_a_citizen_reporter_v2.json`](file:///Users/galihpratama/Sites/nbd-phase-1/backend/app/seeds/forms/form_pipeline_a_citizen_reporter_v2.json)
+**File**: `backend/app/seeds/forms/form_pipeline_a_citizen_reporter_v2.json`
 
 **Change A — Version Bump**:
 
@@ -129,14 +129,14 @@ sequenceDiagram
 
 ### 1.2 WhatsApp Service Simplification
 
-**File**: [`backend/app/services/whatsapp_service.py`](file:///Users/galihpratama/Sites/nbd-phase-1/backend/app/services/whatsapp_service.py)
+**File**: `backend/app/services/whatsapp_service.py`
 
 - Remove special `*skip*` prompt suffix injections from `_prompt_question`.
 - Allow media step to handle photo uploads or text notes cleanly before proceeding to `photo_detail`.
 
 ### 1.3 Translation Registration
 
-**File**: [`backend/app/services/translation.py`](file:///Users/galihpratama/Sites/nbd-phase-1/backend/app/services/translation.py)
+**File**: `backend/app/services/translation.py`
 
 ```python
 "Would you like to add more details about the incident?": "Je, ungependa kuongeza maelezo zaidi kuhusu tukio?",

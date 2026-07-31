@@ -1,49 +1,35 @@
-# LLD — Frontend Static Data Caching
+# Low-Level Design (LLD): Frontend Static Data Caching & Context Provider
 
-## 1. Component Architecture & Data Flow
-
-We will introduce a `StaticDataProvider` wrapping the application root. This provider coordinates all non-changing configuration calls, caching the response payloads in memory.
-
-```mermaid
-graph TD
-    Root[Root Layout] --> Provider[StaticDataProvider]
-    Provider --> Page[Map Dashboard Page]
-    Provider --> Drawer[Details Drawer Component]
-
-    subgraph Context State
-        basins[Basins Cache]
-        sites[Sites Cache]
-        forms[Forms Translation Map]
-    end
-```
+**Status:** Approved | **Date:** 2026-06-25 | **Author:** Winston (Architect) / Amelia (Developer)
 
 ---
 
-## 2. Context Schema Definition
+## 1. Context & Rationale
 
-The React Context will expose the following interface:
+Currently, components across the Next.js frontend make redundant API requests to fetch static and semi-static reference data:
+- `GET /api/v1/public/basins`
+- `GET /api/v1/public/sites`
+- `GET /api/v1/forms` (form metadata & blueprints)
 
-```typescript
-export interface StaticDataContextType {
-  basins: Record<string, any>[];
-  sites: Record<string, any>[];
+This design establishes a centralized `StaticDataProvider` React Context that fetches reference data once at app launch, caches form details per language, and exposes context hooks (`useStaticData`) for components.
 
-  // Cache format: { [lang: string]: { [formId: number]: Record<string, any> } }
-  formDetailsCache: Record<string, Record<number, Record<string, any>>>;
-  formsListCache: Record<string, Record<string, any>[]>;
+---
 
-  isLoading: {
-    basins: boolean;
-    sites: boolean;
-    forms: boolean;
-  };
+## 2. Architecture & Data Flow
 
-  refreshData: () => Promise<void>;
-  getFormDetails: (
-    formId: number,
-    lang: string
-  ) => Promise<Record<string, any> | null>;
-}
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as layout.tsx (StaticDataProvider)
+    participant API as FastAPI Backend (/api/v1/public)
+    participant Page as page.tsx / site-drawer.tsx
+
+    User->>App: Opens Application
+    App->>API: Parallel Fetch (basins, sites, forms)
+    API-->>App: Reference Payloads
+    App->>App: Cache in React Context State
+    Page->>App: useStaticData() hook call
+    App-->>Page: Return cached basins, sites, forms
 ```
 
 ---
@@ -57,20 +43,20 @@ export interface StaticDataContextType {
   - `getBasins()`
   - `getSites()`
   - `getForms({ lang })` for the active language.
-- Expose a helper method `getFormDetails(formId, lang)` that:
+- Expose helper method `getFormDetails(formId, lang)` that:
   - Checks if the form structure is present in `formDetailsCache[lang][formId]`.
   - If yes, returns it instantly.
-  - If no, triggers `getForm(formId, { lang })`, stores it in the cache state, and returns the result.
+  - If no, triggers `getForm(formId, { lang })`, stores it in cache state, and returns the result.
 
 ### Step 2: Integrate into Application Layout
 
-- Import `StaticDataProvider` inside [layout.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/app/layout.tsx).
+- Import `StaticDataProvider` inside `frontend/src/app/layout.tsx`.
 - Wrap children inside `StaticDataProvider`.
 
 ### Step 3: Refactor the Main Landing Page
 
-- In [page.tsx](file:///Users/galihpratama/Sites/nbd-phase-1/frontend/src/app/page.tsx), import `useStaticData`.
-- Replace the local `useEffect` blocks and state variables:
+- In `frontend/src/app/page.tsx`, import `useStaticData`.
+- Replace local `useEffect` blocks and state variables:
 
 ```typescript
 const { basins, sites, getFormDetails, isLoading } = useStaticData();
@@ -80,36 +66,5 @@ const { basins, sites, getFormDetails, isLoading } = useStaticData();
 
 ## 4. Test Strategy & Mocking
 
-Any vitest file rendering components wrapping maps or drawers (e.g. `page.test.tsx`, `map-viewer.test.tsx`) must be updated:
-
+Any Vitest file rendering components wrapping maps or drawers (e.g. `page.test.tsx`, `map-viewer.test.tsx`) must be updated:
 - Wrap test instances in `<StaticDataProvider>` with mocked state values to prevent real network calls during component execution.
-- Maintain consistent interface shape definitions across the mocks.
-
----
-
-## 5. Submissions Caching & Lazy Loading (Phase 2 LLD)
-
-To optimize network performance, submissions loading will transition to a lazy-load pattern:
-
-1. **API Parameter Mapping**:
-   - The `GET /api/v1/submissions` endpoint will take `brief: bool`. When `true`, SQL query utilizes `defer(Datapoint.answers)` to prevent retrieving the joined answer rows, returning only core indexing fields.
-2. **Details Fetch Hook**:
-   - Create a React hook `useSubmissionDetails(submissionId: string)` in `frontend/src/lib/hooks.ts`:
-
-     ```typescript
-     export function useSubmissionDetails(id: string) {
-       const [data, setData] = useState<IncidentSummary | null>(null);
-       const [loading, setLoading] = useState(false);
-       useEffect(() => {
-         if (!id) return;
-         setLoading(true);
-         apiClient
-           .get(`/submissions/${id}`)
-           .then((res) => setData(res.data))
-           .finally(() => setLoading(false));
-       }, [id]);
-       return { data, loading };
-     }
-     ```
-
-   - Details drawers will trigger this hook upon mounting, keeping initial list rendering overhead at zero.
