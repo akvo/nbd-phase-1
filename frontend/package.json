@@ -41,7 +41,7 @@
     "@next/eslint-plugin-next": "^16.2.9",
     "@tailwindcss/postcss": "^4.0.0",
     "@testing-library/dom": "^10.0.0",
-    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/jest-dom": "~6.9.1",
     "@testing-library/react": "^16.0.0",
     "@types/leaflet": "^1.9.12",
     "@types/node": "^20.0.0",
