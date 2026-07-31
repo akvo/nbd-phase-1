@@ -38,6 +38,10 @@ SWAHILI_TRANSLATIONS = {
     "Heavy Metals (Description/PPM)": "Metali Nzito (Maelezo/PPM)",
     "Total Nitrogen (N)": "Nitrojeni Jumla (N)",
     "Total Phosphorus (P)": "Fosforasi Jumla (P)",
+    "Would you like to add more details about the incident?": (
+        "Je, ungependa kuongeza maelezo zaidi kuhusu tukio?"
+    ),
+    "Photo Details": "Maelezo ya Picha",
     # Options
     "Water colour (darker/murkier)": "Rangi ya maji (nyeusi/chafu)",
     "Smell (bad odour)": "Harufu (harufu mbaya)",

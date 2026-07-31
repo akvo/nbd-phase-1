@@ -33,7 +33,7 @@ def build_ussd_summary(
     lines = []
     q_counter = 1
     for q in active_questions:
-        if q.type in ("image", "attachment"):
+        if q.type in ("image", "attachment") or q.name == "photo_detail":
             continue
         val = current_answers.get(q.id)
         if val is None:
@@ -294,8 +294,8 @@ def _handle_ussd_core(
                 q_idx += 1
                 continue
 
-            # If USSD does not support media, skip the question
-            if q.type in ("image", "attachment"):
+            # Skip media and photo_detail questions on USSD
+            if q.type in ("image", "attachment") or q.name == "photo_detail":
                 q_idx += 1
                 continue
 
