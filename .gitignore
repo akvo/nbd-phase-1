@@ -80,3 +80,5 @@ docker-sync.yml
 pg-admin-data/
 pg-data/
 .dockerignore
+
+/task.md
