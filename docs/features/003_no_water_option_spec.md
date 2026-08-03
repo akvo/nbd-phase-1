@@ -26,11 +26,11 @@ This feature adds a 7th option — **"No water"** (Swahili: _"Hakuna maji"_) —
 
 ## Technical Acceptance Criteria (TAC)
 
-- [ ] **TAC-1**: Form JSON blueprint version in `form_pipeline_a_citizen_reporter_v2.json` is bumped to `v7` (or incremented version) to trigger automatic seeder updates.
+- [ ] **TAC-1**: Form JSON blueprint in `form_pipeline_a_citizen_reporter_v2.json` triggers auto-increment published form snapshot versioning upon seeding.
 - [ ] **TAC-2**: Option 7 (`id: 57`, `name: "No water"`, `value: "7"`, `order: 7`) is added to the `incident_type` question option array in `form_pipeline_a_citizen_reporter_v2.json`.
 - [ ] **TAC-3**: `"No water": "Hakuna maji"` translation mapping is registered in `backend/app/services/translation.py`.
 - [ ] **TAC-4**: No Alembic database migration is created (`options` table and `answers.options` JSONB column dynamically handle new option IDs and slugs).
-- [ ] **TAC-5**: Backend unit tests in `test_seeder.py`, `test_ussd.py`, and `test_whatsapp.py` are updated and pass cleanly via `./dc.sh exec backend tests`.
+- [ ] **TAC-5**: Backend unit tests in `test_seeder.py` (specifically `test_seed_citizen_reporter_v2_no_water`), `test_ussd.py`, and `test_whatsapp.py` are updated and pass cleanly via `./dc.sh exec backend tests`.
 
 ---
 
@@ -74,7 +74,7 @@ sequenceDiagram
 **Change A — Version Bump**:
 
 ```json
-"version": 7
+"version": 8
 ```
 
 **Change B — Add Option 7 to `incident_type`**:

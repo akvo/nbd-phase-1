@@ -367,3 +367,46 @@ def test_seed_spatial_success(db_session: Session):
     assert len(db_session.query(Wetland).all()) == 2
     assert len(db_session.query(Site).all()) == 8
     assert len(db_session.query(SpatialBoundary).all()) == 28
+
+
+def test_seed_citizen_reporter_v2_no_water(db_session: Session):
+    # 1. First run default seeder (v1)
+    seed_forms(db_session)
+
+    # 2. Run seeder with v2 blueprint which includes Option 7 ("No water")
+    seed_forms(
+        db_session,
+        filename_filter="form_pipeline_a_citizen_reporter_v2.json",
+    )
+
+    # 3. Fetch the Pollution Reporting Form
+    form = (
+        db_session.query(Form)
+        .filter(Form.name == "Pollution Reporting Form")
+        .first()
+    )
+    assert form is not None
+    assert form.version == 2  # Auto-incremented snapshot version
+
+    # 3. Check Options under incident_type question
+    incident_type_q = (
+        db_session.query(Question)
+        .filter(
+            Question.form_id == form.id,
+            Question.name == "incident_type",
+        )
+        .first()
+    )
+    assert incident_type_q is not None
+
+    options = (
+        db_session.query(Option)
+        .filter(Option.question_id == incident_type_q.id)
+        .all()
+    )
+    assert len(options) == 7
+
+    labels = [opt.label for opt in options]
+    values = [opt.value for opt in options]
+    assert "No water" in labels
+    assert "7" in values
