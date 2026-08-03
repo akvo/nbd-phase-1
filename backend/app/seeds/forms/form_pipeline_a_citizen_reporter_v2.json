@@ -2,7 +2,7 @@
   "name": "Pollution Reporting Form",
   "type": 1,
   "form_id": 1,
-  "version": 7,
+  "version": 8,
   "languages": ["en"],
   "translations": [
     { "name": "Pollution Reporting Form", "language": "en" },
@@ -25,7 +25,7 @@
           "rule": null,
           "type": "option",
           "extra": null,
-          "label": "Report a change",
+          "label": "Report an incident",
           "order": 1,
           "option": [
             {
@@ -104,6 +104,19 @@
               "translations": [
                 { "name": "Low water level", "language": "en" },
                 { "name": "Kiwango cha chini cha maji", "language": "sw" }
+              ]
+            },
+            {
+              "id": 57,
+              "name": "No water",
+              "color": null,
+              "label": "No water",
+              "order": 7,
+              "other": false,
+              "value": "7",
+              "translations": [
+                { "name": "No water", "language": "en" },
+                { "name": "Hakuna maji", "language": "sw" }
               ]
             }
           ],
@@ -188,8 +201,11 @@
           "hiddenString": false,
           "requiredSign": null,
           "translations": [
-            { "name": "Photo Evidence", "language": "en" },
-            { "name": "Uthibitisho wa Picha", "language": "sw" }
+            { "name": "Please share a photo as proof", "language": "en" },
+            {
+              "name": "Tafadhali shiriki picha kama ushahidi",
+              "language": "sw"
+            }
           ],
           "allowOtherText": null,
           "dependencyRule": null,
