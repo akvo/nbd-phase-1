@@ -33,6 +33,8 @@ interface MapViewerProps {
   basinGeometry?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   wetlandGeometry?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wardGeometry?: any;
   onSelectMarker?: (code: string, type: "site" | "incident") => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   choroplethLayers?: any[];
@@ -40,11 +42,16 @@ interface MapViewerProps {
   selectedSubCounty?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSelectSubCounty?: (feature: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  selectedWard?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSelectWard?: (feature: any) => void;
 }
 
 function MapController({
   basinGeometry,
   wetlandGeometry,
+  wardGeometry,
   choroplethLayers,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,12 +59,15 @@ function MapController({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   wetlandGeometry: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wardGeometry?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   choroplethLayers: any;
 }) {
   const map = useMap();
 
   useEffect(() => {
     const targetGeom =
+      wardGeometry ||
       wetlandGeometry ||
       (choroplethLayers && choroplethLayers.length > 0
         ? { type: "FeatureCollection", features: choroplethLayers }
@@ -71,7 +81,7 @@ function MapController({
         console.error("Failed to fit bounds to geometry:", err);
       }
     }
-  }, [basinGeometry, wetlandGeometry, choroplethLayers, map]);
+  }, [basinGeometry, wetlandGeometry, wardGeometry, choroplethLayers, map]);
 
   return null;
 }
@@ -91,10 +101,13 @@ export default function MapViewer({
   zoomOffsetClass,
   basinGeometry,
   wetlandGeometry,
+  wardGeometry,
   onSelectMarker,
   choroplethLayers = [],
   selectedSubCounty,
   onSelectSubCounty,
+  selectedWard,
+  onSelectWard,
 }: MapViewerProps) {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -277,6 +290,69 @@ export default function MapViewer({
                 click: () => {
                   if (onSelectSubCounty) {
                     onSelectSubCounty(feature);
+                  }
+                },
+              });
+            }}
+          />
+        )}
+
+        {wardGeometry && (
+          <GeoJSON
+            key={`ward-layer-${selectedWard?.properties?.Ward || selectedWard?.properties?.name || "all"}`}
+            data={wardGeometry}
+            onEachFeature={(feature, layer) => {
+              const wardName =
+                feature.properties?.Ward ||
+                feature.properties?.name ||
+                "Ward Boundary";
+              const isSelected =
+                selectedWard &&
+                (selectedWard.properties?.Ward === wardName ||
+                  selectedWard.properties?.name === wardName);
+
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              if (typeof (layer as any).setStyle === "function") {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (layer as any).setStyle({
+                  fillColor: "#8b5cf6",
+                  fillOpacity: isSelected ? 0.55 : 0.25,
+                  color: isSelected ? "#6d28d9" : "#7c3aed",
+                  weight: isSelected ? 3 : 1.5,
+                  dashArray: "3, 3",
+                });
+              }
+
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              if (typeof (layer as any).bindTooltip === "function") {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (layer as any).bindTooltip(`<b>${wardName}</b>`, {
+                  sticky: true,
+                });
+              }
+
+              layer.on({
+                mouseover: (e) => {
+                  const l = e.target;
+                  if (!isSelected && typeof l.setStyle === "function") {
+                    l.setStyle({
+                      fillOpacity: 0.45,
+                      weight: 2.5,
+                    });
+                  }
+                },
+                mouseout: (e) => {
+                  const l = e.target;
+                  if (!isSelected && typeof l.setStyle === "function") {
+                    l.setStyle({
+                      fillOpacity: 0.25,
+                      weight: 1.5,
+                    });
+                  }
+                },
+                click: () => {
+                  if (onSelectWard) {
+                    onSelectWard(feature);
                   }
                 },
               });

@@ -37,6 +37,9 @@
       "to": "To",
       "apply": "Apply",
       "present": "Present",
+      "allCounties": "All Counties",
+      "allSubCounties": "All Sub-Counties",
+      "allWards": "All Wards",
       "upTo": "Up to"
     },
     "searchPlaceholder": "Search field, area, water source",

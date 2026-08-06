@@ -37,6 +37,9 @@
       "to": "Hadi",
       "apply": "Tekeleza",
       "present": "Sasa",
+      "allCounties": "Kaunti Zote",
+      "allSubCounties": "Sub-Kaunti Zote",
+      "allWards": "Wadi Zote",
       "upTo": "Hadi"
     },
     "searchPlaceholder": "Tafuta eneo, chanzo cha maji",

@@ -14,6 +14,16 @@ interface MapFilterProps {
   basins: { value: string; label: string }[];
   selectedBasin: string;
   onBasinChange: (val: string) => void;
+  // Spatial location cascade
+  counties?: { value: string; label: string }[];
+  selectedCounty?: string;
+  onCountyChange?: (val: string) => void;
+  subCounties?: { value: string; label: string }[];
+  selectedSubCounty?: string;
+  onSubCountyChange?: (val: string) => void;
+  wards?: { value: string; label: string }[];
+  selectedWard?: string;
+  onWardChange?: (val: string) => void;
   // Wetland
   selectedHealthFilter: string;
   onHealthFilterChange: (val: string) => void;
@@ -33,6 +43,15 @@ export function MapFilter({
   basins,
   selectedBasin,
   onBasinChange,
+  counties = [],
+  selectedCounty = "",
+  onCountyChange,
+  subCounties = [],
+  selectedSubCounty = "",
+  onSubCountyChange,
+  wards = [],
+  selectedWard = "",
+  onWardChange,
   selectedHealthFilter,
   onHealthFilterChange,
   selectedIncidentTypes,
@@ -61,25 +80,61 @@ export function MapFilter({
       : ["All", "Critical", "Elevated"];
 
   const hasActiveFilters =
-    domain === "wetland"
+    selectedCounty !== "" ||
+    selectedSubCounty !== "" ||
+    selectedWard !== "" ||
+    (domain === "wetland"
       ? selectedHealthFilter !== "All"
       : selectedIncidentTypes.length > 0 ||
         selectedDateFrom !== "" ||
-        selectedDateTo !== "";
+        selectedDateTo !== "");
 
   return (
     <div className="sticky top-16 z-40 bg-white border-b border-slate-100 shadow-sm shrink-0">
       {/* Desktop view / Mobile Row 1 */}
       <div className="max-w-full md:max-w-7xl w-full px-4 py-2 flex flex-col md:flex-row md:items-center justify-start gap-3">
         {/* Left Side / Always Visible on Mobile */}
-        <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
-          <div className="flex-1 md:w-56 md:flex-none">
+        <div className="flex flex-wrap items-center justify-between md:justify-start gap-3 w-full md:w-auto">
+          <div className="flex-1 md:w-48 md:flex-none">
             <Dropdown
               options={basins}
               value={selectedBasin}
               onChange={onBasinChange}
             />
           </div>
+
+          {/* Cascaded Location Dropdowns */}
+          {counties.length > 0 && onCountyChange && (
+            <div className="flex-1 md:w-48 md:flex-none">
+              <Dropdown
+                options={counties}
+                value={selectedCounty}
+                onChange={onCountyChange}
+              />
+            </div>
+          )}
+
+          {selectedCounty !== "" &&
+            subCounties.length > 0 &&
+            onSubCountyChange && (
+              <div className="flex-1 md:w-48 md:flex-none">
+                <Dropdown
+                  options={subCounties}
+                  value={selectedSubCounty}
+                  onChange={onSubCountyChange}
+                />
+              </div>
+            )}
+
+          {selectedSubCounty !== "" && wards.length > 0 && onWardChange && (
+            <div className="flex-1 md:w-48 md:flex-none">
+              <Dropdown
+                options={wards}
+                value={selectedWard}
+                onChange={onWardChange}
+              />
+            </div>
+          )}
 
           {/* Toggle for remaining filters on mobile */}
           <button

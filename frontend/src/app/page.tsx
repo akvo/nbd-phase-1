@@ -244,6 +244,24 @@ export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [subcountyGeometry, setSubcountyGeometry] = useState<any>(null);
 
+  // Spatial Location Cascade state
+  const [counties, setCounties] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [subCounties, setSubCounties] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [wards, setWards] = useState<Array<{ value: string; label: string }>>(
+    []
+  );
+  const [selectedCounty, setSelectedCounty] = useState<string>("");
+  const [selectedSubCountyId, setSelectedSubCountyId] = useState<string>("");
+  const [selectedWardId, setSelectedWardId] = useState<string>("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [wardGeometry, setWardGeometry] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedWardFeature, setSelectedWardFeature] = useState<any>(null);
+
   const dbSites = useMemo(() => {
     return sites.filter((site) => {
       const siteBasin = site.code?.includes("SIO") ? "SIO_SITEKO" : "MARA";
@@ -297,6 +315,121 @@ export default function Home() {
       setSubcountyGeometry(null);
     }
   }, [selectedDomain, selectedBasin]);
+
+  // Fetch Ward GeoJSON for vector map overlay
+  useEffect(() => {
+    const fileName =
+      selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
+        ? "sio-wards.geojson"
+        : "mara-wards.geojson";
+    fetch(`/spatial/${fileName}?v=1.0.0`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setWardGeometry(data))
+      .catch((err) => {
+        console.error("Error loading ward GeoJSON:", err);
+        setWardGeometry(null);
+      });
+  }, [selectedBasin]);
+
+  // Fetch Level 2 Counties reference data
+  useEffect(() => {
+    const backendUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    fetch(`${backendUrl}/api/v1/reference/sub-counties/0`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const countyOpts = data.map((c: any) => ({
+            value: c.id,
+            label: c.name,
+          }));
+          setCounties([
+            { value: "", label: t("filters.allCounties") },
+            ...countyOpts,
+          ]);
+        }
+      })
+      .catch((err) => console.error("Error fetching counties:", err));
+  }, [t]);
+
+  const handleCountyChange = (countyId: string) => {
+    setSelectedCounty(countyId);
+    setSelectedSubCountyId("");
+    setSelectedWardId("");
+    setSubCounties([]);
+    setWards([]);
+    setSelectedWardFeature(null);
+
+    if (countyId) {
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      fetch(`${backendUrl}/api/v1/reference/sub-counties/${countyId}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const scOpts = data.map((sc: any) => ({
+              value: sc.id,
+              label: sc.name,
+            }));
+            setSubCounties([
+              { value: "", label: t("filters.allSubCounties") },
+              ...scOpts,
+            ]);
+          }
+        })
+        .catch((err) => console.error("Error fetching sub-counties:", err));
+    }
+  };
+
+  const handleSubCountyChange = (scId: string) => {
+    setSelectedSubCountyId(scId);
+    setSelectedWardId("");
+    setWards([]);
+    setSelectedWardFeature(null);
+
+    if (scId) {
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      fetch(`${backendUrl}/api/v1/reference/wards/${scId}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const wardOpts = data.map((w: any) => ({
+              value: w.id,
+              label: w.name,
+            }));
+            setWards([
+              { value: "", label: t("filters.allWards") },
+              ...wardOpts,
+            ]);
+          }
+        })
+        .catch((err) => console.error("Error fetching wards:", err));
+    }
+  };
+
+  const handleWardChange = (wardId: string) => {
+    setSelectedWardId(wardId);
+    if (!wardId) {
+      setSelectedWardFeature(null);
+      return;
+    }
+    const wardObj = wards.find((w) => w.value === wardId);
+    if (wardObj && wardGeometry?.features) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const feature = wardGeometry.features.find((f: any) => {
+        const wName = f.properties?.Ward || f.properties?.name;
+        return (
+          wName?.toString().trim().toLowerCase() ===
+          wardObj.label.toString().trim().toLowerCase()
+        );
+      });
+      setSelectedWardFeature(feature || null);
+    }
+  };
 
   // Fetch dynamic incident type options from questionnaire
   useEffect(() => {
@@ -682,7 +815,22 @@ export default function Home() {
           setSelectedIncident(null);
           setSelectedWetland("");
           setSelectedSubCounty(null);
+          setSelectedCounty("");
+          setSelectedSubCountyId("");
+          setSelectedWardId("");
+          setSubCounties([]);
+          setWards([]);
+          setSelectedWardFeature(null);
         }}
+        counties={counties}
+        selectedCounty={selectedCounty}
+        onCountyChange={handleCountyChange}
+        subCounties={subCounties}
+        selectedSubCounty={selectedSubCountyId}
+        onSubCountyChange={handleSubCountyChange}
+        wards={wards}
+        selectedWard={selectedWardId}
+        onWardChange={handleWardChange}
         selectedHealthFilter={selectedHealthFilter}
         onHealthFilterChange={setSelectedHealthFilter}
         selectedIncidentTypes={selectedIncidentTypes}
@@ -699,6 +847,12 @@ export default function Home() {
           setSelectedDateFrom("");
           setSelectedDateTo("");
           setPollutionRange([0, 20]);
+          setSelectedCounty("");
+          setSelectedSubCountyId("");
+          setSelectedWardId("");
+          setSubCounties([]);
+          setWards([]);
+          setSelectedWardFeature(null);
           closeAllDrawers();
         }}
       />
@@ -713,6 +867,9 @@ export default function Home() {
             markers={mapMarkers}
             basinGeometry={activeGeometry}
             wetlandGeometry={wetlandGeometry}
+            wardGeometry={wardGeometry}
+            selectedWard={selectedWardFeature}
+            onSelectWard={(feature) => setSelectedWardFeature(feature)}
             choroplethLayers={choroplethLayers}
             selectedSubCounty={selectedSubCounty}
             onSelectSubCounty={(subCounty) => {
