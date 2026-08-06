@@ -268,6 +268,27 @@ export default function MapViewer({
                 });
               }
 
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              if (typeof (layer as any).bindTooltip === "function") {
+                const wardName =
+                  feature.properties?.name ||
+                  feature.properties?.Ward ||
+                  "Ward Boundary";
+                const subName =
+                  feature.properties?.subCountyName ||
+                  feature.properties?.["Sub-County"] ||
+                  "";
+                const label = subName
+                  ? `<b>${wardName}</b> (${subName})`
+                  : `<b>${wardName}</b>`;
+
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (layer as any).bindTooltip(
+                  `<div>${label}<br/><span style="font-size: 11px; opacity: 0.8;">${count} incident${count === 1 ? "" : "s"}</span></div>`,
+                  { sticky: true }
+                );
+              }
+
               layer.on({
                 mouseover: (e) => {
                   const l = e.target;
@@ -297,7 +318,7 @@ export default function MapViewer({
           />
         )}
 
-        {wardGeometry && (
+        {wardGeometry && selectedWard && (
           <GeoJSON
             key={`ward-layer-${selectedWard?.properties?.Ward || selectedWard?.properties?.name || "all"}`}
             data={wardGeometry}

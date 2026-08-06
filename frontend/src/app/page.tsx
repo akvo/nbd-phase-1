@@ -241,8 +241,6 @@ export default function Home() {
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [wetlandGeometry, setWetlandGeometry] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [subcountyGeometry, setSubcountyGeometry] = useState<any>(null);
 
   // Spatial Location Cascade state
   const [counties, setCounties] = useState<
@@ -294,29 +292,7 @@ export default function Home() {
     }
   }, [selectedDomain, selectedBasin]);
 
-  // Fetch sub-counties GeoJSON when in pollution domain
-  useEffect(() => {
-    if (selectedDomain === "pollution") {
-      const fileName =
-        selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
-          ? "sio-subcounties.geojson"
-          : "mara-subcounties.geojson";
-      fetch(`/spatial/${fileName}?v=1.0.1`)
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to load sub-counties GeoJSON");
-          return res.json();
-        })
-        .then((data) => setSubcountyGeometry(data))
-        .catch((err) => {
-          console.error("Error loading sub-county geometry:", err);
-          setSubcountyGeometry(null);
-        });
-    } else {
-      setSubcountyGeometry(null);
-    }
-  }, [selectedDomain, selectedBasin]);
-
-  // Fetch Ward GeoJSON for vector map overlay
+  // Fetch Ward GeoJSON for vector map overlay and unified choropleth
   useEffect(() => {
     const fileName =
       selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
@@ -324,7 +300,26 @@ export default function Home() {
         : "mara-wards.geojson";
     fetch(`/spatial/${fileName}?v=1.0.0`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setWardGeometry(data))
+      .then((data) => {
+        if (data && data.features) {
+          // Normalize features so choropleth logic and components can use .name
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const normalizedFeatures = data.features.map((f: any) => ({
+            ...f,
+            properties: {
+              ...f.properties,
+              name: f.properties["Ward"] || f.properties.name || "",
+              subCountyName:
+                f.properties["Sub-County"] || f.properties.subCountyName || "",
+              countyName:
+                f.properties["County"] || f.properties.countyName || "",
+            },
+          }));
+          setWardGeometry({ ...data, features: normalizedFeatures });
+        } else {
+          setWardGeometry(data);
+        }
+      })
       .catch((err) => {
         console.error("Error loading ward GeoJSON:", err);
         setWardGeometry(null);
@@ -664,83 +659,112 @@ export default function Home() {
     return [];
   }, [selectedDomain, filteredSites, t]);
 
-  // Compute choroplethLayers for sub-counties
+  // Compute choroplethLayers for wards (using unified wardGeometry and four-tier matching cascade)
   const choroplethLayers = useMemo(() => {
-    if (selectedDomain !== "pollution" || !subcountyGeometry || loading)
-      return [];
+    if (selectedDomain !== "pollution" || !wardGeometry || loading) return [];
 
-    const features = JSON.parse(
-      JSON.stringify(subcountyGeometry.features || [])
-    );
+    const features = JSON.parse(JSON.stringify(wardGeometry.features || []));
 
-    return features
-      .map((feature: any) => {
-        let count = 0;
-        const breakdown: Record<string, number> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (
+      features
+        .map((feature: any) => {
+          let count = 0;
+          const breakdown: Record<string, number> = {};
 
-        filteredIncidents.forEach((incident) => {
-          const locationAns = incident.answers?.find(
-            (a) =>
-              a.question_name === "location_id" &&
-              a.value &&
-              a.value.toString().trim().toLowerCase() ===
-                feature.properties?.name?.toString().trim().toLowerCase()
-          );
+          const wardName = feature.properties?.name
+            ?.toString()
+            .toLowerCase()
+            .trim();
+          const subCountyName = feature.properties?.subCountyName
+            ?.toString()
+            .toLowerCase()
+            .trim();
 
-          let isInside =
-            !!locationAns ||
-            (!!incident.reported_location &&
-              incident.reported_location.toString().trim().toLowerCase() ===
-                feature.properties?.name?.toString().trim().toLowerCase());
+          filteredIncidents.forEach((incident) => {
+            const reportedLoc = incident.reported_location
+              ?.toString()
+              .toLowerCase()
+              .trim();
 
-          if (!isInside) {
-            const coords = incident.geo?.coordinates;
-            if (coords && coords.length >= 2) {
-              try {
-                const pt = point(coords);
-                isInside = booleanPointInPolygon(pt, feature);
-              } catch (err) {
-                console.error("Point-in-polygon check failed:", err);
+            // Tier 1: Exact Ward match (new incidents)
+            let isInside = !!(
+              reportedLoc &&
+              wardName &&
+              reportedLoc === wardName
+            );
+
+            // Tier 2: Sub-County match (legacy incidents — uniform distribution across sub-county wards)
+            if (
+              !isInside &&
+              reportedLoc &&
+              subCountyName &&
+              reportedLoc === subCountyName
+            ) {
+              isInside = true;
+            }
+
+            // Tier 3: location_id answer name match
+            if (!isInside) {
+              const locationAns = incident.answers?.find(
+                (a: any) =>
+                  a.question_name === "location_id" &&
+                  a.value?.toString().toLowerCase().trim() === wardName
+              );
+              if (locationAns) isInside = true;
+            }
+
+            // Tier 4: Point-in-polygon (GPS-tagged)
+            if (!isInside) {
+              const coords = incident.geo?.coordinates;
+              if (coords && coords.length >= 2) {
+                try {
+                  isInside = booleanPointInPolygon(point(coords), feature);
+                } catch (err) {
+                  // silent
+                }
               }
             }
-          }
 
-          if (isInside) {
-            count++;
-            const qIncidentAns = incident.answers?.find(
-              (a: any) => a.question_name === "incident_type"
-            );
-            const typeLabel =
-              qIncidentAns?.value || incident.incident_type_name || "Unknown";
-            breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
-          }
-        });
+            if (isInside) {
+              count++;
+              const qIncidentAns = incident.answers?.find(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (a: any) => a.question_name === "incident_type"
+              );
+              const typeLabel =
+                qIncidentAns?.value || incident.incident_type_name || "Unknown";
+              breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
+            }
+          });
 
-        feature.properties = {
-          ...feature.properties,
-          incidentCount: count,
-          incidentBreakdown: breakdown,
-        };
+          feature.properties = {
+            ...feature.properties,
+            incidentCount: count,
+            incidentBreakdown: breakdown,
+          };
 
-        return feature;
-      })
-      .filter((feature: any) => {
-        const count = feature.properties?.incidentCount || 0;
-        return count >= pollutionRange[0] && count <= pollutionRange[1];
-      });
+          return feature;
+        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((feature: any) => {
+          const count = feature.properties?.incidentCount || 0;
+          return count >= pollutionRange[0] && count <= pollutionRange[1];
+        })
+    );
   }, [
     selectedDomain,
-    subcountyGeometry,
+    wardGeometry,
     filteredIncidents,
     loading,
     pollutionRange,
   ]);
 
-  // Compute sidebar/list incidents filtered by selected sub-county
+  // Compute sidebar/list incidents filtered by selected ward/sub-county
   const sidebarIncidents = useMemo(() => {
     if (selectedDomain !== "pollution") return [];
 
-    // If no sub-county is selected, return all basin-wide incidents matching filters
+    // If no ward polygon is selected, return all basin-wide incidents matching filters
     if (!selectedSubCounty) {
       return [...filteredIncidents].sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -749,23 +773,36 @@ export default function Home() {
       });
     }
 
+    const selWardName = selectedSubCounty.properties?.name
+      ?.toString()
+      .trim()
+      .toLowerCase();
+    const selSubCountyName = selectedSubCounty.properties?.subCountyName
+      ?.toString()
+      .trim()
+      .toLowerCase();
+
     const matched = filteredIncidents.filter((incident) => {
-      // 1. Direct match on resolved sub-county name from backend
+      const reportedLoc = incident.reported_location
+        ?.toString()
+        .trim()
+        .toLowerCase();
+
+      // 1. Direct match on Ward name or Sub-County legacy name
       if (
-        incident.reported_location &&
-        incident.reported_location.toString().trim().toLowerCase() ===
-          selectedSubCounty.properties?.name?.toString().trim().toLowerCase()
+        reportedLoc &&
+        ((selWardName && reportedLoc === selWardName) ||
+          (selSubCountyName && reportedLoc === selSubCountyName))
       ) {
         return true;
       }
 
-      // 2. Fallback to location_id answer (for backward compatibility if answers are populated)
+      // 2. Fallback to location_id answer
       const locationAns = incident.answers?.find(
-        (a) =>
+        (a: any) =>
           a.question_name === "location_id" &&
           a.value &&
-          a.value.toString().trim().toLowerCase() ===
-            selectedSubCounty.properties?.name?.toString().trim().toLowerCase()
+          a.value.toString().trim().toLowerCase() === selWardName
       );
       if (locationAns) return true;
 
@@ -909,7 +946,7 @@ export default function Home() {
                   {selectedDomain === "wetland"
                     ? `${t("monitoringSites")} (${filteredSites.length})`
                     : selectedSubCounty
-                      ? `Pollution Incidents: ${selectedSubCounty.properties.name || "Selected Sub-County"} (${sidebarIncidents.length})`
+                      ? `Pollution Incidents: ${selectedSubCounty.properties.name}${selectedSubCounty.properties.subCountyName ? ` (${selectedSubCounty.properties.subCountyName})` : ""} (${sidebarIncidents.length})`
                       : `Pollution Incidents (${sidebarIncidents.length})`}
                   {selectedDomain === "wetland" &&
                     filteredIncidents.length > 0 && (
@@ -1094,20 +1131,23 @@ export default function Home() {
                     let subCountyName = incident.reported_location;
 
                     if (!subCountyName) {
-                      const subCountyFeature =
-                        subcountyGeometry?.features?.find((scFeature: any) => {
+                      const wardFeature = wardGeometry?.features?.find(
+                        (wFeature: any) => {
                           const coords = incident.geo?.coordinates;
                           if (!coords || coords.length < 2) return false;
                           try {
                             return booleanPointInPolygon(
                               point(coords),
-                              scFeature
+                              wFeature
                             );
                           } catch {
                             return false;
                           }
-                        });
-                      subCountyName = subCountyFeature?.properties?.name;
+                        }
+                      );
+                      subCountyName = wardFeature?.properties?.name
+                        ? `${wardFeature.properties.name}${wardFeature.properties.subCountyName ? ` (${wardFeature.properties.subCountyName})` : ""}`
+                        : undefined;
                     }
 
                     return (
