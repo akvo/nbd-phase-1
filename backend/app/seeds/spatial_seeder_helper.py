@@ -34,6 +34,49 @@ def load_geojson_geometry(filename: str) -> MultiPolygon:
     return geom_shape
 
 
+def load_ward_geojson_index(filename: str) -> dict:
+    """
+    Load a Ward GeoJSON file and index centroids.
+    Keyed by (County, Sub-County, Ward) tuple.
+    """
+    spatial_dir = os.path.join(os.path.dirname(__file__), "spatial")
+    geojson_path = os.path.join(spatial_dir, filename)
+    if not os.path.exists(geojson_path):
+        logger.warning("Ward GeoJSON not found at %s", geojson_path)
+        return {}
+
+    with open(geojson_path, "r", encoding="utf-8") as file:
+        gj_data = json.load(file)
+
+    index = {}
+    features = gj_data.get("features", [])
+    for feat in features:
+        props = feat.get("properties", {})
+        county = (props.get("County") or "").strip()
+        sub_county = (props.get("Sub-County") or "").strip()
+        ward = (props.get("Ward") or "").strip()
+        if not (county and sub_county and ward):
+            continue
+
+        geom_data = feat.get("geometry")
+        if not geom_data:
+            continue
+
+        try:
+            sh_geom = shape(geom_data)
+            index[(county, sub_county, ward)] = sh_geom.centroid
+        except Exception as e:
+            logger.error(
+                "Error computing centroid for ward %s (%s, %s): %s",
+                ward,
+                county,
+                sub_county,
+                e,
+            )
+
+    return index
+
+
 def seed_spatial(db: Session):
     logger.info("Starting spatial seeding from JSON and GeoJSON data...")
 
@@ -418,6 +461,157 @@ def seed_spatial(db: Session):
                         "Created Sub-County (Level 3): %s under County %s",
                         sub_county_name,
                         county_name,
+                    )
+
+    # 4.3 Seed Level 4 (Wards) from CSV files and GeoJSON centroids
+    ward_csv_mappings = [
+        {
+            "file": "mara-kenya-wards.csv",
+            "geojson_file": "mara-kenya-wards.geojson",
+            "basin_code": "MARA",
+            "parent_region_name": "Mara Region",
+        },
+        {
+            "file": "sio-kenya-wards.csv",
+            "geojson_file": "sio-kenya-wards.geojson",
+            "basin_code": "SIO_SITEKO",
+            "parent_region_name": "Sio-Siteko Region",
+        },
+    ]
+
+    for mapping in ward_csv_mappings:
+        csv_file = mapping["file"]
+        geojson_file = mapping["geojson_file"]
+        basin_code = mapping["basin_code"]
+        parent_region_name = mapping["parent_region_name"]
+
+        parent_basin = db.query(Basin).filter(Basin.code == basin_code).first()
+        if not parent_basin:
+            logger.error(
+                "Parent Basin %s not found for CSV %s", basin_code, csv_file
+            )
+            continue
+
+        region_id = level1_map.get(parent_region_name)
+        if not region_id:
+            region_obj = (
+                db.query(SpatialBoundary)
+                .filter(
+                    SpatialBoundary.name == parent_region_name,
+                    SpatialBoundary.basin_id == parent_basin.id,
+                    SpatialBoundary.level == 1,
+                )
+                .first()
+            )
+            if region_obj:
+                region_id = region_obj.id
+            else:
+                logger.error("Region %s not found in DB", parent_region_name)
+                continue
+
+        centroid_index = load_ward_geojson_index(geojson_file)
+
+        csv_path = os.path.join(os.path.dirname(__file__), "spatial", csv_file)
+        if not os.path.exists(csv_path):
+            logger.error("CSV file not found at %s", csv_path)
+            continue
+
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                county_name = row.get("County", "").strip()
+                sub_county_name = row.get("Sub-County", "").strip()
+                ward_name = row.get("Ward", "").strip()
+
+                if not county_name or not sub_county_name or not ward_name:
+                    continue
+
+                # 1. Look up or create County (Level 2)
+                county_obj = (
+                    db.query(SpatialBoundary)
+                    .filter(
+                        SpatialBoundary.name == county_name,
+                        SpatialBoundary.basin_id == parent_basin.id,
+                        SpatialBoundary.level == 2,
+                        SpatialBoundary.parent_id == region_id,
+                    )
+                    .first()
+                )
+                if not county_obj:
+                    county_obj = SpatialBoundary(
+                        name=county_name,
+                        basin_id=parent_basin.id,
+                        level=2,
+                        parent_id=region_id,
+                        centroid_geom=None,
+                    )
+                    db.add(county_obj)
+                    db.flush()
+
+                # 2. Look up or create Sub-County (Level 3)
+                sub_county_obj = (
+                    db.query(SpatialBoundary)
+                    .filter(
+                        SpatialBoundary.name == sub_county_name,
+                        SpatialBoundary.basin_id == parent_basin.id,
+                        SpatialBoundary.level == 3,
+                        SpatialBoundary.parent_id == county_obj.id,
+                    )
+                    .first()
+                )
+                if not sub_county_obj:
+                    sub_county_obj = SpatialBoundary(
+                        name=sub_county_name,
+                        basin_id=parent_basin.id,
+                        level=3,
+                        parent_id=county_obj.id,
+                        centroid_geom=None,
+                    )
+                    db.add(sub_county_obj)
+                    db.flush()
+
+                # 3. Look up or create Ward (Level 4)
+                ward_obj = (
+                    db.query(SpatialBoundary)
+                    .filter(
+                        SpatialBoundary.name == ward_name,
+                        SpatialBoundary.basin_id == parent_basin.id,
+                        SpatialBoundary.level == 4,
+                        SpatialBoundary.parent_id == sub_county_obj.id,
+                    )
+                    .first()
+                )
+
+                centroid_pt = centroid_index.get(
+                    (county_name, sub_county_name, ward_name)
+                )
+                centroid_val = (
+                    from_shape(centroid_pt, srid=4326) if centroid_pt else None
+                )
+
+                if not ward_obj:
+                    ward_obj = SpatialBoundary(
+                        name=ward_name,
+                        basin_id=parent_basin.id,
+                        level=4,
+                        parent_id=sub_county_obj.id,
+                        centroid_geom=centroid_val,
+                    )
+                    db.add(ward_obj)
+                    db.flush()
+                    logger.info(
+                        "Created Ward (Level 4): %s under Sub-County %s",
+                        ward_name,
+                        sub_county_name,
+                    )
+                else:
+                    if centroid_val:
+                        ward_obj.centroid_geom = centroid_val
+                        db.flush()
+                    logger.info(
+                        "Updated Ward (Level 4): %s under Sub-County %s",
+                        ward_name,
+                        sub_county_name,
                     )
 
     db.commit()

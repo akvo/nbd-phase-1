@@ -23,6 +23,7 @@
       "optionStormEvent": "Tukio la dhoruba",
       "optionHighWater": "Kiwango cha juu cha maji",
       "optionLowWater": "Kiwango cha chini cha maji",
+      "optionNoWater": "Hakuna maji",
       "critical": "Hatari",
       "atRisk": "Hatarini",
       "healthy": "Afya njema",
@@ -37,6 +38,9 @@
       "to": "Hadi",
       "apply": "Tekeleza",
       "present": "Sasa",
+      "allCounties": "Kaunti Zote",
+      "allSubCounties": "Sub-Kaunti Zote",
+      "allWards": "Wadi Zote",
       "upTo": "Hadi"
     },
     "searchPlaceholder": "Tafuta eneo, chanzo cha maji",

@@ -241,8 +241,24 @@ export default function Home() {
   const [activeGeometry, setActiveGeometry] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [wetlandGeometry, setWetlandGeometry] = useState<any>(null);
+
+  // Spatial Location Cascade state
+  const [counties, setCounties] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [subCounties, setSubCounties] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [wards, setWards] = useState<Array<{ value: string; label: string }>>(
+    []
+  );
+  const [selectedCounty, setSelectedCounty] = useState<string>("");
+  const [selectedSubCountyId, setSelectedSubCountyId] = useState<string>("");
+  const [selectedWardId, setSelectedWardId] = useState<string>("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [subcountyGeometry, setSubcountyGeometry] = useState<any>(null);
+  const [wardGeometry, setWardGeometry] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedWardFeature, setSelectedWardFeature] = useState<any>(null);
 
   const dbSites = useMemo(() => {
     return sites.filter((site) => {
@@ -276,33 +292,149 @@ export default function Home() {
     }
   }, [selectedDomain, selectedBasin]);
 
-  // Fetch sub-counties GeoJSON when in pollution domain
+  // Fetch Ward GeoJSON for vector map overlay and unified choropleth
   useEffect(() => {
-    if (selectedDomain === "pollution") {
-      const fileName =
-        selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
-          ? "sio-subcounties.geojson"
-          : "mara-subcounties.geojson";
-      fetch(`/spatial/${fileName}?v=1.0.1`)
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to load sub-counties GeoJSON");
-          return res.json();
+    const fileName =
+      selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
+        ? "sio-wards.geojson"
+        : "mara-wards.geojson";
+    fetch(`/spatial/${fileName}?v=1.0.0`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.features) {
+          // Normalize features so choropleth logic and components can use .name
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const normalizedFeatures = data.features.map((f: any) => ({
+            ...f,
+            properties: {
+              ...f.properties,
+              name: f.properties["Ward"] || f.properties.name || "",
+              subCountyName:
+                f.properties["Sub-County"] || f.properties.subCountyName || "",
+              countyName:
+                f.properties["County"] || f.properties.countyName || "",
+            },
+          }));
+          setWardGeometry({ ...data, features: normalizedFeatures });
+        } else {
+          setWardGeometry(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading ward GeoJSON:", err);
+        setWardGeometry(null);
+      });
+  }, [selectedBasin]);
+
+  // Fetch Level 2 Counties reference data
+  useEffect(() => {
+    const backendUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    fetch(`${backendUrl}/api/v1/reference/sub-counties/0`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const countyOpts = data.map((c: any) => ({
+            value: c.id,
+            label: c.name,
+          }));
+          setCounties([
+            { value: "", label: t("filters.allCounties") },
+            ...countyOpts,
+          ]);
+        }
+      })
+      .catch((err) => console.error("Error fetching counties:", err));
+  }, [t]);
+
+  const handleCountyChange = (countyId: string) => {
+    setSelectedCounty(countyId);
+    setSelectedSubCountyId("");
+    setSelectedWardId("");
+    setSubCounties([]);
+    setWards([]);
+    setSelectedWardFeature(null);
+
+    if (countyId) {
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      fetch(`${backendUrl}/api/v1/reference/sub-counties/${countyId}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const scOpts = data.map((sc: any) => ({
+              value: sc.id,
+              label: sc.name,
+            }));
+            setSubCounties([
+              { value: "", label: t("filters.allSubCounties") },
+              ...scOpts,
+            ]);
+          }
         })
-        .then((data) => setSubcountyGeometry(data))
-        .catch((err) => {
-          console.error("Error loading sub-county geometry:", err);
-          setSubcountyGeometry(null);
-        });
-    } else {
-      setSubcountyGeometry(null);
+        .catch((err) => console.error("Error fetching sub-counties:", err));
     }
-  }, [selectedDomain, selectedBasin]);
+  };
+
+  const handleSubCountyChange = (scId: string) => {
+    setSelectedSubCountyId(scId);
+    setSelectedWardId("");
+    setWards([]);
+    setSelectedWardFeature(null);
+
+    if (scId) {
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      fetch(`${backendUrl}/api/v1/reference/wards/${scId}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const wardOpts = data.map((w: any) => ({
+              value: w.id,
+              label: w.name,
+            }));
+            setWards([
+              { value: "", label: t("filters.allWards") },
+              ...wardOpts,
+            ]);
+          }
+        })
+        .catch((err) => console.error("Error fetching wards:", err));
+    }
+  };
+
+  const handleWardChange = (wardId: string) => {
+    setSelectedWardId(wardId);
+    if (!wardId) {
+      setSelectedWardFeature(null);
+      return;
+    }
+    const wardObj = wards.find((w) => w.value === wardId);
+    if (wardObj && wardGeometry?.features) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const feature = wardGeometry.features.find((f: any) => {
+        const wName = f.properties?.Ward || f.properties?.name;
+        return (
+          wName?.toString().trim().toLowerCase() ===
+          wardObj.label.toString().trim().toLowerCase()
+        );
+      });
+      setSelectedWardFeature(feature || null);
+    }
+  };
 
   // Fetch dynamic incident type options from questionnaire
   useEffect(() => {
     getFormsList(locale)
       .then((formsList) => {
-        const pForm = formsList.find((f) => f.type === 1);
+        // Find latest version of Citizen Reporter form (type === 1)
+        const type1Forms = formsList.filter((f) => f.type === 1);
+        const pForm = type1Forms.sort(
+          (a, b) => (b.version || 0) - (a.version || 0)
+        )[0];
         if (pForm) {
           return getFormDetails(pForm.id, locale);
         }
@@ -311,9 +443,12 @@ export default function Home() {
       .then((fullForm) => {
         if (fullForm) {
           let foundOptions: Array<{ value: string; label: string }> = [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           fullForm.question_groups?.forEach((group: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             group.questions?.forEach((q: any) => {
               if (q.name === "incident_type" && q.options) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 foundOptions = q.options.map((opt: any) => ({
                   value: String(opt.value),
                   label: opt.label || opt.name,
@@ -334,6 +469,7 @@ export default function Home() {
           { value: "4", label: t("filters.optionStormEvent") },
           { value: "5", label: t("filters.optionHighWater") },
           { value: "6", label: t("filters.optionLowWater") },
+          { value: "7", label: t("filters.optionNoWater") },
         ]);
       })
       .catch((err) => {
@@ -345,6 +481,7 @@ export default function Home() {
           { value: "4", label: t("filters.optionStormEvent") },
           { value: "5", label: t("filters.optionHighWater") },
           { value: "6", label: t("filters.optionLowWater") },
+          { value: "7", label: t("filters.optionNoWater") },
         ]);
       });
   }, [locale, t, getFormsList, getFormDetails]);
@@ -531,83 +668,112 @@ export default function Home() {
     return [];
   }, [selectedDomain, filteredSites, t]);
 
-  // Compute choroplethLayers for sub-counties
+  // Compute choroplethLayers for wards (using unified wardGeometry and four-tier matching cascade)
   const choroplethLayers = useMemo(() => {
-    if (selectedDomain !== "pollution" || !subcountyGeometry || loading)
-      return [];
+    if (selectedDomain !== "pollution" || !wardGeometry || loading) return [];
 
-    const features = JSON.parse(
-      JSON.stringify(subcountyGeometry.features || [])
-    );
+    const features = JSON.parse(JSON.stringify(wardGeometry.features || []));
 
-    return features
-      .map((feature: any) => {
-        let count = 0;
-        const breakdown: Record<string, number> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (
+      features
+        .map((feature: any) => {
+          let count = 0;
+          const breakdown: Record<string, number> = {};
 
-        filteredIncidents.forEach((incident) => {
-          const locationAns = incident.answers?.find(
-            (a) =>
-              a.question_name === "location_id" &&
-              a.value &&
-              a.value.toString().trim().toLowerCase() ===
-                feature.properties?.name?.toString().trim().toLowerCase()
-          );
+          const wardName = feature.properties?.name
+            ?.toString()
+            .toLowerCase()
+            .trim();
+          const subCountyName = feature.properties?.subCountyName
+            ?.toString()
+            .toLowerCase()
+            .trim();
 
-          let isInside =
-            !!locationAns ||
-            (!!incident.reported_location &&
-              incident.reported_location.toString().trim().toLowerCase() ===
-                feature.properties?.name?.toString().trim().toLowerCase());
+          filteredIncidents.forEach((incident) => {
+            const reportedLoc = incident.reported_location
+              ?.toString()
+              .toLowerCase()
+              .trim();
 
-          if (!isInside) {
-            const coords = incident.geo?.coordinates;
-            if (coords && coords.length >= 2) {
-              try {
-                const pt = point(coords);
-                isInside = booleanPointInPolygon(pt, feature);
-              } catch (err) {
-                console.error("Point-in-polygon check failed:", err);
+            // Tier 1: Exact Ward match (new incidents)
+            let isInside = !!(
+              reportedLoc &&
+              wardName &&
+              reportedLoc === wardName
+            );
+
+            // Tier 2: Sub-County match (legacy incidents — uniform distribution across sub-county wards)
+            if (
+              !isInside &&
+              reportedLoc &&
+              subCountyName &&
+              reportedLoc === subCountyName
+            ) {
+              isInside = true;
+            }
+
+            // Tier 3: location_id answer name match
+            if (!isInside) {
+              const locationAns = incident.answers?.find(
+                (a: any) =>
+                  a.question_name === "location_id" &&
+                  a.value?.toString().toLowerCase().trim() === wardName
+              );
+              if (locationAns) isInside = true;
+            }
+
+            // Tier 4: Point-in-polygon (GPS-tagged)
+            if (!isInside) {
+              const coords = incident.geo?.coordinates;
+              if (coords && coords.length >= 2) {
+                try {
+                  isInside = booleanPointInPolygon(point(coords), feature);
+                } catch (err) {
+                  // silent
+                }
               }
             }
-          }
 
-          if (isInside) {
-            count++;
-            const qIncidentAns = incident.answers?.find(
-              (a: any) => a.question_name === "incident_type"
-            );
-            const typeLabel =
-              qIncidentAns?.value || incident.incident_type_name || "Unknown";
-            breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
-          }
-        });
+            if (isInside) {
+              count++;
+              const qIncidentAns = incident.answers?.find(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (a: any) => a.question_name === "incident_type"
+              );
+              const typeLabel =
+                qIncidentAns?.value || incident.incident_type_name || "Unknown";
+              breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
+            }
+          });
 
-        feature.properties = {
-          ...feature.properties,
-          incidentCount: count,
-          incidentBreakdown: breakdown,
-        };
+          feature.properties = {
+            ...feature.properties,
+            incidentCount: count,
+            incidentBreakdown: breakdown,
+          };
 
-        return feature;
-      })
-      .filter((feature: any) => {
-        const count = feature.properties?.incidentCount || 0;
-        return count >= pollutionRange[0] && count <= pollutionRange[1];
-      });
+          return feature;
+        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((feature: any) => {
+          const count = feature.properties?.incidentCount || 0;
+          return count >= pollutionRange[0] && count <= pollutionRange[1];
+        })
+    );
   }, [
     selectedDomain,
-    subcountyGeometry,
+    wardGeometry,
     filteredIncidents,
     loading,
     pollutionRange,
   ]);
 
-  // Compute sidebar/list incidents filtered by selected sub-county
+  // Compute sidebar/list incidents filtered by selected ward/sub-county
   const sidebarIncidents = useMemo(() => {
     if (selectedDomain !== "pollution") return [];
 
-    // If no sub-county is selected, return all basin-wide incidents matching filters
+    // If no ward polygon is selected, return all basin-wide incidents matching filters
     if (!selectedSubCounty) {
       return [...filteredIncidents].sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -616,23 +782,36 @@ export default function Home() {
       });
     }
 
+    const selWardName = selectedSubCounty.properties?.name
+      ?.toString()
+      .trim()
+      .toLowerCase();
+    const selSubCountyName = selectedSubCounty.properties?.subCountyName
+      ?.toString()
+      .trim()
+      .toLowerCase();
+
     const matched = filteredIncidents.filter((incident) => {
-      // 1. Direct match on resolved sub-county name from backend
+      const reportedLoc = incident.reported_location
+        ?.toString()
+        .trim()
+        .toLowerCase();
+
+      // 1. Direct match on Ward name or Sub-County legacy name
       if (
-        incident.reported_location &&
-        incident.reported_location.toString().trim().toLowerCase() ===
-          selectedSubCounty.properties?.name?.toString().trim().toLowerCase()
+        reportedLoc &&
+        ((selWardName && reportedLoc === selWardName) ||
+          (selSubCountyName && reportedLoc === selSubCountyName))
       ) {
         return true;
       }
 
-      // 2. Fallback to location_id answer (for backward compatibility if answers are populated)
+      // 2. Fallback to location_id answer
       const locationAns = incident.answers?.find(
-        (a) =>
+        (a: any) =>
           a.question_name === "location_id" &&
           a.value &&
-          a.value.toString().trim().toLowerCase() ===
-            selectedSubCounty.properties?.name?.toString().trim().toLowerCase()
+          a.value.toString().trim().toLowerCase() === selWardName
       );
       if (locationAns) return true;
 
@@ -682,7 +861,22 @@ export default function Home() {
           setSelectedIncident(null);
           setSelectedWetland("");
           setSelectedSubCounty(null);
+          setSelectedCounty("");
+          setSelectedSubCountyId("");
+          setSelectedWardId("");
+          setSubCounties([]);
+          setWards([]);
+          setSelectedWardFeature(null);
         }}
+        counties={counties}
+        selectedCounty={selectedCounty}
+        onCountyChange={handleCountyChange}
+        subCounties={subCounties}
+        selectedSubCounty={selectedSubCountyId}
+        onSubCountyChange={handleSubCountyChange}
+        wards={wards}
+        selectedWard={selectedWardId}
+        onWardChange={handleWardChange}
         selectedHealthFilter={selectedHealthFilter}
         onHealthFilterChange={setSelectedHealthFilter}
         selectedIncidentTypes={selectedIncidentTypes}
@@ -699,6 +893,12 @@ export default function Home() {
           setSelectedDateFrom("");
           setSelectedDateTo("");
           setPollutionRange([0, 20]);
+          setSelectedCounty("");
+          setSelectedSubCountyId("");
+          setSelectedWardId("");
+          setSubCounties([]);
+          setWards([]);
+          setSelectedWardFeature(null);
           closeAllDrawers();
         }}
       />
@@ -713,6 +913,9 @@ export default function Home() {
             markers={mapMarkers}
             basinGeometry={activeGeometry}
             wetlandGeometry={wetlandGeometry}
+            wardGeometry={wardGeometry}
+            selectedWard={selectedWardFeature}
+            onSelectWard={(feature) => setSelectedWardFeature(feature)}
             choroplethLayers={choroplethLayers}
             selectedSubCounty={selectedSubCounty}
             onSelectSubCounty={(subCounty) => {
@@ -752,7 +955,7 @@ export default function Home() {
                   {selectedDomain === "wetland"
                     ? `${t("monitoringSites")} (${filteredSites.length})`
                     : selectedSubCounty
-                      ? `Pollution Incidents: ${selectedSubCounty.properties.name || "Selected Sub-County"} (${sidebarIncidents.length})`
+                      ? `Pollution Incidents: ${selectedSubCounty.properties.name}${selectedSubCounty.properties.subCountyName ? ` (${selectedSubCounty.properties.subCountyName})` : ""} (${sidebarIncidents.length})`
                       : `Pollution Incidents (${sidebarIncidents.length})`}
                   {selectedDomain === "wetland" &&
                     filteredIncidents.length > 0 && (
@@ -937,20 +1140,23 @@ export default function Home() {
                     let subCountyName = incident.reported_location;
 
                     if (!subCountyName) {
-                      const subCountyFeature =
-                        subcountyGeometry?.features?.find((scFeature: any) => {
+                      const wardFeature = wardGeometry?.features?.find(
+                        (wFeature: any) => {
                           const coords = incident.geo?.coordinates;
                           if (!coords || coords.length < 2) return false;
                           try {
                             return booleanPointInPolygon(
                               point(coords),
-                              scFeature
+                              wFeature
                             );
                           } catch {
                             return false;
                           }
-                        });
-                      subCountyName = subCountyFeature?.properties?.name;
+                        }
+                      );
+                      subCountyName = wardFeature?.properties?.name
+                        ? `${wardFeature.properties.name}${wardFeature.properties.subCountyName ? ` (${wardFeature.properties.subCountyName})` : ""}`
+                        : undefined;
                     }
 
                     return (

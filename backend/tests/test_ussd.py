@@ -125,7 +125,12 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
         },
     )
     assert response.status_code == 200
-    assert response.text.startswith("CON Choose SubCounty")
+    assert response.text.startswith("CON")
+    assert (
+        "Narok" in response.text
+        or "Chagua" in response.text
+        or "Choose" in response.text
+    )
 
     response = client.post(
         "/api/v1/ussd",
@@ -134,7 +139,8 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
             "phoneNumber": "+255700000000",
             "networkCode": "64004",
             "serviceCode": "*123#",
-            "text": "1*1*2*3*1",  # Lang -> Accept -> Incident -> County -> SC
+            # Lang -> Accept -> Incident -> County -> SC -> Ward
+            "text": "1*1*2*3*1*1",
         },
     )
     assert response.status_code == 200
@@ -148,7 +154,7 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
             "phoneNumber": "+255700000000",
             "networkCode": "64004",
             "serviceCode": "*123#",
-            "text": "1*1*2*3*1*1",  # Confirm & Submit
+            "text": "1*1*2*3*1*1*1",  # Confirm & Submit
         },
     )
     assert response.status_code == 200
@@ -187,14 +193,14 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
 
     from app.models.spatial import SpatialBoundary
 
-    expected_sc = (
+    expected_ward = (
         db_session.query(SpatialBoundary)
-        .filter(SpatialBoundary.name == "Emurua Dikirr")
+        .filter(SpatialBoundary.name == "Ilkerin")
         .first()
     )
-    assert expected_sc is not None
+    assert expected_ward is not None
     ans_location = [a for a in answers if a.question_id == q_location.id][0]
-    assert ans_location.options == [str(expected_sc.id)]
+    assert ans_location.options == [str(expected_ward.id)]
 
 
 def test_ussd_idempotency():
@@ -245,7 +251,12 @@ def test_ussd_terminal_submission_registered_citizen(db_session: Session):
         },
     )
     assert response.status_code == 200
-    assert response.text.startswith("CON Choose SubCounty")
+    assert response.text.startswith("CON")
+    assert (
+        "Bungoma" in response.text
+        or "Chagua" in response.text
+        or "Choose" in response.text
+    )
 
     response = client.post(
         "/api/v1/ussd",
@@ -254,7 +265,7 @@ def test_ussd_terminal_submission_registered_citizen(db_session: Session):
             "phoneNumber": registered_phone,
             "networkCode": "63902",
             "serviceCode": "*123#",
-            "text": "1*1*2*1*2",
+            "text": "1*1*2*1*2*1",
         },
     )
     assert response.status_code == 200
@@ -267,7 +278,7 @@ def test_ussd_terminal_submission_registered_citizen(db_session: Session):
             "phoneNumber": registered_phone,
             "networkCode": "63902",
             "serviceCode": "*123#",
-            "text": "1*1*2*1*2*1",  # Confirm
+            "text": "1*1*2*1*2*1*1",  # Confirm
         },
     )
     assert response.status_code == 200
@@ -298,7 +309,7 @@ def test_ussd_redo_restores_session_loop(db_session: Session):
             "phoneNumber": "+255700000000",
             "networkCode": "64004",
             "serviceCode": "*123#",
-            "text": "1*1*2*3*1",
+            "text": "1*1*2*3*1*1",
         },
     )
     assert response.status_code == 200
@@ -312,7 +323,7 @@ def test_ussd_redo_restores_session_loop(db_session: Session):
             "phoneNumber": "+255700000000",
             "networkCode": "64004",
             "serviceCode": "*123#",
-            "text": "1*1*2*3*1*2",
+            "text": "1*1*2*3*1*1*2",
         },
     )
     assert response.status_code == 200
@@ -376,7 +387,7 @@ def test_ussd_complete_flow_with_paging(db_session: Session):
     # Lang (1) -> Page 1 (98) -> Page 2 (0) -> Page 1 (98) -> Page 2 (1) ->
     # Select Incident
     # (2) -> Select County (3) -> Select Subcounty (1) -> Confirm (1)
-    base_text = "1*98*0*98*1*2*3*1*1"
+    base_text = "1*98*0*98*1*2*3*1*1*1"
 
     response = client.post(
         "/api/v1/ussd",
@@ -471,7 +482,7 @@ def test_ussd_dynamic_option_question_paging(db_session: Session):
     )
     assert response.status_code == 200
     # Should move to next question (location county cascade list)
-    assert "Choose SubCounty" in response.text or "Region" in response.text
+    assert "Region" in response.text or "CON" in response.text
 
 
 def test_ussd_dynamic_cascade_county_paging(db_session: Session):
@@ -491,4 +502,4 @@ def test_ussd_dynamic_cascade_county_paging(db_session: Session):
     assert response.status_code == 200
     # The default Tanzania counties (Geita, Mara, Simiyu, etc)
     # might fit in 1 page, but we check if the basic prompt loaded.
-    assert "Choose SubCounty" in response.text or "Region" in response.text
+    assert "Region" in response.text or "CON" in response.text

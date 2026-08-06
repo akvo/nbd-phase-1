@@ -31,10 +31,17 @@ from app.models.form import (
     QuestionType,
 )
 from app.models.submission import Datapoint, Answer, SubmissionStatus
-from app.models.spatial import SpatialBoundary, Basin
+from app.models.spatial import SpatialBoundary
 from app.models.citizen import Citizen
 from app.services.storage import StorageService, build_blob_path
 from app.services.form_engine import is_question_active
+
+from app.services.spatial_service import (
+    get_root_boundaries,
+    get_child_boundaries,
+    get_boundary_by_id,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -186,13 +193,7 @@ def _get_or_create_session(db: Session, phone: str) -> WhatsAppSession:
 
 
 def _fetch_subcounties(db: Session) -> List[SpatialBoundary]:
-    return (
-        db.query(SpatialBoundary)
-        .join(Basin)
-        .filter(SpatialBoundary.level == 2)
-        .order_by(SpatialBoundary.basin_id, SpatialBoundary.name)
-        .all()
-    )
+    return get_root_boundaries(db)
 
 
 def _format_location_menu(
@@ -628,94 +629,85 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
             parsed_val = None
 
             if curr_q.type == "cascade":
-                # Multi-level location cascade: Region -> County -> Sub-county
-                counties = _fetch_subcounties(db)
-                if not session.location:
-                    # Parse County choice
-                    text_body = (msg.get("text") or {}).get("body", "").strip()
-                    try:
-                        idx = int(text_body) - 1
-                        if idx < 0 or idx >= len(counties):
-                            raise ValueError()
-                        selected_county = counties[idx]
-                        valid = True
-                    except (ValueError, TypeError):
-                        menu = _format_location_menu(counties, lang)
-                        prompt = (
-                            f"Tafadhali jibu kwa nambari sahihi.\n\n{menu}"
-                            if lang == "sw"
-                            else f"Please reply with a valid number.\n\n{menu}"
-                        )
-                        await _send_message(phone, prompt)
-                        return
+                # Dynamic spatial boundary hierarchy traversal
+                # (leaf-node detection)
+                text_body = (msg.get("text") or {}).get("body", "").strip()
+                selected_ids = (
+                    session.location.split("|") if session.location else []
+                )
 
-                    # Check if there are level 3 sub-counties
-                    sub_counties = (
-                        db.query(SpatialBoundary)
-                        .filter(
-                            SpatialBoundary.level == 3,
-                            SpatialBoundary.parent_id == selected_county.id,
-                        )
-                        .order_by(SpatialBoundary.name)
-                        .all()
-                    )
-
-                    if sub_counties:
-                        session.location = str(selected_county.id)
-                        db.commit()
-                        menu_lines = [
-                            f"  {i}: {sc.name}"
-                            for i, sc in enumerate(sub_counties, 1)
-                        ]
-                        menu = "\n".join(menu_lines)
-                        prompt = (
-                            f"Chagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"  # noqa
-                            if lang == "sw"
-                            else f"Choose sub-county of {selected_county.name}:\n\n{menu}"  # noqa
-                        )
-                        await _send_message(phone, prompt)
-                        return
-                    else:
-                        # No sub-counties, county is final
-                        parsed_val = str(selected_county.id)
+                if not selected_ids:
+                    # Level 2 (County / District) root options
+                    options = _fetch_subcounties(db)
+                    parent_boundary = None
                 else:
-                    # Parse Sub-county choice
-                    text_body = (msg.get("text") or {}).get("body", "").strip()
-                    county_id = session.location
-                    selected_county = (
-                        db.query(SpatialBoundary)
-                        .filter(SpatialBoundary.id == county_id)
-                        .first()
+                    current_parent_id = selected_ids[-1]
+                    parent_boundary = get_boundary_by_id(db, current_parent_id)
+                    options = (
+                        get_child_boundaries(db, str(parent_boundary.id))
+                        if parent_boundary
+                        else []
                     )
-                    sub_counties = (
-                        db.query(SpatialBoundary)
-                        .filter(
-                            SpatialBoundary.level == 3,
-                            SpatialBoundary.parent_id == selected_county.id,
-                        )
-                        .order_by(SpatialBoundary.name)
-                        .all()
-                    )
-                    try:
-                        idx = int(text_body) - 1
-                        if idx < 0 or idx >= len(sub_counties):
-                            raise ValueError()
-                        selected_sc = sub_counties[idx]
-                        parsed_val = str(selected_sc.id)
-                        valid = True
-                    except (ValueError, TypeError):
+
+                try:
+                    idx = int(text_body) - 1
+                    if idx < 0 or idx >= len(options):
+                        raise ValueError()
+                    chosen_boundary = options[idx]
+                except (ValueError, TypeError):
+                    if not parent_boundary:
+                        menu = _format_location_menu(options, lang)
+                        sub_prompt = menu
+                    else:
                         menu_lines = [
-                            f"  {i}: {sc.name}"
-                            for i, sc in enumerate(sub_counties, 1)
+                            f"  {i}: {o.name}"
+                            for i, o in enumerate(options, 1)
                         ]
                         menu = "\n".join(menu_lines)
-                        prompt = (
-                            f"Tafadhali jibu kwa nambari sahihi.\n\nChagua wilaya ndogo ya {selected_county.name}:\n\n{menu}"  # noqa
+                        p_name = parent_boundary.name
+                        sub_prompt = (
+                            f"Chagua eneo chini ya {p_name}:\n\n{menu}"
                             if lang == "sw"
-                            else f"Please reply with a valid number.\n\nChoose sub-county of {selected_county.name}:\n\n{menu}"  # noqa
+                            else f"Choose location under {p_name}:\n\n{menu}"
                         )
-                        await _send_message(phone, prompt)
-                        return
+
+                    prompt = (
+                        f"Tafadhali jibu kwa nambari sahihi.\n\n{sub_prompt}"
+                        if lang == "sw"
+                        else f"Please reply with a valid number.\n\n{sub_prompt}"  # noqa
+                    )
+                    await _send_message(phone, prompt)
+                    return
+
+                # Check if chosen_boundary has dynamic child boundaries
+                children = get_child_boundaries(db, str(chosen_boundary.id))
+
+                if children:
+                    # Advance session location path and prompt for children
+                    new_path = (
+                        f"{session.location}|{chosen_boundary.id}"
+                        if session.location
+                        else str(chosen_boundary.id)
+                    )
+                    session.location = new_path
+                    db.commit()
+
+                    menu_lines = [
+                        f"  {i}: {ch.name}" for i, ch in enumerate(children, 1)
+                    ]
+                    menu = "\n".join(menu_lines)
+                    cb_name = chosen_boundary.name
+                    prompt = (
+                        f"Chagua eneo chini ya {cb_name}:\n\n{menu}"
+                        if lang == "sw"
+                        else f"Choose location under {cb_name}:\n\n{menu}"
+                    )
+                    await _send_message(phone, prompt)
+                    return
+                else:
+                    # Leaf node reached (no child boundaries exist)
+                    parsed_val = str(chosen_boundary.id)
+                    valid = True
 
             elif curr_q.type == "option":
                 text_body = (msg.get("text") or {}).get("body", "").strip()

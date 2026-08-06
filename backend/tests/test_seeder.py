@@ -293,8 +293,36 @@ def test_seed_spatial_success(db_session: Session):
     )
     assert len(actions) == 80
 
-    # 5. Assert Sub-counties created
-    sub_counties = db_session.query(SpatialBoundary).all()
+    # 5. Assert Sub-counties & Wards created
+    all_boundaries = db_session.query(SpatialBoundary).all()
+    assert len(all_boundaries) > 28
+
+    wards = (
+        db_session.query(SpatialBoundary)
+        .filter(SpatialBoundary.level == 4)
+        .all()
+    )
+    assert len(wards) == 73
+
+    # Check a specific ward (e.g. Silibwet Township)
+    silibwet = (
+        db_session.query(SpatialBoundary)
+        .filter(
+            SpatialBoundary.name == "Silibwet Township",
+            SpatialBoundary.level == 4,
+        )
+        .first()
+    )
+    assert silibwet is not None
+    assert silibwet.parent is not None
+    assert silibwet.parent.name == "Bomet Central"
+    assert silibwet.centroid_geom is not None
+
+    sub_counties = (
+        db_session.query(SpatialBoundary)
+        .filter(SpatialBoundary.level.in_([1, 2, 3]))
+        .all()
+    )
     assert len(sub_counties) == 28
 
     mara_sub_counties = [
@@ -366,7 +394,7 @@ def test_seed_spatial_success(db_session: Session):
     assert len(db_session.query(Basin).all()) == 2
     assert len(db_session.query(Wetland).all()) == 2
     assert len(db_session.query(Site).all()) == 8
-    assert len(db_session.query(SpatialBoundary).all()) == 28
+    assert len(db_session.query(SpatialBoundary).all()) == 101
 
 
 def test_seed_citizen_reporter_v2_no_water(db_session: Session):
