@@ -23,6 +23,7 @@
       "optionStormEvent": "Storm event",
       "optionHighWater": "High water level",
       "optionLowWater": "Low water level",
+      "optionNoWater": "No water",
       "critical": "Critical",
       "atRisk": "At risk",
       "healthy": "Healthy",

@@ -430,7 +430,11 @@ export default function Home() {
   useEffect(() => {
     getFormsList(locale)
       .then((formsList) => {
-        const pForm = formsList.find((f) => f.type === 1);
+        // Find latest version of Citizen Reporter form (type === 1)
+        const type1Forms = formsList.filter((f) => f.type === 1);
+        const pForm = type1Forms.sort(
+          (a, b) => (b.version || 0) - (a.version || 0)
+        )[0];
         if (pForm) {
           return getFormDetails(pForm.id, locale);
         }
@@ -439,9 +443,12 @@ export default function Home() {
       .then((fullForm) => {
         if (fullForm) {
           let foundOptions: Array<{ value: string; label: string }> = [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           fullForm.question_groups?.forEach((group: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             group.questions?.forEach((q: any) => {
               if (q.name === "incident_type" && q.options) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 foundOptions = q.options.map((opt: any) => ({
                   value: String(opt.value),
                   label: opt.label || opt.name,
@@ -462,6 +469,7 @@ export default function Home() {
           { value: "4", label: t("filters.optionStormEvent") },
           { value: "5", label: t("filters.optionHighWater") },
           { value: "6", label: t("filters.optionLowWater") },
+          { value: "7", label: t("filters.optionNoWater") },
         ]);
       })
       .catch((err) => {
@@ -473,6 +481,7 @@ export default function Home() {
           { value: "4", label: t("filters.optionStormEvent") },
           { value: "5", label: t("filters.optionHighWater") },
           { value: "6", label: t("filters.optionLowWater") },
+          { value: "7", label: t("filters.optionNoWater") },
         ]);
       });
   }, [locale, t, getFormsList, getFormDetails]);
