@@ -314,7 +314,14 @@ class TestConsentState:
             sess.answers,
         )
 
-        # Step 4: Answer cascade question (Sub-county -> 1)
+        # Step 4a: Answer cascade question (Sub-county -> 1: Bumula)
+        with patch(
+            "app.services.whatsapp_service.SessionLocal",
+            return_value=db_session,
+        ):
+            _post_webhook(_wa_payload(phone, "1"))
+
+        # Step 4b: Answer cascade question (Ward -> 1: Bumula Ward)
         with patch(
             "app.services.whatsapp_service.SessionLocal",
             return_value=db_session,

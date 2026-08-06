@@ -18,6 +18,7 @@ from app.services.scoring.handlers.wetland import (
     map_class_to_color,
     get_latest_fgd_record,
 )
+from app.services.spatial_service import get_child_boundaries
 
 router = APIRouter(prefix="/api/v1", tags=["spatial"])
 
@@ -545,6 +546,18 @@ def list_sub_counties(
             .filter(SpatialBoundary.parent_id == parent_uuid)
             .all()
         )
+    except (ValueError, TypeError):
+        return []
+
+
+@router.get(
+    "/reference/wards/{sub_county_id}",
+    response_model=list[schemas.SpatialBoundary],
+)
+def list_wards(sub_county_id: str, db: Session = Depends(get_db)):
+    try:
+        sc_uuid = uuid.UUID(sub_county_id)
+        return get_child_boundaries(db, str(sc_uuid))
     except (ValueError, TypeError):
         return []
 

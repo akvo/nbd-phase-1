@@ -18,6 +18,11 @@ from app.models.form import (
 from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.citizen import Citizen
 from app.services.ussd_pager import USSDDynamicPager
+from app.services.spatial_service import (
+    get_root_boundaries,
+    get_child_boundaries,
+    has_child_boundaries,
+)
 
 router = APIRouter(prefix="/api/v1/ussd", tags=["ussd"])
 
@@ -304,96 +309,75 @@ def _handle_ussd_core(
                 user_input = parts[input_idx].strip()
 
                 if q.type == "cascade":
-                    # Level 2 (County) selection
-                    counties = (
-                        db.query(SpatialBoundary)
-                        .join(Basin)
-                        .filter(
-                            Basin.code.in_(basins), SpatialBoundary.level == 2
-                        )
-                        .order_by(
-                            SpatialBoundary.basin_id, SpatialBoundary.name
-                        )
-                        .all()
-                    )
+                    # Dynamic spatial boundary hierarchy (leaf-node detection)
+                    curr_parent = None
+                    consumed_count = 0
 
-                    pager = USSDDynamicPager(page_size=3)
-                    q_label = get_translation(q.translations, lang, q.label)
-                    res = pager.render_page(
-                        counties,
-                        parts[input_idx:],
-                        f"{q_label}:",
-                        lang=lang,
-                        is_cascade=True,
-                    )
+                    while True:
+                        if curr_parent is None:
+                            options = get_root_boundaries(
+                                db, basin_codes=basins
+                            )
+                            label = get_translation(
+                                q.translations, lang, q.label
+                            )
+                        else:
+                            options = get_child_boundaries(
+                                db, str(curr_parent.id)
+                            )
+                            p_name = curr_parent.name
+                            label = (
+                                f"Chagua eneo chini ya {p_name}"
+                                if lang == "sw"
+                                else f"Choose location under {p_name}"
+                            )
 
-                    if res["selected"] is not None:
-                        selected_county = res["selected"]
-                        # Cleanse parts to replace paging path
-                        # with the selected option value
-                        parts = (
-                            parts[:input_idx]
-                            + [res["final_value"]]
-                            + parts[input_idx + res["consumed"] :]  # noqa
-                        )
-                    else:
-                        return PlainTextResponse(
-                            clean_ussd_response(f"CON {res['prompt_text']}")
-                        )
+                        if not options:
+                            if curr_parent is not None:
+                                current_answers[q.id] = str(curr_parent.id)
+                                current_answers[q.name] = str(curr_parent.id)
+                                input_idx += consumed_count
+                            break
 
-                    sub_counties = (
-                        db.query(SpatialBoundary)
-                        .filter(
-                            SpatialBoundary.level == 3,
-                            SpatialBoundary.parent_id == selected_county.id,
-                        )
-                        .order_by(SpatialBoundary.name)
-                        .all()
-                    )
-
-                    if sub_counties:
-                        # Dynamic paging for sub-county selection
-                        pager_sc = USSDDynamicPager(page_size=3)
-                        sc_inputs = parts[input_idx + 1 :]  # noqa
-                        sc_label = (
-                            f"Chagua Wilaya ndogo ya {selected_county.name}:"
-                            if lang == "sw"
-                            else f"Choose Sub-County of {selected_county.name}:"  # noqa
-                        )
-                        res_sc = pager_sc.render_page(
-                            sub_counties,
-                            sc_inputs,
-                            sc_label,
+                        pager = USSDDynamicPager(page_size=3)
+                        res = pager.render_page(
+                            options,
+                            parts[input_idx + consumed_count :],  # noqa
+                            f"{label}:",
                             lang=lang,
                             is_cascade=True,
                         )
 
-                        if res_sc["selected"] is not None:
-                            selected_sc = res_sc["selected"]
-                            current_answers[q.id] = str(selected_sc.id)
-                            current_answers[q.name] = str(selected_sc.id)
-                            # Cleanse parts for the sub-county pagination
+                        if res["selected"] is not None:
+                            curr_parent = res["selected"]
+                            selected_sc = curr_parent
                             parts = (
-                                parts[: input_idx + 1]
-                                + [res_sc["final_value"]]
+                                parts[: input_idx + consumed_count]
+                                + [res["final_value"]]
                                 + parts[
                                     input_idx
-                                    + 1
-                                    + res_sc["consumed"] :  # noqa
+                                    + consumed_count
+                                    + res["consumed"] :  # noqa
                                 ]
                             )
-                            input_idx += 2
+                            consumed_count += 1
+
+                            # Check if curr_parent has any children
+                            has_children = has_child_boundaries(
+                                db, str(curr_parent.id)
+                            )
+
+                            if not has_children:
+                                current_answers[q.id] = str(curr_parent.id)
+                                current_answers[q.name] = str(curr_parent.id)
+                                input_idx += consumed_count
+                                break
                         else:
                             return PlainTextResponse(
                                 clean_ussd_response(
-                                    f"CON {res_sc['prompt_text']}"
+                                    f"CON {res['prompt_text']}"
                                 )
                             )
-                    else:
-                        selected_sc = selected_county
-                        current_answers[q.id] = str(selected_sc.id)
-                        current_answers[q.name] = str(selected_sc.id)
-                        input_idx += 1
 
                 elif q.type == "option":
                     options = (

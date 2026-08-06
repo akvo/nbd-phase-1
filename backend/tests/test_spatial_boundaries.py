@@ -158,3 +158,74 @@ def test_create_spatial_boundary_null_centroid(auth_headers):
     res_reg_data = response_reg.json()
     assert res_reg_data["name"] == "Mara Null Centroid Test"
     assert res_reg_data["centroid_geom"] is None
+
+
+def test_list_wards_endpoint(auth_headers):
+    # 1. Create parent basin
+    basin_data = {
+        "code": "TEST-MARA-WARD-EP",
+        "name": "Test Ward Endpoint Basin",
+        "geom": {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [34.5, -1.5],
+                        [34.6, -1.5],
+                        [34.6, -1.4],
+                        [34.5, -1.4],
+                        [34.5, -1.5],
+                    ]
+                ]
+            ],
+        },
+    }
+    res_basin = client.post(
+        "/api/v1/basins", json=basin_data, headers=auth_headers
+    )
+    assert res_basin.status_code == 201
+    basin_uuid = res_basin.json()["id"]
+
+    # 2. Create Sub-County (L3)
+    sc_data = {
+        "name": "Sub-County Ward Test",
+        "level": 3,
+        "parent_id": None,
+        "basin_id": basin_uuid,
+        "centroid_geom": None,
+    }
+    res_sc = client.post(
+        "/api/v1/reference/sub-counties", json=sc_data, headers=auth_headers
+    )
+    assert res_sc.status_code == 201
+    sc_uuid = res_sc.json()["id"]
+
+    # 3. Create Ward (L4) under Sub-County
+    ward_data = {
+        "name": "Ward Endpoint Test",
+        "level": 4,
+        "parent_id": sc_uuid,
+        "basin_id": basin_uuid,
+        "centroid_geom": None,
+    }
+    res_ward = client.post(
+        "/api/v1/reference/sub-counties", json=ward_data, headers=auth_headers
+    )
+    assert res_ward.status_code == 201
+
+    # 4. GET /reference/wards/{sc_uuid}
+    response = client.get(
+        f"/api/v1/reference/wards/{sc_uuid}", headers=auth_headers
+    )
+    assert response.status_code == 200
+    wards_list = response.json()
+    assert len(wards_list) == 1
+    assert wards_list[0]["name"] == "Ward Endpoint Test"
+    assert wards_list[0]["level"] == 4
+
+    # 5. Invalid UUID returns empty list
+    invalid_res = client.get(
+        "/api/v1/reference/wards/not-a-uuid", headers=auth_headers
+    )
+    assert invalid_res.status_code == 200
+    assert invalid_res.json() == []
