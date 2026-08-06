@@ -4,9 +4,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from app.main import app
 from app.models.user import User
+from app.models.spatial import BoundaryLevel
 from app.config.auth import JWT_SECRET, JWT_ALGORITHM
 
 client = TestClient(app)
+
+
+def test_boundary_level_enum():
+    assert BoundaryLevel.WARD == 4
+    assert BoundaryLevel.WARD.value == 4
+    assert BoundaryLevel.WARD.name == "WARD"
 
 
 @pytest.fixture

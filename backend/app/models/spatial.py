@@ -11,6 +11,7 @@ class BoundaryLevel(int, enum.Enum):
     REGION = 1  # Province / Region
     DISTRICT = 2  # District / County / Kabupaten
     SUB_COUNTY = 3  # Sub-county / Parish / Kecamatan
+    WARD = 4  # Ward / Local Community
 
 
 class Basin(Base):
