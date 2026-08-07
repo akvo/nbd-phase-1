@@ -106,7 +106,8 @@ export default function AdminLayout({
 
   // Dynamic Page Title & Subtitle based on the active tab/route
   let title = "Admin Dashboard";
-  let subtitle = "Nile Voice platform administrative workspace";
+  let subtitle =
+    "NBD Citizen Science Data Hub platform administrative workspace";
   let showBadge = false;
   const badgeLabel = "240 instances";
   let isTabbedRoute = false;
