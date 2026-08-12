@@ -30,6 +30,27 @@ interface NewFormPageProps {
   }>;
 }
 
+// Helper to sanitize blueprint questions for akvo-react-form compatibility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sanitizeBlueprint(bp: any): any {
+  if (!bp) return bp;
+  const cloned = JSON.parse(JSON.stringify(bp));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cloned.question_group?.forEach((group: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    group.question?.forEach((q: any) => {
+      if (q.extra && !Array.isArray(q.extra)) {
+        if (typeof q.extra === "object") {
+          q.extra = Object.keys(q.extra).length > 0 ? [q.extra] : null;
+        } else {
+          q.extra = null;
+        }
+      }
+    });
+  });
+  return cloned;
+}
+
 export default function NewFormPage({ params }: NewFormPageProps) {
   useDynamicStylesheet("/akvo-react-form.css");
   const { formId } = use(params);
@@ -48,7 +69,7 @@ export default function NewFormPage({ params }: NewFormPageProps) {
       .get(`/forms/${formId}/blueprint`)
       .then((res) => {
         if (active) {
-          setBlueprint(res.data);
+          setBlueprint(sanitizeBlueprint(res.data));
           setError(null);
         }
       })

@@ -344,7 +344,7 @@ class BlueprintQuestionSchema(BaseModel):
     dependency: Optional[List[Dict[str, Any]]] = None
     dependencyRule: Optional[str] = None
     api: Optional[Dict[str, Any]] = None
-    extra: Optional[Dict[str, Any]] = None
+    extra: Optional[Any] = None
     tooltip: Optional[Dict[str, Any]] = None
     fn: Optional[Dict[str, Any]] = None
     pre: Optional[Dict[str, Any]] = None
@@ -423,6 +423,12 @@ class BlueprintQuestionSchema(BaseModel):
 
         q_type_str = q.type.value if hasattr(q.type, "value") else str(q.type)
 
+        extra_val = None
+        if isinstance(extra, list) and extra:
+            extra_val = extra
+        elif isinstance(extra, dict) and extra:
+            extra_val = [extra]
+
         return cls(
             id=q.id,
             name=q.name,
@@ -435,7 +441,7 @@ class BlueprintQuestionSchema(BaseModel):
             dependency=q.dependency,
             dependencyRule=q.dependency_rule,
             api=q.api,
-            extra=extra if extra else None,
+            extra=extra_val,
             tooltip=q.tooltip,
             fn=q.fn,
             pre=q.pre or {},

@@ -29,6 +29,27 @@ interface EditFormPageProps {
   }>;
 }
 
+// Helper to sanitize blueprint questions for akvo-react-form compatibility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sanitizeBlueprint(bp: any): any {
+  if (!bp) return bp;
+  const cloned = JSON.parse(JSON.stringify(bp));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cloned.question_group?.forEach((group: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    group.question?.forEach((q: any) => {
+      if (q.extra && !Array.isArray(q.extra)) {
+        if (typeof q.extra === "object") {
+          q.extra = Object.keys(q.extra).length > 0 ? [q.extra] : null;
+        } else {
+          q.extra = null;
+        }
+      }
+    });
+  });
+  return cloned;
+}
+
 export default function EditFormPage({ params }: EditFormPageProps) {
   useDynamicStylesheet("/akvo-react-form.css");
   const { submissionId } = use(params);
@@ -55,7 +76,7 @@ export default function EditFormPage({ params }: EditFormPageProps) {
         const bpRes = await apiClient.get(`/forms/${formId}/blueprint`);
         if (!active) return;
 
-        setBlueprint(bpRes.data);
+        setBlueprint(sanitizeBlueprint(bpRes.data));
 
         // Build initial values array for akvo-react-form in format: Array<{ question: number, value: any }>
         const initialVals = subRes.data.answers.map((a: any) => {
