@@ -115,12 +115,27 @@ export function PollutionDetailsDrawer({
 
   if (!selectedSubCounty) return null;
 
+  const wardName =
+    selectedSubCounty.properties?.name || t("selectedWardFallback");
   const subCountyName =
-    selectedSubCounty.properties?.name || t("selectedSubCountyFallback");
-  const countyName = selectedSubCounty.properties?.county || "";
+    selectedSubCounty.properties?.subCountyName ||
+    selectedSubCounty.properties?.["Sub-County"] ||
+    "";
+  const countyName =
+    selectedSubCounty.properties?.countyName ||
+    selectedSubCounty.properties?.county ||
+    selectedSubCounty.properties?.County ||
+    "";
   const totalIncidents = selectedSubCounty.properties?.incidentCount || 0;
 
-  // Determine sub-county status based on incident count
+  // Header location hierarchy string
+  const locationHierarchy = subCountyName
+    ? `${subCountyName}${countyName ? `, ${countyName}` : ""}`
+    : countyName
+      ? t("countySuffix", { countyName })
+      : t("wardDetails");
+
+  // Determine ward status based on incident count
   let statusColor = "bg-green-50 text-green-700 border-green-200";
   let StatusIcon = CheckCircle;
 
@@ -141,12 +156,10 @@ export function PollutionDetailsDrawer({
       <div className="p-6 border-b border-slate-200 flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
           <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-            {countyName
-              ? t("countySuffix", { countyName })
-              : t("subCountyDetails")}
+            {locationHierarchy}
           </span>
           <h2 className="text-lg font-bold text-slate-800 truncate mt-0.5">
-            {subCountyName}
+            {wardName}
           </h2>
         </div>
         <button
@@ -202,10 +215,10 @@ export function PollutionDetailsDrawer({
           <div className="text-center py-12 space-y-2">
             <CheckCircle className="w-12 h-12 text-slate-300 mx-auto" />
             <h4 className="font-semibold text-slate-700 text-sm">
-              {t("cleanSubCounty")}
+              {t("cleanWard")}
             </h4>
             <p className="text-xs text-slate-400 max-w-60 mx-auto leading-relaxed">
-              {t("noReportedIncidents", { subCountyName })}
+              {t("noReportedIncidents", { wardName })}
             </p>
           </div>
         )}

@@ -1175,7 +1175,7 @@ export default function Home() {
                 ) : (
                   <div className="text-sm text-slate-400 italic py-8 text-center">
                     {selectedSubCounty
-                      ? "No pollution incidents reported in this sub-county."
+                      ? "No pollution incidents reported in this ward."
                       : t("noIncidents")}
                   </div>
                 )}
@@ -1201,7 +1201,7 @@ export default function Home() {
         onClose={() => setSelectedIncident(null)}
       />
 
-      {/* Pollution sub-county details Drawer panel */}
+      {/* Pollution ward details Drawer panel */}
       <PollutionDetailsDrawer
         selectedSubCounty={selectedSubCounty}
         incidents={sidebarIncidents}
