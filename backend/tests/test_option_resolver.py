@@ -221,7 +221,8 @@ def test_option_resolver_scenarios(db_session: Session):
     # Case 4 resolved label (has space but matches directly, no split)
     assert ans_space_val._resolved_value == "North America"
 
-    # Case 5 resolved label (UUID lookup)
+    # Case 5 resolved label (UUID lookup & parent chain expansion)
+    assert ans_cascade.options == [str(region.id), str(county.id)]
     assert ans_cascade._resolved_value == "Bomet County"
 
     # Case 6: allow_other — 'other' token replaced by free-text from ans.name

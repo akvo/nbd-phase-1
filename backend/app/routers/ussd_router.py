@@ -573,7 +573,6 @@ def _handle_ussd_core(
             ):
                 name = str(ans_val)
             elif q.type == QuestionType.cascade:
-                option = [str(ans_val)]
                 boundary = (
                     db.query(SpatialBoundary)
                     .filter(SpatialBoundary.id == ans_val)
@@ -581,8 +580,15 @@ def _handle_ussd_core(
                 )
                 if boundary:
                     name = boundary.name
+                    chain = []
+                    curr = boundary
+                    while curr:
+                        chain.insert(0, str(curr.id))
+                        curr = curr.parent
+                    option = chain
                 else:
                     name = str(ans_val)
+                    option = [str(ans_val)]
             else:
                 # Fallback or numeric types
                 try:

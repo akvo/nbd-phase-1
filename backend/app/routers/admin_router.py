@@ -394,12 +394,16 @@ def edit_submission(
                     else ans_data.name
                 )
             elif q.type == QuestionType.cascade:
-                val_id = (
-                    ans_data.value
-                    if ans_data.value is not None
-                    else (ans_data.options[0] if ans_data.options else None)
-                )
-                option = [str(val_id)] if val_id else None
+                if ans_data.options and isinstance(ans_data.options, list):
+                    option = [str(o) for o in ans_data.options]
+                    val_id = ans_data.options[-1]
+                elif ans_data.value is not None:
+                    val_id = ans_data.value
+                    option = [str(val_id)]
+                else:
+                    val_id = None
+                    option = None
+
                 from app.models.spatial import SpatialBoundary
 
                 boundary = None

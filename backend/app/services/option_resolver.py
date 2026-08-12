@@ -42,6 +42,45 @@ def populate_answers_option_labels(
     if not answers_to_resolve and not all_boundary_ids:
         return
 
+    # Helper map for parent chain lookup
+    boundary_db_map = {}
+    if all_boundary_ids:
+        boundaries = (
+            db.query(SpatialBoundary)
+            .filter(SpatialBoundary.id.in_(all_boundary_ids))
+            .all()
+        )
+        for b in boundaries:
+            boundary_db_map[str(b.id)] = b
+            boundary_db_map[b.id] = b
+
+        # Expand legacy single-UUID or partial options to full chain
+        for ans in answers_to_resolve:
+            if ans.question and ans.question.type == "cascade":
+                if ans.options and len(ans.options) < 3:
+                    leaf_id = ans.options[-1]
+                    b = boundary_db_map.get(
+                        str(leaf_id)
+                    ) or boundary_db_map.get(leaf_id)
+                    if not b:
+                        b = (
+                            db.query(SpatialBoundary)
+                            .filter(SpatialBoundary.id == leaf_id)
+                            .first()
+                        )
+                    if b:
+                        chain = []
+                        curr = b
+                        while curr:
+                            chain.insert(0, str(curr.id))
+                            if str(curr.id) not in boundary_db_map:
+                                boundary_db_map[str(curr.id)] = curr
+                                boundary_db_map[curr.id] = curr
+                                if str(curr.id) not in all_boundary_ids:
+                                    all_boundary_ids.append(str(curr.id))
+                            curr = curr.parent
+                        ans.options = chain
+
     label_map = {}
 
     # Query Options scoped by question IDs
@@ -117,7 +156,7 @@ def populate_answers_option_labels(
         if (
             ans.question
             and ans.question.type == "cascade"
-            and len(resolved) >= 3
+            and len(resolved) > 0
         ):
             ans._resolved_value = resolved[-1]
         else:

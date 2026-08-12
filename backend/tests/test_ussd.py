@@ -198,9 +198,9 @@ def test_ussd_terminal_submission_and_geocoding(db_session: Session):
         .filter(SpatialBoundary.name == "Ilkerin")
         .first()
     )
-    assert expected_ward is not None
     ans_location = [a for a in answers if a.question_id == q_location.id][0]
-    assert ans_location.options == [str(expected_ward.id)]
+    assert str(expected_ward.id) in ans_location.options
+    assert ans_location.options[-1] == str(expected_ward.id)
 
 
 def test_ussd_idempotency():

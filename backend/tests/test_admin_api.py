@@ -638,24 +638,45 @@ def test_edit_submission_cascade_and_fallback_answers(db_session):
     db_session.add(q_casc)
     db_session.commit()
 
-    # Create SpatialBoundary for cascade answer lookup
-    boundary = SpatialBoundary(
-        name="Test Boundary", level=1, basin_id=basin.id
+    # Create 3-tier SpatialBoundary hierarchy: County -> SubCounty -> Ward
+    c_boundary = SpatialBoundary(
+        name="County Level", level=2, basin_id=basin.id
     )
-    db_session.add(boundary)
+    db_session.add(c_boundary)
+    db_session.commit()
+
+    sc_boundary = SpatialBoundary(
+        name="SubCounty Level",
+        level=1,
+        basin_id=basin.id,
+        parent_id=c_boundary.id,
+    )
+    db_session.add(sc_boundary)
+    db_session.commit()
+
+    ward_boundary = SpatialBoundary(
+        name="Ward Level",
+        level=0,
+        basin_id=basin.id,
+        parent_id=sc_boundary.id,
+    )
+    db_session.add(ward_boundary)
     db_session.commit()
 
     dp = Datapoint(form_id=form.id, basin_id=basin.id, status="PENDING")
     db_session.add(dp)
     db_session.commit()
 
-    # Edit answer payload passing valid boundary ID for cascade question
+    # 1. Edit answer payload passing full cascade hierarchy array
     payload = {
         "answers": [
             {
                 "question_id": q_casc.id,
-                "value": str(boundary.id),
-                "name": "Fallback Boundary Name",
+                "options": [
+                    str(c_boundary.id),
+                    str(sc_boundary.id),
+                    str(ward_boundary.id),
+                ],
             },
         ]
     }
@@ -667,11 +688,45 @@ def test_edit_submission_cascade_and_fallback_answers(db_session):
     assert resp.status_code == 200
     assert resp.json()["message"] == "Submission updated successfully"
 
-    # Verify boundary name was retrieved for cascade answer
     ans = (
         db_session.query(Answer)
         .filter(Answer.datapoint_id == dp.id, Answer.question_id == q_casc.id)
         .first()
     )
     assert ans is not None
-    assert ans.name == "Test Boundary"
+    assert ans.name == "Ward Level"
+    assert ans.options == [
+        str(c_boundary.id),
+        str(sc_boundary.id),
+        str(ward_boundary.id),
+    ]
+
+    from app.services.option_resolver import populate_answers_option_labels
+
+    populate_answers_option_labels([dp], db_session)
+    assert ans._resolved_value == "Ward Level"
+
+    # 2. Test legacy resolution fallback for single
+    # Ward UUID option [ward_uuid]
+    ans.options = [str(ward_boundary.id)]
+    db_session.commit()
+
+    populate_answers_option_labels([dp], db_session)
+    assert ans.options == [
+        str(c_boundary.id),
+        str(sc_boundary.id),
+        str(ward_boundary.id),
+    ]
+    assert ans._resolved_value == "Ward Level"
+
+    # 3. Test legacy resolution fallback for partial
+    # SubCounty UUID option [sc_uuid]
+    ans.options = [str(sc_boundary.id)]
+    db_session.commit()
+
+    populate_answers_option_labels([dp], db_session)
+    assert ans.options == [
+        str(c_boundary.id),
+        str(sc_boundary.id),
+    ]
+    assert ans._resolved_value == "SubCounty Level"
