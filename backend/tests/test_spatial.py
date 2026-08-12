@@ -439,3 +439,125 @@ def test_router_exceptions(mock_from_shape, db_session: Session):
     }
     res = client.post("/api/v1/sites", json=site_data, headers=headers)
     assert res.status_code == 400
+
+
+def test_spatial_not_found_routes():
+    fake_uuid = str(uuid.uuid4())
+    # Non-existent basin
+    res = client.get(f"/api/v1/basins/{fake_uuid}")
+    assert res.status_code == 404
+
+    # Non-existent wetland
+    res = client.get(f"/api/v1/wetlands/{fake_uuid}")
+    assert res.status_code == 404
+
+    # Non-existent site
+    res = client.get(f"/api/v1/sites/{fake_uuid}")
+    assert res.status_code == 404
+
+
+def test_enrich_site_status_abnormal_metrics(db_session):
+    from decimal import Decimal
+    from app.models.spatial import Basin, Wetland, Site
+    from app.models.health_score import HealthScore
+    from app.models.sampling_record import SamplingRecord
+    from app.routers.spatial_router import compute_site_status
+
+    b_geom = "SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))"
+    basin = Basin(name="Abnormal Basin", code="AB-BASIN", geom=b_geom)
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        name="Abnormal Wetland",
+        code="AB-WETLAND",
+        basin_id=basin.id,
+        geom=b_geom,
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        name="Abnormal Site",
+        code="AB-SITE",
+        wetland_id=wetland.id,
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    score = HealthScore(
+        site_id=site.id,
+        wqi_score=Decimal("0.20"),
+        composite_score=Decimal("0.30"),
+        ik_signal_value=Decimal("0.50"),
+        adjusted_score=Decimal("0.25"),
+        health_class="D",
+    )
+    db_session.add(score)
+
+    from datetime import datetime
+
+    sampling = SamplingRecord(
+        site_id=site.id,
+        ph_value=Decimal("5.5"),  # Abnormal < 6.5
+        temp_value=Decimal("35.0"),  # Abnormal > 30
+        do_value=Decimal("3.0"),  # Low < 5.0
+        water_level="HIGH",  # Flood Risk
+        invasive_macrophytes=Decimal("50.0"),
+        sampled_at=datetime.utcnow(),
+    )
+    db_session.add(sampling)
+    db_session.commit()
+
+    compute_site_status(db_session, site)
+
+    status = site.status
+    assert status["metrics"]["ph"]["status"] == "Abnormal"
+    assert status["metrics"]["temperature"]["status"] == "Abnormal"
+    assert status["metrics"]["dissolved_oxygen"]["status"] == "Low"
+    assert status["metrics"]["water_level"]["status"] == "Flood Risk"
+    assert status["score_breakdown"]["catchment_hydrological"]["score"] == 0.60
+
+
+def test_reference_cascade_endpoints(db_session):
+    # Test list_all_sub_counties and filter by parent_id
+    res = client.get("/api/v1/reference/sub-counties")
+    assert res.status_code == 200
+    assert isinstance(res.json(), list)
+
+    res_root = client.get("/api/v1/reference/sub-counties/0")
+    assert res_root.status_code == 200
+    assert isinstance(res_root.json(), list)
+
+    res_invalid = client.get("/api/v1/reference/sub-counties/invalid-id")
+    assert res_invalid.status_code == 200
+    assert res_invalid.json() == []
+
+    # Test list_wards with invalid UUID
+    res_wards_invalid = client.get("/api/v1/reference/wards/invalid-id")
+    assert res_wards_invalid.status_code == 200
+    assert res_wards_invalid.json() == []
+
+    # Test list_all_reference_wetlands & list_reference_wetlands
+    res_wetlands_all = client.get("/api/v1/reference/wetlands")
+    assert res_wetlands_all.status_code == 200
+    assert isinstance(res_wetlands_all.json(), list)
+
+    res_wetlands_invalid = client.get("/api/v1/reference/wetlands/invalid-id")
+    assert res_wetlands_invalid.status_code == 200
+    assert res_wetlands_invalid.json() == []
+
+    # Test list_all_reference_sites & list_reference_sites
+    res_sites_all = client.get("/api/v1/reference/sites")
+    assert res_sites_all.status_code == 200
+    assert isinstance(res_sites_all.json(), list)
+
+    res_sites_invalid = client.get("/api/v1/reference/sites/invalid-id")
+    assert res_sites_invalid.status_code == 200
+    assert res_sites_invalid.json() == []
+
+    # Test cascade options
+    res_cascade = client.get("/api/v1/reference/cascade-options")
+    assert res_cascade.status_code == 200
+    assert len(res_cascade.json()) == 3

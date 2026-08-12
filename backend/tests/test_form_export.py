@@ -351,3 +351,31 @@ def test_export_xlsform_with_validation_rules(db_session):
     assert q_row[constraint_idx] == ". >= 2 and . <= 10"
     assert q_row[msg_en_idx] == "Value must be between 2 and 10"
     assert q_row[msg_fr_idx] == "La valeur doit être comprise entre 2 et 10"
+
+
+def test_translation_label_fallbacks():
+    from app.services.form_export import FormExportService
+
+    # 1. Matching translation found
+    item1 = {
+        "label": "Default Label",
+        "translations": [{"lang": "sw", "label": "Jina la Kiswahili"}],
+    }
+    assert (
+        FormExportService.get_translation_label(item1, "sw", "Fallback")
+        == "Jina la Kiswahili"
+    )
+
+    # 2. English requested with no translation object, fallback to item label
+    item2 = {"label": "Item Label"}
+    assert (
+        FormExportService.get_translation_label(item2, "en", "Fallback")
+        == "Item Label"
+    )
+
+    # 3. Non-matching language with no item label, fallback to default_val
+    item3 = {"translations": [{"lang": "fr", "label": "French"}]}
+    assert (
+        FormExportService.get_translation_label(item3, "sw", "Default Text")
+        == "Default Text"
+    )

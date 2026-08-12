@@ -369,6 +369,53 @@ def test_approve_submission_with_fuzzy_logic_adjustment(
     assert health_score.health_class == "C"
 
 
+def test_fuzzy_rules_branches():
+    from app.services.scoring.handlers.wetland import (
+        apply_fuzzy_rules,
+        calculate_ik_signal,
+    )
+    from app.models.fgd_record import FgdRecord
+
+    # Composite <= 0.40 (Low c_set)
+    # IK <= 0.20 (None ik_set)
+    res1 = apply_fuzzy_rules(Decimal("0.30"), Decimal("0.10"))
+    assert res1 == Decimal("0.43")
+    # IK > 0.70 (Strong ik_set)
+    res2 = apply_fuzzy_rules(Decimal("0.30"), Decimal("0.80"))
+    assert res2 == Decimal("0.43")
+
+    # Composite <= 0.80 (Medium c_set)
+    # IK <= 0.20 (None ik_set -> centroid = 0.70)
+    res3 = apply_fuzzy_rules(Decimal("0.60"), Decimal("0.10"))
+    assert res3 == Decimal("0.67")
+    # IK > 0.20 and <= 0.70 (Moderate ik_set -> centroid = 0.50)
+    res4 = apply_fuzzy_rules(Decimal("0.60"), Decimal("0.50"))
+    assert res4 == Decimal("0.53")
+
+    # Composite > 0.80 (High c_set)
+    # IK <= 0.20 (None ik_set -> centroid = 0.90)
+    res5 = apply_fuzzy_rules(Decimal("0.90"), Decimal("0.10"))
+    assert res5 == Decimal("0.90")
+    # IK > 0.20 (Moderate/Strong ik_set -> centroid = 0.70)
+    res6 = apply_fuzzy_rules(Decimal("0.90"), Decimal("0.50"))
+    assert res6 == Decimal("0.77")
+
+    # FGD record with missing/None fields for calculate_ik_signal
+    fgd_partial = FgdRecord(
+        fish_abundance="Moderate",  # 0.6 / 3 = 0.20
+        water_clarity=None,
+        vegetation_cover=None,
+    )
+    assert calculate_ik_signal(fgd_partial) == Decimal("0.20")
+
+    fgd_empty = FgdRecord(
+        fish_abundance=None,
+        water_clarity=None,
+        vegetation_cover=None,
+    )
+    assert calculate_ik_signal(fgd_empty) == Decimal("0.00")
+
+
 def test_defuzzification_class_and_color_mappings():
     # Test that different scores yield correct health classes and color codes
     from app.services.scoring.handlers.wetland import map_health_class

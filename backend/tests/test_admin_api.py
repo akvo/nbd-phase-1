@@ -608,3 +608,12 @@ def test_get_submission(db_session):
     )
     assert resp.status_code == 200
     assert resp.json()["id"] == dp.id
+
+
+def test_get_submission_not_found(db_session):
+    headers = get_auth_headers(db_session)
+    resp = client.get(
+        "/api/v1/admin/submissions/999999",
+        headers=headers,
+    )
+    assert resp.status_code == 404

@@ -412,3 +412,31 @@ def test_update_form_settings(db_session):
     assert res_data["name"] == "New Name"
     assert res_data["type"] == 2
     assert res_data["status"] == 1  # Unchanged
+
+
+def test_form_error_handling_branches(db_session):
+    headers = get_auth_headers(db_session, email="form_err_admin@nbd.org")
+
+    # Non-existent form lookup
+    res = client.get("/api/v1/forms/999999", headers=headers)
+    assert res.status_code == 404
+
+    # Non-existent form settings update
+    res = client.patch(
+        "/api/v1/forms/999999/settings",
+        json={"name": "Missing"},
+        headers=headers,
+    )
+    assert res.status_code == 404
+
+    # Non-existent form publish
+    res = client.post("/api/v1/forms/999999/publish", headers=headers)
+    assert res.status_code == 404
+
+    # Create form for settings check
+    form_res = client.post(
+        "/api/v1/forms",
+        json={"name": "Check Form", "type": 1},
+        headers=headers,
+    )
+    assert form_res.status_code == 201
