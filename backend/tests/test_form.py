@@ -433,10 +433,103 @@ def test_form_error_handling_branches(db_session):
     res = client.post("/api/v1/forms/999999/publish", headers=headers)
     assert res.status_code == 404
 
-    # Create form for settings check
+
+def test_update_form_with_options_crud(db_session):
+    headers = get_auth_headers(db_session, email="opt_admin@nbd.org")
     form_res = client.post(
         "/api/v1/forms",
-        json={"name": "Check Form", "type": 1},
+        json={"name": "Option Form", "type": 1},
         headers=headers,
     )
-    assert form_res.status_code == 201
+    form_id = form_res.json()["id"]
+
+    group_res = client.post(
+        "/api/v1/question-groups",
+        json={"form_id": form_id, "name": "g1", "label": "Group 1"},
+        headers=headers,
+    )
+    group_id = group_res.json()["id"]
+
+    q_res = client.post(
+        "/api/v1/questions",
+        json={
+            "form_id": form_id,
+            "question_group_id": group_id,
+            "name": "q_opt",
+            "label": "Choice Question",
+            "type": "option",
+        },
+        headers=headers,
+    )
+    q_id = q_res.json()["id"]
+
+    opt1_res = client.post(
+        "/api/v1/options",
+        json={
+            "question_id": q_id,
+            "order": 1,
+            "label": "Opt 1",
+            "value": "v1",
+        },
+        headers=headers,
+    )
+    opt2_res = client.post(
+        "/api/v1/options",
+        json={
+            "question_id": q_id,
+            "order": 2,
+            "label": "Opt 2",
+            "value": "v2",
+        },
+        headers=headers,
+    )
+    opt1_id = opt1_res.json()["id"]
+    opt2_id = opt2_res.json()["id"]
+
+    # PUT blueprint payload to update opt1, remove opt2, and create new opt3
+    update_data = {
+        "name": "Option Form Updated",
+        "type": 1,
+        "languages": ["en"],
+        "translations": [],
+        "question_group": [
+            {
+                "id": group_id,
+                "name": "g1",
+                "label": "Group 1",
+                "order": 1,
+                "question": [
+                    {
+                        "id": q_id,
+                        "name": "q_opt",
+                        "label": "Choice Question",
+                        "type": "option",
+                        "order": 1,
+                        "option": [
+                            {
+                                "id": opt1_id,
+                                "label": "Opt 1 Updated",
+                                "value": "v1_updated",
+                            },
+                            {
+                                "label": "Opt 3 New",
+                                "value": "v3",
+                            },
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+
+    put_res = client.put(
+        f"/api/v1/forms/{form_id}", json=update_data, headers=headers
+    )
+    assert put_res.status_code == 200
+
+    from app.models.form import Option
+
+    opt1_db = db_session.query(Option).filter(Option.id == opt1_id).first()
+    opt2_db = db_session.query(Option).filter(Option.id == opt2_id).first()
+    assert opt1_db.label == "Opt 1 Updated"
+    assert opt2_db is None

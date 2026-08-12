@@ -561,3 +561,88 @@ def test_reference_cascade_endpoints(db_session):
     res_cascade = client.get("/api/v1/reference/cascade-options")
     assert res_cascade.status_code == 200
     assert len(res_cascade.json()) == 3
+
+
+def test_site_crud_and_boundary_create(db_session):
+    admin_token = create_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # 1. Setup parent basin & wetland
+    basin_data = {
+        "code": "CRUD-BASIN",
+        "name": "CRUD Basin",
+        "geom": {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [34.0, -1.0],
+                        [35.0, -1.0],
+                        [35.0, 0.0],
+                        [34.0, 0.0],
+                        [34.0, -1.0],
+                    ]
+                ]
+            ],
+        },
+    }
+    b_res = client.post("/api/v1/basins", json=basin_data, headers=headers)
+    assert b_res.status_code == 201
+    basin_id = b_res.json()["id"]
+
+    wetland_data = {
+        "code": "CRUD-WETLAND",
+        "name": "CRUD Wetland",
+        "basin_id": basin_id,
+        "geom": {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [34.1, -0.9],
+                    [34.9, -0.9],
+                    [34.9, -0.1],
+                    [34.1, -0.1],
+                    [34.1, -0.9],
+                ]
+            ],
+        },
+    }
+    w_res = client.post("/api/v1/wetlands", json=wetland_data, headers=headers)
+    assert w_res.status_code == 201
+    wetland_id = w_res.json()["id"]
+
+    # 2. Test create site
+    site_data = {
+        "code": "CRUD-SITE-1",
+        "name": "Original Site Name",
+        "wetland_id": wetland_id,
+        "geom": {"type": "Point", "coordinates": [34.5, -0.5]},
+    }
+    s_res = client.post("/api/v1/sites", json=site_data, headers=headers)
+    assert s_res.status_code == 201
+    site_id = s_res.json()["id"]
+
+    # 3. Test update site name and code
+    upd_res = client.put(
+        f"/api/v1/sites/{site_id}",
+        json={"name": "Updated Site Name", "description": "Updated Desc"},
+        headers=headers,
+    )
+    assert upd_res.status_code == 200
+    assert upd_res.json()["name"] == "Updated Site Name"
+
+    # 4. Test delete site
+    del_res = client.delete(f"/api/v1/sites/{site_id}", headers=headers)
+    assert del_res.status_code == 204
+
+    # 5. Test create sub-county boundary
+    boundary_data = {
+        "name": "Sub County 1",
+        "level": 1,
+        "basin_id": basin_id,
+    }
+    sb_res = client.post(
+        "/api/v1/reference/sub-counties", json=boundary_data, headers=headers
+    )
+    assert sb_res.status_code == 201
+    assert sb_res.json()["name"] == "Sub County 1"

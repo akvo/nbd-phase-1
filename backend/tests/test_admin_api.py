@@ -4,7 +4,7 @@ from app.main import app
 from app.models.user import User
 from app.models.submission import Datapoint, Answer
 from app.models.form import Form, Question, QuestionGroup
-from app.models.spatial import Basin, Site, Wetland
+from app.models.spatial import Basin, Site, Wetland, SpatialBoundary
 from app.models.citizen import Citizen
 from app.models.dead_letter import DeadLetter
 from app.models.audit_log import AuditLog
@@ -617,3 +617,61 @@ def test_get_submission_not_found(db_session):
         headers=headers,
     )
     assert resp.status_code == 404
+
+
+def test_edit_submission_cascade_and_fallback_answers(db_session):
+    headers = get_auth_headers(db_session, email="edit_casc_admin@nbd.org")
+    basin = create_mock_basin(db_session, "Mara Casc")
+    form = create_mock_form(db_session, 1, "Cascade Form")
+    group = QuestionGroup(form_id=form.id, name="g_casc")
+    db_session.add(group)
+    db_session.commit()
+
+    # Create Cascade Question
+    q_casc = Question(
+        form_id=form.id,
+        question_group_id=group.id,
+        name="q_cascade",
+        type="cascade",
+        label="Cascade Q",
+    )
+    db_session.add(q_casc)
+    db_session.commit()
+
+    # Create SpatialBoundary for cascade answer lookup
+    boundary = SpatialBoundary(
+        name="Test Boundary", level=1, basin_id=basin.id
+    )
+    db_session.add(boundary)
+    db_session.commit()
+
+    dp = Datapoint(form_id=form.id, basin_id=basin.id, status="PENDING")
+    db_session.add(dp)
+    db_session.commit()
+
+    # Edit answer payload passing valid boundary ID for cascade question
+    payload = {
+        "answers": [
+            {
+                "question_id": q_casc.id,
+                "value": str(boundary.id),
+                "name": "Fallback Boundary Name",
+            },
+        ]
+    }
+    resp = client.put(
+        f"/api/v1/admin/submissions/{dp.id}",
+        json=payload,
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Submission updated successfully"
+
+    # Verify boundary name was retrieved for cascade answer
+    ans = (
+        db_session.query(Answer)
+        .filter(Answer.datapoint_id == dp.id, Answer.question_id == q_casc.id)
+        .first()
+    )
+    assert ans is not None
+    assert ans.name == "Test Boundary"
