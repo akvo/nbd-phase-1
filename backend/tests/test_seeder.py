@@ -284,9 +284,13 @@ def test_seed_spatial_success(db_session: Session):
 
     from app.schemas.spatial import Site as SiteSchema
 
-    s_sio = [s for s in sites if s.code == "NBD-SIO-001"][0]
+    s_sio1 = [s for s in sites if s.code == "NBD-SIO-001"][0]
+    s_sio2 = [s for s in sites if s.code == "NBD-SIO-002"][0]
+    s_sio3 = [s for s in sites if s.code == "NBD-SIO-003"][0]
     s_mara = [s for s in sites if s.code == "NBD-MARA-001"][0]
-    assert SiteSchema.model_validate(s_sio).country == "Kenya"
+    assert SiteSchema.model_validate(s_sio1).country == "Kenya"
+    assert SiteSchema.model_validate(s_sio2).country == "Uganda"
+    assert SiteSchema.model_validate(s_sio3).country == "Uganda"
     assert SiteSchema.model_validate(s_mara).country == "Tanzania"
 
     # Assert Management Actions per site: 2 GREEN, 4 YELLOW, 4 RED = 10 total

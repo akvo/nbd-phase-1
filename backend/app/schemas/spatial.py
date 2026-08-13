@@ -11,7 +11,13 @@ from pydantic import (
 )
 from shapely.geometry import shape
 
-# Country constants mapping site code keywords to countries
+# Specific site code mappings to countries (e.g. Uganda transboundary sites)
+SITE_COUNTRIES = {
+    "NBD-SIO-002": "Uganda",
+    "NBD-SIO-003": "Uganda",
+}
+
+# Default country constants mapping site code keywords to countries
 COUNTRIES = {
     "SIO": "Kenya",
     "MARA": "Tanzania",
@@ -306,6 +312,8 @@ class Site(SiteBase):
     @property
     def country(self) -> str:
         code_upper = self.code.upper()
+        if code_upper in SITE_COUNTRIES:
+            return SITE_COUNTRIES[code_upper]
         for key, country_name in COUNTRIES.items():
             if key in code_upper:
                 return country_name
