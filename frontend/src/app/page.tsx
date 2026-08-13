@@ -48,9 +48,12 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
     })
   );
 
-  // Match country from backend, fallback to prefix MS1 (Tanzania), SIO (Kenya)
-  const country =
-    site.country || (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
+  // Match country from backend, fallback to code check SIO (Kenya), MARA (Tanzania)
+  const country = site.code?.includes("SIO")
+    ? "Kenya"
+    : site.code?.includes("MARA")
+      ? "Tanzania"
+      : site.country || "Tanzania";
 
   // Parse dynamic score breakdown from status if available
   const score_breakdown = site.status?.score_breakdown || {
@@ -1006,9 +1009,11 @@ export default function Home() {
                       const ikAdjustedScore =
                         site.status?.ik_adjusted_score ?? 0.5;
                       const progressPercent = Math.round(ikAdjustedScore * 100);
-                      const country =
-                        site.country ||
-                        (site.code?.includes("SIO") ? "Kenya" : "Tanzania");
+                      const country = site.code?.includes("SIO")
+                        ? "Kenya"
+                        : site.code?.includes("MARA")
+                          ? "Tanzania"
+                          : site.country || "Tanzania";
 
                       return (
                         <Card

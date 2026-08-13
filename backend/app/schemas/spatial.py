@@ -11,9 +11,10 @@ from pydantic import (
 )
 from shapely.geometry import shape
 
-# Country constants mapping site code prefixes to countries
+# Country constants mapping site code keywords to countries
 COUNTRIES = {
     "SIO": "Kenya",
+    "MARA": "Tanzania",
     "MS1": "Tanzania",
 }
 
@@ -304,12 +305,11 @@ class Site(SiteBase):
     @computed_field
     @property
     def country(self) -> str:
-        prefix = (
-            self.code.split("-")[0].upper()
-            if "-" in self.code
-            else self.code.upper()
-        )
-        return COUNTRIES.get(prefix, "Tanzania")
+        code_upper = self.code.upper()
+        for key, country_name in COUNTRIES.items():
+            if key in code_upper:
+                return country_name
+        return "Tanzania"
 
 
 class SpatialBoundaryBase(BaseModel):
