@@ -51,6 +51,7 @@ export default function AdminLayout({
   const [forms, setForms] = useState<FormItem[]>([]);
   const [formsLoading, setFormsLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const showCsvDownload = false;
 
   // Redirect non-admins away from admin-only routes
   useEffect(() => {
@@ -198,13 +199,15 @@ export default function AdminLayout({
               className="flex items-center space-x-3 relative"
               ref={dropdownRef}
             >
-              <button
-                type="button"
-                className="inline-flex items-center space-x-2 px-4 py-2 border border-slate-200 bg-white rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
-              >
-                <Download className="w-4 h-4 text-slate-500" />
-                <span>Download CSV</span>
-              </button>
+              {showCsvDownload && (
+                <button
+                  type="button"
+                  className="inline-flex items-center space-x-2 px-4 py-2 border border-slate-200 bg-white rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-slate-500" />
+                  <span>Download CSV</span>
+                </button>
+              )}
               <div className="relative">
                 <button
                   type="button"

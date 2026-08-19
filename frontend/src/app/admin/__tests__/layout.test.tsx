@@ -86,8 +86,8 @@ describe("Admin Top-Nav Layout", () => {
 
     // Verify action buttons
     expect(
-      screen.getByRole("button", { name: "Download CSV" })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Download CSV" })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add new" })).toBeInTheDocument();
 
     // Verify secondary sub-navigation tabs
