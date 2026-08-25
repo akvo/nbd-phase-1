@@ -114,3 +114,34 @@ test("renders PDF export button and calls window.print when clicked", () => {
   window.Image = originalImage;
   vi.useRealTimers();
 });
+
+test("renders unscored/unmonitored site gracefully with empty states", () => {
+  const unscoredSite = {
+    site_id: "NBD-SIO-004",
+    site_name: "Siteko Outfall",
+    country: "Uganda",
+    basin: "Victoria",
+    current_health_class: null,
+    current_score: null,
+    last_updated: null,
+    coordinates: [0.5, 34.0] as [number, number],
+    community_signal: "No signal recorded.",
+    progress_percent: null,
+    is_approved: true,
+    is_ik_adjusted: false,
+    details: {
+      score_breakdown: null,
+      water_level: null,
+      metrics: {},
+      management_actions: [],
+    },
+  };
+
+  renderWithIntl(<SiteDrawer site={unscoredSite} onClose={vi.fn()} />);
+
+  expect(screen.getByText("Siteko Outfall")).toBeInTheDocument();
+  expect(screen.getByText("—")).toBeInTheDocument();
+  expect(
+    screen.getAllByText(messages.drawer.noSamplingData).length
+  ).toBeGreaterThanOrEqual(1);
+});

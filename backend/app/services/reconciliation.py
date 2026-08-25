@@ -89,14 +89,20 @@ def reconcile_lab_datapoint(db: Session, lab_dp_id: int) -> None:
             if lab_val == Decimal("0"):
                 continue
 
-            citizen_dec = Decimal(str(citizen_val))
-            lab_dec = Decimal(str(lab_val))
+            citizen_dec = round(Decimal(str(citizen_val)), 2)
+            lab_dec = round(Decimal(str(lab_val)), 2)
 
             # Calculate percentage variance
-            variance = (abs(citizen_dec - lab_dec) / lab_dec) * Decimal("100")
-            status = (
-                "DISCREPANT" if variance > threshold else "RECONCILIATION_OK"
+            raw_variance = (abs(citizen_dec - lab_dec) / lab_dec) * Decimal(
+                "100"
             )
+            status = (
+                "DISCREPANT"
+                if raw_variance > threshold
+                else "RECONCILIATION_OK"
+            )
+            # Cap variance to prevent numeric(6, 2) overflow (max 9999.99)
+            variance = round(min(raw_variance, Decimal("9999.99")), 2)
 
             for citizen in citizens:
                 # Enforce idempotency by checking for existing log

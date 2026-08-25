@@ -48,6 +48,8 @@
     "incidents": "Tukio",
     "incidentsPlural": "Matukio",
     "communitySignal": "Ishara ya Jamii",
+    "noData": "Hakuna Data",
+    "noSamplingDataRecorded": "Hakuna rekodi za sampuli zilizorekodiwa kwa kituo hiki.",
     "noSignal": "Hakuna maelezo ya ishara yaliyorekodiwa.",
     "ikAdjusted": "Imeboreshwa na IK",
     "actionCritical": "Hatua: Uharibifu mkubwa umegunduliwa. Uingiliaji wa haraka unapendekezwa.",
@@ -143,6 +145,9 @@
     "stable": "Imara",
     "showTrend": "Onyesha Mwenendo",
     "hideTrend": "Ficha Mwenendo",
+    "noData": "Hakuna Data",
+    "noReports": "Hakuna ripoti",
+    "noSamplingData": "Hakuna rekodi za sampuli zilizopo kwa kituo hiki cha ufuatiliaji.",
     "noHistoricalData": "Hakuna data ya historia kwa kipindi hiki",
     "scoreHistoryError": "Imeshindwa kupakia historia ya alama",
     "lastReported": "Ripoti ya mwisho"

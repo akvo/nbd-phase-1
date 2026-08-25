@@ -48,6 +48,8 @@
     "incidents": "Incident",
     "incidentsPlural": "Incidents",
     "communitySignal": "Community Signal",
+    "noData": "No Data",
+    "noSamplingDataRecorded": "No sampling records recorded for this station.",
     "noSignal": "No signal details recorded.",
     "ikAdjusted": "IK-adjusted",
     "actionCritical": "Action: Critical degradation detected. Immediate intervention recommended.",
@@ -143,6 +145,9 @@
     "stable": "Stable",
     "showTrend": "Show Trend",
     "hideTrend": "Hide Trend",
+    "noData": "No Data",
+    "noReports": "No reports",
+    "noSamplingData": "No sampling records available for this monitoring station.",
     "noHistoricalData": "No historical data for this period",
     "scoreHistoryError": "Could not load score history",
     "lastReported": "Last reported"

@@ -12,16 +12,16 @@ interface GroupScoreEntry {
 }
 
 interface SiteDetails {
-  score_breakdown: Record<string, GroupScoreEntry>;
-  ik_signal: {
-    encoded_signal_value: number;
-  };
+  score_breakdown?: Record<string, GroupScoreEntry> | null;
+  ik_signal?: {
+    encoded_signal_value?: number | null;
+  } | null;
 }
 
 interface Site {
-  current_health_class: string;
-  current_score: number;
-  is_ik_adjusted: boolean;
+  current_health_class?: string | null;
+  current_score?: number | null;
+  is_ik_adjusted?: boolean;
   details: SiteDetails;
 }
 
@@ -70,14 +70,18 @@ export function ScoreBreakdownPanel({
   ts,
   isPrinting = false,
 }: ScoreBreakdownPanelProps) {
-  const isCritical = ["D", "E"].includes(site.current_health_class);
-  const isAtRisk = site.current_health_class === "C";
+  const hasHealthClass = !!site.current_health_class;
+  const isCritical =
+    hasHealthClass && ["D", "E"].includes(site.current_health_class as string);
+  const isAtRisk = hasHealthClass && site.current_health_class === "C";
 
   let gradeTextClass = "text-green-600";
   if (isCritical) {
     gradeTextClass = "text-red-600";
   } else if (isAtRisk) {
     gradeTextClass = "text-amber-600";
+  } else if (!hasHealthClass) {
+    gradeTextClass = "text-slate-500";
   }
 
   const getScoreColorClass = (score: number) => {
@@ -86,8 +90,31 @@ export function ScoreBreakdownPanel({
     return "bg-red-500";
   };
 
+  const hasScore =
+    site.current_score !== null &&
+    site.current_score !== undefined &&
+    site.details?.score_breakdown != null;
+
+  if (!hasScore) {
+    return (
+      <div className="print-avoid-break">
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white border-b border-slate-200 px-4.5 py-3.5">
+            <h4 className="font-bold text-sm text-slate-800">
+              {t("scoreBreakdown")}
+            </h4>
+          </div>
+          <div className="p-6 text-center text-xs text-slate-500 bg-white">
+            {t("noSamplingData")}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentScoreVal = site.current_score ?? 0;
   const rawComposite = (
-    site.current_score + (site.is_ik_adjusted ? 0.05 : 0)
+    currentScoreVal + (site.is_ik_adjusted ? 0.05 : 0)
   ).toFixed(2);
 
   const scoreBreakdownEntries = Object.entries(
@@ -174,14 +201,16 @@ export function ScoreBreakdownPanel({
               </span>
             </div>
           )}
-          {site.is_ik_adjusted && !hideFuzzy && (
-            <div className="flex justify-between">
-              <span>{t("ikHealthSignal")}</span>
-              <span className="font-semibold text-slate-800">
-                {site.details.ik_signal.encoded_signal_value.toFixed(2)}
-              </span>
-            </div>
-          )}
+          {site.is_ik_adjusted &&
+            !hideFuzzy &&
+            site.details.ik_signal?.encoded_signal_value != null && (
+              <div className="flex justify-between">
+                <span>{t("ikHealthSignal")}</span>
+                <span className="font-semibold text-slate-800">
+                  {site.details.ik_signal.encoded_signal_value.toFixed(2)}
+                </span>
+              </div>
+            )}
           <div
             className={`flex justify-between font-bold ${
               !hideFuzzy ? "border-t border-slate-200/60 pt-2 mt-1" : ""
@@ -189,13 +218,13 @@ export function ScoreBreakdownPanel({
           >
             <span>
               {hideFuzzy
-                ? `Score - Class ${site.current_health_class}`
+                ? `Score - Class ${site.current_health_class || "—"}`
                 : t("adjustedScore", {
-                    healthClass: site.current_health_class,
+                    healthClass: site.current_health_class || "—",
                   })}
             </span>
             <span className="text-sm font-extrabold">
-              {site.current_score.toFixed(2)}
+              {currentScoreVal.toFixed(2)}
             </span>
           </div>
         </div>

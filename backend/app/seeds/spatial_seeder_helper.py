@@ -184,6 +184,35 @@ def seed_spatial(db: Session):
             db.flush()
             logger.info("Updated Wetland: %s", wetland_id)
 
+    # 2.1 Migrate and clean up legacy deprecated wetland codes
+    legacy_map = {
+        "LOWER_MARA_WETLAND": "Mara_Wetland",
+        "SIO_ESTUARY_WETLAND": "Sio_Siteko_Wetland",
+    }
+    for old_code, new_code in legacy_map.items():
+        old_w = db.query(Wetland).filter(Wetland.code == old_code).first()
+        new_w = db.query(Wetland).filter(Wetland.code == new_code).first()
+        if old_w and new_w:
+            from app.models.fgd_record import FgdRecord
+            from app.models.submission import Datapoint
+
+            db.query(FgdRecord).filter(
+                FgdRecord.wetland_id == old_w.id
+            ).update(
+                {FgdRecord.wetland_id: new_w.id}, synchronize_session=False
+            )
+            db.query(Datapoint).filter(
+                Datapoint.wetland_id == old_w.id
+            ).update(
+                {Datapoint.wetland_id: new_w.id}, synchronize_session=False
+            )
+            db.query(Site).filter(Site.wetland_id == old_w.id).update(
+                {Site.wetland_id: new_w.id}, synchronize_session=False
+            )
+            db.delete(old_w)
+            db.flush()
+            logger.info("Migrated legacy wetland %s -> %s", old_code, new_code)
+
     # 3. Seed Sites
     for s_data in data.get("sites", []):
         site_id = s_data["site_id"]

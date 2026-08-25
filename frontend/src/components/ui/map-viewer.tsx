@@ -18,7 +18,7 @@ interface MapMarker {
   status?: string;
   code?: string;
   name?: string;
-  score?: number;
+  score?: number | null;
   description?: string;
   additionalInfo?: string;
 }
@@ -125,11 +125,11 @@ export default function MapViewer({
       let pingBg: string;
       let centerBg: string;
 
-      if (type === "siteDefault") {
+      if (type === "siteDefault" || status === "UNSCORED" || !status) {
         return L.divIcon({
           html: `<div class="relative flex items-center justify-center w-6 h-6">
-              <span class="absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-60 animate-ping"></span>
-              <div class="relative rounded-full h-4.5 w-4.5 bg-teal-600 border border-white shadow"></div>
+              <span class="absolute inline-flex h-full w-full rounded-full bg-slate-300 opacity-60"></span>
+              <div class="relative rounded-full h-4.5 w-4.5 bg-slate-500 border border-white shadow"></div>
             </div>`,
           className: "custom-leaflet-icon",
           iconSize: [24, 24],
@@ -144,9 +144,19 @@ export default function MapViewer({
         } else if (status === "C") {
           pingBg = "bg-amber-400";
           centerBg = "bg-amber-500";
-        } else {
+        } else if (status === "D" || status === "E") {
           pingBg = "bg-red-400";
           centerBg = "bg-red-600";
+        } else {
+          return L.divIcon({
+            html: `<div class="relative flex items-center justify-center w-6 h-6">
+                <span class="absolute inline-flex h-full w-full rounded-full bg-slate-300 opacity-60"></span>
+                <div class="relative rounded-full h-4.5 w-4.5 bg-slate-500 border border-white shadow"></div>
+              </div>`,
+            className: "custom-leaflet-icon",
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          });
         }
 
         return L.divIcon({
