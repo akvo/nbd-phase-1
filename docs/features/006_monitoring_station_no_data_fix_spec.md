@@ -196,3 +196,34 @@ CLI script executable via `./dc.sh exec backend python -m app.scripts.recalculat
 | **T-005** | Unit tests for unmonitored states (frontend + backend) & end-to-end verification          | `frontend/src/app/__tests__/page.test.tsx`, `frontend/src/components/ui/__tests__/site-drawer.test.tsx`, `backend/tests/` | **0.25 h** | Must Have |
 
 **Total Estimated Hours**: **1.75 hours** (~1 hour 45 minutes)
+
+---
+
+## 5. Post-Merge Operational Steps (Deployment Checklist)
+
+Once this PR is merged to `main` and deployed to the target environment (Test or Production cluster):
+
+### Step 1: Run Spatial Seeder Migration
+
+Migrate deprecated wetland codes (`LOWER_MARA_WETLAND`, `SIO_ESTUARY_WETLAND`) to active spatial polygons (`Mara_Wetland`, `Sio_Siteko_Wetland`) and re-link child monitoring stations:
+
+```bash
+./dc.sh exec backend python -m app.seeds.spatial_seeder_helper
+```
+
+### Step 2: Recalculate Historical Scores
+
+Replay and recalculate derived scores in chronological order (Form 3 FGDs $\rightarrow$ Form 2 Sampling $\rightarrow$ Form 4 Lab QA Auto-reconciliation):
+
+```bash
+./dc.sh exec backend python -m app.scripts.recalculate_scores
+```
+
+### Step 3: Production Smoke Test & Verification
+
+1. Open the public Wetland Portal (`https://<domain>`).
+2. Verify stations in **Mara Basin** and **Sio-Siteko Basin**:
+   - Monitored stations display color-coded pins (Green/Amber/Red) corresponding to their calculated scores.
+   - Any stations with no sampling data cleanly display neutral slate pins, `"—"` / `"No Data"`, and `"No sampling records recorded for this station."` without fallback 50% / Grade C warnings.
+3. Open the monitoring station drawer for Sio-Siteko stations:
+   - Confirm physico-chemical metrics, historical trend graphs, and FGD Indigenous Knowledge cards render populated values.

@@ -137,6 +137,18 @@ You can run these scripts inside the backend container for setup and maintenance
   > [!NOTE]
   > When syncing or seeding the forms (especially `form_pipeline_b_citizen_scientist_v2.json`) to production, the `leading_question` for repeat groups must be set to `null` in the JSON seeds and adjusted manually afterward via the admin panel or database. Hardcoding question database IDs inside JSON seeds can violate foreign key constraints if the referenced question has not yet been inserted.
 
+- **Spatial Seeder & Wetland Re-Anchoring**: Migrates legacy wetland codes to active boundary polygons and re-links monitoring stations.
+
+  ```bash
+  ./dc.sh exec backend python -m app.seeds.spatial_seeder_helper
+  ```
+
+- **Historical Score Recalculation Engine**: Replays and recalculates derived scores in chronological order (Form 3 FGDs $\rightarrow$ Form 2 Sampling $\rightarrow$ Form 4 Lab QA Auto-reconciliation). Supports optional filters (`--site-id <SITE_ID>`, `--basin <BASIN_ID>`).
+
+  ```bash
+  ./dc.sh exec backend python -m app.scripts.recalculate_scores
+  ```
+
 - **Interactive Script Runner**: Run any backend scripts or seeders interactively.
 
   ```bash
