@@ -208,7 +208,7 @@ Once this PR is merged to `main` and deployed to the target environment (Test or
 Migrate deprecated wetland codes (`LOWER_MARA_WETLAND`, `SIO_ESTUARY_WETLAND`) to active spatial polygons (`Mara_Wetland`, `Sio_Siteko_Wetland`) and re-link child monitoring stations:
 
 ```bash
-./dc.sh exec backend python -m app.seeds.spatial_seeder_helper
+./dc.sh exec backend python -m app.seeds.seed_spatial
 ```
 
 ### Step 2: Recalculate Historical Scores

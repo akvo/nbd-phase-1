@@ -645,3 +645,17 @@ def seed_spatial(db: Session):
 
     db.commit()
     logger.info("Spatial seeding successfully completed!")
+
+
+if __name__ == "__main__":
+    from app.database import SessionLocal
+
+    logging.basicConfig(level=logging.INFO)
+    db = SessionLocal()
+    try:
+        seed_spatial(db)
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
