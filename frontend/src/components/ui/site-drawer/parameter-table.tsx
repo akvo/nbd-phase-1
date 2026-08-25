@@ -71,6 +71,25 @@ export function ParameterTable({
   tm,
   isPrinting = false,
 }: ParameterTableProps) {
+  const hasAnyMetricData =
+    Object.values(metrics || {}).some(
+      (m) => m.value !== null && m.value !== undefined
+    ) ||
+    (samplingsHistory && samplingsHistory.length > 0);
+
+  if (!hasAnyMetricData) {
+    return (
+      <div className="space-y-3">
+        <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+          {t("parameter")}
+        </h3>
+        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-6 text-center text-xs text-slate-500">
+          {t("noSamplingData")}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">

@@ -35,8 +35,13 @@ const MapViewer = dynamic(() => import("@/components/ui/map-viewer"), {
 const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
   if (!site) return null;
   const coords = site.geom?.coordinates;
-  const healthClass = site.status?.health_class || "C";
-  const compositeScore = site.status?.composite_score ?? 0.5;
+  const hasStatus =
+    !!site.status &&
+    (site.status.health_class != null ||
+      site.status.composite_score != null ||
+      site.status.ik_adjusted_score != null);
+  const healthClass = site.status?.health_class || null;
+  const compositeScore = site.status?.composite_score ?? null;
   const ikAdjustedScore = site.status?.ik_adjusted_score ?? compositeScore;
 
   // Re-map management actions list
@@ -58,28 +63,32 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
         : "Tanzania");
 
   // Parse dynamic score breakdown from status if available
-  const score_breakdown = site.status?.score_breakdown || {
-    physico_chemical: {
-      score: compositeScore,
-      label: "Physico-chemical",
-      icon: "FlaskConical",
-    },
-    catchment_hydrological: {
-      score: compositeScore,
-      label: "Catchment / hydro",
-      icon: "Waves",
-    },
-    ecological: {
-      score: compositeScore,
-      label: "Ecological",
-      icon: "Leaf",
-    },
-    governance: {
-      score: 0.55,
-      label: "Governance",
-      icon: "ShieldCheck",
-    },
-  };
+  const score_breakdown =
+    site.status?.score_breakdown ||
+    (compositeScore !== null
+      ? {
+          physico_chemical: {
+            score: compositeScore,
+            label: "Physico-chemical",
+            icon: "FlaskConical",
+          },
+          catchment_hydrological: {
+            score: compositeScore,
+            label: "Catchment / hydro",
+            icon: "Waves",
+          },
+          ecological: {
+            score: compositeScore,
+            label: "Ecological",
+            icon: "Leaf",
+          },
+          governance: {
+            score: 0.55,
+            label: "Governance",
+            icon: "ShieldCheck",
+          },
+        }
+      : null);
 
   return {
     site_id: site.code,
@@ -88,17 +97,19 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
     basin: site.code?.includes("SIO") ? "SIO_SITEKO" : "MARA",
     current_health_class: healthClass,
     current_score: ikAdjustedScore,
-    last_updated: site.status?.sampling_date || new Date().toISOString(),
+    last_updated: site.status?.sampling_date || null,
     coordinates: coords ? [coords[1], coords[0]] : [0, 0],
     community_signal: site.description || noSignalText,
-    progress_percent: Math.round(ikAdjustedScore * 100),
+    progress_percent:
+      ikAdjustedScore !== null ? Math.round(ikAdjustedScore * 100) : null,
     is_approved: true,
     is_ik_adjusted:
+      hasStatus &&
       site.status?.ik_adjusted_score !== site.status?.composite_score,
     details: {
       score_breakdown,
       physico_chemical: {
-        group_score: score_breakdown.physico_chemical?.score ?? compositeScore,
+        group_score: score_breakdown?.physico_chemical?.score ?? compositeScore,
         ph: site.status?.metrics?.ph?.value ?? null,
         dissolved_oxygen: site.status?.metrics?.dissolved_oxygen?.value ?? null,
         temperature: site.status?.metrics?.temperature?.value ?? null,
@@ -106,20 +117,20 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
       },
       catchment_hydrological: {
         group_score:
-          score_breakdown.catchment_hydrological?.score ?? compositeScore,
+          score_breakdown?.catchment_hydrological?.score ?? compositeScore,
       },
       ecological: {
-        group_score: score_breakdown.ecological?.score ?? compositeScore,
+        group_score: score_breakdown?.ecological?.score ?? compositeScore,
       },
       ik_signal: {
         encoded_signal_value:
           site.status?.ik_signal?.encoded_signal_value ??
           site.status?.ik_adjusted_score ??
-          0.5,
-        fish_abundance: site.status?.ik_signal?.fish_abundance ?? "Same",
-        water_clarity: site.status?.ik_signal?.water_clarity ?? "Same",
-        vegetation_cover: site.status?.ik_signal?.vegetation_cover ?? "Same",
-        pollution_events: site.status?.ik_signal?.pollution_events ?? "None",
+          null,
+        fish_abundance: site.status?.ik_signal?.fish_abundance ?? null,
+        water_clarity: site.status?.ik_signal?.water_clarity ?? null,
+        vegetation_cover: site.status?.ik_signal?.vegetation_cover ?? null,
+        pollution_events: site.status?.ik_signal?.pollution_events ?? null,
       },
       management_actions,
       water_level: site.status?.metrics?.water_level?.value || null,
@@ -127,42 +138,42 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
         ph: site.status?.metrics?.ph || {
           value: null,
           unit: "-",
-          status: "Normal",
+          status: null,
           label: "pH",
           icon: "FlaskConical",
         },
         dissolved_oxygen: site.status?.metrics?.dissolved_oxygen || {
           value: null,
           unit: "mg/L",
-          status: "Normal",
+          status: null,
           label: "Dissolved O₂",
           icon: "Droplets",
         },
         temperature: site.status?.metrics?.temperature || {
           value: null,
           unit: "°C",
-          status: "Normal",
+          status: null,
           label: "Temperature",
           icon: "Thermometer",
         },
         water_level: site.status?.metrics?.water_level || {
           value: null,
           unit: "-",
-          status: "Normal",
+          status: null,
           label: "Water level",
           icon: "Waves",
         },
         turbidity: site.status?.metrics?.turbidity || {
           value: null,
           unit: "NTU",
-          status: "Normal",
+          status: null,
           label: "Turbidity",
           icon: "EyeOff",
         },
         macroinvertebrate: site.status?.metrics?.macroinvertebrate || {
           value: null,
           unit: "index",
-          status: "Normal",
+          status: null,
           label: "Macroinvertebrate",
           icon: "Bug",
         },
@@ -654,13 +665,18 @@ export default function Home() {
         const position: [number, number] = coords
           ? [coords[1], coords[0]]
           : [0, 0];
-        const ikAdjustedScore = site.status?.ik_adjusted_score ?? 0.5;
-        const progressPercent = Math.round(ikAdjustedScore * 100);
+        const ikAdjustedScore =
+          site.status?.ik_adjusted_score ??
+          site.status?.composite_score ??
+          null;
+        const progressPercent =
+          ikAdjustedScore !== null ? Math.round(ikAdjustedScore * 100) : null;
+        const healthClass = site.status?.health_class;
         return {
           position,
-          popupText: `${site.name} (${site.status?.health_class || "N/A"})`,
+          popupText: `${site.name} (${healthClass || t("noData")})`,
           type: "site" as const,
-          status: site.status?.health_class,
+          status: healthClass || "UNSCORED",
           code: site.code,
           name: site.name,
           score: progressPercent,
@@ -1005,12 +1021,22 @@ export default function Home() {
                 ) : selectedDomain === "wetland" ? (
                   filteredSites.length > 0 ? (
                     filteredSites.map((site) => {
-                      const hClass = site.status?.health_class || "C";
-                      const isCritical = ["D", "E"].includes(hClass);
+                      const hasScore =
+                        site.status?.ik_adjusted_score != null ||
+                        site.status?.composite_score != null;
+                      const hClass = site.status?.health_class || null;
+                      const isCritical = hClass
+                        ? ["D", "E"].includes(hClass)
+                        : false;
                       const isAtRisk = hClass === "C";
                       const ikAdjustedScore =
-                        site.status?.ik_adjusted_score ?? 0.5;
-                      const progressPercent = Math.round(ikAdjustedScore * 100);
+                        site.status?.ik_adjusted_score ??
+                        site.status?.composite_score ??
+                        null;
+                      const progressPercent =
+                        ikAdjustedScore !== null
+                          ? Math.round(ikAdjustedScore * 100)
+                          : null;
                       const country =
                         site.country ||
                         (site.code?.includes("SIO-002") ||
@@ -1037,11 +1063,13 @@ export default function Home() {
                             </div>
                             <div
                               className={`w-3 h-3 rounded-full border mt-1 shrink-0 ${
-                                isCritical
-                                  ? "bg-red-500 border-red-600"
-                                  : isAtRisk
-                                    ? "bg-amber-500 border-amber-600"
-                                    : "bg-green-500 border-green-600"
+                                !hasScore
+                                  ? "bg-slate-300 border-slate-400"
+                                  : isCritical
+                                    ? "bg-red-500 border-red-600"
+                                    : isAtRisk
+                                      ? "bg-amber-500 border-amber-600"
+                                      : "bg-green-500 border-green-600"
                               }`}
                             />
                           </div>
@@ -1049,19 +1077,23 @@ export default function Home() {
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full ${
-                                    isCritical
-                                      ? "bg-red-500"
-                                      : isAtRisk
-                                        ? "bg-amber-500"
-                                        : "bg-green-500"
-                                  }`}
-                                  style={{ width: `${progressPercent}%` }}
-                                />
+                                {hasScore && progressPercent !== null ? (
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      isCritical
+                                        ? "bg-red-500"
+                                        : isAtRisk
+                                          ? "bg-amber-500"
+                                          : "bg-green-500"
+                                    }`}
+                                    style={{ width: `${progressPercent}%` }}
+                                  />
+                                ) : null}
                               </div>
-                              <span className="text-[10px] font-bold text-slate-600">
-                                {progressPercent}%
+                              <span className="text-[10px] font-bold text-slate-500">
+                                {hasScore && progressPercent !== null
+                                  ? `${progressPercent}%`
+                                  : t("noData")}
                               </span>
                             </div>
                           </div>
@@ -1090,8 +1122,14 @@ export default function Home() {
                             </span>
                           </div>
 
-                          {/* Action Warning Banners for sites requiring intervention */}
-                          {(isCritical || isAtRisk) && (
+                          {/* Action Warning Banners for sites requiring intervention or unscored info */}
+                          {!hasScore ? (
+                            <div className="p-2 rounded-lg flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-100 text-slate-500">
+                              <span className="leading-snug text-[11px]">
+                                {t("noSamplingDataRecorded")}
+                              </span>
+                            </div>
+                          ) : isCritical || isAtRisk ? (
                             <div
                               className={`p-2.5 rounded-lg flex items-start gap-2 text-xs border ${
                                 isCritical
@@ -1131,7 +1169,7 @@ export default function Home() {
                                 )}
                               </div>
                             </div>
-                          )}
+                          ) : null}
                         </Card>
                       );
                     })

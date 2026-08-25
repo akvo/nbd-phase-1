@@ -32,26 +32,26 @@ interface GroupScoreEntry {
 }
 
 interface SiteDetails {
-  score_breakdown: Record<string, GroupScoreEntry>;
-  physico_chemical: {
-    group_score: number;
-    ph: number;
-    dissolved_oxygen: number;
-    temperature: number;
-    weights: { ph: number; dissolved_oxygen: number };
-  };
-  catchment_hydrological: { group_score: number };
-  ecological: { group_score: number };
-  ik_signal: {
-    encoded_signal_value: number;
-    fish_abundance: string;
-    water_clarity: string;
-    vegetation_cover: string;
-    pollution_events: string;
-  };
-  management_actions: Array<{ label: string; description: string }>;
-  water_level: string;
-  metrics: Record<string, MetricEntry>;
+  score_breakdown?: Record<string, GroupScoreEntry> | null;
+  physico_chemical?: {
+    group_score?: number | null;
+    ph?: number | null;
+    dissolved_oxygen?: number | null;
+    temperature?: number | null;
+    weights?: { ph: number; dissolved_oxygen: number };
+  } | null;
+  catchment_hydrological?: { group_score?: number | null } | null;
+  ecological?: { group_score?: number | null } | null;
+  ik_signal?: {
+    encoded_signal_value?: number | null;
+    fish_abundance?: string | null;
+    water_clarity?: string | null;
+    vegetation_cover?: string | null;
+    pollution_events?: string | null;
+  } | null;
+  management_actions?: Array<{ label: string; description: string }> | null;
+  water_level?: string | null;
+  metrics?: Record<string, MetricEntry> | null;
 }
 
 interface Site {
@@ -59,14 +59,14 @@ interface Site {
   site_name: string;
   country: string;
   basin: string;
-  current_health_class: string;
-  current_score: number;
-  last_updated: string;
+  current_health_class?: string | null;
+  current_score?: number | null;
+  last_updated?: string | null;
   coordinates: [number, number];
   community_signal: string;
-  progress_percent: number;
-  is_approved: boolean;
-  is_ik_adjusted: boolean;
+  progress_percent?: number | null;
+  is_approved?: boolean;
+  is_ik_adjusted?: boolean;
   details: SiteDetails;
 }
 
@@ -194,15 +194,24 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
     }
   };
 
-  const isCritical = ["D", "E"].includes(site.current_health_class);
-  const isAtRisk = site.current_health_class === "C";
+  const hasHealthClass = !!site.current_health_class;
+  const isCritical =
+    hasHealthClass && ["D", "E"].includes(site.current_health_class as string);
+  const isAtRisk = hasHealthClass && site.current_health_class === "C";
 
   // Determine severity themes for header grade circle
-  let gradeCircleClass = "bg-green-500 text-green-50 border-transparent";
-  if (isCritical) {
-    gradeCircleClass = "bg-red-500 text-red-50 border-transparent";
-  } else if (isAtRisk) {
-    gradeCircleClass = "bg-amber-500 text-amber-50 border-transparent";
+  let gradeCircleClass = "bg-slate-100 text-slate-400 border-slate-200";
+  let gradeText = "—";
+
+  if (hasHealthClass && site.current_health_class) {
+    gradeText = site.current_health_class;
+    if (isCritical) {
+      gradeCircleClass = "bg-red-500 text-red-50 border-transparent";
+    } else if (isAtRisk) {
+      gradeCircleClass = "bg-amber-500 text-amber-50 border-transparent";
+    } else {
+      gradeCircleClass = "bg-green-500 text-green-50 border-transparent";
+    }
   }
 
   return (
@@ -229,7 +238,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm border ${gradeCircleClass}`}
           >
-            &nbsp;
+            {gradeText}
           </div>
           <Button
             variant="ghost"
@@ -264,31 +273,31 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           </svg>
           <span>{site.country}</span>
         </div>
-        {site.last_updated && (
-          <div className="flex items-center gap-1 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm">
-            <svg
-              className="w-3.5 h-3.5 text-slate-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            <span>
-              {t("lastReported")}:{" "}
-              {new Date(site.last_updated).toLocaleDateString(locale, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-1 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm">
+          <svg
+            className="w-3.5 h-3.5 text-slate-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          <span>
+            {t("lastReported")}:{" "}
+            {site.last_updated
+              ? new Date(site.last_updated).toLocaleDateString(locale, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })
+              : t("noReports")}
+          </span>
+        </div>
         {site.is_ik_adjusted && !hideFuzzy && (
           <Badge variant="primary">{t("ikAdjusted")}</Badge>
         )}
@@ -313,7 +322,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
               />
             </svg>
             <p className="text-xs text-amber-700 leading-relaxed font-medium">
-              {t("warningMessage", { healthClass: site.current_health_class })}
+              {t("warningMessage", {
+                healthClass: site.current_health_class || "",
+              })}
             </p>
           </div>
         )}
@@ -426,7 +437,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         />
 
         {/* FGD Session Context */}
-        {!hideFGD && (
+        {!hideFGD && site.details?.ik_signal?.encoded_signal_value != null && (
           <div className="space-y-3 print-avoid-break">
             <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
               {t("fgdSession")}
