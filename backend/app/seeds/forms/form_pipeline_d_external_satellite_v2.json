@@ -3,13 +3,13 @@
   "type": 5,
   "form_id": 5,
   "version": 3,
-  "question_groups": [
+  "question_group": [
     {
       "id": 12,
       "name": "Sentinel-2 NDVI",
       "label": "Sentinel-2 NDVI",
       "order": 1,
-      "questions": [
+      "question": [
         {
           "fn": null,
           "id": 47,
@@ -20,7 +20,7 @@
           "type": "number",
           "extra": null,
           "label": "NDVI",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -38,7 +38,7 @@
           "type": "number",
           "extra": null,
           "label": "Water Extent (km2)",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -55,7 +55,7 @@
       "name": "CHIRPS Precipitation",
       "label": "CHIRPS Precipitation",
       "order": 2,
-      "questions": [
+      "question": [
         {
           "fn": null,
           "id": 49,
@@ -66,7 +66,7 @@
           "type": "number",
           "extra": null,
           "label": "Precipitation (mm)",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,

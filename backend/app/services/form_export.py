@@ -163,7 +163,11 @@ class FormExportService:
             choices_headers.append(f"label::{lang_name}")
         choices_sheet.append(choices_headers)
 
-        question_groups = blueprint.get("question_group", [])
+        question_groups = (
+            blueprint.get("question_group")
+            or blueprint.get("question_groups")
+            or []
+        )
         for group in question_groups:
             # Write group start
             group_name = group.get("name")
@@ -186,7 +190,7 @@ class FormExportService:
             row.extend(["" for _ in languages])
             survey_sheet.append(row)
 
-            questions = group.get("question", [])
+            questions = group.get("question") or group.get("questions") or []
             for q in questions:
                 q_name = q.get("name")
                 q_type = q.get("type", "text")
@@ -299,7 +303,7 @@ class FormExportService:
 
                 for lang in languages:
                     msg = ""
-                    if constraint_val and rule_val:
+                    if rule_val and isinstance(rule_val, dict):
                         min_val = rule_val.get("min")
                         max_val = rule_val.get("max")
                         if lang == "sw":
@@ -394,7 +398,7 @@ class FormExportService:
                     )
                     and not is_cascade
                 ):
-                    options = q.get("option") or []
+                    options = q.get("option") or q.get("options") or []
                     if isinstance(options, str):
                         options = []
                     for opt in options:

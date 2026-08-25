@@ -449,3 +449,177 @@ def test_seed_citizen_reporter_v2_no_water(db_session: Session):
     values = [opt.value for opt in options]
     assert "No water" in labels
     assert "7" in values
+
+
+def test_seed_lab_qa_v2_populates_groups_and_questions(db_session: Session):
+    # 1. Seed Lab QA v2 directly via filename_filter
+    seed_forms(
+        db_session,
+        filename_filter="form_pipeline_c_admin_lab_qa_v2.json",
+    )
+
+    # 2. Fetch the Lab QA Report Form
+    form = db_session.query(Form).filter(Form.name == "Lab QA Report").first()
+    assert form is not None
+    assert form.status == 2
+    assert form.type == 4
+
+    # 3. Assert question groups are populated
+    groups = (
+        db_session.query(QuestionGroup)
+        .filter(
+            QuestionGroup.form_id == form.id,
+            QuestionGroup.deleted_at.is_(None),
+        )
+        .order_by(QuestionGroup.order.asc())
+        .all()
+    )
+    assert len(groups) == 2
+    group_names = [g.name for g in groups]
+    assert group_names == ["Site Details", "Chemical & Nutrient Analysis"]
+
+    # 4. Assert questions under Site Details
+    site_group = groups[0]
+    site_questions = [q for q in site_group.questions if q.deleted_at is None]
+    assert len(site_questions) == 1
+    assert site_questions[0].name == "site_id"
+    assert site_questions[0].label == "Select Site"
+    assert site_questions[0].type == "cascade"
+    assert site_questions[0].api == {
+        "list": False,
+        "initial": None,
+        "endpoint": "/api/v1/reference/sites",
+    }
+
+    # 5. Assert questions under Chemical & Nutrient Analysis
+    chem_group = groups[1]
+    chem_questions = [q for q in chem_group.questions if q.deleted_at is None]
+    assert len(chem_questions) == 10
+    chem_q_names = [q.name for q in chem_questions]
+    assert "lab_ph" in chem_q_names
+    assert "lab_temperature" in chem_q_names
+    assert "lab_dissolved_oxygen" in chem_q_names
+    assert "bod" in chem_q_names
+    assert "orthophosphate" in chem_q_names
+    assert "nitrate" in chem_q_names
+    assert "mercury" in chem_q_names
+    assert "heavy_metals" in chem_q_names
+    assert "total_nitrogen" in chem_q_names
+    assert "total_phosphorus" in chem_q_names
+
+    ph_q = [q for q in chem_questions if q.name == "lab_ph"][0]
+    assert ph_q.rule == {"allowDecimal": True}
+    assert ph_q.type == "number"
+
+
+def test_seed_indigenous_knowledge_v2_populates_groups_and_options(
+    db_session: Session,
+):
+    # 1. Seed Indigenous Knowledge v2 directly via filename_filter
+    seed_forms(
+        db_session,
+        filename_filter="form_pipeline_c_admin_indigenous_knowledge_v2.json",
+    )
+
+    # 2. Fetch the Indigenous Knowledge Form
+    form = (
+        db_session.query(Form)
+        .filter(Form.name == "Indigenous Knowledge Record")
+        .first()
+    )
+    assert form is not None
+    assert form.status == 2
+    assert form.type == 3
+
+    # 3. Assert question groups are populated
+    groups = (
+        db_session.query(QuestionGroup)
+        .filter(
+            QuestionGroup.form_id == form.id,
+            QuestionGroup.deleted_at.is_(None),
+        )
+        .order_by(QuestionGroup.order.asc())
+        .all()
+    )
+    assert len(groups) == 3
+    assert [g.name for g in groups] == [
+        "Contextual Metadata",
+        "Fuzzy Logic Dimensions",
+        "Historical and Local Practices",
+    ]
+
+    # 4. Contextual Metadata questions and option labels/values
+    meta_group = groups[0]
+    meta_questions = [q for q in meta_group.questions if q.deleted_at is None]
+    assert len(meta_questions) == 6
+    meta_q_names = [q.name for q in meta_questions]
+    assert "wetland_id" in meta_q_names
+    assert "dependent_population" in meta_q_names
+
+    pop_q = [q for q in meta_questions if q.name == "dependent_population"][0]
+    assert pop_q.type == "option"
+    assert len(pop_q.options) == 3
+    pop_options = {opt.value: opt.label for opt in pop_q.options}
+    assert pop_options == {
+        "1": "500-1000",
+        "2": "1000-2000",
+        "3": ">2000",
+    }
+
+    # 5. Fuzzy Logic Dimensions questions and option labels/values
+    fuzzy_group = groups[1]
+    fuzzy_questions = [
+        q for q in fuzzy_group.questions if q.deleted_at is None
+    ]
+    assert len(fuzzy_questions) == 7
+    fish_q = [q for q in fuzzy_questions if q.name == "fish_abundance_change"][
+        0
+    ]
+    assert fish_q.type == "option"
+    assert len(fish_q.options) == 4
+    fish_options = {opt.value: opt.label for opt in fish_q.options}
+    assert fish_options["Moderate"] == "Moderately declined"
+    assert fish_options["Same"] == "Same or increased"
+    assert fish_options["Severe"] == "Severely declined"
+    assert fish_options["Slight"] == "Slightly declined"
+
+
+def test_seed_satellite_v2_populates_groups_and_questions(db_session: Session):
+    # 1. Seed Satellite v2 directly via filename_filter
+    seed_forms(
+        db_session,
+        filename_filter="form_pipeline_d_external_satellite_v2.json",
+    )
+
+    # 2. Fetch the Satellite Form
+    form = (
+        db_session.query(Form)
+        .filter(Form.name == "External Satellite & Climate Data")
+        .first()
+    )
+    assert form is not None
+    assert form.status == 2
+    assert form.type == 5
+
+    # 3. Assert question groups are populated
+    groups = (
+        db_session.query(QuestionGroup)
+        .filter(
+            QuestionGroup.form_id == form.id,
+            QuestionGroup.deleted_at.is_(None),
+        )
+        .order_by(QuestionGroup.order.asc())
+        .all()
+    )
+    assert len(groups) == 2
+    assert [g.name for g in groups] == [
+        "Sentinel-2 NDVI",
+        "CHIRPS Precipitation",
+    ]
+
+    # 4. Assert questions
+    ndvi_group = groups[0]
+    ndvi_questions = [q for q in ndvi_group.questions if q.deleted_at is None]
+    assert len(ndvi_questions) == 2
+    ndvi_q = [q for q in ndvi_questions if q.name == "ndvi"][0]
+    assert ndvi_q.rule == {"max": 1, "min": -1, "allowDecimal": True}

@@ -214,7 +214,11 @@ def seed_forms(
         processed_question_ids = []
 
         # 2. Iterate and Upsert Question Groups
-        groups = form_data.get("question_group", [])
+        groups = (
+            form_data.get("question_group")
+            or form_data.get("question_groups")
+            or []
+        )
         for idx, group_data in enumerate(groups, start=1):
             group_name = group_data.get("name")
             order = group_data.get("order", idx)
@@ -292,7 +296,9 @@ def seed_forms(
             processed_group_ids.append(q_group.id)
 
             # 3. Iterate and Upsert Questions
-            questions = group_data.get("question", [])
+            questions = (
+                group_data.get("question") or group_data.get("questions") or []
+            )
             for q_idx, q_data in enumerate(questions, start=1):
                 q_pk = q_data.get("id")
                 q_order = q_data.get("order", q_idx)
@@ -459,12 +465,16 @@ def seed_forms(
                 )
                 db.flush()
 
-                options_data = q_data.get("option") or []
+                options_data = (
+                    q_data.get("option") or q_data.get("options") or []
+                )
                 for opt_idx, opt_data in enumerate(options_data, start=1):
-                    opt_label = opt_data.get("name")
+                    opt_label = opt_data.get("label") or opt_data.get("name")
                     opt_val = str(opt_data.get("value"))
                     opt_order = opt_data.get("order", opt_idx)
                     opt_translations = opt_data.get("translations", [])
+                    opt_other = opt_data.get("other", False)
+                    opt_color = opt_data.get("color")
 
                     opt = Option(
                         question_id=q.id,
@@ -472,6 +482,8 @@ def seed_forms(
                         value=opt_val,
                         order=opt_order,
                         translations=opt_translations,
+                        other=opt_other,
+                        color=opt_color,
                     )
                     db.add(opt)
                     db.flush()

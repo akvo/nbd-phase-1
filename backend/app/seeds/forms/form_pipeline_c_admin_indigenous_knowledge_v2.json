@@ -3,13 +3,13 @@
   "type": 3,
   "form_id": 3,
   "version": 3,
-  "question_groups": [
+  "question_group": [
     {
       "id": 7,
       "name": "Contextual Metadata",
       "label": "Contextual Metadata",
       "order": 1,
-      "questions": [
+      "question": [
         {
           "fn": null,
           "id": 50,
@@ -24,7 +24,7 @@
           "type": "cascade",
           "extra": null,
           "label": "Select Wetland",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -42,9 +42,10 @@
           "type": "option",
           "extra": null,
           "label": "Dependant Population",
-          "options": [
+          "option": [
             {
               "id": 60,
+              "name": "500-1000",
               "color": null,
               "label": "500-1000",
               "order": 1,
@@ -53,6 +54,7 @@
             },
             {
               "id": 61,
+              "name": "1000-2000",
               "color": null,
               "label": "1000-2000",
               "order": 2,
@@ -61,6 +63,7 @@
             },
             {
               "id": 62,
+              "name": ">2000",
               "color": null,
               "label": ">2000",
               "order": 3,
@@ -85,7 +88,7 @@
           "type": "text",
           "extra": null,
           "label": "Different uses of the wetland",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -103,7 +106,7 @@
           "type": "text",
           "extra": null,
           "label": "Major anthropogenic/natural threats",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -121,7 +124,7 @@
           "type": "text",
           "extra": null,
           "label": "Primary land use in the area",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -139,7 +142,7 @@
           "type": "text",
           "extra": null,
           "label": "Approximate area of the wetland",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -156,7 +159,7 @@
       "name": "Fuzzy Logic Dimensions",
       "label": "Fuzzy Logic Dimensions",
       "order": 2,
-      "questions": [
+      "question": [
         {
           "fn": null,
           "id": 23,
@@ -167,9 +170,10 @@
           "type": "option",
           "extra": null,
           "label": "Fish Abundance Trend",
-          "options": [
+          "option": [
             {
               "id": 65,
+              "name": "Moderately declined",
               "color": null,
               "label": "Moderately declined",
               "order": 3,
@@ -178,6 +182,7 @@
             },
             {
               "id": 63,
+              "name": "Same or increased",
               "color": null,
               "label": "Same or increased",
               "order": 1,
@@ -186,6 +191,7 @@
             },
             {
               "id": 66,
+              "name": "Severely declined",
               "color": null,
               "label": "Severely declined",
               "order": 4,
@@ -194,6 +200,7 @@
             },
             {
               "id": 64,
+              "name": "Slightly declined",
               "color": null,
               "label": "Slightly declined",
               "order": 2,
@@ -218,9 +225,10 @@
           "type": "option",
           "extra": null,
           "label": "Water Clarity Trend",
-          "options": [
+          "option": [
             {
               "id": 69,
+              "name": "Much worse",
               "color": null,
               "label": "Much worse",
               "order": 3,
@@ -229,6 +237,7 @@
             },
             {
               "id": 67,
+              "name": "Same or clearer",
               "color": null,
               "label": "Same or clearer",
               "order": 1,
@@ -237,6 +246,7 @@
             },
             {
               "id": 68,
+              "name": "Somewhat worse",
               "color": null,
               "label": "Somewhat worse",
               "order": 2,
@@ -261,9 +271,10 @@
           "type": "option",
           "extra": null,
           "label": "Vegetation Cover Trend",
-          "options": [
+          "option": [
             {
               "id": 71,
+              "name": "Partially lost",
               "color": null,
               "label": "Partially lost",
               "order": 2,
@@ -272,6 +283,7 @@
             },
             {
               "id": 70,
+              "name": "Same or more",
               "color": null,
               "label": "Same or more",
               "order": 1,
@@ -280,6 +292,7 @@
             },
             {
               "id": 72,
+              "name": "Severely lost",
               "color": null,
               "label": "Severely lost",
               "order": 3,
@@ -304,9 +317,10 @@
           "type": "option",
           "extra": null,
           "label": "Biodiversity Change Trend",
-          "options": [
+          "option": [
             {
               "id": 73,
+              "name": "Declined a little bit",
               "color": null,
               "label": "Declined a little bit",
               "order": 1,
@@ -315,6 +329,7 @@
             },
             {
               "id": 74,
+              "name": "Moderate decline",
               "color": null,
               "label": "Moderate decline",
               "order": 2,
@@ -323,6 +338,7 @@
             },
             {
               "id": 75,
+              "name": "Rapid decline",
               "color": null,
               "label": "Rapid decline",
               "order": 3,
@@ -347,7 +363,7 @@
           "type": "text",
           "extra": null,
           "label": "Has floods in and around the wetland become more regular over the last 10 years?",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -365,7 +381,7 @@
           "type": "text",
           "extra": null,
           "label": "Have the fish-spawning periods in the wetland changed over the last 10 years?",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -383,7 +399,7 @@
           "type": "text",
           "extra": null,
           "label": "Have the Papyrus growth cycles of the wetland changed over the last 10 years?",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -400,7 +416,7 @@
       "name": "Historical and Local Practices",
       "label": "Historical and Local Practices",
       "order": 3,
-      "questions": [
+      "question": [
         {
           "fn": null,
           "id": 30,
@@ -411,7 +427,7 @@
           "type": "text",
           "extra": null,
           "label": "Earlier how many types of fishes did you capture/observe? Please name the prominent ones.",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -429,7 +445,7 @@
           "type": "text",
           "extra": null,
           "label": "How many bird varieties did you observe? Please name the prominent ones.",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -447,7 +463,7 @@
           "type": "text",
           "extra": null,
           "label": "How many types of plants did you observe? Please name the prominent ones.",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -465,7 +481,7 @@
           "type": "text",
           "extra": null,
           "label": "How did you predict floods or droughts in the olden days?",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -483,7 +499,7 @@
           "type": "text",
           "extra": null,
           "label": "How did you prevent riverbank erosion earlier?",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
@@ -501,7 +517,7 @@
           "type": "text",
           "extra": null,
           "label": "How did you preserve moisture and/or organic matter in the soil in the olden days?",
-          "options": [],
+          "option": [],
           "tooltip": null,
           "required": true,
           "dependency": null,
