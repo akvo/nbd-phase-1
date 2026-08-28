@@ -875,9 +875,7 @@ export default function Home() {
 
   // Map center logic (accurate centroid of Mara or Sio)
   const isMara = selectedBasin?.toUpperCase().includes("MARA");
-  const mapCenter: [number, number] = isMara
-    ? [-1.15, 35.30]
-    : [0.37, 34.25];
+  const mapCenter: [number, number] = isMara ? [-1.15, 35.3] : [0.37, 34.25];
   const mapZoom = isMara ? 10 : 11;
 
   const dropdownOptions = basins.map((b) => ({
