@@ -68,7 +68,17 @@ function MapController({
   choroplethLayers: any;
 }) {
   const map = useMap();
+  const centerLat = center?.[0];
+  const centerLng = center?.[1];
 
+  // 1. Immediately reposition map whenever center or zoom changes (e.g. basin switch)
+  useEffect(() => {
+    if (centerLat !== undefined && centerLng !== undefined && zoom && typeof map.setView === "function") {
+      map.setView([centerLat, centerLng], zoom, { animate: true });
+    }
+  }, [centerLat, centerLng, zoom, map]);
+
+  // 2. Smoothly fit precise bounding box when vector geometries load
   useEffect(() => {
     const targetGeom =
       wardGeometry ||
@@ -91,25 +101,12 @@ function MapController({
           typeof map.fitBounds === "function"
         ) {
           map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
-          return;
         }
       } catch (err) {
         console.error("Failed to fit bounds to geometry:", err);
       }
     }
-
-    if (center && zoom && typeof map.setView === "function") {
-      map.setView(center, zoom, { animate: true });
-    }
-  }, [
-    center,
-    zoom,
-    basinGeometry,
-    wetlandGeometry,
-    wardGeometry,
-    choroplethLayers,
-    map,
-  ]);
+  }, [basinGeometry, wetlandGeometry, wardGeometry, choroplethLayers, map]);
 
   return null;
 }

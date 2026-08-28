@@ -873,12 +873,12 @@ export default function Home() {
     });
   }, [selectedDomain, selectedSubCounty, filteredIncidents]);
 
-  // Map center logic (center of Mara or Sio depending on selection)
+  // Map center logic (accurate centroid of Mara or Sio)
   const isMara = selectedBasin?.toUpperCase().includes("MARA");
   const mapCenter: [number, number] = isMara
-    ? [-1.2345, 34.5678]
-    : [0.22, 34.2];
-  const mapZoom = isMara ? 11 : 12;
+    ? [-1.15, 35.30]
+    : [0.37, 34.25];
+  const mapZoom = isMara ? 10 : 11;
 
   const dropdownOptions = basins.map((b) => ({
     value: b.code,
@@ -897,6 +897,8 @@ export default function Home() {
         selectedBasin={selectedBasin}
         onBasinChange={(val) => {
           setSelectedBasin(val);
+          setWardGeometry(null);
+          setWetlandGeometry(null);
           setSelectedSite(null);
           setSelectedIncident(null);
           setSelectedWetland("");
