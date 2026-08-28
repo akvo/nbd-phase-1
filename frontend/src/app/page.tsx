@@ -289,10 +289,10 @@ export default function Home() {
   // Fetch wetland GeoJSON when in wetland domain
   useEffect(() => {
     if (selectedDomain === "wetland") {
-      const fileName =
-        selectedBasin === "SIO_SITEKO"
-          ? "sio-siteko-wetland.geojson"
-          : "mara-wetland.geojson";
+      const isSio = selectedBasin?.toUpperCase().includes("SIO");
+      const fileName = isSio
+        ? "sio-siteko-wetland.geojson"
+        : "mara-wetland.geojson";
       fetch(`/spatial/${fileName}?v=1.0.1`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load wetland GeoJSON");
@@ -310,10 +310,8 @@ export default function Home() {
 
   // Fetch Ward GeoJSON for vector map overlay and unified choropleth
   useEffect(() => {
-    const fileName =
-      selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
-        ? "sio-wards.geojson"
-        : "mara-wards.geojson";
+    const isSio = selectedBasin?.toUpperCase().includes("SIO");
+    const fileName = isSio ? "sio-wards.geojson" : "mara-wards.geojson";
     fetch(`/spatial/${fileName}?v=1.2.0`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -876,9 +874,11 @@ export default function Home() {
   }, [selectedDomain, selectedSubCounty, filteredIncidents]);
 
   // Map center logic (center of Mara or Sio depending on selection)
-  const mapCenter: [number, number] =
-    selectedBasin === "MARA" ? [-1.2345, 34.5678] : [0.22, 34.2];
-  const mapZoom = selectedBasin === "MARA" ? 11 : 12;
+  const isMara = selectedBasin?.toUpperCase().includes("MARA");
+  const mapCenter: [number, number] = isMara
+    ? [-1.2345, 34.5678]
+    : [0.22, 34.2];
+  const mapZoom = isMara ? 11 : 12;
 
   const dropdownOptions = basins.map((b) => ({
     value: b.code,
