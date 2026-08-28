@@ -687,122 +687,130 @@ export default function Home() {
     return [];
   }, [selectedDomain, filteredSites, t]);
 
-  // Compute choroplethLayers for wards (using unified wardGeometry and four-tier matching cascade)
-  const choroplethLayers = useMemo(() => {
+  // 1. Calculate all ward features with incident counts
+  const allWardLayers = useMemo(() => {
     if (selectedDomain !== "pollution" || !wardGeometry || loading) return [];
 
     const features = JSON.parse(JSON.stringify(wardGeometry.features || []));
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (
-      features
-        .map((feature: any) => {
-          let count = 0;
-          const breakdown: Record<string, number> = {};
+    return features.map((feature: any) => {
+      let count = 0;
+      const breakdown: Record<string, number> = {};
 
-          const wardName = feature.properties?.name
-            ?.toString()
-            .toLowerCase()
-            .trim();
-          const subCountyName = feature.properties?.subCountyName
-            ?.toString()
-            .toLowerCase()
-            .trim();
-          const countyName = feature.properties?.countyName
-            ?.toString()
-            .toLowerCase()
-            .trim();
+      const wardName = feature.properties?.name
+        ?.toString()
+        .toLowerCase()
+        .trim();
+      const subCountyName = feature.properties?.subCountyName
+        ?.toString()
+        .toLowerCase()
+        .trim();
+      const countyName = feature.properties?.countyName
+        ?.toString()
+        .toLowerCase()
+        .trim();
 
-          filteredIncidents.forEach((incident) => {
-            const reportedLoc = incident.reported_location
-              ?.toString()
-              .toLowerCase()
-              .trim();
+      filteredIncidents.forEach((incident) => {
+        const reportedLoc = incident.reported_location
+          ?.toString()
+          .toLowerCase()
+          .trim();
 
-            // Tier 1: Exact Ward match (new incidents)
-            let isInside = !!(
-              reportedLoc &&
-              wardName &&
-              reportedLoc === wardName
-            );
+        // Tier 1: Exact Ward match (new incidents)
+        let isInside = !!(
+          reportedLoc &&
+          wardName &&
+          reportedLoc === wardName
+        );
 
-            // Tier 2: Sub-County match (legacy incidents — uniform distribution across sub-county wards)
-            if (
-              !isInside &&
-              reportedLoc &&
-              subCountyName &&
-              reportedLoc === subCountyName
-            ) {
-              isInside = true;
+        // Tier 2: Sub-County match (legacy incidents — uniform distribution across sub-county wards)
+        if (
+          !isInside &&
+          reportedLoc &&
+          subCountyName &&
+          reportedLoc === subCountyName
+        ) {
+          isInside = true;
+        }
+
+        // Tier 2.5: County match (legacy/county-level incidents — uniform distribution across county wards)
+        if (
+          !isInside &&
+          reportedLoc &&
+          countyName &&
+          reportedLoc === countyName
+        ) {
+          isInside = true;
+        }
+
+        // Tier 3: location_id answer name match
+        if (!isInside) {
+          const locationAns = incident.answers?.find(
+            (a: any) =>
+              a.question_name === "location_id" &&
+              a.value?.toString().toLowerCase().trim() === wardName
+          );
+          if (locationAns) isInside = true;
+        }
+
+        // Tier 4: Point-in-polygon (GPS-tagged)
+        if (!isInside) {
+          const coords = incident.geo?.coordinates;
+          if (coords && coords.length >= 2) {
+            try {
+              isInside = booleanPointInPolygon(point(coords), feature);
+            } catch (err) {
+              // silent
             }
+          }
+        }
 
-            // Tier 2.5: County match (legacy/county-level incidents — uniform distribution across county wards)
-            if (
-              !isInside &&
-              reportedLoc &&
-              countyName &&
-              reportedLoc === countyName
-            ) {
-              isInside = true;
-            }
+        if (isInside) {
+          count++;
+          const qIncidentAns = incident.answers?.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (a: any) => a.question_name === "incident_type"
+          );
+          const typeLabel =
+            qIncidentAns?.value || incident.incident_type_name || "Unknown";
+          breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
+        }
+      });
 
-            // Tier 3: location_id answer name match
-            if (!isInside) {
-              const locationAns = incident.answers?.find(
-                (a: any) =>
-                  a.question_name === "location_id" &&
-                  a.value?.toString().toLowerCase().trim() === wardName
-              );
-              if (locationAns) isInside = true;
-            }
+      feature.properties = {
+        ...feature.properties,
+        incidentCount: count,
+        incidentBreakdown: breakdown,
+      };
 
-            // Tier 4: Point-in-polygon (GPS-tagged)
-            if (!isInside) {
-              const coords = incident.geo?.coordinates;
-              if (coords && coords.length >= 2) {
-                try {
-                  isInside = booleanPointInPolygon(point(coords), feature);
-                } catch (err) {
-                  // silent
-                }
-              }
-            }
+      return feature;
+    });
+  }, [selectedDomain, wardGeometry, filteredIncidents, loading]);
 
-            if (isInside) {
-              count++;
-              const qIncidentAns = incident.answers?.find(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (a: any) => a.question_name === "incident_type"
-              );
-              const typeLabel =
-                qIncidentAns?.value || incident.incident_type_name || "Unknown";
-              breakdown[typeLabel] = (breakdown[typeLabel] || 0) + 1;
-            }
-          });
+  // Compute maximum incident count among all wards for dynamic slider scale
+  const maxIncidentCount = useMemo(() => {
+    if (!allWardLayers || allWardLayers.length === 0) return 20;
+    let max = 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allWardLayers.forEach((feature: any) => {
+      const cnt = feature.properties?.incidentCount || 0;
+      if (cnt > max) max = cnt;
+    });
+    return Math.max(20, Math.ceil(max / 10) * 10);
+  }, [allWardLayers]);
 
-          feature.properties = {
-            ...feature.properties,
-            incidentCount: count,
-            incidentBreakdown: breakdown,
-          };
-
-          return feature;
-        })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((feature: any) => {
-          const count = feature.properties?.incidentCount || 0;
-          const maxRange =
-            pollutionRange[1] >= 20 ? Infinity : pollutionRange[1];
-          return count >= pollutionRange[0] && count <= maxRange;
-        })
-    );
-  }, [
-    selectedDomain,
-    wardGeometry,
-    filteredIncidents,
-    loading,
-    pollutionRange,
-  ]);
+  // Compute filtered choroplethLayers based on active pollutionRange
+  const choroplethLayers = useMemo(() => {
+    if (!allWardLayers) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return allWardLayers.filter((feature: any) => {
+      const count = feature.properties?.incidentCount || 0;
+      const isMaxSelected = pollutionRange[1] >= maxIncidentCount;
+      const maxRange = isMaxSelected ? Infinity : pollutionRange[1];
+      return count >= pollutionRange[0] && count <= maxRange;
+    });
+  }, [allWardLayers, pollutionRange, maxIncidentCount]);
 
   // Compute sidebar/list incidents filtered by selected ward/sub-county
   const sidebarIncidents = useMemo(() => {
@@ -1255,7 +1263,7 @@ export default function Home() {
       </div>
 
       {/* Floating Side Info Overlay of Legend */}
-      <MapLegend domain={selectedDomain} />
+      <MapLegend domain={selectedDomain} maxCount={maxIncidentCount} />
 
       {/* Site granular details Drawer panel */}
       <SiteDrawer

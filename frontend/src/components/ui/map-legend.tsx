@@ -9,18 +9,21 @@ import { useDomainOptional } from "@/context/domain-context";
 type MapLegendProps = React.HTMLAttributes<HTMLDivElement> & {
   domain?: "wetland" | "pollution";
   draggable?: boolean;
+  maxCount?: number;
 };
 
 export function MapLegend({
   className,
   domain = "wetland",
   draggable = false,
+  maxCount = 20,
   style,
   ...props
 }: MapLegendProps) {
   const t = useTranslations("legend");
   const context = useDomainOptional();
-  const pollutionRange = context?.pollutionRange ?? [0, 20];
+  const sliderMax = Math.max(20, maxCount);
+  const pollutionRange = context?.pollutionRange ?? [0, sliderMax];
 
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -148,8 +151,11 @@ export function MapLegend({
                 visualMap: {
                   type: "continuous",
                   min: 0,
-                  max: 20,
-                  range: pollutionRange,
+                  max: sliderMax,
+                  range: [
+                    pollutionRange[0],
+                    Math.min(pollutionRange[1], sliderMax),
+                  ],
                   calculable: true,
                   orient: "horizontal",
                   left: "center",
@@ -179,7 +185,7 @@ export function MapLegend({
           {/* HTML labels aligned under the 140px gradient bar */}
           <div className="flex justify-between w-[140px] text-[10px] text-slate-300 font-medium px-0.5 mt-0.5">
             <span>{t("none")}</span>
-            <span>{t("high")}</span>
+            <span>{`${sliderMax}+ (${t("high")})`}</span>
           </div>
         </div>
       )}
