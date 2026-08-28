@@ -710,6 +710,10 @@ export default function Home() {
             ?.toString()
             .toLowerCase()
             .trim();
+          const countyName = feature.properties?.countyName
+            ?.toString()
+            .toLowerCase()
+            .trim();
 
           filteredIncidents.forEach((incident) => {
             const reportedLoc = incident.reported_location
@@ -730,6 +734,16 @@ export default function Home() {
               reportedLoc &&
               subCountyName &&
               reportedLoc === subCountyName
+            ) {
+              isInside = true;
+            }
+
+            // Tier 2.5: County match (legacy/county-level incidents — uniform distribution across county wards)
+            if (
+              !isInside &&
+              reportedLoc &&
+              countyName &&
+              reportedLoc === countyName
             ) {
               isInside = true;
             }
@@ -811,6 +825,10 @@ export default function Home() {
       ?.toString()
       .trim()
       .toLowerCase();
+    const selCountyName = selectedSubCounty.properties?.countyName
+      ?.toString()
+      .trim()
+      .toLowerCase();
 
     const matched = filteredIncidents.filter((incident) => {
       const reportedLoc = incident.reported_location
@@ -818,11 +836,12 @@ export default function Home() {
         .trim()
         .toLowerCase();
 
-      // 1. Direct match on Ward name or Sub-County legacy name
+      // 1. Direct match on Ward name, Sub-County legacy name, or County name
       if (
         reportedLoc &&
         ((selWardName && reportedLoc === selWardName) ||
-          (selSubCountyName && reportedLoc === selSubCountyName))
+          (selSubCountyName && reportedLoc === selSubCountyName) ||
+          (selCountyName && reportedLoc === selCountyName))
       ) {
         return true;
       }
