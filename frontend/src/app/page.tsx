@@ -314,7 +314,7 @@ export default function Home() {
       selectedBasin === "SIO" || selectedBasin === "SIO_SITEKO"
         ? "sio-wards.geojson"
         : "mara-wards.geojson";
-    fetch(`/spatial/${fileName}?v=1.0.0`)
+    fetch(`/spatial/${fileName}?v=1.2.0`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && data.features) {
