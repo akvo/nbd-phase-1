@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from geoalchemy2.shape import to_shape
 from app.database import SessionLocal
 from app.models.form import Form, Question, FormNames
-from app.models.spatial import Site, Wetland
+from app.models.spatial import Site, Wetland, Basin, SpatialBoundary
 from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.health_score import HealthScore
 from app.models.sampling_record import SamplingRecord
@@ -15,6 +15,15 @@ from app.models.fgd_record import FgdRecord
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def get_boundary_chain(boundary: SpatialBoundary) -> list:
+    chain = []
+    curr = boundary
+    while curr:
+        chain.insert(0, str(curr.id))
+        curr = curr.parent
+    return chain
 
 
 def create_fake_submission(
@@ -129,6 +138,30 @@ def seed_fake_submissions(
         return
 
     wetlands = db.query(Wetland).all()
+
+    # Fetch spatial boundaries by basin for pollution report
+    # location assignment
+    basin_wards = {}
+    basins = db.query(Basin).all()
+    for b in basins:
+        wards = (
+            db.query(SpatialBoundary)
+            .filter(
+                SpatialBoundary.basin_id == b.id,
+                SpatialBoundary.level == 4,
+            )
+            .all()
+        )
+        if not wards:
+            wards = (
+                db.query(SpatialBoundary)
+                .filter(
+                    SpatialBoundary.basin_id == b.id,
+                    SpatialBoundary.level == 3,
+                )
+                .all()
+            )
+        basin_wards[b.id] = wards
 
     # Define incident templates for pollution reports
     incident_templates = [
@@ -435,15 +468,35 @@ def seed_fake_submissions(
                 )
 
         # 6. Seed APPROVED Pollution reports (EAV Submissions)
+        site_basin_id = site.wetland.basin_id if site.wetland else None
+        available_wards = basin_wards.get(site_basin_id, [])
+
         for idx in range(num_submissions):
             template = incident_templates[idx % len(incident_templates)]
-            if wetland_bounds:
+            assigned_ward = (
+                available_wards[
+                    (idx_site * num_submissions + idx) % len(available_wards)
+                ]
+                if available_wards
+                else None
+            )
+
+            if assigned_ward and assigned_ward.centroid_geom:
+                w_pt = to_shape(assigned_ward.centroid_geom)
+                offset_lon = w_pt.x + random.uniform(-0.01, 0.01)
+                offset_lat = w_pt.y + random.uniform(-0.01, 0.01)
+            elif wetland_bounds:
                 min_lon, min_lat, max_lon, max_lat = wetland_bounds
                 offset_lon = random.uniform(min_lon, max_lon)
                 offset_lat = random.uniform(min_lat, max_lat)
             else:
                 offset_lon = coords[0] + random.uniform(-spread, spread)
                 offset_lat = coords[1] + random.uniform(-spread, spread)
+
+            loc_options = (
+                get_boundary_chain(assigned_ward) if assigned_ward else []
+            )
+            loc_name = assigned_ward.name if assigned_ward else site.name
 
             create_fake_submission(
                 db=db,
@@ -459,15 +512,34 @@ def seed_fake_submissions(
                         "options": [template["type_value"]],
                     },
                     "incident_description": {
-                        "name": f"{template['desc']} Observed near {site.name}.",  # noqa
+                        "name": f"{template['desc']} Observed near {loc_name}.",  # noqa
                         "value": None,
                         "options": [],
                     },
-                    "location_id": "84318c6e-b3f4-419b-8647-7977a4ee709a",  # Mock sub-county UUID # noqa
+                    "location_id": {
+                        "name": loc_name,
+                        "value": None,
+                        "options": loc_options,
+                    },
                 },
             )
 
         # 7. Seed PENDING Pollution report (1 per site)
+        pending_ward = (
+            available_wards[idx_site % len(available_wards)]
+            if available_wards
+            else None
+        )
+        pending_options = (
+            get_boundary_chain(pending_ward) if pending_ward else []
+        )
+        pending_name = pending_ward.name if pending_ward else site.name
+        if pending_ward and pending_ward.centroid_geom:
+            p_pt = to_shape(pending_ward.centroid_geom)
+            pending_lon, pending_lat = p_pt.x, p_pt.y
+        else:
+            pending_lon, pending_lat = coords[0], coords[1]
+
         create_fake_submission(
             db=db,
             form_id=pollution_form.id,
@@ -475,18 +547,25 @@ def seed_fake_submissions(
             submitter="System Test Seeder",
             status=SubmissionStatus.PENDING,
             created_at=now,
-            geo={"type": "Point", "coordinates": [coords[0], coords[1]]},
+            geo={
+                "type": "Point",
+                "coordinates": [pending_lon, pending_lat],
+            },
             answers={
                 "incident_type": {
                     "value": 1.0,
                     "options": [1],
                 },
                 "incident_description": {
-                    "name": f"Pending report: Water colour is slightly darker than usual at {site.name}.",  # noqa
+                    "name": f"Pending report: Water colour is slightly darker than usual at {pending_name}.",  # noqa
                     "value": None,
                     "options": [],
                 },
-                "location_id": "84318c6e-b3f4-419b-8647-7977a4ee709a",
+                "location_id": {
+                    "name": pending_name,
+                    "value": None,
+                    "options": pending_options,
+                },
             },
         )
 

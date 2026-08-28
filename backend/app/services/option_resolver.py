@@ -268,7 +268,7 @@ def resolve_datapoint_brief_attributes(
         )
         if loc_ans:
             if loc_ans.options:
-                loc_val = loc_ans.options[0]
+                loc_val = loc_ans.options[-1]
                 # Check if UUID
                 try:
                     uuid.UUID(str(loc_val))
@@ -306,7 +306,7 @@ def resolve_datapoint_brief_attributes(
                 reported_location = getattr(ans, "_resolved_value", None)
                 if not reported_location:
                     if ans.options:
-                        loc_val = ans.options[0]
+                        loc_val = ans.options[-1]
                         try:
                             uuid.UUID(str(loc_val))
                             is_uuid = True

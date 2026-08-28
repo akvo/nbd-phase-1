@@ -1,8 +1,17 @@
 from sqlalchemy.orm import Session
-from app.models.form import Form, Question, Option, QuestionType
+from app.models.form import (
+    Form,
+    Question,
+    Option,
+    QuestionType,
+    QuestionGroup,
+)
 from app.models.submission import Datapoint, Answer
 from app.models.spatial import Basin, SpatialBoundary
-from app.services.option_resolver import populate_answers_option_labels
+from app.services.option_resolver import (
+    populate_answers_option_labels,
+    resolve_datapoint_brief_attributes,
+)
 
 
 def test_option_resolver_scenarios(db_session: Session):
@@ -390,3 +399,95 @@ def test_resolve_datapoint_brief_attributes(db_session: Session):
     assert type_name_f == "Fish kill"
     assert type_id_f == "fish_kill"
     assert location_f == "Mara North"
+
+
+def test_resolve_datapoint_cascade_location_leaf(db_session):
+    """
+    Verify that resolve_datapoint_brief_attributes extracts the leaf (Ward)
+    boundary name rather than root County name from a cascade options chain.
+    """
+    basin = Basin(
+        name="Mara Basin",
+        code="MARA",
+        geom="SRID=4326;MULTIPOLYGON(((30 -1, 31 -1, 31 0, 30 0, 30 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    # Create 3-tier hierarchy: County (L2) -> SubCounty (L3) -> Ward (L4)
+    sb_county = SpatialBoundary(
+        name="Narok",
+        level=2,
+        basin_id=basin.id,
+    )
+    db_session.add(sb_county)
+    db_session.flush()
+
+    sb_subcounty = SpatialBoundary(
+        name="Narok West",
+        level=3,
+        parent_id=sb_county.id,
+        basin_id=basin.id,
+    )
+    db_session.add(sb_subcounty)
+    db_session.flush()
+
+    sb_ward = SpatialBoundary(
+        name="Mara",
+        level=4,
+        parent_id=sb_subcounty.id,
+        basin_id=basin.id,
+    )
+    db_session.add(sb_ward)
+    db_session.flush()
+
+    form = Form(name="Cascade Location Form")
+    db_session.add(form)
+    db_session.flush()
+
+    group = QuestionGroup(name="General", form_id=form.id, order=1)
+    db_session.add(group)
+    db_session.flush()
+
+    q_loc = Question(
+        form_id=form.id,
+        question_group_id=group.id,
+        name="location_id",
+        label="Location",
+        type=QuestionType.cascade.value,
+        order=1,
+    )
+    db_session.add(q_loc)
+    db_session.flush()
+
+    # Datapoint with cascade chain [county, sub_county, ward]
+    dp = Datapoint(
+        form_id=form.id,
+        basin_id=basin.id,
+        status="APPROVED",
+    )
+    db_session.add(dp)
+    db_session.flush()
+
+    ans_loc = Answer(
+        datapoint_id=dp.id,
+        question_id=q_loc.id,
+        name="location_id",
+        options=[str(sb_county.id), str(sb_subcounty.id), str(sb_ward.id)],
+        index=0,
+    )
+    db_session.add(ans_loc)
+    db_session.flush()
+
+    # Brief mode test: should resolve to leaf Ward "Mara", not root "Narok"
+    _, _, _, location_brief = resolve_datapoint_brief_attributes(
+        dp, db_session, brief=True
+    )
+    assert location_brief == "Mara"
+
+    # Non-brief mode fallback test (when _resolved_value not populated):
+    dp.answers = [ans_loc]
+    _, _, _, location_full = resolve_datapoint_brief_attributes(
+        dp, db_session, brief=False
+    )
+    assert location_full == "Mara"
