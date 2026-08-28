@@ -73,7 +73,12 @@ function MapController({
 
   // 1. Immediately reposition map whenever center or zoom changes (e.g. basin switch)
   useEffect(() => {
-    if (centerLat !== undefined && centerLng !== undefined && zoom && typeof map.setView === "function") {
+    if (
+      centerLat !== undefined &&
+      centerLng !== undefined &&
+      zoom &&
+      typeof map.setView === "function"
+    ) {
       map.setView([centerLat, centerLng], zoom, { animate: true });
     }
   }, [centerLat, centerLng, zoom, map]);
