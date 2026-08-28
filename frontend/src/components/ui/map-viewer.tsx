@@ -49,11 +49,15 @@ interface MapViewerProps {
 }
 
 function MapController({
+  center,
+  zoom,
   basinGeometry,
   wetlandGeometry,
   wardGeometry,
   choroplethLayers,
 }: {
+  center?: [number, number];
+  zoom?: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   basinGeometry: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,15 +77,39 @@ function MapController({
         ? { type: "FeatureCollection", features: choroplethLayers }
         : null) ||
       basinGeometry;
-    if (targetGeom) {
+    if (
+      targetGeom &&
+      (targetGeom.features?.length || targetGeom.coordinates?.length)
+    ) {
       try {
         const layer = L.geoJSON(targetGeom);
-        map.fitBounds(layer.getBounds(), { padding: [30, 30] });
+        const bounds = layer.getBounds();
+        if (
+          bounds &&
+          bounds.isValid &&
+          bounds.isValid() &&
+          typeof map.fitBounds === "function"
+        ) {
+          map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
+          return;
+        }
       } catch (err) {
         console.error("Failed to fit bounds to geometry:", err);
       }
     }
-  }, [basinGeometry, wetlandGeometry, wardGeometry, choroplethLayers, map]);
+
+    if (center && zoom && typeof map.setView === "function") {
+      map.setView(center, zoom, { animate: true });
+    }
+  }, [
+    center,
+    zoom,
+    basinGeometry,
+    wetlandGeometry,
+    wardGeometry,
+    choroplethLayers,
+    map,
+  ]);
 
   return null;
 }
@@ -251,8 +279,11 @@ export default function MapViewer({
         </LayersControl>
         <ZoomControl position="bottomright" />
         <MapController
+          center={center}
+          zoom={zoom}
           basinGeometry={basinGeometry}
           wetlandGeometry={wetlandGeometry}
+          wardGeometry={wardGeometry}
           choroplethLayers={choroplethLayers}
         />
 

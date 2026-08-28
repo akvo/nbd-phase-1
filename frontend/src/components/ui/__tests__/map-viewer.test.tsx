@@ -20,6 +20,7 @@ vi.mock("react-leaflet", () => {
     ),
     useMap: () => ({
       fitBounds: vi.fn(),
+      setView: vi.fn(),
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     LayersControl: Object.assign(
