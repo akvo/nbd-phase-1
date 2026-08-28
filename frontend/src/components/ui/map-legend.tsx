@@ -24,6 +24,10 @@ export function MapLegend({
   const context = useDomainOptional();
   const sliderMax = Math.max(20, maxCount);
   const pollutionRange = context?.pollutionRange ?? [0, sliderMax];
+  const currentUpper =
+    pollutionRange[1] === Infinity || pollutionRange[1] >= sliderMax
+      ? sliderMax
+      : pollutionRange[1];
 
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -152,10 +156,7 @@ export function MapLegend({
                   type: "continuous",
                   min: 0,
                   max: sliderMax,
-                  range: [
-                    pollutionRange[0],
-                    Math.min(pollutionRange[1], sliderMax),
-                  ],
+                  range: [pollutionRange[0], currentUpper],
                   calculable: true,
                   orient: "horizontal",
                   left: "center",
@@ -172,10 +173,11 @@ export function MapLegend({
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 datarangeselected: (params: any) => {
                   if (params.selected && params.selected.length === 2) {
-                    debouncedSetPollutionRange([
-                      params.selected[0],
-                      params.selected[1],
-                    ]);
+                    const upper =
+                      params.selected[1] >= sliderMax
+                        ? Infinity
+                        : params.selected[1];
+                    debouncedSetPollutionRange([params.selected[0], upper]);
                   }
                 },
               }}

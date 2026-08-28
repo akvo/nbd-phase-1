@@ -938,7 +938,7 @@ export default function Home() {
           setSelectedIncidentTypes([]);
           setSelectedDateFrom("");
           setSelectedDateTo("");
-          setPollutionRange([0, 20]);
+          setPollutionRange([0, Infinity]);
           setSelectedCounty("");
           setSelectedSubCountyId("");
           setSelectedWardId("");

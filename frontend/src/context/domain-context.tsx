@@ -42,7 +42,8 @@ export function DomainProvider({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSubCounty, setSelectedSubCounty] = useState<any>(null);
   const [pollutionRange, setPollutionRange] = useState<[number, number]>([
-    0, 20,
+    0,
+    Infinity,
   ]);
 
   const closeAllDrawers = useCallback(() => {
