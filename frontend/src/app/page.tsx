@@ -791,7 +791,9 @@ export default function Home() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .filter((feature: any) => {
           const count = feature.properties?.incidentCount || 0;
-          return count >= pollutionRange[0] && count <= pollutionRange[1];
+          const maxRange =
+            pollutionRange[1] >= 20 ? Infinity : pollutionRange[1];
+          return count >= pollutionRange[0] && count <= maxRange;
         })
     );
   }, [
