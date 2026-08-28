@@ -718,11 +718,7 @@ export default function Home() {
           .trim();
 
         // Tier 1: Exact Ward match (new incidents)
-        let isInside = !!(
-          reportedLoc &&
-          wardName &&
-          reportedLoc === wardName
-        );
+        let isInside = !!(reportedLoc && wardName && reportedLoc === wardName);
 
         // Tier 2: Sub-County match (legacy incidents — uniform distribution across sub-county wards)
         if (
@@ -760,7 +756,7 @@ export default function Home() {
           if (coords && coords.length >= 2) {
             try {
               isInside = booleanPointInPolygon(point(coords), feature);
-            } catch (err) {
+            } catch {
               // silent
             }
           }
