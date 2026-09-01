@@ -18,7 +18,7 @@ In the NBD Wetland & Pollution Monitoring Platform, citizen pollution reports ar
 2. **Phase 2 & Web / Mobile Apps (Post-August 6, 2026)**:
    - Enabled full hierarchical cascade down to **Level 4 (Ward)** (e.g. 12 in Kimintet, 3 in Chebunyo).
 
-### The Core Problem:
+### The Core Problem
 
 Previously, the choropleth map attributed Sub-County level reports (like the 83 Kilgoris reports) to **every constituent ward** inside that sub-county.
 
@@ -34,8 +34,8 @@ To **preserve 100% of historical and mobile Sub-County data** without **falsely 
 ```mermaid
 graph TD
     A[Citizen Pollution Reports: 147 Total] --> B{Location Resolution}
-    B -->|Ward Level 4 + GPS| C[Direct Ward Incidents: 36 Reports]
-    B -->|Sub-County Level 3| D[Regional Sub-County Incidents: 111 Reports]
+    B -->|Ward Name Match (Level 4)| C[Direct Ward Incidents: 36 Reports]
+    B -->|Sub-County Name Match (Level 3)| D[Regional Sub-County Incidents: 111 Reports]
 
     C -->|Colors & Values| E[Map Choropleth Wards]
     C -->|Section 1| F[Sidebar Ward Tab: Direct Incidents]
@@ -54,17 +54,18 @@ graph TD
 ### 3.1. Map Choropleth & Hover Tooltip
 
 1. **Choropleth Polygon Coloring**:
-   - Ward polygon color is calculated strictly from **Direct Ward Reports** (Tier 1 exact ward name + Tier 4 GPS point-in-polygon).
+   - Ward polygon color is calculated strictly from **Direct Ward Reports** (exact Ward name match against `reported_location` or `location_id` answer).
    - _Example_: _Kimintet Ward_ displays **12 incidents** (Yellow) instead of 96 (Red).
 2. **Hover Tooltip**:
    - When hovering over a ward, displays both the direct ward count and the parent sub-county regional count:
-   ```
-   ┌─────────────────────────────────────────────────┐
-   │ Kimintet (Kilgoris Sub-County)                  │
-   │ • 12 Direct Ward Incidents                      │
-   │ • 83 Regional Incidents (Kilgoris Sub-County)   │
-   └─────────────────────────────────────────────────┘
-   ```
+
+```text
+┌─────────────────────────────────────────────────┐
+│ Kimintet (Kilgoris Sub-County)                  │
+│ • 12 Direct Ward Incidents                      │
+│ • 83 Regional Incidents (Kilgoris Sub-County)   │
+└─────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -72,7 +73,7 @@ graph TD
 
 When the user clicks a ward on the map (e.g. _Kimintet_), the left sidebar renders a clean segmented controller/tab header:
 
-```
+```text
 ┌────────────────────────────────────────────────────────────┐
 │ POLLUTION INCIDENTS: Kimintet                              │
 │                                                            │
@@ -110,8 +111,8 @@ Inside the right-side inspection drawer:
 ### 4.1. Frontend State & GeoJSON Processing (`frontend/src/app/page.tsx`)
 
 1. In `allWardLayers` calculation:
-   - Compute `directIncidentCount`: Match Tier 1 (exact ward name) + Tier 4 (point-in-polygon).
-   - Compute `subCountyIncidentCount`: Match Tier 2 (sub-county name).
+   - Compute `directIncidentCount`: Match Tier 1 (exact Ward name match against `reported_location` or `location_id` answer).
+   - Compute `subCountyIncidentCount`: Match Tier 2 (parent Sub-County name match).
    - Set `feature.properties.incidentCount = directIncidentCount` (for choropleth color scale).
    - Set `feature.properties.subCountyIncidentCount = subCountyIncidentCount`.
 2. In `sidebarIncidents`:
