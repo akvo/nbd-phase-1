@@ -33,18 +33,18 @@ To **preserve 100% of historical and mobile Sub-County data** without **falsely 
 
 ```mermaid
 graph TD
-    A[Citizen Pollution Reports: 147 Total] --> B{Location Resolution}
-    B -->|Ward Name Match (Level 4)| C[Direct Ward Incidents: 36 Reports]
-    B -->|Sub-County Name Match (Level 3)| D[Regional Sub-County Incidents: 111 Reports]
+    A["Citizen Pollution Reports: 147 Total"] --> B{"Location Resolution"}
+    B -->|"Ward Name Match (Level 4)"| C["Direct Ward Incidents: 36 Reports"]
+    B -->|"Sub-County Name Match (Level 3)"| D["Regional Sub-County Incidents: 111 Reports"]
 
-    C -->|Colors & Values| E[Map Choropleth Wards]
-    C -->|Section 1| F[Sidebar Ward Tab: Direct Incidents]
+    C -->|"Colors & Values"| E["Map Choropleth Wards"]
+    C -->|"Section 1"| F["Sidebar Ward Tab: Direct Incidents"]
 
-    D -->|Contextual Line| G[Map Hover Tooltip]
-    D -->|Section 2| H[Sidebar Regional Tab: Sub-County Incidents]
+    D -->|"Contextual Line"| G["Map Hover Tooltip"]
+    D -->|"Section 2"| H["Sidebar Regional Tab: Sub-County Incidents"]
 
-    E -->|Click Ward| I[Pollution Details Drawer]
-    I -->|Toggle Switch| J[Bar Chart & Media Gallery: Direct vs. Regional]
+    E -->|"Click Ward"| I["Pollution Details Drawer"]
+    I -->|"Toggle Switch"| J["Bar Chart & Media Gallery: Direct vs. Regional"]
 ```
 
 ---
