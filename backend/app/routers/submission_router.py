@@ -1,13 +1,14 @@
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.audit_log import AuditLog
 from app.models.submission import Datapoint, Answer, SubmissionStatus
-from app.models.form import Form, Question, QuestionType
+from app.models.form import Form, Question, QuestionType, FormNames, FormType
 from app.models.user import User
 from app.schemas import submission as schemas
 from app.services.storage import StorageService
@@ -34,6 +35,48 @@ def create_submission(
             detail=f"Form with ID {payload.form_id} not found.",
         )
 
+    # Fetch questions to identify types
+    questions = (
+        db.query(Question).filter(Question.form_id == payload.form_id).all()
+    )
+    q_map = {q.id: q for q in questions}
+
+    # Validate location level for Pollution Reporting Form
+    if (
+        form.type == FormType.CITIZEN_REPORTER.value
+        or form.name == FormNames.POLLUTION_REPORTING
+    ):
+        from app.models.spatial import SpatialBoundary, BoundaryLevel
+
+        for ans in payload.answers:
+            q = q_map.get(ans.question_id)
+            if (
+                q
+                and q.name == "location_id"
+                and q.type == QuestionType.cascade
+            ):
+                val_id = (
+                    ans.value
+                    if ans.value is not None
+                    else (ans.options[-1] if ans.options else None)
+                )
+                if val_id:
+                    boundary = (
+                        db.query(SpatialBoundary)
+                        .filter(SpatialBoundary.id == str(val_id))
+                        .first()
+                    )
+                    if boundary and boundary.level != BoundaryLevel.WARD:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=(
+                                "Pollution report location must be "
+                                "specified at the Ward level (Level 4). "
+                                f"Selected location '{boundary.name}' is "
+                                f"at level {boundary.level}."
+                            ),
+                        )
+
     # Prepare datapoint
     db_datapoint = Datapoint(
         form_id=payload.form_id,
@@ -51,14 +94,6 @@ def create_submission(
     try:
         db.add(db_datapoint)
         db.flush()  # Generate ID for answers
-
-        # Fetch questions to identify types
-        questions = (
-            db.query(Question)
-            .filter(Question.form_id == payload.form_id)
-            .all()
-        )
-        q_map = {q.id: q for q in questions}
 
         # Add answers
         for ans in payload.answers:
@@ -97,16 +132,20 @@ def create_submission(
                     val_id = (
                         ans.value
                         if ans.value is not None
-                        else (ans.options[0] if ans.options else None)
+                        else (ans.options[-1] if ans.options else None)
                     )
-                    option = [str(val_id)] if val_id else None
+                    option = (
+                        ans.options
+                        if ans.options
+                        else ([str(val_id)] if val_id else None)
+                    )
                     from app.models.spatial import SpatialBoundary
 
                     boundary = None
                     if val_id:
                         boundary = (
                             db.query(SpatialBoundary)
-                            .filter(SpatialBoundary.id == val_id)
+                            .filter(SpatialBoundary.id == str(val_id))
                             .first()
                         )
                     if boundary:
@@ -153,6 +192,9 @@ def create_submission(
         except Exception:
             pass
         return db_datapoint
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -186,16 +228,19 @@ def list_submissions(
     if form_id is not None:
         query = query.filter(Datapoint.form_id == form_id)
     if domain is not None:
-        from app.models.form import Form, FormNames
-
         form_name = None
+        form_type = None
         if domain == "pollution":
             form_name = FormNames.POLLUTION_REPORTING
+            form_type = FormType.CITIZEN_REPORTER.value
         elif domain == "wetland":
             form_name = FormNames.WETLAND_SAMPLING
+            form_type = FormType.CITIZEN_SCIENTIST.value
 
-        if form_name:
-            query = query.join(Form).filter(Form.name == form_name)
+        if form_name or form_type is not None:
+            query = query.join(Form).filter(
+                or_(Form.name == form_name, Form.type == form_type)
+            )
     if basin_id is not None:
         query = query.filter(Datapoint.basin_id == basin_id)
     if wetland_id is not None:
@@ -357,7 +402,7 @@ def update_submission_status(
                 db.query(Datapoint)
                 .join(Form)
                 .filter(
-                    Form.type == 4,
+                    Form.type == FormType.LAB_QA.value,
                     Datapoint.site_id == dp.site_id,
                     Datapoint.status == SubmissionStatus.APPROVED,
                 )
@@ -375,7 +420,7 @@ def update_submission_status(
                         f"Failed to reconcile Lab QA report {report.id}: {e}"
                     )
 
-        elif dp.form and dp.form.type == 4:
+        elif dp.form and dp.form.type == FormType.LAB_QA.value:
             # Trigger reconciliation for this newly approved Lab QA report
             # against existing approved citizen records
             try:
