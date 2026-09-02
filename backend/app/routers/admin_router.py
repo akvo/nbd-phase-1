@@ -213,7 +213,7 @@ def update_submission_status(
                 db.query(Datapoint)
                 .join(Form)
                 .filter(
-                    Form.type == 4,
+                    Form.type == FormType.LAB_QA.value,
                     Datapoint.site_id == dp.site_id,
                     Datapoint.status == SubmissionStatus.APPROVED,
                 )
@@ -228,7 +228,7 @@ def update_submission_status(
                         f"Failed to reconcile Lab QA report {report.id}: {e}"
                     )
 
-        elif dp.form and dp.form.type == 4:
+        elif dp.form and dp.form.type == FormType.LAB_QA.value:
             # Trigger reconciliation for this newly approved Lab QA report
             # against existing approved citizen records
             try:

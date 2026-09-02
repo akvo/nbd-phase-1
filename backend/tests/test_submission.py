@@ -316,3 +316,116 @@ def test_get_submission_detail_public(db_session):
     resp = client.get(f"/api/v1/submissions/{sub_id}")
     assert resp.status_code == 200
     assert resp.json()["id"] == sub_id
+
+
+def test_pollution_report_ward_level_validation(db_session):
+    from app.models.spatial import SpatialBoundary, Basin
+
+    headers = get_auth_headers(db_session, email="ward_val_test@nbd.org")
+
+    # 1. Create a Pollution Reporting Form
+    form_resp = client.post(
+        "/api/v1/forms",
+        json={"name": "Pollution Reporting Form", "type": 1},
+        headers=headers,
+    )
+    form_id = form_resp.json()["id"]
+
+    basin = Basin(
+        code=f"MARA_VAL_TEST_{uuid.uuid4().hex[:6]}",
+        name="Mara Val Test",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((30.0 -1.0, 31.0 -1.0, "
+            "31.0 0.0, 30.0 0.0, 30.0 -1.0)))"
+        ),
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    # Create County (Level 2), Sub-County (Level 3), Ward (Level 4)
+    county = SpatialBoundary(name="Test County", basin_id=basin.id, level=2)
+    db_session.add(county)
+    db_session.flush()
+
+    subcounty = SpatialBoundary(
+        name="Test SubCounty",
+        basin_id=basin.id,
+        level=3,
+        parent_id=county.id,
+    )
+    db_session.add(subcounty)
+    db_session.flush()
+
+    ward = SpatialBoundary(
+        name="Test Ward", basin_id=basin.id, level=4, parent_id=subcounty.id
+    )
+    db_session.add(ward)
+    db_session.flush()
+
+    group_resp = client.post(
+        "/api/v1/question-groups",
+        json={
+            "form_id": form_id,
+            "name": "loc_group",
+            "label": "Location Group",
+        },
+        headers=headers,
+    )
+    group_id = group_resp.json()["id"]
+
+    q_loc_resp = client.post(
+        "/api/v1/questions",
+        json={
+            "form_id": form_id,
+            "question_group_id": group_id,
+            "name": "location_id",
+            "label": "Location",
+            "type": "cascade",
+        },
+        headers=headers,
+    )
+    q_loc_id = q_loc_resp.json()["id"]
+
+    # Try submitting at Sub-County level (Level 3) -> should fail 400
+    sub_fail = client.post(
+        "/api/v1/submissions",
+        json={
+            "form_id": form_id,
+            "basin_id": str(basin.id),
+            "answers": [
+                {
+                    "question_id": q_loc_id,
+                    "value": str(subcounty.id),
+                    "options": [str(county.id), str(subcounty.id)],
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert sub_fail.status_code == 400
+    assert (
+        "Pollution report location must be specified at the Ward level"
+        in sub_fail.json()["detail"]
+    )
+
+    # Try submitting at Ward level (Level 4) -> should succeed 201
+    sub_success = client.post(
+        "/api/v1/submissions",
+        json={
+            "form_id": form_id,
+            "basin_id": str(basin.id),
+            "answers": [
+                {
+                    "question_id": q_loc_id,
+                    "value": str(ward.id),
+                    "options": [
+                        str(county.id),
+                        str(subcounty.id),
+                        str(ward.id),
+                    ],
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert sub_success.status_code == 201

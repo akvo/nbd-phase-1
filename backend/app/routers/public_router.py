@@ -11,7 +11,7 @@ from app.models.spatial import Site, Wetland, Basin, SpatialBoundary
 from app.models.health_score import HealthScore
 from app.models.sampling_record import SamplingRecord
 from app.models.management_action import ManagementAction
-from app.models.form import Form, Question, FormNames
+from app.models.form import Form, Question, FormNames, FormType
 from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.schemas import spatial as schemas
 
@@ -676,7 +676,12 @@ def get_site_external_data(
     # Find GEE form
     gee_form = (
         db.query(Form)
-        .filter(Form.name == "External Satellite & Climate Data")
+        .filter(
+            or_(
+                Form.name == FormNames.SATELLITE_CLIMATE,
+                Form.type == FormType.EXTERNAL_SATELLITE.value,
+            )
+        )
         .first()
     )
     if not gee_form:
@@ -752,7 +757,14 @@ def list_incidents(
 ):
     # Find the Pollution Reporting Form
     form = (
-        db.query(Form).filter(Form.name == "Pollution Reporting Form").first()
+        db.query(Form)
+        .filter(
+            or_(
+                Form.name == FormNames.POLLUTION_REPORTING,
+                Form.type == FormType.CITIZEN_REPORTER.value,
+            )
+        )
+        .first()
     )
     if not form:
         return []
