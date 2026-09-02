@@ -18,6 +18,7 @@ import time
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
@@ -28,6 +29,7 @@ from app.models.form import (
     QuestionGroup,
     Option,
     FormNames,
+    FormType,
     QuestionType,
 )
 from app.models.submission import Datapoint, Answer, SubmissionStatus
@@ -249,7 +251,12 @@ def _save_report(
 
     form = (
         db.query(Form)
-        .filter(Form.name == FormNames.POLLUTION_REPORTING)
+        .filter(
+            or_(
+                Form.name == FormNames.POLLUTION_REPORTING,
+                Form.type == FormType.CITIZEN_REPORTER.value,
+            )
+        )
         .first()
     )
     if not form:
@@ -473,7 +480,12 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
         # Fetch form configuration snapshot
         form = (
             db.query(Form)
-            .filter(Form.name == FormNames.POLLUTION_REPORTING)
+            .filter(
+                or_(
+                    Form.name == FormNames.POLLUTION_REPORTING,
+                    Form.type == FormType.CITIZEN_REPORTER.value,
+                )
+            )
             .first()
         )
         if not form:
@@ -712,6 +724,22 @@ async def process_whatsapp_message(payload: Dict[str, Any]) -> None:
                     return
                 else:
                     # Leaf node reached (no child boundaries exist)
+                    from app.models.spatial import BoundaryLevel
+
+                    if chosen_boundary.level < BoundaryLevel.WARD:
+                        cb_name = chosen_boundary.name
+                        err_prompt = (
+                            f"Eneo lazima liwe katika ngazi ya Wodi. "
+                            f"Hakuna wodi zilizopatikana chini ya {cb_name}. "
+                            "Tafadhali wasiliana na msimamizi."
+                            if lang == "sw"
+                            else f"Location must be specified at the Ward "
+                            f"level (Level 4). No wards found under "
+                            f"{cb_name}. Please contact support."
+                        )
+                        await _send_message(phone, err_prompt)
+                        return
+
                     parsed_val = str(chosen_boundary.id)
                     valid = True
 

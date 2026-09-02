@@ -3,6 +3,7 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, Form as FastAPIForm
 from fastapi.responses import PlainTextResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -13,6 +14,7 @@ from app.models.form import (
     QuestionGroup,
     Option,
     FormNames,
+    FormType,
     QuestionType,
 )
 from app.models.submission import Datapoint, Answer, SubmissionStatus
@@ -142,7 +144,12 @@ def _handle_ussd_core(
     # Fetch form configuration snapshot
     form = (
         db.query(Form)
-        .filter(Form.name == FormNames.POLLUTION_REPORTING)
+        .filter(
+            or_(
+                Form.name == FormNames.POLLUTION_REPORTING,
+                Form.type == FormType.CITIZEN_REPORTER.value,
+            )
+        )
         .first()
     )
     if not form:
@@ -368,6 +375,21 @@ def _handle_ussd_core(
                             )
 
                             if not has_children:
+                                from app.models.spatial import BoundaryLevel
+
+                                if curr_parent.level < BoundaryLevel.WARD:
+                                    p_name = curr_parent.name
+                                    error_msg = (
+                                        f"Eneo lazima liwe katika ngazi "
+                                        f"ya Wodi chini ya {p_name}."
+                                        if lang == "sw"
+                                        else f"Location must be at Ward "
+                                        f"level under {p_name}."
+                                    )
+                                    return PlainTextResponse(
+                                        clean_ussd_response(f"END {error_msg}")
+                                    )
+
                                 current_answers[q.id] = str(curr_parent.id)
                                 current_answers[q.name] = str(curr_parent.id)
                                 input_idx += consumed_count
