@@ -259,6 +259,39 @@ class FgdSignalDetails(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LabQaHistoryEntry(BaseModel):
+    date: datetime = Field(
+        ..., description="Timestamp when the lab sampling occurred"
+    )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Key-value map of parameter values recorded at this date",
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LabQaReportResponse(BaseModel):
+    id: int = Field(..., description="ID of the approved lab submission")
+    created_at: datetime = Field(
+        ..., description="Submission date of the lab report"
+    )
+    status: str = Field(..., description="Approval status of the lab report")
+    submitter: str | None = Field(
+        default=None, description="Name or identifier of the submitter"
+    )
+    metrics: dict[str, MetricEntryResponse] = Field(
+        default_factory=dict,
+        description="Map of laboratory test parameters and chemical readings",
+    )
+    history: list[LabQaHistoryEntry] = Field(
+        default_factory=list,
+        description="Chronological series of historical lab QA measurements",
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SiteStatus(BaseModel):
     composite_score: float = Field(
         ...,

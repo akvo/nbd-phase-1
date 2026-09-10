@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -719,3 +719,383 @@ def test_submission_answers_option_labels_resolution(db_session: Session):
     assert ans_loc["question_name"] == "location_id"
     assert ans_loc["value"] == "Test Sub-Location"
     assert ans_loc["options"] == [str(boundary.id)]
+
+
+def test_get_site_lab_qa_success(db_session: Session):
+    from app.models.form import FormType
+    from app.models.submission import SubmissionStatus
+
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="MB_LAB",
+        name="Mara Basin Lab",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="MW_LAB",
+        basin_id=basin.id,
+        name="Mara Wetland Lab",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="LAB_SITE_1",
+        wetland_id=wetland.id,
+        name="Lab Test Site",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    lab_form = Form(
+        name="Lab QA Report",
+        type=FormType.LAB_QA.value,
+        version=1,
+    )
+    db_session.add(lab_form)
+    db_session.flush()
+
+    qg = QuestionGroup(name="Chemical Analysis", form_id=lab_form.id, order=1)
+    db_session.add(qg)
+    db_session.flush()
+
+    q_ph = Question(
+        name="lab_ph",
+        label="pH",
+        type="number",
+        form_id=lab_form.id,
+        question_group_id=qg.id,
+        order=1,
+    )
+    q_metals = Question(
+        name="heavy_metals",
+        label="Heavy Metals",
+        type="text",
+        form_id=lab_form.id,
+        question_group_id=qg.id,
+        order=2,
+    )
+    q_bod = Question(
+        name="bod",
+        label="Biochemical Oxygen Demand (BOD)",
+        type="number",
+        form_id=lab_form.id,
+        question_group_id=qg.id,
+        order=3,
+    )
+    db_session.add_all([q_ph, q_metals, q_bod])
+    db_session.flush()
+
+    dp = Datapoint(
+        form_id=lab_form.id,
+        site_id=site.id,
+        submitter="Senior Chemist",
+        status=SubmissionStatus.APPROVED,
+        created_at=datetime.utcnow(),
+    )
+    db_session.add(dp)
+    db_session.flush()
+
+    ans_ph = Answer(
+        datapoint_id=dp.id,
+        question_id=q_ph.id,
+        value=7.4,
+        name=None,
+    )
+    ans_metals = Answer(
+        datapoint_id=dp.id,
+        question_id=q_metals.id,
+        value=None,
+        name="None detected",
+    )
+    ans_bod = Answer(
+        datapoint_id=dp.id,
+        question_id=q_bod.id,
+        value=2.1,
+        name=None,
+    )
+    db_session.add_all([ans_ph, ans_metals, ans_bod])
+    db_session.commit()
+
+    # Query by UUID
+    resp1 = client.get(f"/api/v1/sites/{site.id}/lab-qa")
+    assert resp1.status_code == 200
+    data1 = resp1.json()
+    assert data1 is not None
+    assert data1["id"] == dp.id
+    assert data1["status"] == "APPROVED"
+    assert data1["submitter"] == "Senior Chemist"
+    assert data1["metrics"]["lab_ph"]["value"] == 7.4
+    assert data1["metrics"]["heavy_metals"]["value"] == "None detected"
+    assert data1["metrics"]["bod"]["value"] == 2.1
+    assert data1["metrics"]["bod"]["unit"] == "mg/L"
+
+    # Query by Site Code
+    resp2 = client.get(f"/api/v1/sites/{site.code}/lab-qa")
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["id"] == dp.id
+    assert "history" in data2
+    assert len(data2["history"]) == 1
+    assert data2["history"][0]["parameters"]["lab_ph"] == 7.4
+
+    # Add a newer approved lab QA datapoint to test chronological ordering
+    dp_newer = Datapoint(
+        form_id=lab_form.id,
+        site_id=site.id,
+        submitter="Lead Chemist",
+        status=SubmissionStatus.APPROVED,
+        created_at=datetime.utcnow() + timedelta(days=1),
+    )
+    db_session.add(dp_newer)
+    db_session.flush()
+
+    ans_ph_newer = Answer(
+        datapoint_id=dp_newer.id,
+        question_id=q_ph.id,
+        value=7.9,
+    )
+    db_session.add(ans_ph_newer)
+    db_session.commit()
+
+    resp3 = client.get(f"/api/v1/sites/{site.code}/lab-qa")
+    assert resp3.status_code == 200
+    data3 = resp3.json()
+    assert data3["id"] == dp_newer.id
+    assert data3["submitter"] == "Lead Chemist"
+    assert data3["metrics"]["lab_ph"]["value"] == 7.9
+    assert len(data3["history"]) == 2
+    assert data3["history"][0]["parameters"]["lab_ph"] == 7.4
+    assert data3["history"][1]["parameters"]["lab_ph"] == 7.9
+
+
+def test_get_site_lab_qa_filters_unapproved(db_session: Session):
+    from app.models.form import FormType
+    from app.models.submission import SubmissionStatus
+
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="MB_PENDING",
+        name="Mara Basin Pending",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="MW_PENDING",
+        basin_id=basin.id,
+        name="Mara Wetland Pending",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="PENDING_SITE",
+        wetland_id=wetland.id,
+        name="Pending Site",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    lab_form = Form(
+        name="Lab QA Report Pending",
+        type=FormType.LAB_QA.value,
+        version=1,
+    )
+    db_session.add(lab_form)
+    db_session.flush()
+
+    # Unapproved / Pending submission
+    dp = Datapoint(
+        form_id=lab_form.id,
+        site_id=site.id,
+        status=SubmissionStatus.PENDING,
+        created_at=datetime.utcnow(),
+    )
+    db_session.add(dp)
+    db_session.commit()
+
+    resp = client.get(f"/api/v1/sites/{site.code}/lab-qa")
+    assert resp.status_code == 200
+    assert resp.json() is None
+
+
+def test_get_site_lab_qa_not_found():
+    resp = client.get(f"/api/v1/sites/{uuid.uuid4()}/lab-qa")
+    assert resp.status_code == 404
+
+
+def test_get_site_samplings_no_30_day_cutoff(db_session: Session):
+    from datetime import timedelta
+    from app.models.sampling_record import SamplingRecord
+
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="MB_HIST",
+        name="Mara Basin Hist",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="MW_HIST",
+        basin_id=basin.id,
+        name="Mara Wetland Hist",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="HIST_SITE",
+        wetland_id=wetland.id,
+        name="Historical Site",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    # Sampling record from 60 days ago
+    sampled_60_days_ago = datetime.utcnow() - timedelta(days=60)
+    sr = SamplingRecord(
+        id=uuid.uuid4(),
+        site_id=site.id,
+        sampled_at=sampled_60_days_ago,
+        ph_value=7.2,
+        temp_value=24.0,
+        do_value=6.5,
+        invasive_macrophytes=10.0,
+        water_level="MEDIUM",
+    )
+    db_session.add(sr)
+    db_session.commit()
+
+    resp = client.get(f"/api/v1/sites/{site.code}/samplings")
+    assert resp.status_code == 200
+    res_json = resp.json()
+    assert len(res_json) == 1
+    assert res_json[0]["id"] == str(sr.id)
+
+    # Test date_from and date_to filters
+    dt_from_str = (sampled_60_days_ago - timedelta(days=1)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    dt_to_str = (sampled_60_days_ago + timedelta(days=1)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    resp_filtered = client.get(
+        f"/api/v1/sites/{site.code}/samplings?date_from={dt_from_str}&date_to={dt_to_str}"  # noqa
+    )
+    assert resp_filtered.status_code == 200
+    assert len(resp_filtered.json()) == 1
+
+
+def test_get_site_details_with_full_sampling_and_fgd(db_session: Session):
+    from app.models.sampling_record import SamplingRecord
+    from app.models.fgd_record import FgdRecord
+
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="MB_FULL",
+        name="Mara Basin Full",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="MW_FULL",
+        basin_id=basin.id,
+        name="Mara Wetland Full",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="FULL_SITE",
+        wetland_id=wetland.id,
+        name="Full Detail Site",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    # Health score
+    hs = HealthScore(
+        site_id=site.id,
+        wqi_score=0.85,
+        composite_score=0.85,
+        ik_signal_value=0.75,
+        adjusted_score=0.80,
+        health_class="B",
+        calculated_at=datetime.utcnow(),
+    )
+    db_session.add(hs)
+    db_session.flush()
+
+    # Sampling record with abnormal water levels & low DO
+    sr = SamplingRecord(
+        id=uuid.uuid4(),
+        site_id=site.id,
+        sampled_at=datetime.utcnow(),
+        ph_value=5.5,  # Abnormal low
+        temp_value=32.0,  # Abnormal high
+        do_value=3.5,  # Low DO
+        invasive_macrophytes=25.0,
+        water_level="HIGH",  # Flood risk
+    )
+    db_session.add(sr)
+    db_session.flush()
+
+    # FGD Record linked to parent wetland
+    fgd = FgdRecord(
+        id=uuid.uuid4(),
+        wetland_id=wetland.id,
+        conducted_at=datetime.utcnow(),
+        fish_abundance="Severe",
+        water_clarity="Much Worse",
+        vegetation_cover="Severe Loss",
+    )
+    db_session.add(fgd)
+    db_session.commit()
+
+    resp = client.get(f"/api/v1/sites/{site.code}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "Full Detail Site"
+    assert data["status"]["health_class"] == "B"
+    assert data["status"]["metrics"]["ph"]["status"] == "Abnormal"
+    assert data["status"]["metrics"]["temperature"]["status"] == "Abnormal"
+    assert data["status"]["metrics"]["dissolved_oxygen"]["status"] == "Low"
+    assert data["status"]["metrics"]["water_level"]["status"] == "Flood Risk"
+    assert data["status"]["ik_signal"]["fish_abundance"] == "Severe"

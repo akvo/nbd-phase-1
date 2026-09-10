@@ -2,6 +2,7 @@
 
 import React from "react";
 import * as LucideIcons from "lucide-react";
+import { useLocale } from "next-intl";
 import { CollapsibleChartContainer } from "../collapsible-chart-container";
 import { GenericScoreHistory } from "@/lib/api";
 
@@ -21,6 +22,7 @@ interface SiteDetails {
 interface Site {
   current_health_class?: string | null;
   current_score?: number | null;
+  last_updated?: string | null;
   is_ik_adjusted?: boolean;
   details: SiteDetails;
 }
@@ -70,6 +72,7 @@ export function ScoreBreakdownPanel({
   ts,
   isPrinting = false,
 }: ScoreBreakdownPanelProps) {
+  const locale = useLocale();
   const hasHealthClass = !!site.current_health_class;
   const isCritical =
     hasHealthClass && ["D", "E"].includes(site.current_health_class as string);
@@ -129,7 +132,14 @@ export function ScoreBreakdownPanel({
             {t("scoreBreakdown")}
           </h4>
           <p className="text-xs text-slate-500 mt-0.5">
-            {t("parameterGroupScores")}
+            {site.last_updated
+              ? t("parameterGroupScoresWithDate", {
+                  date: new Date(site.last_updated).toLocaleDateString(locale, {
+                    month: "short",
+                    year: "numeric",
+                  }),
+                })
+              : t("parameterGroupScores")}
           </p>
         </div>
         <div className="p-4.5 space-y-4 bg-white">

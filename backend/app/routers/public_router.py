@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_, desc
 from sqlalchemy.orm import Session
@@ -620,9 +620,9 @@ def get_site_samplings(
         date_from = date_from.replace(tzinfo=None)
     if date_to and date_to.tzinfo is not None:
         date_to = date_to.replace(tzinfo=None)
-    if not date_from:
-        date_from = datetime.utcnow() - timedelta(days=30)
-    query = query.filter(SamplingRecord.sampled_at >= date_from)
+
+    if date_from:
+        query = query.filter(SamplingRecord.sampled_at >= date_from)
 
     if date_to:
         query = query.filter(SamplingRecord.sampled_at <= date_to)
@@ -634,6 +634,155 @@ def get_site_samplings(
         .all()
     )
     return samplings
+
+
+LAB_PARAM_METADATA = {
+    "lab_ph": {"label": "pH", "unit": None, "icon": "droplet"},
+    "lab_temperature": {
+        "label": "Water Temperature",
+        "unit": "°C",
+        "icon": "thermometer",
+    },
+    "lab_dissolved_oxygen": {
+        "label": "Dissolved Oxygen",
+        "unit": "mg/L",
+        "icon": "activity",
+    },
+    "bod": {
+        "label": "Biochemical Oxygen Demand",
+        "unit": "mg/L",
+        "icon": "flask-conical",
+    },
+    "orthophosphate": {
+        "label": "Orthophosphate",
+        "unit": "mg/L",
+        "icon": "test-tube",
+    },
+    "nitrate": {"label": "Nitrate", "unit": "mg/L", "icon": "flask-conical"},
+    "mercury": {"label": "Mercury", "unit": "mg/L", "icon": "alert-triangle"},
+    "heavy_metals": {
+        "label": "Heavy Metals Screening",
+        "unit": None,
+        "icon": "shield-alert",
+    },
+    "total_nitrogen": {
+        "label": "Total Nitrogen",
+        "unit": "mg/L",
+        "icon": "flask-conical",
+    },
+    "total_phosphorus": {
+        "label": "Total Phosphorus",
+        "unit": "mg/L",
+        "icon": "test-tube",
+    },
+}
+
+
+@router.get(
+    "/sites/{site_id}/lab-qa",
+    response_model=Optional[schemas.LabQaReportResponse],
+)
+@limiter.limit("60/minute")
+def get_site_lab_qa(
+    request: Request,
+    site_id: str,
+    db: Session = Depends(get_db),
+):
+    try:
+        val = uuid.UUID(site_id)
+        db_site = db.query(Site).filter(Site.id == val).first()
+    except ValueError:
+        db_site = db.query(Site).filter(Site.code == site_id).first()
+
+    if not db_site:
+        raise HTTPException(
+            status_code=404, detail=f"Site '{site_id}' not found."
+        )
+
+    all_datapoints = (
+        db.query(Datapoint)
+        .join(Form, Datapoint.form_id == Form.id)
+        .filter(
+            Datapoint.site_id == db_site.id,
+            Form.type == FormType.LAB_QA.value,
+            Datapoint.status == SubmissionStatus.APPROVED,
+        )
+        .order_by(Datapoint.created_at.asc())
+        .all()
+    )
+
+    if not all_datapoints:
+        return None
+
+    # The latest datapoint is the last in chronological order
+    latest_datapoint = all_datapoints[-1]
+
+    # Fetch all answers for all approved lab datapoints
+    dp_ids = [dp.id for dp in all_datapoints]
+    all_answers = (
+        db.query(Answer)
+        .join(Question, Answer.question_id == Question.id)
+        .filter(Answer.datapoint_id.in_(dp_ids))
+        .order_by(Question.order.asc().nulls_last())
+        .all()
+    )
+
+    # Group answers by datapoint_id
+    answers_by_dp: dict[int, list[Answer]] = {}
+    for ans in all_answers:
+        answers_by_dp.setdefault(ans.datapoint_id, []).append(ans)
+
+    # Build history array
+    history = []
+    for dp in all_datapoints:
+        dp_answers = answers_by_dp.get(dp.id, [])
+        dp_params = {}
+        for ans in dp_answers:
+            q = ans.question
+            if not q or not q.name or q.name == "site_id":
+                continue
+            val = ans.value if ans.value is not None else ans.name
+            dp_params[q.name] = val
+
+        history.append(
+            schemas.LabQaHistoryEntry(
+                date=dp.created_at,
+                parameters=dp_params,
+            )
+        )
+
+    # Build latest metrics map
+    latest_answers = answers_by_dp.get(latest_datapoint.id, [])
+    metrics = {}
+    for ans in latest_answers:
+        q = ans.question
+        if not q or not q.name or q.name == "site_id":
+            continue
+        meta = LAB_PARAM_METADATA.get(q.name, {})
+        label = q.label or meta.get("label", q.name)
+        unit = meta.get("unit")
+        icon = meta.get("icon")
+        val = ans.value if ans.value is not None else ans.name
+        metrics[q.name] = schemas.MetricEntryResponse(
+            value=val,
+            unit=unit,
+            status="Verified",
+            label=label,
+            icon=icon,
+        )
+
+    return schemas.LabQaReportResponse(
+        id=latest_datapoint.id,
+        created_at=latest_datapoint.created_at,
+        status=(
+            latest_datapoint.status.value
+            if hasattr(latest_datapoint.status, "value")
+            else str(latest_datapoint.status)
+        ),
+        submitter=latest_datapoint.submitter,
+        metrics=metrics,
+        history=history,
+    )
 
 
 @router.get("/sites/{site_id}/external/{source}")

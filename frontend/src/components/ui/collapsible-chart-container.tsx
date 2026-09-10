@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import * as LucideIcons from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Button } from "./button";
 import { EChartsChart } from "./echarts-chart";
 import {
@@ -27,8 +27,15 @@ export function CollapsibleChartContainer({
   isPrinting = false,
 }: CollapsibleChartContainerProps) {
   const t = useTranslations("drawer");
+  const locale = useLocale();
   const [isOpen, setIsOpen] = useState(false);
-  const chartOptions = getHistoricalChartOptions(type, label, data, color);
+  const chartOptions = getHistoricalChartOptions(
+    type,
+    label,
+    data,
+    color,
+    locale
+  );
 
   return (
     <div className="w-full">
