@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -845,6 +845,38 @@ def test_get_site_lab_qa_success(db_session: Session):
     assert resp2.status_code == 200
     data2 = resp2.json()
     assert data2["id"] == dp.id
+    assert "history" in data2
+    assert len(data2["history"]) == 1
+    assert data2["history"][0]["parameters"]["lab_ph"] == 7.4
+
+    # Add a newer approved lab QA datapoint to test chronological ordering
+    dp_newer = Datapoint(
+        form_id=lab_form.id,
+        site_id=site.id,
+        submitter="Lead Chemist",
+        status=SubmissionStatus.APPROVED,
+        created_at=datetime.utcnow() + timedelta(days=1),
+    )
+    db_session.add(dp_newer)
+    db_session.flush()
+
+    ans_ph_newer = Answer(
+        datapoint_id=dp_newer.id,
+        question_id=q_ph.id,
+        value=7.9,
+    )
+    db_session.add(ans_ph_newer)
+    db_session.commit()
+
+    resp3 = client.get(f"/api/v1/sites/{site.code}/lab-qa")
+    assert resp3.status_code == 200
+    data3 = resp3.json()
+    assert data3["id"] == dp_newer.id
+    assert data3["submitter"] == "Lead Chemist"
+    assert data3["metrics"]["lab_ph"]["value"] == 7.9
+    assert len(data3["history"]) == 2
+    assert data3["history"][0]["parameters"]["lab_ph"] == 7.4
+    assert data3["history"][1]["parameters"]["lab_ph"] == 7.9
 
 
 def test_get_site_lab_qa_filters_unapproved(db_session: Session):
@@ -967,3 +999,103 @@ def test_get_site_samplings_no_30_day_cutoff(db_session: Session):
     res_json = resp.json()
     assert len(res_json) == 1
     assert res_json[0]["id"] == str(sr.id)
+
+    # Test date_from and date_to filters
+    dt_from_str = (sampled_60_days_ago - timedelta(days=1)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    dt_to_str = (sampled_60_days_ago + timedelta(days=1)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    resp_filtered = client.get(
+        f"/api/v1/sites/{site.code}/samplings?date_from={dt_from_str}&date_to={dt_to_str}"  # noqa
+    )
+    assert resp_filtered.status_code == 200
+    assert len(resp_filtered.json()) == 1
+
+
+def test_get_site_details_with_full_sampling_and_fgd(db_session: Session):
+    from app.models.sampling_record import SamplingRecord
+    from app.models.fgd_record import FgdRecord
+
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="MB_FULL",
+        name="Mara Basin Full",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="MW_FULL",
+        basin_id=basin.id,
+        name="Mara Wetland Full",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="FULL_SITE",
+        wetland_id=wetland.id,
+        name="Full Detail Site",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    # Health score
+    hs = HealthScore(
+        site_id=site.id,
+        wqi_score=0.85,
+        composite_score=0.85,
+        ik_signal_value=0.75,
+        adjusted_score=0.80,
+        health_class="B",
+        calculated_at=datetime.utcnow(),
+    )
+    db_session.add(hs)
+    db_session.flush()
+
+    # Sampling record with abnormal water levels & low DO
+    sr = SamplingRecord(
+        id=uuid.uuid4(),
+        site_id=site.id,
+        sampled_at=datetime.utcnow(),
+        ph_value=5.5,  # Abnormal low
+        temp_value=32.0,  # Abnormal high
+        do_value=3.5,  # Low DO
+        invasive_macrophytes=25.0,
+        water_level="HIGH",  # Flood risk
+    )
+    db_session.add(sr)
+    db_session.flush()
+
+    # FGD Record linked to parent wetland
+    fgd = FgdRecord(
+        id=uuid.uuid4(),
+        wetland_id=wetland.id,
+        conducted_at=datetime.utcnow(),
+        fish_abundance="Severe",
+        water_clarity="Much Worse",
+        vegetation_cover="Severe Loss",
+    )
+    db_session.add(fgd)
+    db_session.commit()
+
+    resp = client.get(f"/api/v1/sites/{site.code}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "Full Detail Site"
+    assert data["status"]["health_class"] == "B"
+    assert data["status"]["metrics"]["ph"]["status"] == "Abnormal"
+    assert data["status"]["metrics"]["temperature"]["status"] == "Abnormal"
+    assert data["status"]["metrics"]["dissolved_oxygen"]["status"] == "Low"
+    assert data["status"]["metrics"]["water_level"]["status"] == "Flood Risk"
+    assert data["status"]["ik_signal"]["fish_abundance"] == "Severe"

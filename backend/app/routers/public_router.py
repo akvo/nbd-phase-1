@@ -699,7 +699,7 @@ def get_site_lab_qa(
             status_code=404, detail=f"Site '{site_id}' not found."
         )
 
-    datapoint = (
+    all_datapoints = (
         db.query(Datapoint)
         .join(Form, Datapoint.form_id == Form.id)
         .filter(
@@ -707,23 +707,54 @@ def get_site_lab_qa(
             Form.type == FormType.LAB_QA.value,
             Datapoint.status == SubmissionStatus.APPROVED,
         )
-        .order_by(Datapoint.created_at.desc())
-        .first()
+        .order_by(Datapoint.created_at.asc())
+        .all()
     )
 
-    if not datapoint:
+    if not all_datapoints:
         return None
 
-    metrics = {}
-    answers = (
+    # The latest datapoint is the last in chronological order
+    latest_datapoint = all_datapoints[-1]
+
+    # Fetch all answers for all approved lab datapoints
+    dp_ids = [dp.id for dp in all_datapoints]
+    all_answers = (
         db.query(Answer)
         .join(Question, Answer.question_id == Question.id)
-        .filter(Answer.datapoint_id == datapoint.id)
+        .filter(Answer.datapoint_id.in_(dp_ids))
         .order_by(Question.order.asc().nulls_last())
         .all()
     )
 
-    for ans in answers:
+    # Group answers by datapoint_id
+    answers_by_dp: dict[int, list[Answer]] = {}
+    for ans in all_answers:
+        answers_by_dp.setdefault(ans.datapoint_id, []).append(ans)
+
+    # Build history array
+    history = []
+    for dp in all_datapoints:
+        dp_answers = answers_by_dp.get(dp.id, [])
+        dp_params = {}
+        for ans in dp_answers:
+            q = ans.question
+            if not q or not q.name or q.name == "site_id":
+                continue
+            val = ans.value if ans.value is not None else ans.name
+            dp_params[q.name] = val
+
+        history.append(
+            schemas.LabQaHistoryEntry(
+                date=dp.created_at,
+                parameters=dp_params,
+            )
+        )
+
+    # Build latest metrics map
+    latest_answers = answers_by_dp.get(latest_datapoint.id, [])
+    metrics = {}
+    for ans in latest_answers:
         q = ans.question
         if not q or not q.name or q.name == "site_id":
             continue
@@ -741,15 +772,16 @@ def get_site_lab_qa(
         )
 
     return schemas.LabQaReportResponse(
-        id=datapoint.id,
-        created_at=datapoint.created_at,
+        id=latest_datapoint.id,
+        created_at=latest_datapoint.created_at,
         status=(
-            datapoint.status.value
-            if hasattr(datapoint.status, "value")
-            else str(datapoint.status)
+            latest_datapoint.status.value
+            if hasattr(latest_datapoint.status, "value")
+            else str(latest_datapoint.status)
         ),
-        submitter=datapoint.submitter,
+        submitter=latest_datapoint.submitter,
         metrics=metrics,
+        history=history,
     )
 
 
