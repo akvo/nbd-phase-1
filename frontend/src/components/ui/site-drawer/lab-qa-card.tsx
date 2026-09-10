@@ -3,6 +3,7 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
 import { LabQaReport } from "@/lib/api";
+import { CollapsibleChartContainer } from "../collapsible-chart-container";
 import {
   TableHeader,
   TableBody,
@@ -16,6 +17,7 @@ interface LabQaCardProps {
   t: (key: string, values?: Record<string, string | number>) => string;
   tm: (key: string) => string;
   locale: string;
+  isPrinting?: boolean;
 }
 
 const toPascalCase = (str: string): string => {
@@ -69,7 +71,13 @@ const PARAM_ORDER = [
   "heavy_metals",
 ];
 
-export function LabQaCard({ report, t, tm, locale }: LabQaCardProps) {
+export function LabQaCard({
+  report,
+  t,
+  tm,
+  locale,
+  isPrinting = false,
+}: LabQaCardProps) {
   if (!report || Object.keys(report.metrics || {}).length === 0) {
     return (
       <div className="space-y-3 print-avoid-break">
@@ -102,6 +110,8 @@ export function LabQaCard({ report, t, tm, locale }: LabQaCardProps) {
       return a.localeCompare(b);
     });
 
+  const history = report.history || [];
+
   return (
     <div className="space-y-3 print-avoid-break">
       <div className="flex items-center justify-between">
@@ -132,6 +142,26 @@ export function LabQaCard({ report, t, tm, locale }: LabQaCardProps) {
           </TableHeader>
           <TableBody>
             {metricEntries.map(([key, metric]) => {
+              const metricHistory = history
+                .filter((h) => h.parameters && h.parameters[key] !== undefined)
+                .map((h) => {
+                  const rawVal = h.parameters[key];
+                  const val =
+                    rawVal && typeof rawVal === "object" && "value" in rawVal
+                      ? (rawVal as Record<string, unknown>).value
+                      : rawVal;
+                  let numericVal = 0;
+                  if (typeof val === "number") {
+                    numericVal = val;
+                  } else if (typeof val === "string") {
+                    numericVal = Number(val) || 0;
+                  }
+                  return {
+                    date: h.date,
+                    value: numericVal,
+                  };
+                });
+
               const metricTranslationKey = labMetricKeyToTranslation[key];
               const translatedMetricLabel = metricTranslationKey
                 ? tm(metricTranslationKey)
@@ -161,57 +191,77 @@ export function LabQaCard({ report, t, tm, locale }: LabQaCardProps) {
                 }
               }
 
+              // Determine if we should display collapsible history chart
+              const isNumeric = typeof metric.value === "number";
+
               return (
-                <TableRow key={key}>
-                  <TableCell className="text-xs font-semibold text-slate-700 h-11 cursor-help">
-                    <div
-                      className="relative group flex items-center gap-1.5 h-full w-full focus:outline-none"
-                      tabIndex={0}
-                    >
-                      <DynamicIcon
-                        name={metric.icon}
-                        className="w-3.5 h-3.5 text-slate-400 shrink-0"
-                      />
-                      <span className="underline decoration-dotted decoration-slate-300 underline-offset-2">
-                        {translatedMetricLabel}
-                      </span>
-                      {translatedMetricDesc && (
-                        <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-1.5 invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 transition-all duration-200 max-w-50 w-max rounded bg-slate-900 p-2 text-[10px] font-normal leading-normal text-white shadow-lg whitespace-normal wrap-break-word">
-                          {translatedMetricDesc}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs font-mono text-slate-800">
-                    {displayValue !== "-" ? (
-                      <>
-                        {displayValue}
-                        {metric.unit ? (
-                          <span className="text-slate-400 font-normal">
-                            {metric.unit.startsWith("°")
-                              ? metric.unit
-                              : ` ${metric.unit}`}
-                          </span>
-                        ) : (
-                          ""
+                <React.Fragment key={key}>
+                  <TableRow>
+                    <TableCell className="text-xs font-semibold text-slate-700 h-11 cursor-help">
+                      <div
+                        className="relative group flex items-center gap-1.5 h-full w-full focus:outline-none"
+                        tabIndex={0}
+                      >
+                        <DynamicIcon
+                          name={metric.icon}
+                          className="w-3.5 h-3.5 text-slate-400 shrink-0"
+                        />
+                        <span className="underline decoration-dotted decoration-slate-300 underline-offset-2">
+                          {translatedMetricLabel}
+                        </span>
+                        {translatedMetricDesc && (
+                          <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-1.5 invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 transition-all duration-200 max-w-50 w-max rounded bg-slate-900 p-2 text-[10px] font-normal leading-normal text-white shadow-lg whitespace-normal wrap-break-word">
+                            {translatedMetricDesc}
+                          </div>
                         )}
-                      </>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-center">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
-                        isVerified
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : "bg-slate-50 text-slate-700 border-slate-200"
-                      }`}
-                    >
-                      {translatedStatus}
-                    </span>
-                  </TableCell>
-                </TableRow>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-slate-800">
+                      {displayValue !== "-" ? (
+                        <>
+                          {displayValue}
+                          {metric.unit ? (
+                            <span className="text-slate-400 font-normal">
+                              {metric.unit.startsWith("°")
+                                ? metric.unit
+                                : ` ${metric.unit}`}
+                            </span>
+                          ) : (
+                            ""
+                          )}
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-center">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
+                          isVerified
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-slate-50 text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        {translatedStatus}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                  {isNumeric && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={3}
+                        className="py-0 px-2 border-b border-slate-100"
+                      >
+                        <CollapsibleChartContainer
+                          label={translatedMetricLabel}
+                          data={metricHistory}
+                          isPrinting={isPrinting}
+                          locale={locale}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               );
             })}
           </TableBody>

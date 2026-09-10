@@ -121,12 +121,18 @@ export interface LabQaMetricEntry {
   icon: string | null;
 }
 
+export interface LabQaHistoryEntry {
+  date: string;
+  parameters: Record<string, any>;
+}
+
 export interface LabQaReport {
   id: number;
   created_at: string;
   status: string;
   submitter?: string | null;
   metrics: Record<string, LabQaMetricEntry>;
+  history?: LabQaHistoryEntry[];
 }
 
 export const getSiteLabQa = async (

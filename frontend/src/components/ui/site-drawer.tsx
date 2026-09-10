@@ -435,7 +435,13 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
         />
 
         {/* Lab QA Report Card */}
-        <LabQaCard report={labQaReport} t={t} tm={tm} locale={locale} />
+        <LabQaCard
+          report={labQaReport}
+          t={t}
+          tm={tm}
+          locale={locale}
+          isPrinting={isPrinting}
+        />
 
         {/* Score Breakdown Progress Bars */}
         <ScoreBreakdownPanel
