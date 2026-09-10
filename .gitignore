@@ -82,3 +82,4 @@ pg-data/
 .dockerignore
 
 /task.md
+backend/*.csv
