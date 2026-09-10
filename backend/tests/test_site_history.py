@@ -83,23 +83,26 @@ def test_get_site_samplings_history(db_session: Session):
     db_session.add_all([rec1, rec2, rec3])
     db_session.flush()
 
-    # Test GET endpoint default (last 30 days)
+    # Test GET endpoint default (no 30-day cutoff - returns all
+    # historical samplings)
     response = client.get(f"/api/v1/sites/{site.id}/samplings")
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 2
-    # Should be sorted asc
-    assert data[0]["id"] == str(rec1.id)
-    assert data[1]["id"] == str(rec2.id)
-    assert "parameters" in data[0]
-    assert data[0]["parameters"]["ph"]["value"] == 7.20
+    assert len(data) == 3
+    # Should be sorted asc by sampled_at
+    assert data[0]["id"] == str(rec3.id)
+    assert data[1]["id"] == str(rec1.id)
+    assert data[2]["id"] == str(rec2.id)
+    assert "parameters" in data[1]
+    assert data[1]["parameters"]["ph"]["value"] == 7.20
 
-    # Test with custom date_from to include the older record
-    date_from_str = (now - timedelta(days=45)).isoformat()
+    # Test with custom date_from to filter recent records only
+    date_from_str = (now - timedelta(days=10)).isoformat()
     response = client.get(
         f"/api/v1/sites/{site.id}/samplings?date_from={date_from_str}"
     )
     assert response.status_code == 200
-    data_all = response.json()
-    assert len(data_all) == 3
-    assert data_all[0]["id"] == str(rec3.id)
+    data_filtered = response.json()
+    assert len(data_filtered) == 2
+    assert data_filtered[0]["id"] == str(rec1.id)
+    assert data_filtered[1]["id"] == str(rec2.id)
