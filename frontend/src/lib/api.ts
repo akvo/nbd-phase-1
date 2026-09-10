@@ -113,6 +113,29 @@ export const getSiteScores = async (
   return response.data;
 };
 
+export interface LabQaMetricEntry {
+  value: string | number | boolean | null;
+  unit: string | null;
+  status: string;
+  label: string;
+  icon: string | null;
+}
+
+export interface LabQaReport {
+  id: number;
+  created_at: string;
+  status: string;
+  submitter?: string | null;
+  metrics: Record<string, LabQaMetricEntry>;
+}
+
+export const getSiteLabQa = async (
+  siteId: string
+): Promise<LabQaReport | null> => {
+  const response = await apiClient.get(`/sites/${siteId}/lab-qa`);
+  return response.data;
+};
+
 export type MonitoringDomain = "wetland" | "pollution";
 
 export interface IncidentSummary {

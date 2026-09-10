@@ -20,7 +20,8 @@ export function getHistoricalChartOptions(
   type: ChartType,
   label: string,
   data: ChartDataPoint[],
-  color: string = "#0ea5e9"
+  color: string = "#0ea5e9",
+  locale: string = "en"
 ): echarts.EChartsOption {
   const isArea = type === "area";
   const actualType = isArea ? "line" : type;
@@ -49,7 +50,7 @@ export function getHistoricalChartOptions(
     xAxis: {
       type: "category",
       data: data.map((d) =>
-        new Date(d.date).toLocaleDateString("en-US", {
+        new Date(d.date).toLocaleDateString(locale, {
           month: "short",
           day: "numeric",
         })

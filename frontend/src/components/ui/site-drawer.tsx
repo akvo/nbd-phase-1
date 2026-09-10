@@ -8,13 +8,16 @@ import * as LucideIcons from "lucide-react";
 import {
   getSiteSamplings,
   getSiteScores,
+  getSiteLabQa,
   GenericSamplingHistory,
   GenericScoreHistory,
+  LabQaReport,
 } from "@/lib/api";
 import { useTranslations, useLocale } from "next-intl";
 
 import { InterventionsList } from "./site-drawer/interventions-list";
 import { ParameterTable } from "./site-drawer/parameter-table";
+import { LabQaCard } from "./site-drawer/lab-qa-card";
 import { ScoreBreakdownPanel } from "./site-drawer/score-breakdown-panel";
 
 interface MetricEntry {
@@ -113,24 +116,22 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
   >([]);
   const [scoresHistory, setScoresHistory] = useState<GenericScoreHistory[]>([]);
   const [scoresError, setScoresError] = useState<string | null>(null);
+  const [labQaReport, setLabQaReport] = useState<LabQaReport | null>(null);
 
   useEffect(() => {
     if (!site?.site_id) {
       setSamplingsHistory([]);
       setScoresHistory([]);
       setScoresError(null);
+      setLabQaReport(null);
       return;
     }
 
-    const dateFrom = new Date();
-    dateFrom.setDate(dateFrom.getDate() - 35);
-    const dateFromStr = dateFrom.toISOString();
-
-    getSiteSamplings(site.site_id, { date_from: dateFromStr })
+    getSiteSamplings(site.site_id)
       .then(setSamplingsHistory)
       .catch(console.error);
 
-    getSiteScores(site.site_id, { date_from: dateFromStr })
+    getSiteScores(site.site_id)
       .then((data) => {
         setScoresError(null);
         setScoresHistory(data);
@@ -138,6 +139,13 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
       .catch((err) => {
         console.error(err);
         setScoresError("scoreHistoryError");
+      });
+
+    getSiteLabQa(site.site_id)
+      .then(setLabQaReport)
+      .catch((err) => {
+        console.error(err);
+        setLabQaReport(null);
       });
   }, [site?.site_id]);
 
@@ -218,7 +226,7 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
     <div
       id="site-drawer-print-area"
       className={`fixed inset-y-0 right-0 z-50 w-full bg-white shadow-2xl flex flex-col h-full border-l border-slate-200 animate-slide-in transition-all duration-300 ${
-        isPrinting ? "max-w-4xl" : "max-w-md"
+        isPrinting ? "max-w-4xl" : "max-w-lg"
       }`}
     >
       {/* Drawer Header */}
@@ -425,6 +433,9 @@ export function SiteDrawer({ site, onClose }: SiteDrawerProps) {
           tm={tm}
           isPrinting={isPrinting}
         />
+
+        {/* Lab QA Report Card */}
+        <LabQaCard report={labQaReport} t={t} tm={tm} locale={locale} />
 
         {/* Score Breakdown Progress Bars */}
         <ScoreBreakdownPanel

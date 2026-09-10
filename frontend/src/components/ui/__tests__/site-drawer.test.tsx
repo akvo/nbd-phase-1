@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { SiteDrawer } from "../site-drawer";
 import { expect, test, vi } from "vitest";
@@ -7,6 +7,7 @@ import messages from "../../../../messages/en.json";
 vi.mock("@/lib/api", () => ({
   getSiteSamplings: vi.fn(() => Promise.resolve([])),
   getSiteScores: vi.fn(() => Promise.resolve([])),
+  getSiteLabQa: vi.fn(() => Promise.resolve(null)),
 }));
 
 const renderWithIntl = (ui: React.ReactElement) => {
@@ -144,4 +145,41 @@ test("renders unscored/unmonitored site gracefully with empty states", () => {
   expect(
     screen.getAllByText(messages.drawer.noSamplingData).length
   ).toBeGreaterThanOrEqual(1);
+});
+
+test("renders lab QA report when approved report is available", async () => {
+  const { getSiteLabQa } = await import("@/lib/api");
+  const mockLabQa = {
+    id: 101,
+    created_at: "2026-08-10T14:30:00Z",
+    status: "APPROVED",
+    submitter: "Chief Chemist",
+    metrics: {
+      lab_ph: {
+        value: 7.4,
+        unit: null,
+        status: "Verified",
+        label: "pH (Lab)",
+        icon: "droplet",
+      },
+      bod: {
+        value: 2.5,
+        unit: "mg/L",
+        status: "Verified",
+        label: "BOD",
+        icon: "flask-conical",
+      },
+    },
+  };
+  vi.mocked(getSiteLabQa).mockResolvedValue(mockLabQa);
+
+  renderWithIntl(<SiteDrawer site={mockSite} onClose={vi.fn()} />);
+
+  await waitFor(() => {
+    expect(screen.getByText("7.4")).toBeInTheDocument();
+  });
+
+  expect(screen.getByText(messages.drawer.labQaReport)).toBeInTheDocument();
+  expect(screen.getByText("2.5")).toBeInTheDocument();
+  expect(screen.getByText("mg/L")).toBeInTheDocument();
 });
