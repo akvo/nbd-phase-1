@@ -4,8 +4,8 @@
 **Date**: 2026-09-10
 **Issue**: Lab Reporting Side-Panel Integration & Dynamic Data Audit
 **Scope**: Backend Public API (`public_router.py`), Frontend Wetland Station Drawer (`site-drawer.tsx`, `lab-qa-card.tsx`), Locale Translations (`en.json`, `sw.json`)
-**Status**: DRAFT (Pending Review)
-**Estimate**: ≤ 8 hours
+**Status**: IMPLEMENTED (Merged in PR #168)
+**Estimate**: ≤ 8 hours (Actual: 2.5 hours)
 
 ---
 
@@ -27,8 +27,8 @@ In the Nile Basin Wetland Monitoring Platform, environmental assessments rely on
 
 ## 2. User Acceptance Criteria (UAC)
 
-- [ ] **UAC-1**: When viewing any wetland monitoring station detail on the right side-panel (`SiteDrawer`), a distinct **Lab QA Report** card is displayed alongside the citizen parameter card.
-- [ ] **UAC-2**: The Lab QA card displays the latest approved laboratory measurements:
+- [x] **UAC-1**: When viewing any wetland monitoring station detail on the right side-panel (`SiteDrawer`), a distinct **Lab QA Report** card is displayed alongside the citizen parameter card.
+- [x] **UAC-2**: The Lab QA card displays the latest approved laboratory measurements:
   - pH (`lab_ph`)
   - Water Temperature (`lab_temperature`, °C)
   - Dissolved Oxygen (`lab_dissolved_oxygen`, mg/L)
@@ -39,23 +39,25 @@ In the Nile Basin Wetland Monitoring Platform, environmental assessments rely on
   - Total Phosphorus (`total_phosphorus`, mg/L)
   - Mercury (`mercury`, mg/L)
   - Heavy Metals (`heavy_metals`, text description / ppm)
-- [ ] **UAC-3**: The Lab QA card clearly shows the laboratory test date (`created_at`) and an "Approved / Verified" badge.
-- [ ] **UAC-4**: If no approved Lab QA report exists for the selected site, the card displays a graceful empty state: *"No laboratory QA reports recorded for this station yet."*
-- [ ] **UAC-5**: The Score Breakdown panel dynamically displays the actual date of sampling (e.g. *"Parameter group scores (Aug 2026 sampling)"*) rather than the hardcoded string *"May 2026 sampling"*.
-- [ ] **UAC-6**: Stations with sampling records older than 30–35 days still display their recent sampling history and trend charts without being artificially truncated.
-- [ ] **UAC-7**: Chart date labels on timeseries graphs adapt to the active locale (`en` vs `sw`).
+- [x] **UAC-3**: The Lab QA card clearly shows the laboratory test date (`created_at`) with clean styling (excluding structural `site_id` questions and redundant analyst name headers).
+- [x] **UAC-4**: If no approved Lab QA report exists for the selected site, the card displays a graceful empty state: *"No laboratory QA reports recorded for this station yet."*
+- [x] **UAC-5**: The Score Breakdown panel dynamically displays the actual date of sampling (e.g. *"Parameter group scores (Aug 2026 sampling)"*) rather than the hardcoded string *"May 2026 sampling"*.
+- [x] **UAC-6**: Stations with sampling records older than 30–35 days still display their recent sampling history and trend charts without being artificially truncated.
+- [x] **UAC-7**: Chart date labels on timeseries graphs adapt to the active locale (`en` vs `sw`).
+- [x] **UAC-8**: Each numeric Lab QA parameter row includes an interactive collapsible historical trend chart showing longitudinal variations over time when multiple lab readings exist.
+- [x] **UAC-9**: The `SiteDrawer` layout is expanded to `max-w-lg` for enhanced data visualization density.
 
 ---
 
 ## 3. Technical Acceptance Criteria (TAC)
 
-- [ ] **TAC-1**: New public backend endpoint `GET /api/v1/sites/{site_id}/lab-qa` returns the latest approved Form 4 submission (`Form.type == 4` and `status == 'APPROVED'`) with unpacked parameters, units, and status flags.
-- [ ] **TAC-2**: Unapproved, draft, or pending Lab QA reports are strictly filtered out of the public endpoint.
-- [ ] **TAC-3**: In `backend/app/routers/public_router.py`, the artificial default `timedelta(days=30)` cutoff is removed or expanded to 365 days when `date_from` is not supplied, allowing historical samplings to be discovered.
-- [ ] **TAC-4**: In `frontend/src/components/ui/site-drawer.tsx`, the hardcoded `dateFrom.setDate(dateFrom.getDate() - 35)` is replaced with unbounded or dynamic date fetching, ensuring stations show available history.
-- [ ] **TAC-5**: In `frontend/messages/en.json` and `sw.json`, `parameterGroupScores` is decoupled from May 2026 and parameterized as `parameterGroupScores` ("Parameter group scores") and `parameterGroupScoresWithDate` ("Parameter group scores ({date} sampling)").
-- [ ] **TAC-6**: A new component `frontend/src/components/ui/site-drawer/lab-qa-card.tsx` renders the laboratory parameters table with clean icons, tooltips, units, and status badges matching `ParameterTable`.
-- [ ] **TAC-7**: All automated tests (`./dc.sh exec backend tests` and `./dc.sh exec frontend yarn test`) pass with 0 lint errors.
+- [x] **TAC-1**: New public backend endpoint `GET /api/v1/sites/{site_id}/lab-qa` returns the latest approved Form 4 submission (`Form.type == 4` and `status == 'APPROVED'`) with unpacked parameters, units, and historical time-series entries (`history`).
+- [x] **TAC-2**: Unapproved, draft, or pending Lab QA reports are strictly filtered out of the public endpoint.
+- [x] **TAC-3**: In `backend/app/routers/public_router.py`, the artificial default `timedelta(days=30)` cutoff is removed or expanded when `date_from` is not supplied, allowing historical samplings to be discovered.
+- [x] **TAC-4**: In `frontend/src/components/ui/site-drawer.tsx`, the hardcoded `dateFrom.setDate(dateFrom.getDate() - 35)` is replaced with dynamic date fetching, ensuring stations show available history.
+- [x] **TAC-5**: In `frontend/messages/en.json` and `sw.json`, `parameterGroupScores` is decoupled from May 2026 and parameterized as `parameterGroupScores` ("Parameter group scores") and `parameterGroupScoresWithDate` ("Parameter group scores ({date} sampling)").
+- [x] **TAC-6**: A new component `frontend/src/components/ui/site-drawer/lab-qa-card.tsx` renders the laboratory parameters table with clean tooltips, units, sorted parameter ordering (`PARAM_ORDER`), and `<CollapsibleChartContainer />` trend charts.
+- [x] **TAC-7**: All automated tests (`./dc.sh exec backend tests` with ≥80% coverage and `./dc.sh exec frontend yarn test`) pass with 0 lint errors.
 
 ---
 
@@ -113,12 +115,17 @@ class LabQaMetricEntry(BaseModel):
     label: str
     icon: str | None = None
 
+class LabQaHistoryEntry(BaseModel):
+    date: str
+    parameters: dict[str, Any]
+
 class LabQaReportResponse(BaseModel):
     id: int
     created_at: datetime
     status: str
     submitter: str | None = None
     metrics: dict[str, LabQaMetricEntry] = Field(default_factory=dict)
+    history: list[LabQaHistoryEntry] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 ```
@@ -143,8 +150,8 @@ def get_site_lab_qa(
     if not db_site:
         raise HTTPException(status_code=404, detail=f"Site '{site_id}' not found.")
 
-    # 2. Query latest approved Lab QA Datapoint
-    lab_dp = (
+    # 2. Query all approved Lab QA Datapoints in chronological order
+    lab_dps = (
         db.query(Datapoint)
         .join(Form, Datapoint.form_id == Form.id)
         .filter(
@@ -152,19 +159,19 @@ def get_site_lab_qa(
             Datapoint.site_id == db_site.id,
             Datapoint.status == SubmissionStatus.APPROVED,
         )
-        .order_by(Datapoint.created_at.desc())
-        .first()
+        .order_by(Datapoint.created_at.asc())
+        .all()
     )
-    if not lab_dp:
+    if not lab_dps:
         return None
 
-    # 3. Unpack answers into structured metrics dictionary
+    # 3. Unpack latest metrics and build historical time-series entries
     ...
 ```
 
 ### 6.3 Remove Stale 30-Day Default in Samplings Endpoint
 
-In `get_site_samplings` (`public_router.py` lines 623-625):
+In `get_site_samplings` (`public_router.py`):
 Remove the hardcoded `timedelta(days=30)` fallback so querying without `date_from` fetches all recorded samplings (up to the query `limit`), preventing stations with >30-day-old samplings from showing as empty.
 
 ---
@@ -184,12 +191,18 @@ export interface LabQaMetricEntry {
   icon: string | null;
 }
 
+export interface LabQaHistoryEntry {
+  date: string;
+  parameters: Record<string, any>;
+}
+
 export interface LabQaReport {
   id: number;
   created_at: string;
   status: string;
   submitter?: string | null;
   metrics: Record<string, LabQaMetricEntry>;
+  history?: LabQaHistoryEntry[];
 }
 
 export const getSiteLabQa = async (siteId: string): Promise<LabQaReport | null> => {
@@ -201,20 +214,21 @@ export const getSiteLabQa = async (siteId: string): Promise<LabQaReport | null> 
 ### 7.2 Lab QA Component (`frontend/src/components/ui/site-drawer/lab-qa-card.tsx`)
 
 Build `LabQaCard`:
-- Header: Title "LAB QA REPORT", icon `FlaskConical` / `ShieldCheck`.
-- Subtitle: Date formatted with user locale + Status badge ("Approved").
+- Header: Title "LAB QA REPORT" with clean typography.
 - Table structure matching `ParameterTable`:
   - Columns: Parameter | Value | Status / Flag
   - Rows for `lab_ph`, `lab_temperature`, `lab_dissolved_oxygen`, `bod`, `orthophosphate`, `nitrate`, `total_nitrogen`, `total_phosphorus`, `mercury`, `heavy_metals`.
   - Tooltips explaining parameter meanings.
+  - Collapsible historical trend charts for each numeric parameter using `<CollapsibleChartContainer />` and ECharts when history has ≥2 readings.
 - Clean empty state when no report is available.
 
 ### 7.3 Drawer Integration (`frontend/src/components/ui/site-drawer.tsx`)
 
 1. Call `getSiteLabQa(site.site_id)` on mount and when `site.site_id` changes.
 2. Render `<LabQaCard />` directly beneath `<ParameterTable />`.
-3. Eliminate `dateFrom.setDate(dateFrom.getDate() - 35);` — query sampling history with adequate range or without arbitrary 35-day cut.
+3. Eliminate `dateFrom.setDate(dateFrom.getDate() - 35);` — query sampling history dynamically.
 4. Pass dynamic sampling date to `ScoreBreakdownPanel`.
+5. Widen side drawer container to `max-w-lg`.
 
 ### 7.4 Score Breakdown Dynamic Date (`score-breakdown-panel.tsx` & messages)
 
