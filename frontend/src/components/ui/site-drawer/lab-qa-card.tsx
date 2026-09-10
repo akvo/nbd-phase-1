@@ -256,7 +256,6 @@ export function LabQaCard({
                           label={translatedMetricLabel}
                           data={metricHistory}
                           isPrinting={isPrinting}
-                          locale={locale}
                         />
                       </TableCell>
                     </TableRow>
