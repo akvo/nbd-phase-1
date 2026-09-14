@@ -863,6 +863,7 @@ def get_site_external_data(
         .filter(
             Datapoint.site_id == db_site.id,
             Datapoint.form_id == gee_form.id,
+            Datapoint.status == SubmissionStatus.APPROVED,
             Answer.question_id == question.id,
             Answer.value.isnot(None),
         )

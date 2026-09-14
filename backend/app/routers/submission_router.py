@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, get_current_user_optional
 from app.models.audit_log import AuditLog
 from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.form import Form, Question, QuestionType, FormNames, FormType
@@ -212,6 +212,7 @@ def list_submissions(
     site_id: Optional[uuid.UUID] = None,
     status: Optional[str] = None,
     brief: bool = False,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     from sqlalchemy.orm import joinedload
@@ -247,8 +248,17 @@ def list_submissions(
         query = query.filter(Datapoint.wetland_id == wetland_id)
     if site_id is not None:
         query = query.filter(Datapoint.site_id == site_id)
-    if status is not None:
+
+    # For unauthenticated public requests, restrict to APPROVED submissions
+    if not current_user:
+        if status and status != SubmissionStatus.APPROVED.value:
+            return []
+        query = query.filter(
+            Datapoint.status == SubmissionStatus.APPROVED.value
+        )
+    elif status is not None:
         query = query.filter(Datapoint.status == status)
+
     results = query.all()
 
     if not brief:
@@ -311,6 +321,7 @@ def list_submissions(
 )
 def get_submission_detail(
     id: int,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     from sqlalchemy.orm import joinedload
@@ -328,6 +339,16 @@ def get_submission_detail(
         .first()
     )
     if not datapoint:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Submission with ID {id} not found.",
+        )
+
+    # If unauthenticated, do not expose unapproved/pending submissions
+    if (
+        not current_user
+        and datapoint.status != SubmissionStatus.APPROVED.value
+    ):
         raise HTTPException(
             status_code=404,
             detail=f"Submission with ID {id} not found.",

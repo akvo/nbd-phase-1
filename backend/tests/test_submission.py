@@ -246,6 +246,7 @@ def test_list_submissions_brief(db_session):
         json={
             "form_id": form_id,
             "basin_id": basin_uuid,
+            "status": "APPROVED",
             "answers": [
                 {"question_id": q_id, "name": "Q1", "value": "test-val"}
             ],
@@ -307,7 +308,12 @@ def test_get_submission_detail_public(db_session):
 
     sub_resp = client.post(
         "/api/v1/submissions",
-        json={"form_id": form_id, "basin_id": basin_uuid, "answers": []},
+        json={
+            "form_id": form_id,
+            "basin_id": basin_uuid,
+            "status": "APPROVED",
+            "answers": [],
+        },
         headers=headers,
     )
     sub_id = sub_resp.json()["id"]
@@ -429,3 +435,92 @@ def test_pollution_report_ward_level_validation(db_session):
         headers=headers,
     )
     assert sub_success.status_code == 201
+
+
+def test_public_submissions_isolate_unapproved(db_session):
+    headers = get_auth_headers(db_session)
+    # Create form
+    form_resp = client.post(
+        "/api/v1/forms",
+        json={"name": "Public Test Form", "type": 1},
+        headers=headers,
+    )
+    form_id = form_resp.json()["id"]
+
+    basin_resp = client.post(
+        "/api/v1/basins",
+        json={
+            "code": "pub_test_basin",
+            "name": "Public Test Basin",
+            "geom": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [30.0, -1.0],
+                            [31.0, -1.0],
+                            [31.0, 0.0],
+                            [30.0, 0.0],
+                            [30.0, -1.0],
+                        ]
+                    ]
+                ],
+            },
+        },
+        headers=headers,
+    )
+    basin_uuid = basin_resp.json()["id"]
+
+    # Create 1 approved submission and 1 pending submission
+    sub_approved = client.post(
+        "/api/v1/submissions",
+        json={
+            "form_id": form_id,
+            "basin_id": basin_uuid,
+            "status": "APPROVED",
+            "submitter": "Approved Submitter",
+            "answers": [],
+        },
+        headers=headers,
+    )
+    approved_id = sub_approved.json()["id"]
+
+    sub_pending = client.post(
+        "/api/v1/submissions",
+        json={
+            "form_id": form_id,
+            "basin_id": basin_uuid,
+            "status": "PENDING",
+            "submitter": "Pending Submitter",
+            "answers": [],
+        },
+        headers=headers,
+    )
+    pending_id = sub_pending.json()["id"]
+
+    # 1. Unauthenticated public list should only return the approved one
+    public_list = client.get(f"/api/v1/submissions?form_id={form_id}")
+    assert public_list.status_code == 200
+    items = public_list.json()
+    assert len(items) == 1
+    assert items[0]["id"] == approved_id
+
+    # 2. Unauthenticated public detail for approved should succeed (200)
+    public_detail_appr = client.get(f"/api/v1/submissions/{approved_id}")
+    assert public_detail_appr.status_code == 200
+
+    # 3. Unauthenticated public detail for pending should be hidden (404)
+    public_detail_pend = client.get(f"/api/v1/submissions/{pending_id}")
+    assert public_detail_pend.status_code == 404
+
+    # 4. Authenticated admin can view both
+    admin_list = client.get(
+        f"/api/v1/submissions?form_id={form_id}", headers=headers
+    )
+    assert admin_list.status_code == 200
+    assert len(admin_list.json()) == 2
+
+    admin_detail_pend = client.get(
+        f"/api/v1/submissions/{pending_id}", headers=headers
+    )
+    assert admin_detail_pend.status_code == 200
