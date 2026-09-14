@@ -102,7 +102,7 @@ const mapDbSiteToDrawerSite = (site: any, noSignalText: string): any => {
     community_signal: site.description || noSignalText,
     progress_percent:
       ikAdjustedScore !== null ? Math.round(ikAdjustedScore * 100) : null,
-    is_approved: true,
+    is_approved: hasStatus,
     is_ik_adjusted:
       hasStatus &&
       site.status?.ik_adjusted_score !== site.status?.composite_score,

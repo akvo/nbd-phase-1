@@ -113,6 +113,40 @@ def get_current_user(
     return user
 
 
+def get_current_user_optional(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """
+    Get current user optionally from either:
+    1. Authorization header (Bearer token) - for API clients
+    2. Session cookie (nbd_session) - for browser clients
+    Returns None if missing or invalid.
+    """
+    token = None
+    if credentials:
+        token = credentials.credentials
+    else:
+        token = request.cookies.get(SESSION_COOKIE_NAME)
+
+    if not token:
+        return None
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get("email")
+        if not email:
+            return None
+        return (
+            db.query(User)
+            .filter(User.email == email, User.is_active.is_(True))
+            .first()
+        )
+    except Exception:
+        return None
+
+
 class RoleChecker:
     def __init__(self, allowed_roles: List[str]):
         self.allowed_roles = allowed_roles

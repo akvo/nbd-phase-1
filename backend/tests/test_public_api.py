@@ -565,7 +565,7 @@ def test_submission_name_pii_masking(db_session: Session):
         form_id=form.id,
         site_id=site.id,
         submitter="wa-+254712345678",
-        status="PENDING",
+        status="APPROVED",
         name="wa-+254712345678",
     )
     db_session.add(dp)
@@ -593,7 +593,7 @@ def test_submission_name_pii_masking(db_session: Session):
     # 4. Query admin GET /api/v1/admin/submissions
     # Verify name and submitter are NOT masked in the response for Admin
     response = client.get(
-        "/api/v1/admin/submissions?status=PENDING", headers=headers
+        "/api/v1/admin/submissions?status=APPROVED", headers=headers
     )
     assert response.status_code == 200
     res_json = response.json()
@@ -1099,3 +1099,180 @@ def test_get_site_details_with_full_sampling_and_fgd(db_session: Session):
     assert data["status"]["metrics"]["dissolved_oxygen"]["status"] == "Low"
     assert data["status"]["metrics"]["water_level"]["status"] == "Flood Risk"
     assert data["status"]["ik_signal"]["fish_abundance"] == "Severe"
+
+
+def test_get_site_external_data_isolates_unapproved(db_session: Session):
+    from app.models.form import FormType, FormNames
+    from app.models.submission import SubmissionStatus
+
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="EXT_BASIN",
+        name="External Basin",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="EXT_WETLAND",
+        basin_id=basin.id,
+        name="External Wetland",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="EXT_SITE",
+        wetland_id=wetland.id,
+        name="External Site",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    gee_form = Form(
+        name=FormNames.SATELLITE_CLIMATE,
+        type=FormType.EXTERNAL_SATELLITE.value,
+        version=1,
+    )
+    db_session.add(gee_form)
+    db_session.flush()
+
+    q_grp = QuestionGroup(
+        form_id=gee_form.id,
+        name="satellite_metrics",
+        label="Satellite Metrics",
+    )
+    db_session.add(q_grp)
+    db_session.flush()
+
+    ndvi_q = Question(
+        form_id=gee_form.id,
+        question_group_id=q_grp.id,
+        name="ndvi",
+        label="NDVI",
+        type="number",
+    )
+    db_session.add(ndvi_q)
+    db_session.flush()
+
+    # 1. Approved satellite datapoint
+    dp_appr = Datapoint(
+        form_id=gee_form.id,
+        site_id=site.id,
+        status=SubmissionStatus.APPROVED,
+        created_at=datetime.utcnow() - timedelta(days=5),
+    )
+    db_session.add(dp_appr)
+    db_session.flush()
+
+    ans_appr = Answer(
+        datapoint_id=dp_appr.id,
+        question_id=ndvi_q.id,
+        value=0.72,
+    )
+    db_session.add(ans_appr)
+
+    # 2. Pending satellite datapoint
+    dp_pend = Datapoint(
+        form_id=gee_form.id,
+        site_id=site.id,
+        status=SubmissionStatus.PENDING,
+        created_at=datetime.utcnow(),
+    )
+    db_session.add(dp_pend)
+    db_session.flush()
+
+    ans_pend = Answer(
+        datapoint_id=dp_pend.id,
+        question_id=ndvi_q.id,
+        value=0.99,
+    )
+    db_session.add(ans_pend)
+    db_session.commit()
+
+    # Query external data endpoint
+    resp = client.get(f"/api/v1/sites/{site.code}/external/sentinel-ndvi")
+    assert resp.status_code == 200
+    data = resp.json()
+    # Should only return the 1 approved point (0.72), NOT the pending one
+    assert len(data["data_points"]) == 1
+    assert data["data_points"][0]["value"] == 0.72
+
+
+def test_site_with_only_pending_submissions_is_unscored(db_session: Session):
+    from app.models.form import FormType
+    from app.models.submission import SubmissionStatus
+
+    basin = Basin(
+        id=uuid.uuid4(),
+        code="UNSCORED_BASIN",
+        name="Unscored Basin",
+        geom="SRID=4326;MULTIPOLYGON(((34 -1, 35 -1, 35 0, 34 0, 34 -1)))",
+    )
+    db_session.add(basin)
+    db_session.flush()
+
+    wetland = Wetland(
+        id=uuid.uuid4(),
+        code="UNSCORED_WETLAND",
+        basin_id=basin.id,
+        name="Unscored Wetland",
+        geom=(
+            "SRID=4326;MULTIPOLYGON(((34.1 -0.9, 34.9 -0.9, "
+            "34.9 -0.1, 34.1 -0.1, 34.1 -0.9)))"
+        ),
+    )
+    db_session.add(wetland)
+    db_session.flush()
+
+    site = Site(
+        id=uuid.uuid4(),
+        code="UNSCORED_SITE",
+        wetland_id=wetland.id,
+        name="Unscored Site",
+        geom="SRID=4326;POINT(34.5 -0.5)",
+    )
+    db_session.add(site)
+    db_session.flush()
+
+    sampling_form = Form(
+        name="Monthly Wetland Sampling",
+        type=FormType.CITIZEN_SCIENTIST.value,
+        version=1,
+    )
+    db_session.add(sampling_form)
+    db_session.flush()
+
+    # Add a PENDING monthly sampling datapoint
+    dp_pend = Datapoint(
+        form_id=sampling_form.id,
+        site_id=site.id,
+        status=SubmissionStatus.PENDING,
+        created_at=datetime.utcnow(),
+    )
+    db_session.add(dp_pend)
+    db_session.commit()
+
+    # Public site endpoint should return site with status: null (unscored)
+    resp = client.get(f"/api/v1/sites/{site.code}")
+    assert resp.status_code == 200
+    site_data = resp.json()
+    assert site_data["status"] is None
+
+    # Public samplings endpoint should return empty list
+    samplings_resp = client.get(f"/api/v1/sites/{site.code}/samplings")
+    assert samplings_resp.status_code == 200
+    assert samplings_resp.json() == []
+
+    # Public lab-qa endpoint should return null
+    lab_resp = client.get(f"/api/v1/sites/{site.code}/lab-qa")
+    assert lab_resp.status_code == 200
+    assert lab_resp.json() is None
