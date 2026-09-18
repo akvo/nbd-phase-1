@@ -27,16 +27,30 @@ logger = logging.getLogger(__name__)
 
 @router.get("/webhook")
 async def verify_webhook(
+    request: Request,
     mode: str = Query(None, alias="hub.mode"),
     verify_token: str = Query(None, alias="hub.verify_token"),
     challenge: str = Query(None, alias="hub.challenge"),
     config: MessengerConfig = Depends(get_messenger_config),
 ):
     """Meta webhook verification endpoint (GET challenge handshake)."""
-    if mode == "subscribe" and verify_token == config.messenger_verify_token:
+    effective_mode = mode or request.query_params.get("hub_mode")
+    effective_verify_token = (
+        verify_token or request.query_params.get("hub_verify_token")
+    )
+    effective_challenge = (
+        challenge or request.query_params.get("hub_challenge")
+    )
+
+    if (
+        effective_mode == "subscribe"
+        and effective_verify_token == config.messenger_verify_token
+    ):
         logger.info("Messenger webhook verification successful.")
         return Response(
-            content=challenge, media_type="text/plain", status_code=200
+            content=effective_challenge or "",
+            media_type="text/plain",
+            status_code=200,
         )
 
     logger.warning("Messenger webhook verification failed.")

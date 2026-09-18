@@ -27,11 +27,14 @@ from app.models.submission import Datapoint
 from app.seeds.form_seeder_helper import seed_forms
 from app.seeds.spatial_seeder_helper import seed_spatial
 
+from app.dependencies.messenger_config import get_messenger_config
+
 client = TestClient(app)
 
-TEST_APP_SECRET = "mock_messenger_secret"
-TEST_VERIFY_TOKEN = "nbd_messenger_verify_token"
-TEST_PAGE_ID = "PAGE_NBD_1001"
+_cfg = get_messenger_config()
+TEST_APP_SECRET = _cfg.messenger_app_secret
+TEST_VERIFY_TOKEN = _cfg.messenger_verify_token
+TEST_PAGE_ID = _cfg.messenger_page_id or "PAGE_NBD_1001"
 TEST_PSID = "PSID_USER_98765"
 
 
@@ -109,6 +112,19 @@ def test_get_webhook_verification_success():
     )
     assert resp.status_code == 200
     assert resp.text == "challenge_12345"
+
+
+def test_get_webhook_verification_alternate_params():
+    resp = client.get(
+        "/api/v1/messenger/webhook",
+        params={
+            "hub_mode": "subscribe",
+            "hub_verify_token": TEST_VERIFY_TOKEN,
+            "hub_challenge": "challenge_67890",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.text == "challenge_67890"
 
 
 def test_get_webhook_verification_failure():
