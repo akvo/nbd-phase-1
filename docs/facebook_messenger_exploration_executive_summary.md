@@ -74,20 +74,21 @@ Today, users interact with a single WhatsApp phone number where routing logic at
 
 > [!IMPORTANT]
 > **Upcoming Industry Shift (October 1, 2026 WhatsApp Pricing Change)**:
-> Meta has published rate cards (effective October 1, 2026) transitioning WhatsApp "service conversations" (free-form replies inside the 24-hour window) to a paid per-message billing model, with a re-introduced allowance of 1,000 free service messages/month per WhatsApp Business Account (WABA).
+> Meta has published rate cards (effective October 1, 2026) transitioning WhatsApp "service conversations" (free-form replies inside the 24-hour window) to a paid per-message billing model, with an allowance of 1,000 free service messages/month per WhatsApp Business Account (WABA).
 > 
-> In Kenya and East Africa, the published service rate is ~\$0.007/msg + Twilio transport fee ~\$0.005/msg = **~\$0.012 per message**.
+> - **WABA-Level Free Tier Allocation**: Meta's 1,000 free service messages allowance applies strictly **at the WABA level (per WhatsApp Business Account)**, shared across all phone numbers registered under that WABA (it does not multiply per phone number).
+> - **East Africa Regional Rate**: Meta's published service message rate for Kenya, Uganda, Tanzania, and Rwanda is **\$0.0040 / msg** + Twilio transport fee **\$0.0050 / msg** = **\$0.0090 per message**.
 > 
 > For a volume of **10,000 monthly messages**:
-> - **WhatsApp Cost**: \((10,000 - 1,000) \times \$0.012 = \$108.00/\text{mo}\) + \$15–\$115 sender rental = **\$123 – \$223 / month**
+> - **WhatsApp Cost**: \((10,000 - 1,000) \times \$0.0090 = \$81.00/\text{mo}\) + \$15–\$115 sender rental = **\$96 – \$196 / month**
 > - **Facebook Messenger Cost**: **\$0.00 / month** (zero platform messaging fees, zero line rentals)
 
 | Expense Category | Current Twilio WhatsApp | WhatsApp (Post-Oct 1, 2026) | Facebook Messenger | Financial Impact |
 | :--- | :--- | :--- | :--- | :--- |
 | **Inbound Messages** | ~\$0.005 / msg | ~\$0.005 / msg | **\$0.00 (Free)** | Zero inbound platform cost |
-| **Outbound Replies (24h window)** | ~\$0.005 Twilio fee + Meta Conv. fee (\$0.03–\$0.06) | ~\$0.012 / msg (after 1,000 free/mo) | **\$0.00 (Free)** | **100% cost reduction** for conversational sessions |
+| **Outbound Replies (24h window)** | ~\$0.005 Twilio fee + Meta Conv. fee (\$0.03–\$0.06) | ~\$0.009 / msg (after 1,000 free/mo per WABA) | **\$0.00 (Free)** | **100% cost reduction** for conversational sessions |
 | **Phone Number / Sender Rental** | \$15 – \$115 / month | \$15 – \$115 / month | **\$0.00 (Free)** | No recurring line rental charges |
-| **Estimated Monthly Cost (10,000 messages)** | **~\$450 – \$750 / month** | **~\$123 – \$223 / month** | **\$0.00 / month** | **Direct savings of \$1,500 – \$8,000+ annually** |
+| **Estimated Monthly Cost (10,000 messages)** | **~\$450 – \$750 / month** | **~\$96 – \$196 / month** | **\$0.00 / month** | **Direct savings of \$1,100 – \$7,000+ annually** |
 
 ---
 
@@ -130,20 +131,20 @@ flowchart TD
 ## 4. Implementation Roadmap & Concrete Proof of Concept (POC) Results ⏱️
 
 ### Verified Proof of Concept (POC) Status: COMPLETE & PASSING
-The backend engineering team has implemented and verified the working POC in Docker:
+The backend engineering team has implemented, tested, and pushed the working POC to GitHub on branch [`poc/170-poc-explore-using-facebook-messenger-for-the-data-collection-workflows-that-we-run-on-whatsapp`](https://github.com/akvo/nbd-phase-1/tree/poc/170-poc-explore-using-facebook-messenger-for-the-data-collection-workflows-that-we-run-on-whatsapp) ([Verified Commit `86f577b`](https://github.com/akvo/nbd-phase-1/commit/86f577b)):
 - **Cryptographic Security**: Validated `X-Hub-Signature-256` HMAC-SHA256 verification (rejects forged payloads with `403 Forbidden`).
 - **Challenge Handshake**: Validated `GET /api/v1/messenger/webhook` challenge protocol with verify token.
 - **Message De-Duplication**: Implemented idempotent deduplication using `ProcessedWebhookMessage` by `mid`.
 - **Full Conversational State Machine**: Validated 5-step reporting flow (`CONSENT` ➔ `INCIDENT_SELECT` ➔ `MEDIA_UPLOAD` ➔ `LOCATION_SELECT` ➔ `DONE`) persisting records into PostGIS `Datapoint` and `Answer` tables with `source='MESSENGER'`.
 - **Media Streaming**: Photo evidence downloaded from Meta CDN and streamed directly to Google Cloud Storage.
 - **Data Deletion Compliance**: Implemented `POST /api/v1/messenger/data-deletion` callback compliant with Meta platform policies.
-- **Test Automation**: **9 out of 9 automated test cases passing** (100% pass rate in 4.70s) with Flake8 lint compliance.
+- **Test Automation**: **9 out of 9 automated test cases passing** (100% pass rate in 4.52s) with Flake8 lint compliance.
 
-| Phase | Scope & Key Deliverables | Estimation |
-| :--- | :--- | :---: |
-| **Phase 1: Proof of Concept (POC)** | Webhook router, HMAC guard, de-duplication, state engine, GCS photo streaming, PostGIS persistence, and full test suite. | **11.5 Hours (~1.5 Days)** *(Vibe Coding)* |
-| **Phase 2: Meta App Review & Verification** | Submit Meta Business Verification, create official Facebook Pages, submit `pages_messaging` permission with 1-min demo screencast. | **24–72 Hours** *(Meta Review SLA; 1–2 wks if revision needed)* |
-| **Phase 3: Pilot & Field Rollout** | Field verification with pilot farmer groups (Agriconnect) and Mara/Sio-Siteko basin monitors (NBD). | **1–2 Weeks** *(Field Partner Pilot & Evaluation Period)* |
+| Phase | Scope & Key Deliverables | Estimated Effort | Actual / Lead Time |
+| :--- | :--- | :---: | :---: |
+| **Phase 1: Proof of Concept (POC)** | Webhook router, HMAC guard, de-duplication, state engine, GCS photo streaming, PostGIS persistence, and full test suite. | 11.5 Hours | **8.0 Hours (Completed)** *(Vibe Coding)* |
+| **Phase 2: Meta App Review & Verification** | Submit Meta Business Verification, create official Facebook Pages, submit `pages_messaging` permission with 1-min demo screencast. | 2.0 Hours | **24–72 Hours** *(Meta Review SLA; 1–2 wks if revision needed)* |
+| **Phase 3: Pilot & Field Rollout** | Field verification with pilot farmer groups (Agriconnect) and Mara/Sio-Siteko basin monitors (NBD). | 4.0 Hours | **1–2 Weeks** *(Field Partner Pilot & Evaluation Period)* |
 
 ---
 

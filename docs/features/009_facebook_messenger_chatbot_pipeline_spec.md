@@ -168,7 +168,7 @@ flowchart TD
 ### 4.1 Database Models (`backend/app/models/messenger_session.py`)
 
 ```python
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Index
+from sqlalchemy import Column, Integer, String, DateTime, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from app.database import Base
@@ -194,7 +194,7 @@ class MessengerSession(Base):
         String(30),
         nullable=False,
         default="CONSENT",
-        comment="Current state (CONSENT, INCIDENT_SELECT, MEDIA_UPLOAD, LOCATION_SELECT, DONE)",
+        comment="State (CONSENT, INCIDENT_SELECT, MEDIA_UPLOAD, ...)",
     )
     incident_type = Column(
         String(50), nullable=True, comment="Selected incident category code"
@@ -211,6 +211,9 @@ class MessengerSession(Base):
     boundary_id = Column(
         Integer, nullable=True, comment="Matched SpatialBoundary ID"
     )
+    citizen_id = Column(
+        Integer, nullable=True, comment="Optional linked registered Citizen ID"
+    )
     language = Column(
         String(5), nullable=False, default="en", comment="Selected locale"
     )
@@ -218,7 +221,7 @@ class MessengerSession(Base):
         JSONB, nullable=True, default=dict, comment="Form answers JSON"
     )
     current_question_id = Column(
-        Integer, nullable=True, comment="Active dynamic question ID"
+        Integer, nullable=True, comment="Active dynamic form question ID"
     )
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -265,8 +268,8 @@ class MessengerConfig(BaseSettings):
     )
 
     messenger_app_secret: str = Field(
-        default="mock_app_secret",
-        description="Meta App Secret used for HMAC-SHA256 signature verification",
+        default="mock_messenger_secret",
+        description="Meta App Secret for HMAC-SHA256 signature verification",
     )
     messenger_verify_token: str = Field(
         default="nbd_messenger_verify_token",
@@ -277,7 +280,7 @@ class MessengerConfig(BaseSettings):
         description="Meta Graph API Page Access Token",
     )
     messenger_page_id: Optional[str] = Field(
-        default=None,
+        default="NBD_PAGE_1001",
         description="Primary Facebook Page ID for NBD",
     )
 
@@ -291,10 +294,11 @@ def get_messenger_config() -> MessengerConfig:
 
 ## 5. Security Architecture, Resilience & Governance
 
-### 5.1 Cryptographic Verification & Replay Protection
-- **HMAC-SHA256 Signature Guard**: The raw request body is verified against `X-Hub-Signature-256` using constant-time comparison (`hmac.compare_digest`).
-- **Timestamp Window & Replay Protection**: Inbound events older than 5 minutes (based on `entry[].time`) are discarded to prevent replay attacks.
-- **Webhook Rate Limiting**: The `/webhook` route is protected with rate limiting (100 req/min per IP) to guard against denial-of-service attempts.
+### 5.1 Cryptographic Verification & Security Controls
+- **HMAC-SHA256 Signature Guard (Phase 1 POC — Implemented)**: The raw request body is verified against `X-Hub-Signature-256` using constant-time comparison (`hmac.compare_digest`). Invalid signatures immediately return `403 Forbidden`.
+- **Message De-Duplication (Phase 1 POC — Implemented)**: Meta webhook retries are tracked by `mid` in `processed_webhook_messages` to prevent duplicate state transitions.
+- **Timestamp Window & Replay Protection (Phase 2 — Planned)**: Inbound events older than 5 minutes (based on `entry[].time`) will be checked and dropped in the production deployment.
+- **Route-Level Rate Limiting (Phase 2 — Planned)**: The `/webhook` endpoint will be configured with a SlowAPI rate-limit decorator (`@limiter.limit("100/minute")`) prior to public production launch.
 
 ### 5.2 Message De-Duplication Engine
 - Meta frequently retries webhooks if the response takes >3 seconds or if transient network errors occur.
@@ -322,7 +326,7 @@ To comply with Meta Platform Policies and international privacy regulations (GDP
 ## 6. Verification, Concrete POC Results & Payload Schemas
 
 ### 6.1 Concrete Proof of Concept (POC) Verification Results
-The POC has been fully implemented in Docker (`nbd-phase-1`) and validated with automated pytest execution:
+The POC has been fully implemented, tested, and pushed to GitHub on branch [`poc/170-poc-explore-using-facebook-messenger-for-the-data-collection-workflows-that-we-run-on-whatsapp`](https://github.com/akvo/nbd-phase-1/tree/poc/170-poc-explore-using-facebook-messenger-for-the-data-collection-workflows-that-we-run-on-whatsapp) ([Verified Commit `86f577b`](https://github.com/akvo/nbd-phase-1/commit/86f577b)) with automated pytest execution:
 
 ```
 ============================= test session starts ==============================
@@ -342,7 +346,7 @@ tests/test_messenger.py::test_data_deletion_callback PASSED             [ 77%]
 tests/test_messenger.py::test_webhook_decline_consent PASSED             [ 88%]
 tests/test_messenger.py::test_webhook_unknown_option PASSED              [100%]
 
-========================= 9 passed, 1 warning in 4.70s =========================
+========================= 9 passed, 1 warning in 4.52s =========================
 ```
 
 ### 6.2 Sample Meta Webhook Inbound & Outbound Payloads
@@ -371,7 +375,7 @@ tests/test_messenger.py::test_webhook_unknown_option PASSED              [100%]
 }
 ```
 
-#### Outbound Graph API Bot Response (`POST https://graph.facebook.com/v20.0/me/messages`)
+#### Outbound Graph API Bot Response (`POST https://graph.facebook.com/v21.0/me/messages`)
 ```json
 {
   "recipient": { "id": "8912345678901234" },
@@ -413,11 +417,11 @@ tests/test_messenger.py::test_webhook_unknown_option PASSED              [100%]
 ## 7. Epic & Vibe Coding Estimation ⏱️
 
 ### 7.1 Phase Roadmap & Lead Times
-| Phase | Scope & Key Deliverables | Estimation |
-| :--- | :--- | :---: |
-| **Phase 1: Proof of Concept (POC)** | Webhook router, HMAC guard, de-duplication, state engine, GCS photo streaming, PostGIS persistence, and full test suite. | **11.5 Hours (~1.5 Days)** *(Vibe Coding)* |
-| **Phase 2: Meta App Review & Verification** | Submit Meta Business Verification, create official Facebook Pages, submit `pages_messaging` permission with 1-min demo screencast. | **24–72 Hours** *(Meta Review SLA; 1–2 wks if revision needed)* |
-| **Phase 3: Pilot & Field Rollout** | Field verification with pilot farmer groups (Agriconnect) and Mara/Sio-Siteko basin monitors (NBD). | **1–2 Weeks** *(Field Partner Pilot & Evaluation Period)* |
+| Phase | Scope & Key Deliverables | Estimated Effort | Actual / Lead Time |
+| :--- | :--- | :---: | :---: |
+| **Phase 1: Proof of Concept (POC)** | Webhook router, HMAC guard, de-duplication, state engine, GCS photo streaming, PostGIS persistence, and full test suite. | 11.5 Hours | **8.0 Hours (Completed)** *(Vibe Coding)* |
+| **Phase 2: Meta App Review & Verification** | Submit Meta Business Verification, create official Facebook Pages, submit `pages_messaging` permission with 1-min demo screencast. | 2.0 Hours | **24–72 Hours** *(Meta Review SLA; 1–2 wks if revision needed)* |
+| **Phase 3: Pilot & Field Rollout** | Field verification with pilot farmer groups (Agriconnect) and Mara/Sio-Siteko basin monitors (NBD). | 4.0 Hours | **1–2 Weeks** *(Field Partner Pilot & Evaluation Period)* |
 
 ### 7.2 Detailed Task Effort Breakdown (Phase 1 POC)
 > Tasks are estimated using the 3-part breakdown: **Vibe Coding (Dev)** + **Automated Testing** + **QA & Review** = **Total Est. Time**.
