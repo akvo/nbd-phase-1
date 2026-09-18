@@ -66,21 +66,21 @@ flowchart TD
     classDef backend fill:#ecfdf5,stroke:#059669,stroke-width:2px;
     classDef storage fill:#fef3c7,stroke:#d97706,stroke-width:2px;
 
-    subgraph ChannelNBD [NBD Platform Ingestion]
-        UserB["👨‍🔬 Citizen Reporter"]:::client --> PageB["NBD Wetland Watch Page"]:::meta
-        PageB --> AppB["NBD Meta App\n(MESSENGER_APP_SECRET_NBD)"]:::meta
-        AppB -->|POST JSON Webhook| WH_NBD["NBD Webhook Endpoint\nhttps://api.nbd.org/api/v1/messenger/webhook"]:::backend
-        WH_NBD --> NBDState["NBD Ingestion State Engine\n(Consent ➔ Incident ➔ Photo ➔ Location)"]:::backend
-        NBDState --> DB_NBD[("NBD PostgreSQL / PostGIS\n(Datapoints & Answers)")]:::storage
-        NBDState -.-> GCS[("Google Cloud Storage\n(Incident Photos)")]:::storage
+    subgraph ChannelNBD ["NBD Platform Ingestion"]
+        UserB["Citizen Reporter on Messenger"]:::client --> PageB["NBD Wetland Watch Page"]:::meta
+        PageB --> AppB["NBD Meta App<br/>MESSENGER_APP_SECRET_NBD"]:::meta
+        AppB -->|POST JSON Webhook| WH_NBD["NBD Webhook Endpoint<br/>https://api.nbd.org/api/v1/messenger/webhook"]:::backend
+        WH_NBD --> NBDState["NBD Ingestion State Engine<br/>Consent ➔ Incident ➔ Photo ➔ Location"]:::backend
+        NBDState --> DB_NBD[("NBD PostgreSQL and PostGIS<br/>Datapoints and Answers")]:::storage
+        NBDState -.-> GCS[("Google Cloud Storage<br/>Incident Photos")]:::storage
     end
 
-    subgraph ChannelAgri [Agriconnect Advisory (External)]
-        UserA["👩‍🌾 Farmer"]:::client --> PageA["Agriconnect Facebook Page"]:::meta
-        PageA --> AppA["Agriconnect Meta App\n(MESSENGER_APP_SECRET_AGRI)"]:::meta
-        AppA -->|POST JSON Webhook| WH_Agri["Agriconnect Webhook Endpoint\nhttps://api.agriconnect.org/api/v1/messenger/webhook"]:::backend
-        WH_Agri --> AgriAI["Agriconnect AI Engine\n(OpenAI / Knowledge Base)"]:::backend
-        AgriAI --> DB_Agri[("Agriconnect Database\n(Customers & Messages)")]:::storage
+    subgraph ChannelAgri ["Agriconnect Advisory - External"]
+        UserA["Farmer on Messenger"]:::client --> PageA["Agriconnect Facebook Page"]:::meta
+        PageA --> AppA["Agriconnect Meta App<br/>MESSENGER_APP_SECRET_AGRI"]:::meta
+        AppA -->|POST JSON Webhook| WH_Agri["Agriconnect Webhook Endpoint<br/>https://api.agriconnect.org/api/v1/messenger/webhook"]:::backend
+        WH_Agri --> AgriAI["Agriconnect AI Engine<br/>OpenAI Knowledge Base"]:::backend
+        AgriAI --> DB_Agri[("Agriconnect Database<br/>Customers and Messages")]:::storage
     end
 ```
 
@@ -109,16 +109,16 @@ flowchart TD
     classDef step fill:#e0f2fe,stroke:#0284c7,stroke-width:2px;
     classDef done fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    Start["Citizen sends message on Messenger"]:::start --> Step0["Step 0: Consent Gate\n'Do you consent to share environmental report data?'"]:::step
-    Step0 -->|Accept| Step1["Step 1: Incident Selection\nButtons: Water Pollution, Dumping, Siltation, Other"]:::step
+    Start["Citizen sends message on Messenger"]:::start --> Step0["Step 0: Consent Gate<br/>Do you consent to share environmental report data?"]:::step
+    Step0 -->|Accept| Step1["Step 1: Incident Selection<br/>Buttons: Water Pollution, Dumping, Siltation, Other"]:::step
     Step0 -->|Decline| EndDecline["Session Closed with Privacy Notice"]:::start
 
-    Step1 --> Step2["Step 2: Photo Attachment Prompt\n'Please take or upload a photo of the incident'"]:::step
-    Step2 -->|Photo Uploaded| Step2Stream["Download from Meta CDN & Stream to GCS\nGenerate permanent blob URI"]:::step
+    Step1 --> Step2["Step 2: Photo Attachment Prompt<br/>Please take or upload a photo of the incident"]:::step
+    Step2 -->|Photo Uploaded| Step2Stream["Download from Meta CDN and Stream to GCS<br/>Generate permanent blob URI"]:::step
     
-    Step2Stream --> Step3["Step 3: Location Selection\nButtons: Select Sub-County / Ward"]:::step
-    Step3 --> Step4["Step 4: Persistence & Confirmation\nSave Datapoint (source='MESSENGER') + Answers"]:::done
-    Step4 --> ConfirmMsg["Send Confirmation & Tracking ID to User"]:::done
+    Step2Stream --> Step3["Step 3: Location Selection<br/>Buttons: Select Sub-County or Ward"]:::step
+    Step3 --> Step4["Step 4: Persistence and Confirmation<br/>Save Datapoint source=MESSENGER and Answers"]:::done
+    Step4 --> ConfirmMsg["Send Confirmation and Tracking ID to User"]:::done
 ```
 
 ### 3.2 User Identification & PSID Persistence
@@ -136,11 +136,11 @@ flowchart TD
     classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
     classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    Start["Citizen Messages NBD Page (PSID)"]:::start --> CheckLinked{"Citizen profile already linked to this PSID?"}:::decision
-    CheckLinked -->|Yes| LinkedFlow["Tie Report to Accredited Citizen ID & Home Wetland Site"]:::process
+    Start["Citizen Messages NBD Page PSID"]:::start --> CheckLinked{"Citizen profile already linked to this PSID?"}:::decision
+    CheckLinked -->|Yes| LinkedFlow["Tie Report to Accredited Citizen ID and Home Wetland Site"]:::process
     CheckLinked -->|No| AskLink{"Prompt: Are you a registered wetland monitor?"}:::decision
-    AskLink -->|Yes| VerifyPhone["Verify Phone / Access Code ➔ Link PSID to Citizen Record"]:::process
-    AskLink -->|No or Skip| AnonFlow["Proceed as Anonymous Citizen Reporter (Geocoded by Ward/Sub-County)"]:::process
+    AskLink -->|Yes| VerifyPhone["Verify Phone or Access Code ➔ Link PSID to Citizen Record"]:::process
+    AskLink -->|No or Skip| AnonFlow["Proceed as Anonymous Citizen Reporter Geocoded by Ward or Sub-County"]:::process
     VerifyPhone --> LinkedFlow
 ```
 
@@ -152,11 +152,11 @@ flowchart TD
     classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
     classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    Start["Farmer Messages Agriconnect (PSID)"]:::start --> CheckDB{"Customer exists with messenger_psid = PSID?"}:::decision
+    Start["Farmer Messages Agriconnect PSID"]:::start --> CheckDB{"Customer exists with messenger_psid = PSID?"}:::decision
     CheckDB -->|Yes| Recognized["Recognized Farmer ➔ Direct to AI Advisory Engine"]:::process
     CheckDB -->|No| AskLinking{"First-Time User: Already registered on Agriconnect?"}:::decision
-    AskLinking -->|Yes| PromptPhone["Prompt for Phone ➔ Link Account (messenger_psid = PSID)"]:::process
-    AskLinking -->|No| Onboard["Run Farmer Onboarding (Name, Language, Location, Crops) ➔ Save Customer"]:::process
+    AskLinking -->|Yes| PromptPhone["Prompt for Phone ➔ Link Account messenger_psid = PSID"]:::process
+    AskLinking -->|No| Onboard["Run Farmer Onboarding Name, Language, Location, Crops ➔ Save Customer"]:::process
     PromptPhone --> Recognized
     Onboard --> Recognized
 ```

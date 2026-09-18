@@ -101,14 +101,14 @@ flowchart TD
     classDef backend fill:#ecfdf5,stroke:#059669,stroke-width:2px;
     classDef storage fill:#fef3c7,stroke:#d97706,stroke-width:2px;
 
-    UserA["👩‍🌾 Farmer (Messenger)"]:::client --> PageA["Agriconnect Facebook Page"]:::meta
-    UserB["👨‍🔬 Citizen Reporter (Messenger)"]:::client --> PageB["NBD Wetland Watch Page"]:::meta
+    UserA["Farmer on Messenger"]:::client --> PageA["Agriconnect Facebook Page"]:::meta
+    UserB["Citizen Reporter on Messenger"]:::client --> PageB["NBD Wetland Watch Page"]:::meta
 
-    PageA --> AppA["Agriconnect Dedicated App\n(api.agriconnect.org)"]:::backend
-    PageB --> AppB["NBD Dedicated App\n(api.nbd.org)"]:::backend
+    PageA --> AppA["Agriconnect Dedicated App<br/>api.agriconnect.org"]:::backend
+    PageB --> AppB["NBD Dedicated App<br/>api.nbd.org"]:::backend
 
-    AppA --> OutputA["🌾 Instant AI Crop & Pest Advisory\n(OpenAI / Knowledge Base)"]:::storage
-    AppB --> OutputB["📊 Water Quality Report & Photo\n(Saved to PostGIS & GCS)"]:::storage
+    AppA --> OutputA["Instant AI Crop and Pest Advisory<br/>OpenAI Knowledge Base"]:::storage
+    AppB --> OutputB["Water Quality Report and Photo<br/>Saved to PostGIS and GCS"]:::storage
 ```
 
 ### NBD Citizen Profile-Linking Journey
@@ -118,11 +118,11 @@ flowchart TD
     classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
     classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    Start["Citizen Messages NBD Page (PSID)"]:::start --> CheckLinked{"Citizen profile already linked to this PSID?"}:::decision
-    CheckLinked -->|Yes| LinkedFlow["Tie Report to Accredited Citizen ID & Home Wetland Site"]:::process
+    Start["Citizen Messages NBD Page PSID"]:::start --> CheckLinked{"Citizen profile already linked to this PSID?"}:::decision
+    CheckLinked -->|Yes| LinkedFlow["Tie Report to Accredited Citizen ID and Home Wetland Site"]:::process
     CheckLinked -->|No| AskLink{"Prompt: Are you a registered wetland monitor?"}:::decision
-    AskLink -->|Yes| VerifyPhone["Verify Phone / Access Code ➔ Link PSID to Citizen Record"]:::process
-    AskLink -->|No or Skip| AnonFlow["Proceed as Anonymous Citizen Reporter (Geocoded by Ward/Sub-County)"]:::process
+    AskLink -->|Yes| VerifyPhone["Verify Phone or Access Code ➔ Link PSID to Citizen Record"]:::process
+    AskLink -->|No or Skip| AnonFlow["Proceed as Anonymous Citizen Reporter Geocoded by Ward or Sub-County"]:::process
     VerifyPhone --> LinkedFlow
 ```
 
