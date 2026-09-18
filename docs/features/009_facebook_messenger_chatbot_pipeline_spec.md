@@ -146,20 +146,47 @@ flowchart TD
 
 ### 3.4 Interoperability Reference: Agriconnect Onboarding & Account Linking Flow
 
+In **Agriconnect**, when a farmer initiates a chat on Facebook Messenger for the first time, the platform executes an onboarding handshake to capture farm profile metadata (location, crops, farm size) so the AI advisory engine can provide personalized, localized advice:
+
 ```mermaid
 flowchart TD
     classDef start fill:#f1f5f9,stroke:#64748b,stroke-width:2px;
     classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
-    classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
+    classDef step fill:#e0f2fe,stroke:#0284c7,stroke-width:2px;
+    classDef done fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    Start["Farmer Messages Agriconnect PSID"]:::start --> CheckDB{"Customer exists with messenger_psid = PSID?"}:::decision
-    CheckDB -->|Yes| Recognized["Recognized Farmer ➔ Direct to AI Advisory Engine"]:::process
-    CheckDB -->|No| AskLinking{"First-Time User: Already registered on Agriconnect?"}:::decision
-    AskLinking -->|Yes| PromptPhone["Prompt for Phone ➔ Link Account messenger_psid = PSID"]:::process
-    AskLinking -->|No| Onboard["Run Farmer Onboarding Name, Language, Location, Crops ➔ Save Customer"]:::process
-    PromptPhone --> Recognized
-    Onboard --> Recognized
+    Start["Farmer sends first message on Messenger PSID"]:::start --> CheckDB{"Is PSID already linked to an Agriconnect Farmer profile?"}:::decision
+    
+    CheckDB -->|Yes| DirectAI["Recognized Farmer<br/>Direct to AI Advisory loads crop and location context"]:::done
+    
+    CheckDB -->|No| AskExisting{"First-Time on Messenger:<br/>Are you already an Agriconnect farmer?"}:::decision
+    
+    AskExisting -->|Yes| PromptPhone["Step A1: Prompt for Phone Number<br/>Please enter your registered phone number"]:::step
+    PromptPhone --> VerifyOTP["Step A2: OTP / SMS Verification Code"]:::step
+    VerifyOTP --> LinkAccount["Link PSID to existing Customer Record<br/>customer.messenger_psid = PSID"]:::done
+    LinkAccount --> DirectAI
+
+    AskExisting -->|No| Step1["Step 1: Language Preference<br/>English, Kiswahili, Local Dialect"]:::step
+    Step1 --> Step2["Step 2: Farmer Name and Group<br/>Individual farmer vs. Cooperative"]:::step
+    Step2 --> Step3["Step 3: Farm Location<br/>County, Sub-County or Ward for weather and soil context"]:::step
+    Step3 --> Step4["Step 4: Primary Crops and Livestock<br/>e.g. Maize, Beans, Coffee, Dairy"]:::step
+    Step4 --> Step5["Step 5: Farm Size and Practice<br/>e.g. Acreage, Irrigation or Rainfed"]:::step
+    Step5 --> SaveProfile["Create and Save New Farmer Profile<br/>Tied to messenger_psid"]:::done
+    SaveProfile --> WelcomeMsg["Send Welcome Pack and Open AI Advisory"]:::done
+    WelcomeMsg --> DirectAI
 ```
+
+#### Onboarding Steps & Context Storage Matrix
+
+| Step | Purpose | Data Captured & Context Stored |
+| :--- | :--- | :--- |
+| **0. Account Recognition** | Checks `messenger_psid` against the database. | Instant pass-through for recognized returning farmers. |
+| **A1–A2. Account Linking** | Connects farmers migrating from WhatsApp/SMS. | Verifies MSISDN (`+254...`) ➔ links `messenger_psid` to their existing profile and chat history. |
+| **1. Language Preference** | Sets conversational locale for AI prompts. | `language` (e.g. `sw` for Swahili, `en` for English). |
+| **2. Name & Identity** | Identifies farmer or agricultural cooperative. | `farmer_name`, `cooperative_id`. |
+| **3. Location Context** | Localizes weather forecasts and agro-ecological zones. | `county`, `sub_county`, `ward`. |
+| **4. Crops & Livestock** | Injects agronomic domain context into LLM prompts. | `primary_crops` (*Maize, Tomato, Coffee*), `livestock` (*Dairy*). |
+| **5. Farm Size & Method** | Tailors input dosage and treatment recommendations. | `acreage`, `farming_type` (*Smallholder, Commercial, Rainfed*). |
 
 ---
 
