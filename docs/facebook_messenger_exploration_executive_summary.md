@@ -126,6 +126,37 @@ flowchart TD
     VerifyPhone --> LinkedFlow
 ```
 
+### Agriconnect Farmer Onboarding & Account Linking Journey
+For **Agriconnect**, first-time farmers are guided through a structured onboarding flow that captures critical farm metadata (location, crops, farm size) so the AI advisory engine can deliver localized agronomic insights:
+
+```mermaid
+flowchart TD
+    classDef start fill:#f1f5f9,stroke:#64748b,stroke-width:2px;
+    classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
+    classDef step fill:#e0f2fe,stroke:#0284c7,stroke-width:2px;
+    classDef done fill:#ecfdf5,stroke:#059669,stroke-width:2px;
+
+    Start["Farmer sends first message on Messenger PSID"]:::start --> CheckDB{"Is PSID already linked to an Agriconnect Farmer profile?"}:::decision
+    
+    CheckDB -->|Yes| DirectAI["Recognized Farmer<br/>Direct to AI Advisory loads crop and location context"]:::done
+    
+    CheckDB -->|No| AskExisting{"First-Time on Messenger:<br/>Are you already an Agriconnect farmer?"}:::decision
+    
+    AskExisting -->|Yes| PromptPhone["Step A1: Prompt for Phone Number<br/>Please enter your registered phone number"]:::step
+    PromptPhone --> VerifyOTP["Step A2: OTP / SMS Verification Code"]:::step
+    VerifyOTP --> LinkAccount["Link PSID to existing Customer Record<br/>customer.messenger_psid = PSID"]:::done
+    LinkAccount --> DirectAI
+
+    AskExisting -->|No| Step1["Step 1: Language Preference<br/>English, Kiswahili, Local Dialect"]:::step
+    Step1 --> Step2["Step 2: Farmer Name and Group<br/>Individual farmer vs. Cooperative"]:::step
+    Step2 --> Step3["Step 3: Farm Location<br/>County, Sub-County or Ward for weather and soil context"]:::step
+    Step3 --> Step4["Step 4: Primary Crops and Livestock<br/>e.g. Maize, Beans, Coffee, Dairy"]:::step
+    Step4 --> Step5["Step 5: Farm Size and Practice<br/>e.g. Acreage, Irrigation or Rainfed"]:::step
+    Step5 --> SaveProfile["Create and Save New Farmer Profile<br/>Tied to messenger_psid"]:::done
+    SaveProfile --> WelcomeMsg["Send Welcome Pack and Open AI Advisory"]:::done
+    WelcomeMsg --> DirectAI
+```
+
 ---
 
 ## 4. Implementation Roadmap & Concrete Proof of Concept (POC) Results ⏱️
