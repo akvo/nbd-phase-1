@@ -59,6 +59,7 @@ Today, users interact with a single WhatsApp phone number where routing logic at
   - **Agriconnect**: Operates a dedicated Meta App & Webhook tailored for **AI Farmer Advisory**.
   - **NBD Platform**: Operates a dedicated Meta App & Webhook tailored for **Citizen Environmental Data Ingestion**.
   - NBD sub-pages (e.g. Mara Basin, Sio-Siteko) share the single NBD Meta App, requiring Meta App Review **only once**.
+  - *Detailed step-by-step guide available in [Spec 009 §2.3: Meta Developer App & Facebook Page Setup Runbook](file:///Users/galihpratama/Sites/nbd-phase-1/docs/features/009_facebook_messenger_chatbot_pipeline_spec.md#23-meta-developer-app--facebook-page-setup-runbook).*
 
 ---
 

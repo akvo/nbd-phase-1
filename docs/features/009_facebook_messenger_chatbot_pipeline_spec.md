@@ -86,16 +86,97 @@ flowchart TD
 
 > **Alternative Evaluated & Deferred**: A single shared Meta App routing multiple Pages via `recipient.id` was evaluated. While it requires only 1 App Review submission, dedicated apps provide cleaner security boundaries and independent release lifecycles.
 
-### 2.3 Meta App Review & Verification Operational Runbook
-1. **Business Verification (1x Only — Shared)**:
-   - Corporate registration documents are verified once at the central Meta Business Portfolio level. Both the NBD App and Agriconnect App share this organizational verification.
-2. **Per-App Review Submission (`pages_messaging` permission)**:
-   - Submit each app in Meta Developer Console with:
-     - Public Privacy Policy and Terms of Service URLs.
-     - 1–2 minute screencast video demonstrating the chatbot interaction.
-     - Reviewer test instructions (e.g. "Send 'Hello' to begin report").
-   - **Review Turnaround Expectations**: Meta typically reviews within **24 to 72 hours** under standard conditions, but teams should budget **1 to 2 weeks** if screencast demonstrations or privacy policy references require resubmission.
-   - **Sub-Page Management**: NBD basin sub-pages (e.g. Mara Basin, Sio-Siteko) subscribe to the single approved NBD Meta App, requiring App Review **only once**.
+### 2.3 Meta Developer App & Facebook Page Setup Runbook
+
+Follow these sequential steps to set up the Meta Developer App, link Facebook Pages, configure the webhook, and submit for App Review.
+
+```mermaid
+flowchart LR
+    A["1. Create Meta App"] --> B["2. Link Facebook Page"]
+    B --> C["3. Configure Webhook & Secret"]
+    C --> D["4. Test in Dev Mode"]
+    D --> E["5. Submit App Review"]
+```
+
+#### Step 1: Create the Meta Developer App
+1. Log in to [developers.facebook.com](https://developers.facebook.com) using an accredited organizational account.
+2. Navigate to **My Apps** ➔ **Create App**.
+3. Select **Other** as the use case ➔ Click **Next**.
+4. Select **Business** as the app type ➔ Click **Next**.
+5. Configure app details:
+   - **App Name**: `NBD Environmental Reporter` (or `Agriconnect AI Advisory` for Tenant 2).
+   - **App Contact Email**: Lead engineering / operations contact.
+   - **Business Account**: Select the central Akvo/NBD Meta Business Portfolio (shares verification across apps).
+6. Click **Create App**.
+
+#### Step 2: Add Messenger & Link Facebook Pages
+1. In the App Dashboard left sidebar, navigate to **Add Products** ➔ find **Messenger** ➔ click **Set Up**.
+2. Navigate to **Messenger** ➔ **Settings** (or **Instagram / Facebook Settings**):
+   - Under **Access Tokens**, click **Add or Remove Pages** and select your target Facebook Page (e.g. *NBD Mara Basin Portal*).
+   - Click **Generate Token** next to the linked page.
+   - Securely save this token as `MESSENGER_PAGE_TOKEN`.
+   - Record the numeric **Page ID** as `MESSENGER_PAGE_ID`.
+
+#### Step 3: Configure Webhook Callback & Verification Handshake
+1. Under **Messenger** ➔ **Settings** ➔ **Webhooks**, click **Add Callback URL**.
+2. Enter the callback configuration:
+   - **Callback URL**: `https://<api-domain>/api/v1/messenger/webhook` (or tunnel URL for local dev).
+   - **Verify Token**: Secure random string configured in your backend (e.g. `nbd_meta_verify_token_2026`).
+3. Click **Verify and Save**.  
+   *The NBD backend automatically verifies `hub.verify_token` and echoes `hub.challenge` with `200 OK`.*
+4. In the Webhook Subscription fields table, subscribe to:
+   - `messages`: Ingests citizen messages, incident descriptions, photos, locations, and quick replies.
+   - `messaging_postbacks`: Ingests button clicks and structured persistent menu actions.
+
+#### Step 4: Subscribe Facebook Page to the Webhook
+1. Under **Messenger** ➔ **Settings** ➔ **Webhooks** ➔ **Page Subscriptions**:
+2. Select your linked Facebook Page from the dropdown and click **Subscribe**.
+
+#### Step 5: Configure Backend Environment Variables
+Configure the following parameters in `backend/.env` (or Kubernetes/staging secret manager):
+
+```env
+# Meta App Credentials (from App Dashboard ➔ App Settings ➔ Basic)
+MESSENGER_APP_SECRET="your_meta_app_secret_here"
+MESSENGER_VERIFY_TOKEN="nbd_meta_verify_token_2026"
+
+# Page Credentials (from Messenger ➔ Settings)
+MESSENGER_PAGE_TOKEN="EAA..."
+MESSENGER_PAGE_ID="NBD_PAGE_1001"
+
+# Meta Graph API Base
+MESSENGER_GRAPH_URL="https://graph.facebook.com/v21.0/me/messages"
+```
+
+> [!TIP]
+> **Local Development & Tunneling**: When testing locally with Docker Compose, expose the backend via `ngrok` or `cloudflared`:
+> ```bash
+> ngrok http 8000
+> # Set Callback URL: https://<subdomain>.ngrok-free.app/api/v1/messenger/webhook
+> ```
+
+#### Step 6: Development Mode Testing & Test Roles
+While the app is in **Development Mode**, only designated test users can message the chatbot:
+1. In the Meta Developer Console, navigate to **App Roles** ➔ **Roles**.
+2. Add team members or field staff as **Testers** or **Developers**.
+3. Invited testers accept the request at `https://developers.facebook.com/requests/`.
+4. Testers open Facebook Messenger, search for the linked Page, and send `"Hello"` to trigger the 5-step reporting state machine.
+
+#### Step 7: Production Go-Live & Meta App Review
+To enable public citizen reporting for any Facebook user worldwide:
+1. **Business Verification (1x Organization Level)**:
+   - Submit business registry / NGO registration in Meta Business Settings. Shared across NBD and Agriconnect apps.
+2. **App Review Submission (`pages_messaging` permission)**:
+   - Navigate to **App Review** ➔ **Permissions and Features** ➔ request **`pages_messaging`**.
+   - Provide required review assets:
+     - **Privacy Policy URL**: Link to official policy (e.g. `https://portal.nbd.org/privacy`).
+     - **Data Deletion Callback URL**: `https://api.nbd.org/api/v1/messenger/data-deletion` (implemented in router).
+     - **Demo Screencast Video**: 1–2 minute recording demonstrating the 5-step citizen reporting interaction.
+     - **Reviewer Test Instructions**: Clear steps for the Meta auditor (e.g. *"Send 'Hello' to begin report, choose incident, upload image"*).
+3. **Turnaround & Launch**:
+   - Meta review SLA is typically **24 to 72 hours** (budget 1–2 weeks if resubmission is requested).
+   - Once approved, toggle the app status switch from **Development** to **Live**.
+   - Sub-pages (Mara Basin, Sio-Siteko) subscribing to the approved NBD app inherit live status without requiring separate reviews.
 
 ---
 
