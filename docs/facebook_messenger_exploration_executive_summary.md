@@ -30,19 +30,35 @@ This briefing evaluates the feasibility, business value, user adoption, financia
 
 ---
 
-### Q2. How does it scale? Can one account manage multiple chatbots?
-- **Multi-Bot Management**: A single verified Meta Business account can manage multiple distinct Facebook Pages and independent Meta Apps simultaneously.
-- **Cross-Tenant Privacy**: Users are identified by a **Page-Scoped ID (PSID)**. A farmer interacting with the Agriconnect Page receives a different identifier than when messaging the NBD Page, ensuring full isolation of user data between tenants.
-- **High Concurrency**: Meta’s platform easily handles spikes of hundreds of messages per second with enterprise-grade SLA.
+### Q2. Comparison to Current Twilio Setup: How does Twilio map to Meta Messenger?
+
+In our current Twilio architecture, we operate a single Twilio Project ("Agriconnect") managing multiple phone numbers for different use cases. The table below maps this directly to Meta's architecture:
+
+| Architectural Layer | Current Twilio Setup | Facebook Messenger Setup | Key Operational Difference |
+| :--- | :--- | :--- | :--- |
+| **Top-Level Organization** | Twilio Account / Project ("Agriconnect") | Meta Business Portfolio / Business Account | Verified **once** with corporate registration documents in both platforms. |
+| **Channel / Ingestion Identifier** | Phone Numbers (e.g., `+254...` for Kenya, `+255...` for Tanzania) | Facebook Pages (e.g., *Agriconnect Advisory*, *NBD Wetland Watch*) | Adding new numbers in Twilio incurs monthly rental fees (\$15–\$115/mo); creating new Facebook Pages is **instant and free**. |
+| **Routing & App Separation** | Single Twilio Webhook URL or per-number Webhook URL | Meta App Webhook Subscription per Page | Each domain (NBD vs Agriconnect) operates its own dedicated Meta App and backend webhook endpoint for total data isolation. |
+| **User Identification** | Global MSISDN (`+254712345678`) | Page-Scoped User ID (`PSID`) | MSISDN is globally identical across chats; PSID is unique per Page, providing built-in cross-tenant privacy. |
+| **Payload Transport** | `application/x-www-form-urlencoded` (`From`, `To`, `Body`, `MediaUrl0`) | `application/json` (`sender.id`, `recipient.id`, `message.text`, `attachments[]`) | JSON natively supports structured quick replies, carousels, and persistent menus. |
+| **Cryptographic Authentication** | `X-Twilio-Signature` (HMAC-SHA1) | `X-Hub-Signature-256` (HMAC-SHA256) | Meta uses standard HMAC-SHA256 constant-time verification. |
+| **Inbound / Outbound Platform Cost** | Billable per message/conversation | **\$0.00 (Free)** | Zero per-message fee on Messenger. |
+
+#### Mapping Today's Single WhatsApp Number to Messenger
+Today, users interact with a single WhatsApp phone number where routing logic attempts to separate agricultural advisory from wetland monitoring. On Messenger:
+- **Agriconnect** operates the *Agriconnect Facebook Page* (dedicated to smallholder farmers and AI advisory).
+- **NBD Platform** operates the *NBD Wetland Watch Page* (dedicated to citizen environmental monitoring and water quality alerts).
+- This separation prevents conversational state confusion, isolates brand identity, and provides cleaner user journeys without needing menu disambiguation.
 
 ---
 
-### Q3. Multi-Tenancy & Governance: Does each tenant/page need separate document verification?
+### Q3. Scaling & Multi-Tenancy: Single account vs. per-tenant Pages
 - **Verification is done ONCE**: Corporate verification documents (tax ID, certificate of incorporation) are submitted **only once** for the parent organization.
-- **Instant Page Creation**: Once verified, creating new Facebook Pages for new regions, projects, or basin pilots is instantaneous **without submitting additional legal documents**.
+- **Instant Page Creation**: Once verified, creating new Facebook Pages for new regions, projects, or basin pilots (e.g., Mara Basin, Sio-Siteko) is instantaneous **without submitting additional legal documents**.
 - **Tenant Isolation**:
   - **Agriconnect**: Operates a dedicated Meta App & Webhook tailored for **AI Farmer Advisory**.
   - **NBD Platform**: Operates a dedicated Meta App & Webhook tailored for **Citizen Environmental Data Ingestion**.
+  - NBD sub-pages (e.g. Mara Basin, Sio-Siteko) share the single NBD Meta App, requiring Meta App Review **only once**.
 
 ---
 
@@ -50,6 +66,7 @@ This briefing evaluates the feasibility, business value, user adoption, financia
 - **Identity Stability**: A user's Page-Scoped ID (PSID) is **persistent under normal operating conditions**. It is a cryptographic mapping between the user's Facebook account and the specific Facebook Page.
 - **Chat Deletion**: If a user clears their chat history or switches phone hardware, their PSID remains the same upon sending a new message.
 - **Edge Cases**: The PSID is only invalidated if the user deletes their Facebook account entirely or exercises a formal Meta Data Deletion request.
+- **Registered Citizen Profile Linking**: Users can link their registered Citizen profile (via phone number verification) so all subsequent Messenger reports are tied to their accredited monitor profile.
 
 ---
 
@@ -57,14 +74,20 @@ This briefing evaluates the feasibility, business value, user adoption, financia
 
 > [!IMPORTANT]
 > **Upcoming Industry Shift (October 1, 2026 WhatsApp Pricing Change)**:
-> Meta has announced that starting October 1, 2026, WhatsApp "service conversations" (free-form replies inside the 24-hour customer service window) transition to a paid per-message billing model, eliminating the previously free 1,000 monthly service conversation allowance. This significantly increases ongoing WhatsApp operational costs, making Facebook Messenger's **$0 per-message policy** even more commercially attractive.
+> Meta has published rate cards (effective October 1, 2026) transitioning WhatsApp "service conversations" (free-form replies inside the 24-hour window) to a paid per-message billing model, with a re-introduced allowance of 1,000 free service messages/month per WhatsApp Business Account (WABA).
+> 
+> In Kenya and East Africa, the published service rate is ~\$0.007/msg + Twilio transport fee ~\$0.005/msg = **~\$0.012 per message**.
+> 
+> For a volume of **10,000 monthly messages**:
+> - **WhatsApp Cost**: \((10,000 - 1,000) \times \$0.012 = \$108.00/\text{mo}\) + \$15–\$115 sender rental = **\$123 – \$223 / month**
+> - **Facebook Messenger Cost**: **\$0.00 / month** (zero platform messaging fees, zero line rentals)
 
 | Expense Category | Current Twilio WhatsApp | WhatsApp (Post-Oct 1, 2026) | Facebook Messenger | Financial Impact |
 | :--- | :--- | :--- | :--- | :--- |
-| **Inbound Messages** | ~$0.005 / msg | ~$0.005 / msg | **$0.00 (Free)** | Zero inbound platform cost |
-| **Outbound Replies (24h window)** | ~$0.005 Twilio fee + Meta Conv. fee ($0.03–$0.06) | Per-message billing across all service messages | **$0.00 (Free)** | **100% cost reduction** for conversational sessions |
-| **Phone Number / Sender Rental** | $15 – $115 / month | $15 – $115 / month | **$0.00 (Free)** | No recurring line rental charges |
-| **Estimated Monthly Cost (10,000 sessions)** | **~$450 – $750 / month** | **~$650 – $950 / month** | **$0.00 / month** | **Direct savings of $5,000 – $11,000+ annually** |
+| **Inbound Messages** | ~\$0.005 / msg | ~\$0.005 / msg | **\$0.00 (Free)** | Zero inbound platform cost |
+| **Outbound Replies (24h window)** | ~\$0.005 Twilio fee + Meta Conv. fee (\$0.03–\$0.06) | ~\$0.012 / msg (after 1,000 free/mo) | **\$0.00 (Free)** | **100% cost reduction** for conversational sessions |
+| **Phone Number / Sender Rental** | \$15 – \$115 / month | \$15 – \$115 / month | **\$0.00 (Free)** | No recurring line rental charges |
+| **Estimated Monthly Cost (10,000 messages)** | **~\$450 – \$750 / month** | **~\$123 – \$223 / month** | **\$0.00 / month** | **Direct savings of \$1,500 – \$8,000+ annually** |
 
 ---
 
@@ -87,17 +110,40 @@ flowchart TD
     AppB --> OutputB["📊 Water Quality Report & Photo\n(Saved to PostGIS & GCS)"]:::storage
 ```
 
+### NBD Citizen Profile-Linking Journey
+```mermaid
+flowchart TD
+    classDef start fill:#f1f5f9,stroke:#64748b,stroke-width:2px;
+    classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
+    classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
+
+    Start["Citizen Messages NBD Page (PSID)"]:::start --> CheckLinked{"Citizen profile already\nlinked to this PSID?"}:::decision
+    CheckLinked -->|Yes| LinkedFlow["Tie Report to Accredited Citizen ID & Home Wetland Site"]:::process
+    CheckLinked -->|No| AskLink{"Prompt: 'Are you a registered\nwetland monitor?'"}:::decision
+    AskLink -->|Yes| VerifyPhone["Verify Phone / Access Code ➔ Link PSID to Citizen Record"]:::process
+    AskLink -->|No (or Skip)| AnonFlow["Proceed as Anonymous Citizen Reporter (Geocoded by Ward/Sub-County)"]:::process
+    VerifyPhone --> LinkedFlow
+```
+
 ---
 
-## 4. Implementation Roadmap & Vibe Coding Effort ⏱️
+## 4. Implementation Roadmap & Concrete Proof of Concept (POC) Results ⏱️
 
-The engineering work follows our fast-paced **Vibe Coding** standard, structured into rapid implementation, test automation, and external platform certification:
+### Verified Proof of Concept (POC) Status: COMPLETE & PASSING
+The backend engineering team has implemented and verified the working POC in Docker:
+- **Cryptographic Security**: Validated `X-Hub-Signature-256` HMAC-SHA256 verification (rejects forged payloads with `403 Forbidden`).
+- **Challenge Handshake**: Validated `GET /api/v1/messenger/webhook` challenge protocol with verify token.
+- **Message De-Duplication**: Implemented idempotent deduplication using `ProcessedWebhookMessage` by `mid`.
+- **Full Conversational State Machine**: Validated 5-step reporting flow (`CONSENT` ➔ `INCIDENT_SELECT` ➔ `MEDIA_UPLOAD` ➔ `LOCATION_SELECT` ➔ `DONE`) persisting records into PostGIS `Datapoint` and `Answer` tables with `source='MESSENGER'`.
+- **Media Streaming**: Photo evidence downloaded from Meta CDN and streamed directly to Google Cloud Storage.
+- **Data Deletion Compliance**: Implemented `POST /api/v1/messenger/data-deletion` callback compliant with Meta platform policies.
+- **Test Automation**: **9 out of 9 automated test cases passing** (100% pass rate in 4.70s) with Flake8 lint compliance.
 
-| Phase | Scope & Key Deliverables | Vibe Coding Engineering Effort | External Platform Timeline |
-| :--- | :--- | :---: | :---: |
-| **Phase 1: Proof of Concept (POC)** | Build webhook router, HMAC-SHA256 guard, message de-duplication, GCS photo streaming, and full automated pytest suite. | **11.5 Hours (~1.5 Developer Days)** | Immediate (Runs in Local / Docker Staging) |
-| **Phase 2: Meta App Review & Verification** | Submit Meta Business Verification, create official Facebook Pages, and submit `pages_messaging` permission with 1-min demo screencast. | **2.0 Hours** | **24–72 Hours** (Meta Review Turnaround) |
-| **Phase 3: Pilot & Field Rollout** | Field verification with pilot farmer groups (Agriconnect) and Mara/Sio-Siteko basin monitors (NBD). | **4.0 Hours** | **1–2 Weeks** (Field Pilot Duration) |
+| Phase | Scope & Key Deliverables | Estimation |
+| :--- | :--- | :---: |
+| **Phase 1: Proof of Concept (POC)** | Webhook router, HMAC guard, de-duplication, state engine, GCS photo streaming, PostGIS persistence, and full test suite. | **11.5 Hours (~1.5 Days)** *(Vibe Coding)* |
+| **Phase 2: Meta App Review & Verification** | Submit Meta Business Verification, create official Facebook Pages, submit `pages_messaging` permission with 1-min demo screencast. | **24–72 Hours** *(Meta Review SLA; 1–2 wks if revision needed)* |
+| **Phase 3: Pilot & Field Rollout** | Field verification with pilot farmer groups (Agriconnect) and Mara/Sio-Siteko basin monitors (NBD). | **1–2 Weeks** *(Field Partner Pilot & Evaluation Period)* |
 
 ---
 
@@ -107,7 +153,8 @@ The engineering work follows our fast-paced **Vibe Coding** standard, structured
 | :--- | :---: | :--- | :--- |
 | **24-Hour Messaging Window & Re-Engagement** | Medium | Meta strictly prohibits sending unsolicited messages outside a 24-hour window from the user's last message without pre-approved Message Tags. | Design flows to complete within one continuous session. For abandoned reports, use allowed Message Tags (e.g. `CONFIRMED_EVENT_UPDATE`) or rely on citizen re-engagement. |
 | **Data Governance & Sovereignty** | Medium | Citizen environmental reports and media pass temporarily through Meta infrastructure before reaching our sovereign database and Google Cloud Storage. | Enforce end-to-end TLS encryption, sanitize all PII, implement Meta-mandated Data Deletion callbacks, and retain master spatial records strictly in sovereign PostGIS databases. |
-| **Meta Platform Approval** | Low | App Review could face delays if permissions are misconfigured. | Prepare a dedicated 1-minute demo screencast, clear terms of service, and accurate privacy policies prior to submission. |
+| **Data Deletion Policy for Sovereign Datapoints** | Low | When a user requests data deletion via Meta, personal identifiers (PSID, name, phone) are scrubbed, and transient sessions are purged. | Permanent environmental data (`Datapoint`, `Answer`) collected for the public interest are retained in anonymized form with the `citizen_id` and `psid` severed (`citizen_id = NULL`). |
+| **Meta Platform Approval & Review Variance** | Medium | App Review turnaround typically takes 24–72 hours, but can extend to 1–2 weeks if screencast demonstrations or privacy policies require resubmission. | Prepare a polished 1-minute demo screencast, complete terms of service, and accurate privacy policies prior to submission. NBD basin sub-pages share a single app to avoid multi-review overhead. |
 
 ---
 
@@ -115,4 +162,5 @@ The engineering work follows our fast-paced **Vibe Coding** standard, structured
 
 Integrating Facebook Messenger offers a compelling commercial and operational advantage by eliminating per-message platform charges (especially critical with WhatsApp's upcoming October 1, 2026 pricing increase) while providing an interactive, rich-media channel for citizens and farmers.
 
-**Next Action**: Authorize execution of the technical Proof of Concept (POC) in Phase 1 (11.5 hours) to validate end-to-end webhook processing, image streaming, and test automation.
+**Next Action**: Review the completed Phase 1 POC results and authorize Phase 2 Meta App Review submission.
+

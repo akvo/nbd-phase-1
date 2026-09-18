@@ -37,7 +37,26 @@ This specification details the technical design, security architecture, state ma
 
 ## 2. Multi-Tenant Architecture & Meta Setup
 
-### 2.1 Chosen Architecture: Dedicated Meta Apps with Separate Webhook Endpoints
+### 2.1 Comparison to Current Twilio Architecture
+In the existing multi-channel deployment, Twilio manages SMS/WhatsApp messaging under a single project ("Agriconnect") with multiple allocated phone numbers. The matrix below outlines how this architecture maps to Meta Facebook Messenger:
+
+| Architectural Layer | Current Twilio Setup | Facebook Messenger Setup | Key Operational Difference |
+| :--- | :--- | :--- | :--- |
+| **Top-Level Organization** | Twilio Account / Project ("Agriconnect") | Meta Business Portfolio / Business Account | Verified **once** with corporate registration documents in both platforms. |
+| **Channel / Ingestion Identifier** | Phone Numbers (e.g., `+254...` for Kenya, `+255...` for Tanzania) | Facebook Pages (e.g., *Agriconnect Advisory*, *NBD Wetland Watch*) | Adding new numbers in Twilio incurs monthly rental fees (\$15–\$115/mo); creating new Facebook Pages is **instant and free**. |
+| **Routing & App Separation** | Single Twilio Webhook URL or per-number Webhook URL | Meta App Webhook Subscription per Page | Each domain (NBD vs Agriconnect) operates its own dedicated Meta App and backend webhook endpoint for total data isolation. |
+| **User Identification** | Global MSISDN (`+254712345678`) | Page-Scoped User ID (`PSID`) | MSISDN is globally identical across chats; PSID is unique per Page, providing built-in cross-tenant privacy. |
+| **Payload Transport** | `application/x-www-form-urlencoded` (`From`, `To`, `Body`, `MediaUrl0`) | `application/json` (`sender.id`, `recipient.id`, `message.text`, `attachments[]`) | JSON natively supports structured quick replies, carousels, and persistent menus. |
+| **Cryptographic Authentication** | `X-Twilio-Signature` (HMAC-SHA1) | `X-Hub-Signature-256` (HMAC-SHA256) | Meta uses standard HMAC-SHA256 constant-time verification. |
+| **Inbound / Outbound Platform Cost** | Billable per message/conversation | **\$0.00 (Free)** | Zero per-message fee on Messenger. |
+
+#### Mapping Today's Single WhatsApp Number to Dedicated Messenger Pages
+Today, citizen environmental reporting and farmer advisory share a single WhatsApp phone number with menu-based routing. On Messenger, we establish two dedicated Pages:
+1. **Agriconnect Facebook Page**: Dedicated to smallholder farmers and AI crop/pest advisory.
+2. **NBD Wetland Watch Page**: Dedicated to citizen environmental monitoring and water quality alerts.
+This eliminates conversation state collisions, keeps branding distinct, and streamlines user interactions without complex top-level disambiguation menus.
+
+### 2.2 Chosen Architecture: Dedicated Meta Apps with Separate Webhook Endpoints
 To guarantee total domain and service separation between NBD and Agriconnect, each platform operates its own dedicated Meta App with an independent Webhook URL:
 
 ```mermaid
@@ -67,7 +86,7 @@ flowchart TD
 
 > **Alternative Evaluated & Deferred**: A single shared Meta App routing multiple Pages via `recipient.id` was evaluated. While it requires only 1 App Review submission, dedicated apps provide cleaner security boundaries and independent release lifecycles.
 
-### 2.2 Meta App Review & Verification Breakdown
+### 2.3 Meta App Review & Verification Operational Runbook
 1. **Business Verification (1x Only — Shared)**:
    - Corporate registration documents are verified once at the central Meta Business Portfolio level. Both the NBD App and Agriconnect App share this organizational verification.
 2. **Per-App Review Submission (`pages_messaging` permission)**:
@@ -75,7 +94,8 @@ flowchart TD
      - Public Privacy Policy and Terms of Service URLs.
      - 1–2 minute screencast video demonstrating the chatbot interaction.
      - Reviewer test instructions (e.g. "Send 'Hello' to begin report").
-   - **Review Turnaround**: Meta typically reviews within **24 to 72 hours** (>95% approval rate for utility chatbots).
+   - **Review Turnaround Expectations**: Meta typically reviews within **24 to 72 hours** under standard conditions, but teams should budget **1 to 2 weeks** if screencast demonstrations or privacy policy references require resubmission.
+   - **Sub-Page Management**: NBD basin sub-pages (e.g. Mara Basin, Sio-Siteko) subscribe to the single approved NBD Meta App, requiring App Review **only once**.
 
 ---
 
@@ -108,7 +128,23 @@ flowchart TD
   - **Registered Citizen**: If the user links their registered Citizen profile (by phone number), their reports are tied to their verified `citizen_id` and home wetland site.
   - **Anonymous Citizen**: If unlinked, reports are stored as public submissions geocoded to the selected sub-county's centroid.
 
-### 3.3 Interoperability Reference: Agriconnect Onboarding & Account Linking Flow
+### 3.3 NBD Citizen Profile-Linking Flow
+
+```mermaid
+flowchart TD
+    classDef start fill:#f1f5f9,stroke:#64748b,stroke-width:2px;
+    classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
+    classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
+
+    Start["Citizen Messages NBD Page (PSID)"]:::start --> CheckLinked{"Citizen profile already\nlinked to this PSID?"}:::decision
+    CheckLinked -->|Yes| LinkedFlow["Tie Report to Accredited Citizen ID & Home Wetland Site"]:::process
+    CheckLinked -->|No| AskLink{"Prompt: 'Are you a registered\nwetland monitor?'"}:::decision
+    AskLink -->|Yes| VerifyPhone["Verify Phone / Access Code ➔ Link PSID to Citizen Record"]:::process
+    AskLink -->|No (or Skip)| AnonFlow["Proceed as Anonymous Citizen Reporter (Geocoded by Ward/Sub-County)"]:::process
+    VerifyPhone --> LinkedFlow
+```
+
+### 3.4 Interoperability Reference: Agriconnect Onboarding & Account Linking Flow
 
 ```mermaid
 flowchart TD
@@ -269,48 +305,130 @@ def get_messenger_config() -> MessengerConfig:
 - **Pruning Task**: A scheduled background worker executes `DELETE FROM messenger_sessions WHERE created_at < NOW() - INTERVAL '24 hours'` to prevent stale database bloat.
 - **24-Hour Messaging Window Policy**: Outbound bot replies are only sent in response to user-initiated messages within Meta's standard 24-hour customer service window.
 
-### 5.4 Mandatory Meta Data Deletion Request Callback
+### 5.4 Mandatory Meta Data Deletion Request Callback & Sovereign Data Policy
 To comply with Meta Platform Policies and international privacy regulations (GDPR/Data Protection Acts):
 - **Endpoint**: `POST /api/v1/messenger/data-deletion`
-- **Logic**:
+- **Transient Session Scrubbing**:
   1. Decodes Meta's signed request using `MESSENGER_APP_SECRET`.
   2. Generates a unique tracking confirmation code.
-  3. Enqueues a background job to scrub any transient sessions matching the user's `user_id`/`PSID`.
+  3. Enqueues a background job to delete any transient sessions matching the user's `user_id`/`PSID` from `messenger_sessions` and `processed_webhook_messages`.
   4. Returns JSON `{ "url": "https://portal.nbd.org/data-deletion-status?code=...", "confirmation_code": "..." }`.
+- **Sovereign Environmental Data Anonymization**:
+  - Environmental observations submitted to NBD (`Datapoint` and `Answer` records) are collected in the public interest for water resource management.
+  - Upon user data deletion, the spatial datapoints and answers are **retained in anonymized form**, but personal links are permanently severed (`citizen_id = NULL`).
 
 ---
 
-## 6. Verification & Automated Testing Plan
+## 6. Verification, Concrete POC Results & Payload Schemas
 
-### 6.1 Test Suite Breakdown (`backend/tests/test_messenger.py`)
+### 6.1 Concrete Proof of Concept (POC) Verification Results
+The POC has been fully implemented in Docker (`nbd-phase-1`) and validated with automated pytest execution:
 
-| Test Area | Description & Assertions |
-| :--- | :--- |
-| **Handshake Verification** | `GET /api/v1/messenger/webhook` returns `hub.challenge` on matching verify token; returns `403 Forbidden` on invalid token. |
-| **HMAC Security Guard** | `POST /api/v1/messenger/webhook` verifies valid HMAC-SHA256 signature; rejects altered/forged body with `403 Forbidden`. |
-| **Message De-Duplication** | Duplicate `mid` webhook payload is processed once and ignored on second delivery. |
-| **Full Conversation Progression** | Simulates complete state cycle: `CONSENT` ➔ `INCIDENT_SELECT` ➔ `MEDIA_UPLOAD` (mock GCS upload) ➔ `LOCATION_SELECT` ➔ `Datapoint` & `Answer` database records saved with `source='MESSENGER'`. |
-| **Session Expiration** | Verifies that sessions older than 24 hours are dropped upon receiving a new message. |
-| **Data Deletion Callback** | Verifies `POST /api/v1/messenger/data-deletion` decodes signed request and returns confirmation URL. |
-
-### 6.2 Deterministic Execution Command
-```bash
-./dc.sh exec backend python -m pytest tests/test_messenger.py -v
 ```
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-7.4.0, pluggy-1.6.0
+rootdir: /app
+configfile: pyproject.toml
+plugins: cov-4.1.0, anyio-4.14.1, asyncio-0.23.6
+collected 9 items
+
+tests/test_messenger.py::test_webhook_verification_success PASSED        [ 11%]
+tests/test_messenger.py::test_webhook_verification_invalid_token PASSED  [ 22%]
+tests/test_messenger.py::test_webhook_post_invalid_signature PASSED      [ 33%]
+tests/test_messenger.py::test_webhook_post_valid_flow PASSED            [ 44%]
+tests/test_messenger.py::test_webhook_deduplication PASSED              [ 55%]
+tests/test_messenger.py::test_webhook_expired_session PASSED             [ 66%]
+tests/test_messenger.py::test_data_deletion_callback PASSED             [ 77%]
+tests/test_messenger.py::test_webhook_decline_consent PASSED             [ 88%]
+tests/test_messenger.py::test_webhook_unknown_option PASSED              [100%]
+
+========================= 9 passed, 1 warning in 4.70s =========================
+```
+
+### 6.2 Sample Meta Webhook Inbound & Outbound Payloads
+
+#### Inbound Webhook Payload (`POST /api/v1/messenger/webhook`)
+```json
+{
+  "object": "page",
+  "entry": [
+    {
+      "id": "100123456789012",
+      "time": 1726650000000,
+      "messaging": [
+        {
+          "sender": { "id": "8912345678901234" },
+          "recipient": { "id": "100123456789012" },
+          "timestamp": 1726650000000,
+          "message": {
+            "mid": "m_abc123def456ghi789",
+            "text": "Hello"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Outbound Graph API Bot Response (`POST https://graph.facebook.com/v20.0/me/messages`)
+```json
+{
+  "recipient": { "id": "8912345678901234" },
+  "messaging_type": "RESPONSE",
+  "message": {
+    "text": "Welcome to NBD Wetland Watch! 🌿\nDo you consent to share your report data for environmental monitoring?",
+    "quick_replies": [
+      {
+        "content_type": "text",
+        "title": "1. Yes, I consent",
+        "payload": "CONSENT_YES"
+      },
+      {
+        "content_type": "text",
+        "title": "2. No, decline",
+        "payload": "CONSENT_NO"
+      }
+    ]
+  }
+}
+```
+
+### 6.3 Test Suite Matrix (`backend/tests/test_messenger.py`)
+
+| Test Case | Method / Route | Verification & Assertions |
+| :--- | :--- | :--- |
+| `test_webhook_verification_success` | `GET /api/v1/messenger/webhook` | Returns `200 OK` and echoes `hub.challenge` when `hub.verify_token` matches. |
+| `test_webhook_verification_invalid_token` | `GET /api/v1/messenger/webhook` | Returns `403 Forbidden` when verify token does not match. |
+| `test_webhook_post_invalid_signature` | `POST /api/v1/messenger/webhook` | Returns `403 Forbidden` when `X-Hub-Signature-256` HMAC is missing or invalid. |
+| `test_webhook_post_valid_flow` | `POST /api/v1/messenger/webhook` | Progresses through all 5 states (`CONSENT` ➔ `INCIDENT_SELECT` ➔ `MEDIA_UPLOAD` ➔ `LOCATION_SELECT` ➔ `DONE`), downloads media, mocks GCS streaming, and asserts `Datapoint` and `Answer` saved in database. |
+| `test_webhook_deduplication` | `POST /api/v1/messenger/webhook` | Delivers duplicate `mid`; asserts second delivery returns `200 OK` without duplicating database state or triggering secondary side effects. |
+| `test_webhook_expired_session` | `POST /api/v1/messenger/webhook` | Simulates >24h stale session; verifies engine resets state to `CONSENT` on next inbound message. |
+| `test_data_deletion_callback` | `POST /api/v1/messenger/data-deletion` | Decodes signed request, validates signature, enqueues deletion, and returns confirmation URL with tracking code. |
+| `test_webhook_decline_consent` | `POST /api/v1/messenger/webhook` | User declines consent; session closes cleanly with privacy notice. |
+| `test_webhook_unknown_option` | `POST /api/v1/messenger/webhook` | User inputs unmapped text; bot re-prompts with valid options while maintaining current state. |
 
 ---
 
 ## 7. Epic & Vibe Coding Estimation ⏱️
 
+### 7.1 Phase Roadmap & Lead Times
+| Phase | Scope & Key Deliverables | Estimation |
+| :--- | :--- | :---: |
+| **Phase 1: Proof of Concept (POC)** | Webhook router, HMAC guard, de-duplication, state engine, GCS photo streaming, PostGIS persistence, and full test suite. | **11.5 Hours (~1.5 Days)** *(Vibe Coding)* |
+| **Phase 2: Meta App Review & Verification** | Submit Meta Business Verification, create official Facebook Pages, submit `pages_messaging` permission with 1-min demo screencast. | **24–72 Hours** *(Meta Review SLA; 1–2 wks if revision needed)* |
+| **Phase 3: Pilot & Field Rollout** | Field verification with pilot farmer groups (Agriconnect) and Mara/Sio-Siteko basin monitors (NBD). | **1–2 Weeks** *(Field Partner Pilot & Evaluation Period)* |
+
+### 7.2 Detailed Task Effort Breakdown (Phase 1 POC)
 > Tasks are estimated using the 3-part breakdown: **Vibe Coding (Dev)** + **Automated Testing** + **QA & Review** = **Total Est. Time**.
 
-| Task ID | Component & Description | Vibe Coding (Dev) | Automated Testing | QA & Review | Total Est. Time | Priority |
-| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **TASK-01** | **Configuration & Database Models**: `MessengerConfig`, `MessengerSession`, `ProcessedWebhookMessage` models + Alembic migration. | 35m | 25m | 15m | **75m (1.25h)** | P1 |
-| **TASK-02** | **Webhook Router & Security Guard**: GET handshake, POST HMAC-SHA256 verification, rate limiting, and Data Deletion callback. | 45m | 35m | 25m | **105m (1.75h)** | P1 |
-| **TASK-03** | **Message De-Duplication & Session Cleaner**: Idempotent message tracking by `mid` and 24h session auto-pruning. | 35m | 30m | 20m | **85m (1.4h)** | P1 |
-| **TASK-04** | **State Machine Service & GCS Streaming**: Conversational branching, Quick Replies, Meta CDN photo download ➔ GCS streaming. | 65m | 45m | 30m | **140m (2.3h)** | P1 |
-| **TASK-05** | **Datapoint & Answer Persistence**: Mapping completed sessions to PostGIS `Datapoint` and `Answer` tables (`source='MESSENGER'`). | 40m | 30m | 20m | **90m (1.5h)** | P1 |
-| **TASK-06** | **Comprehensive Automated Test Suite**: Full coverage in `tests/test_messenger.py` verifying all edge cases (≥90% coverage). | 55m | 50m | 25m | **130m (2.2h)** | P1 |
-| **TASK-07** | **Documentation & Staging Deployment Guide**: Syncing API docs, updating LLD/PRD, and Meta App submission guide. | 30m | 15m | 20m | **65m (1.1h)** | P2 |
-| **Total** | **Full Feature Delivery** | **305m** | **230m** | **155m** | **690m (11.5h)** | - |
+| Task ID | Component & Description | Vibe Coding (Dev) | Automated Testing | QA & Review | Total Est. Time |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **TASK-01** | **Configuration & Database Models**: `MessengerConfig`, `MessengerSession`, `ProcessedWebhookMessage` models + Alembic migration. | 35m | 25m | 15m | **75m (1.25h)** |
+| **TASK-02** | **Webhook Router & Security Guard**: GET handshake, POST HMAC-SHA256 verification, rate limiting, and Data Deletion callback. | 45m | 35m | 25m | **105m (1.75h)** |
+| **TASK-03** | **Message De-Duplication & Session Cleaner**: Idempotent message tracking by `mid` and 24h session auto-pruning. | 35m | 30m | 20m | **85m (1.4h)** |
+| **TASK-04** | **State Machine Service & GCS Streaming**: Conversational branching, Quick Replies, Meta CDN photo download ➔ GCS streaming. | 65m | 45m | 30m | **140m (2.3h)** |
+| **TASK-05** | **Datapoint & Answer Persistence**: Mapping completed sessions to PostGIS `Datapoint` and `Answer` tables (`source='MESSENGER'`). | 40m | 30m | 20m | **90m (1.5h)** |
+| **TASK-06** | **Comprehensive Automated Test Suite**: Full coverage in `tests/test_messenger.py` verifying all edge cases (9/9 passing). | 55m | 50m | 25m | **130m (2.2h)** |
+| **TASK-07** | **Documentation & Staging Deployment Guide**: Executive summary, technical spec, and Meta review runbook. | 30m | 15m | 20m | **65m (1.1h)** |
+| **Total** | **Full Feature Delivery** | **305m** | **230m** | **155m** | **690m (11.5h)** |
