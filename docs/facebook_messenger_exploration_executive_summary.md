@@ -118,11 +118,11 @@ flowchart TD
     classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
     classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    Start["Citizen Messages NBD Page (PSID)"]:::start --> CheckLinked{"Citizen profile already\nlinked to this PSID?"}:::decision
+    Start["Citizen Messages NBD Page (PSID)"]:::start --> CheckLinked{"Citizen profile already linked to this PSID?"}:::decision
     CheckLinked -->|Yes| LinkedFlow["Tie Report to Accredited Citizen ID & Home Wetland Site"]:::process
-    CheckLinked -->|No| AskLink{"Prompt: 'Are you a registered\nwetland monitor?'"}:::decision
+    CheckLinked -->|No| AskLink{"Prompt: Are you a registered wetland monitor?"}:::decision
     AskLink -->|Yes| VerifyPhone["Verify Phone / Access Code ➔ Link PSID to Citizen Record"]:::process
-    AskLink -->|No (or Skip)| AnonFlow["Proceed as Anonymous Citizen Reporter (Geocoded by Ward/Sub-County)"]:::process
+    AskLink -->|No or Skip| AnonFlow["Proceed as Anonymous Citizen Reporter (Geocoded by Ward/Sub-County)"]:::process
     VerifyPhone --> LinkedFlow
 ```
 

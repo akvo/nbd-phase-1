@@ -136,11 +136,11 @@ flowchart TD
     classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
     classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    Start["Citizen Messages NBD Page (PSID)"]:::start --> CheckLinked{"Citizen profile already\nlinked to this PSID?"}:::decision
+    Start["Citizen Messages NBD Page (PSID)"]:::start --> CheckLinked{"Citizen profile already linked to this PSID?"}:::decision
     CheckLinked -->|Yes| LinkedFlow["Tie Report to Accredited Citizen ID & Home Wetland Site"]:::process
-    CheckLinked -->|No| AskLink{"Prompt: 'Are you a registered\nwetland monitor?'"}:::decision
+    CheckLinked -->|No| AskLink{"Prompt: Are you a registered wetland monitor?"}:::decision
     AskLink -->|Yes| VerifyPhone["Verify Phone / Access Code ➔ Link PSID to Citizen Record"]:::process
-    AskLink -->|No (or Skip)| AnonFlow["Proceed as Anonymous Citizen Reporter (Geocoded by Ward/Sub-County)"]:::process
+    AskLink -->|No or Skip| AnonFlow["Proceed as Anonymous Citizen Reporter (Geocoded by Ward/Sub-County)"]:::process
     VerifyPhone --> LinkedFlow
 ```
 
@@ -152,9 +152,9 @@ flowchart TD
     classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px;
     classDef process fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    Start["Farmer Messages Agriconnect (PSID)"]:::start --> CheckDB{"Customer exists with\nmessenger_psid = PSID?"}:::decision
-    CheckDB -->|Yes| Recognized["Recognized Farmer\nDirect to AI Advisory Engine"]:::process
-    CheckDB -->|No| AskLinking{"First-Time User\n'Already registered on Agriconnect?'"}:::decision
+    Start["Farmer Messages Agriconnect (PSID)"]:::start --> CheckDB{"Customer exists with messenger_psid = PSID?"}:::decision
+    CheckDB -->|Yes| Recognized["Recognized Farmer ➔ Direct to AI Advisory Engine"]:::process
+    CheckDB -->|No| AskLinking{"First-Time User: Already registered on Agriconnect?"}:::decision
     AskLinking -->|Yes| PromptPhone["Prompt for Phone ➔ Link Account (messenger_psid = PSID)"]:::process
     AskLinking -->|No| Onboard["Run Farmer Onboarding (Name, Language, Location, Crops) ➔ Save Customer"]:::process
     PromptPhone --> Recognized
