@@ -24,9 +24,10 @@ This briefing evaluates the feasibility, business value, user adoption, financia
 ## 2. Key Business Questions & Strategic Findings
 
 ### Q1. What is required to set up Facebook Messenger?
-- **Facebook Business Page(s)**: Branded public profiles (e.g., *Agriconnect*, *NBD Wetland Watch*).
-- **Meta Business Verification**: Standard one-time organization verification using corporate registration documents.
-- **Backend Webhook Integration**: Cloud API endpoint in our backend to receive events, authenticate payloads, and dispatch automated responses.
+- **Meta Developer App (API Gateway & Integration Bridge)**: The centralized software bridge in Meta for Developers that manages cryptographic secrets (`App Secret`), permissions (`pages_messaging`), and webhook routing. A single Meta App can connect **multiple Meta platforms simultaneously** (e.g., Facebook Messenger, Instagram Direct, and WhatsApp Cloud API).
+- **Facebook Business Page(s)**: Branded public profiles (e.g., *Agriconnect*, *NBD Wetland Watch*) that citizens interact with in Messenger.
+- **Meta Business Verification**: Standard one-time organization verification using corporate registration documents (shared across all apps).
+- **Backend Webhook Integration**: Cloud API endpoint in our FastAPI backend to receive JSON events, authenticate payloads via HMAC-SHA256, and dispatch automated responses.
 
 ---
 
@@ -53,13 +54,12 @@ Today, users interact with a single WhatsApp phone number where routing logic at
 ---
 
 ### Q3. Scaling & Multi-Tenancy: Single account vs. per-tenant Pages
-- **Verification is done ONCE**: Corporate verification documents (tax ID, certificate of incorporation) are submitted **only once** for the parent organization.
-- **Instant Page Creation**: Once verified, creating new Facebook Pages for new regions, projects, or basin pilots (e.g., Mara Basin, Sio-Siteko) is instantaneous **without submitting additional legal documents**.
-- **Tenant Isolation**:
-  - **Agriconnect**: Operates a dedicated Meta App & Webhook tailored for **AI Farmer Advisory**.
-  - **NBD Platform**: Operates a dedicated Meta App & Webhook tailored for **Citizen Environmental Data Ingestion**.
-  - NBD sub-pages (e.g. Mara Basin, Sio-Siteko) share the single NBD Meta App, requiring Meta App Review **only once**.
-  - *Detailed step-by-step guide available in [Spec 009 §2.3: Meta Developer App & Facebook Page Setup Runbook](file:///Users/galihpratama/Sites/nbd-phase-1/docs/features/009_facebook_messenger_chatbot_pipeline_spec.md#23-meta-developer-app--facebook-page-setup-runbook).*
+- **3-Tier Governance Hierarchy**:
+  1. **Tier 1 (Organization Business Verification)**: Submitted **only once** for Akvo/NBD parent organization. Shared across all apps.
+  2. **Tier 2 (Per-App Permission Review)**: Submitted once per distinct application domain (e.g. NBD Reporting vs Agriconnect Advisory) only when transitioning to public `Live Mode`.
+  3. **Tier 3 (Page Scaling)**: New Facebook Pages for different wetland basins (e.g. Mara Basin, Sio-Siteko, Amboseli) subscribe to the existing approved NBD Meta App **with zero additional reviews or legal submissions**.
+- **Immediate PoC Testing (Zero Review Required)**: During internal PoC development and testing, apps operate in **`Development Mode`**. Team members added as **Testers** in the Developer Console can interact with the live chatbot immediately without waiting for Meta review approvals.
+- *Detailed step-by-step guide available in [Spec 009 §2.3: Meta Developer App & Facebook Page Setup Runbook](file:///Users/galihpratama/Sites/nbd-phase-1/docs/features/009_facebook_messenger_chatbot_pipeline_spec.md#23-meta-developer-app--facebook-page-setup-runbook).*
 
 ---
 
@@ -170,7 +170,7 @@ The backend engineering team has implemented, tested, and pushed the working POC
 - **Full Conversational State Machine**: Validated 5-step reporting flow (`CONSENT` ➔ `INCIDENT_SELECT` ➔ `MEDIA_UPLOAD` ➔ `LOCATION_SELECT` ➔ `DONE`) persisting records into PostGIS `Datapoint` and `Answer` tables with `source='MESSENGER'`.
 - **Media Streaming**: Photo evidence downloaded from Meta CDN and streamed directly to Google Cloud Storage.
 - **Data Deletion Compliance**: Implemented `POST /api/v1/messenger/data-deletion` callback compliant with Meta platform policies.
-- **Test Automation**: **9 out of 9 automated test cases passing** (100% pass rate in 4.52s) with Flake8 lint compliance.
+- **Test Automation**: **10 out of 10 automated test cases passing** (100% pass rate in Docker) with Flake8 lint compliance.
 
 | Phase | Scope & Key Deliverables | Estimated Effort | Actual / Lead Time |
 | :--- | :--- | :---: | :---: |

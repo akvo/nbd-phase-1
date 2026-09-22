@@ -37,7 +37,60 @@ This specification details the technical design, security architecture, state ma
 
 ## 2. Multi-Tenant Architecture & Meta Setup
 
-### 2.1 Comparison to Current Twilio Architecture
+### 2.1 Foundational Concept of Meta Developer Apps
+
+In the Meta ecosystem (**developers.facebook.com**), an **"App"** is not a downloadable mobile binary. It functions as an **API Gateway, Security Boundary, and Integration Bridge** between our sovereign backend servers and Meta's communication platforms (Facebook Messenger, Instagram Direct, WhatsApp, and Facebook Login).
+
+```mermaid
+flowchart TD
+    classDef org fill:#f3e8ff,stroke:#9333ea,stroke-width:2px;
+    classDef app fill:#e0f2fe,stroke:#0284c7,stroke-width:2px;
+    classDef prod fill:#fef3c7,stroke:#d97706,stroke-width:2px;
+    classDef chan fill:#ecfdf5,stroke:#059669,stroke-width:2px;
+
+    Org["1. Meta Business Portfolio (Stichting Akvo)<br/>• Legal Entity Verification (1x)<br/>• Centralized Ownership & Governance"]:::org
+
+    App1["2. Meta Developer App: NBD Reporter<br/>App ID: 16917... | App Secret"]:::app
+    App2["2. Meta Developer App: Agriconnect<br/>App ID: 28491... | App Secret"]:::app
+
+    Prod_FB["Product: Messenger"]:::prod
+    Prod_IG["Product: Instagram Messaging"]:::prod
+    Prod_WA["Product: WhatsApp Cloud API"]:::prod
+
+    Page_Mara["Facebook Page: Mara Basin Watch"]:::chan
+    Page_Sio["Facebook Page: Sio-Siteko Watch"]:::chan
+    IG_Account["Instagram: @nbd_wetlands"]:::chan
+    WA_Num["WhatsApp Number: +254..."]:::chan
+
+    Org --> App1
+    Org --> App2
+
+    App1 --> Prod_FB
+    App1 --> Prod_IG
+    App2 --> Prod_WA
+
+    Prod_FB --> Page_Mara
+    Prod_FB --> Page_Sio
+    Prod_IG --> IG_Account
+    Prod_WA --> WA_Num
+```
+
+#### Key Architecture Principles of Meta Apps:
+1. **Multi-Platform Support Inside a Single App**:
+   - A single Meta App ID can simultaneously host multiple **Products** (e.g. *Facebook Messenger*, *Instagram Graph API*, *WhatsApp Cloud API*, *Facebook Login*).
+   - All products inside the app share the same `MESSENGER_APP_SECRET` for HMAC-SHA256 signature verification and can route through unified or dedicated webhook paths.
+2. **The 4-Layer Hierarchy**:
+   - **Layer 1: Meta Business Portfolio** (*Stichting Akvo*): Owns business verification, legal documents, and digital asset governance.
+   - **Layer 2: Meta Developer App** (*NBD Reporter*): Manages cryptographic secrets, webhook configurations, and API permission grants.
+   - **Layer 3: Facebook Pages / Business Accounts** (*Mara Basin Watch*, *Sio-Siteko Watch*): The public-facing channels citizens interact with in Messenger.
+   - **Layer 4: Page-Scoped User ID (`PSID`)**: Meta generates an isolated, persistent identifier per citizen per page, ensuring user privacy and cross-tenant isolation.
+3. **App Execution Modes**:
+   - **`Development Mode` (Sandbox)**: The default state. Enables complete end-to-end webhook ingestion, state transitions, photo streaming, and PostGIS saves for team members added in **App Roles** with **zero Meta App Review required**.
+   - **`Live Mode` (Production)**: Enables public citizen reporting for any user worldwide after passing Meta App Review for `pages_messaging`.
+
+---
+
+### 2.2 Comparison to Current Twilio Architecture
 In the existing multi-channel deployment, Twilio manages SMS/WhatsApp messaging under a single project ("Agriconnect") with multiple allocated phone numbers. The matrix below outlines how this architecture maps to Meta Facebook Messenger:
 
 | Architectural Layer | Current Twilio Setup | Facebook Messenger Setup | Key Operational Difference |
@@ -56,7 +109,9 @@ Today, citizen environmental reporting and farmer advisory share a single WhatsA
 2. **NBD Wetland Watch Page**: Dedicated to citizen environmental monitoring and water quality alerts.
 This eliminates conversation state collisions, keeps branding distinct, and streamlines user interactions without complex top-level disambiguation menus.
 
-### 2.2 Chosen Architecture: Dedicated Meta Apps with Separate Webhook Endpoints
+---
+
+### 2.3 Chosen Multi-Tenant Architecture: Dedicated Meta Apps per Domain
 To guarantee total domain and service separation between NBD and Agriconnect, each platform operates its own dedicated Meta App with an independent Webhook URL:
 
 ```mermaid
@@ -86,7 +141,7 @@ flowchart TD
 
 > **Alternative Evaluated & Deferred**: A single shared Meta App routing multiple Pages via `recipient.id` was evaluated. While it requires only 1 App Review submission, dedicated apps provide cleaner security boundaries and independent release lifecycles.
 
-### 2.3 Meta Developer App & Facebook Page Setup Runbook
+### 2.4 Meta Developer App & Facebook Page Setup Runbook
 
 Follow these sequential steps to set up the Meta Developer App, link Facebook Pages, configure the webhook, and submit for App Review.
 
@@ -118,19 +173,30 @@ flowchart LR
    - Record the numeric **Page ID** as `MESSENGER_PAGE_ID`.
 
 #### Step 3: Configure Webhook Callback & Verification Handshake
-1. Under **Messenger** ➔ **Settings** ➔ **Webhooks**, click **Add Callback URL**.
+1. Under **Messenger** ➔ **Settings** (or **Webhooks** in sidebar), click **Add Callback URL** (or **Edit Callback URL**).
 2. Enter the callback configuration:
-   - **Callback URL**: `https://<api-domain>/api/v1/messenger/webhook` (or tunnel URL for local dev).
+   - **Callback URL**: `https://<api-domain>/api/v1/messenger/webhook` (e.g. `https://akvo.ngrok.dev/api/v1/messenger/webhook` for local dev).
    - **Verify Token**: Secure random string configured in your backend (e.g. `nbd_meta_verify_token_2026`).
 3. Click **Verify and Save**.  
-   *The NBD backend automatically verifies `hub.verify_token` and echoes `hub.challenge` with `200 OK`.*
-4. In the Webhook Subscription fields table, subscribe to:
-   - `messages`: Ingests citizen messages, incident descriptions, photos, locations, and quick replies.
-   - `messaging_postbacks`: Ingests button clicks and structured persistent menu actions.
+   *The NBD backend automatically verifies `hub.verify_token` and echoes `hub.challenge` with `200 OK` (visible as `GET /api/v1/messenger/webhook 200 OK` in your tunnel logs).*
 
-#### Step 4: Subscribe Facebook Page to the Webhook
-1. Under **Messenger** ➔ **Settings** ➔ **Webhooks** ➔ **Page Subscriptions**:
-2. Select your linked Facebook Page from the dropdown and click **Subscribe**.
+#### Step 4: Subscribe Facebook Page to Webhook Events (`messages` & `messaging_postbacks`)
+
+> [!CAUTION]
+> **Critical Step**: Verifying the Callback URL (Step 3) only validates the URL handshake (`GET`). Meta will **NOT** forward any citizen chat messages (`POST`) to your backend until the Page is explicitly subscribed in this step.
+
+1. On the same **Messenger ➔ Settings** (or **Webhooks**) page, locate the **Page Subscriptions** table (or **Select a Page** dropdown).
+2. Select your connected Facebook Page.
+3. Click **"Subscribe"** (or **"Add Subscriptions"** / **"Edit"**).
+4. In the subscription modal, check the following event fields:
+   - ☑️ **`messages`**: Forwards citizen text messages, photo attachments, quick reply selections, and locations.
+   - ☑️ **`messaging_postbacks`**: Forwards persistent menu button clicks and CTA payload triggers.
+5. Click **Save / Confirm**.
+
+> [!TIP]
+> **Troubleshooting Webhook Ingestion**:
+> - **Symptom**: You see `GET /api/v1/messenger/webhook 200 OK` in ngrok, but sending a message in Facebook Messenger generates **no `POST` request**.
+> - **Root Cause**: The Facebook Page is not subscribed to `messages` in Step 4. Re-open **Messenger ➔ Settings ➔ Webhooks / Page Subscriptions**, click **Subscribe** next to your Page, and ensure `messages` is checked.
 
 #### Step 5: Configure Backend Environment Variables
 Configure the following parameters in `backend/.env` (or Kubernetes/staging secret manager):
@@ -155,28 +221,75 @@ MESSENGER_GRAPH_URL="https://graph.facebook.com/v21.0/me/messages"
 > # Set Callback URL: https://<subdomain>.ngrok-free.app/api/v1/messenger/webhook
 > ```
 
-#### Step 6: Development Mode Testing & Test Roles
-While the app is in **Development Mode**, only designated test users can message the chatbot:
-1. In the Meta Developer Console, navigate to **App Roles** ➔ **Roles**.
-2. Add team members or field staff as **Testers** or **Developers**.
-3. Invited testers accept the request at `https://developers.facebook.com/requests/`.
-4. Testers open Facebook Messenger, search for the linked Page, and send `"Hello"` to trigger the 5-step reporting state machine.
+#### Step 6: Development Mode Testing & Immediate PoC Execution (Zero Review Required)
 
-#### Step 7: Production Go-Live & Meta App Review
-To enable public citizen reporting for any Facebook user worldwide:
-1. **Business Verification (1x Organization Level)**:
-   - Submit business registry / NGO registration in Meta Business Settings. Shared across NBD and Agriconnect apps.
-2. **App Review Submission (`pages_messaging` permission)**:
-   - Navigate to **App Review** ➔ **Permissions and Features** ➔ request **`pages_messaging`**.
-   - Provide required review assets:
-     - **Privacy Policy URL**: Link to official policy (e.g. `https://portal.nbd.org/privacy`).
-     - **Data Deletion Callback URL**: `https://api.nbd.org/api/v1/messenger/data-deletion` (implemented in router).
-     - **Demo Screencast Video**: 1–2 minute recording demonstrating the 5-step citizen reporting interaction.
-     - **Reviewer Test Instructions**: Clear steps for the Meta auditor (e.g. *"Send 'Hello' to begin report, choose incident, upload image"*).
-3. **Turnaround & Launch**:
-   - Meta review SLA is typically **24 to 72 hours** (budget 1–2 weeks if resubmission is requested).
-   - Once approved, toggle the app status switch from **Development** to **Live**.
-   - Sub-pages (Mara Basin, Sio-Siteko) subscribing to the approved NBD app inherit live status without requiring separate reviews.
+> [!IMPORTANT]
+> **No App Review is Required for PoC Development or Internal Testing!**  
+> While the Meta App is in **`Development Mode`** (the default state):
+> - **Immediate Testing**: The backend webhook, signature verification, 5-step conversational engine, GCS streaming, and database persistence are **100% active and functional**.
+> - **Access Control**: Only users explicitly assigned a role under **App Roles** can initiate chat sessions with the Facebook Page.
+> - **Zero Submission Overhead**: You do not need to submit screencasts, privacy questionnaires, or wait for Meta review approvals to demo or validate the PoC.
+
+To enable internal team members, managers, or field coordinators to test the live PoC chatbot:
+1. In the Meta Developer Console left navigation, go to **App Roles** ➔ **Roles**.
+2. Click **Add Testers** (or **Add Developers**) and enter the Facebook account usernames / profile IDs of your team members.
+3. Invited testers accept the invitation notification at `https://developers.facebook.com/requests/`.
+4. Testers open Facebook Messenger on mobile or web, search for the linked Facebook Page (e.g. *NBD Mara Basin Portal*), and send `"Hello"`. The webhook triggers immediately.
+
+---
+
+#### Step 7: Production Go-Live, Verification Tiers & Meta App Review
+
+When transitioning from internal POC to public citizen reporting, Meta applies a 3-tier governance model:
+
+```mermaid
+flowchart TD
+    classDef org fill:#f3e8ff,stroke:#9333ea,stroke-width:2px;
+    classDef app fill:#e0f2fe,stroke:#0284c7,stroke-width:2px;
+    classDef page fill:#ecfdf5,stroke:#059669,stroke-width:2px;
+
+    subgraph Tier1 ["🏢 Tier 1: Organization Business Verification (1x ONLY - Shared)"]
+        BV["Stichting Akvo / NBD Business Portfolio<br/>Legal Registry / Tax ID / DPO Contact"]:::org
+    end
+
+    subgraph Tier2 ["📱 Tier 2: Per-App Permission Review (Per Domain)"]
+        NBD_App["NBD Environmental Meta App<br/>pages_messaging Review"]:::app
+        Agri_App["Agriconnect AI Meta App<br/>pages_messaging Review"]:::app
+    end
+
+    subgraph Tier3 ["📄 Tier 3: Facebook Page Subscription (UNLIMITED & INSTANT)"]
+        P_Mara["Mara Basin Watch Page"]:::page
+        P_Sio["Sio-Siteko Watch Page"]:::page
+        P_Amboseli["Amboseli Watch Page"]:::page
+        P_Agri["Agriconnect Farmer Page"]:::page
+    end
+
+    BV --> NBD_App
+    BV --> Agri_App
+    NBD_App --> P_Mara
+    NBD_App --> P_Sio
+    NBD_App --> P_Amboseli
+    Agri_App --> P_Agri
+```
+
+##### 1. Tier 1: Organization Business Verification (Completed Once ✅)
+- Verified at the central **Meta Business Portfolio** level using corporate registration documents (e.g., *Stichting Akvo* registration in Amsterdam).
+- Once verified, **all current and future Meta apps** under the portfolio inherit verified business status with zero re-verification needed.
+
+##### 2. Tier 2: Per-App Review (`pages_messaging` Permission)
+- Required **only when switching an app from `Development` to `Live Mode`** to allow unlisted public citizens to message the bot.
+- Each distinct domain application (e.g., *NBD Reporting* vs. *Agriconnect Advisory*) requires its own App Review submission because they serve different end-user purposes and data handling flows.
+- **Submission Requirements**:
+  - **Privacy Policy URL**: Public link (e.g. `https://portal.nbd.org/privacy`).
+  - **Data Deletion Callback URL**: `https://api.nbd.org/api/v1/messenger/data-deletion` (implemented).
+  - **DPO Contact**: Official privacy contact (`privacy@akvo.org`, Amsterdam HQ address).
+  - **Demo Screencast Video**: 1–2 minute recording demonstrating a user completing the 5-step report.
+  - **Reviewer Test Instructions**: Concise guidance for the Meta reviewer (e.g. *"Send 'Hello' to trigger report"*).
+- **Review Turnaround**: Typically **24 to 72 hours** under standard SLA.
+
+##### 3. Tier 3: Page Management & Zero-Review Scaling (Instant & Free)
+- When expanding NBD to new wetland basins or sub-counties (e.g. *Mara Basin*, *Sio-Siteko*, *Yala Swamp*), you create new Facebook Pages and subscribe them to the **same approved NBD Meta App**.
+- **No Additional Reviews**: Sub-pages inherit the parent app's approved `pages_messaging` permission instantly without triggering additional Meta App Reviews or fees.
 
 ---
 
@@ -442,19 +555,20 @@ platform linux -- Python 3.11.15, pytest-7.4.0, pluggy-1.6.0
 rootdir: /app
 configfile: pyproject.toml
 plugins: cov-4.1.0, anyio-4.14.1, asyncio-0.23.6
-collected 9 items
+collected 10 items
 
-tests/test_messenger.py::test_webhook_verification_success PASSED        [ 11%]
-tests/test_messenger.py::test_webhook_verification_invalid_token PASSED  [ 22%]
-tests/test_messenger.py::test_webhook_post_invalid_signature PASSED      [ 33%]
-tests/test_messenger.py::test_webhook_post_valid_flow PASSED            [ 44%]
-tests/test_messenger.py::test_webhook_deduplication PASSED              [ 55%]
-tests/test_messenger.py::test_webhook_expired_session PASSED             [ 66%]
-tests/test_messenger.py::test_data_deletion_callback PASSED             [ 77%]
-tests/test_messenger.py::test_webhook_decline_consent PASSED             [ 88%]
+tests/test_messenger.py::test_webhook_verification_success PASSED        [ 10%]
+tests/test_messenger.py::test_get_webhook_verification_alternate_params PASSED [ 20%]
+tests/test_messenger.py::test_webhook_verification_invalid_token PASSED  [ 30%]
+tests/test_messenger.py::test_webhook_post_invalid_signature PASSED      [ 40%]
+tests/test_messenger.py::test_webhook_post_valid_flow PASSED            [ 50%]
+tests/test_messenger.py::test_webhook_deduplication PASSED              [ 60%]
+tests/test_messenger.py::test_webhook_expired_session PASSED             [ 70%]
+tests/test_messenger.py::test_data_deletion_callback PASSED             [ 80%]
+tests/test_messenger.py::test_webhook_decline_consent PASSED             [ 90%]
 tests/test_messenger.py::test_webhook_unknown_option PASSED              [100%]
 
-========================= 9 passed, 1 warning in 4.52s =========================
+======================== 10 passed, 1 warning in 7.84s =========================
 ```
 
 ### 6.2 Sample Meta Webhook Inbound & Outbound Payloads
