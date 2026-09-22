@@ -4,7 +4,11 @@ Covers:
   - GET /webhook challenge validation
   - POST /webhook HMAC-SHA256 signature verification
   - Message de-duplication (idempotency by mid)
-  - State transitions: CONSENT -> INCIDENT_SELECT -> MEDIA_UPLOAD -> LOCATION
+  - Full dynamic form traversal:
+      CONSENT -> DATA_TERMS -> DYNAMIC_QUESTION -> CONFIRMATION -> DONE
+  - Confirmation redo flow
+  - Consent decline flow
+  - Session expiration and pruning
   - Data deletion request compliance
 """
 
@@ -12,22 +16,26 @@ import hmac
 import hashlib
 import json
 import base64
+import uuid
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, patch, MagicMock
 import pytest
-from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.database import Base
-from tests.conftest import SessionLocalTest, engine_test
 from app.models.messenger_session import (
     MessengerSession,
     ProcessedWebhookMessage,
 )
-from app.models.submission import Datapoint
-from app.seeds.form_seeder_helper import seed_forms
-from app.seeds.spatial_seeder_helper import seed_spatial
-
+from app.models.form import (
+    Form,
+    Question,
+    Option,
+    FormNames,
+    FormType,
+    QuestionType,
+)
+from app.models.spatial import SpatialBoundary, BoundaryLevel
 from app.dependencies.messenger_config import get_messenger_config
 
 client = TestClient(app)
@@ -39,33 +47,163 @@ TEST_PAGE_ID = _cfg.messenger_page_id or "PAGE_NBD_1001"
 TEST_PSID = "PSID_USER_98765"
 
 
+# ---------------------------------------------------------------------------
+# Lightweight In-Memory Mocks for Form and Spatial Hierarchy
+# ---------------------------------------------------------------------------
+
+MOCK_FORM = Form(
+    id=1,
+    name=FormNames.POLLUTION_REPORTING,
+    type=FormType.CITIZEN_REPORTER.value,
+    version=1,
+    active_version_id=1,
+)
+
+OPT_1 = Option(
+    id=1,
+    question_id=1,
+    label="Water colour (darker/murkier)",
+    value="1",
+    order=1,
+    translations=[{"name": "Water colour", "language": "en"}],
+)
+OPT_2 = Option(
+    id=2,
+    question_id=1,
+    label="Smell (bad odour)",
+    value="2",
+    order=2,
+    translations=[{"name": "Smell", "language": "en"}],
+)
+
+Q1_INCIDENT = Question(
+    id=1,
+    form_id=1,
+    question_group_id=1,
+    name="incident_type",
+    label="Report an incident",
+    type=QuestionType.option,
+    order=1,
+    required=True,
+    options=[OPT_1, OPT_2],
+    translations=[{"name": "Report an incident", "language": "en"}],
+)
+
+Q2_LOCATION = Question(
+    id=2,
+    form_id=1,
+    question_group_id=1,
+    name="location_id",
+    label="Select Sub-County",
+    type=QuestionType.cascade,
+    order=2,
+    required=True,
+    options=[],
+    translations=[{"name": "Select Sub-County", "language": "en"}],
+)
+
+Q3_MEDIA = Question(
+    id=3,
+    form_id=1,
+    question_group_id=1,
+    name="media_attachment",
+    label="Please share a photo as proof",
+    type=QuestionType.image,
+    order=3,
+    required=False,
+    options=[],
+    translations=[{"name": "Please share a photo", "language": "en"}],
+)
+
+Q4_DETAIL = Question(
+    id=4,
+    form_id=1,
+    question_group_id=1,
+    name="photo_detail",
+    label="Would you like to add more details?",
+    type=QuestionType.text,
+    order=4,
+    required=False,
+    options=[],
+    translations=[{"name": "Add details", "language": "en"}],
+)
+
+MOCK_QUESTIONS = [Q1_INCIDENT, Q2_LOCATION, Q3_MEDIA, Q4_DETAIL]
+
+COUNTY_ID = uuid.uuid4()
+SUBCOUNTY_ID = uuid.uuid4()
+WARD_ID = uuid.uuid4()
+
+MOCK_COUNTY = SpatialBoundary(
+    id=COUNTY_ID,
+    name="Busia",
+    level=BoundaryLevel.DISTRICT,
+    parent_id=None,
+)
+MOCK_SUBCOUNTY = SpatialBoundary(
+    id=SUBCOUNTY_ID,
+    name="Bumula",
+    level=BoundaryLevel.SUB_COUNTY,
+    parent_id=COUNTY_ID,
+)
+MOCK_WARD = SpatialBoundary(
+    id=WARD_ID,
+    name="Bumula Ward",
+    level=BoundaryLevel.WARD,
+    parent_id=SUBCOUNTY_ID,
+)
+
+
+def mock_get_child_boundaries(db, parent_id_str):
+    if str(parent_id_str) == str(COUNTY_ID):
+        return [MOCK_SUBCOUNTY]
+    elif str(parent_id_str) == str(SUBCOUNTY_ID):
+        return [MOCK_WARD]
+    return []
+
+
+def mock_get_boundary_by_id(db, boundary_id_str):
+    if str(boundary_id_str) == str(COUNTY_ID):
+        return MOCK_COUNTY
+    elif str(boundary_id_str) == str(SUBCOUNTY_ID):
+        return MOCK_SUBCOUNTY
+    elif str(boundary_id_str) == str(WARD_ID):
+        return MOCK_WARD
+    return None
+
+
 @pytest.fixture(autouse=True)
-def setup_db():
-    Base.metadata.create_all(bind=engine_test)
+def patch_messenger_deps(db_session):
+    """Mocks external services and dynamic form queries for fast test execution."""  # noqa: E501
+    orig_close = db_session.close
+    db_session.close = lambda: None
     with patch(
-        "app.services.messenger_service.SessionLocal", SessionLocalTest
+        "app.services.messenger_service.SessionLocal",
+        return_value=db_session,
     ), patch(
         "app.services.messenger_service.send_messenger_message",
         new=AsyncMock(return_value=True),
     ), patch(
         "app.services.storage.StorageService.stream_upload_async",
-        new=AsyncMock(return_value="gs://nbd-media/media/messenger/test.jpg"),
+        new=AsyncMock(return_value="media/messenger/test.jpg"),
+    ), patch(
+        "app.services.messenger_service._fetch_pollution_form",
+        return_value=MOCK_FORM,
+    ), patch(
+        "app.services.messenger_service._fetch_form_questions",
+        return_value=MOCK_QUESTIONS,
+    ), patch(
+        "app.services.messenger_service._fetch_subcounties",
+        return_value=[MOCK_COUNTY],
+    ), patch(
+        "app.services.messenger_service.get_child_boundaries",
+        side_effect=mock_get_child_boundaries,
+    ), patch(
+        "app.services.messenger_service.get_boundary_by_id",
+        side_effect=mock_get_boundary_by_id,
     ):
-        db = SessionLocalTest()
-        db.query(MessengerSession).delete()
-        db.query(ProcessedWebhookMessage).delete()
-        db.query(Datapoint).delete()
-        seed_forms(db)
-        seed_spatial(db)
-        db.commit()
-        db.close()
         yield
-        db = SessionLocalTest()
-        db.query(MessengerSession).delete()
-        db.query(ProcessedWebhookMessage).delete()
-        db.query(Datapoint).delete()
-        db.commit()
-        db.close()
+    db_session.close = orig_close
 
 
 def _sign(body: bytes, secret: str = TEST_APP_SECRET) -> str:
@@ -107,7 +245,7 @@ def _make_messenger_payload(
 
 
 # ---------------------------------------------------------------------------
-# 1. GET /webhook handshake tests
+# 1. GET /webhook Handshake Tests
 # ---------------------------------------------------------------------------
 
 
@@ -150,7 +288,7 @@ def test_get_webhook_verification_failure():
 
 
 # ---------------------------------------------------------------------------
-# 2. POST /webhook HMAC signature tests
+# 2. POST /webhook Signature Verification Tests
 # ---------------------------------------------------------------------------
 
 
@@ -160,8 +298,8 @@ def test_post_webhook_signature_valid():
     sig = _sign(raw)
 
     with patch(
-        "app.services.messenger_service.send_messenger_message",
-        new=AsyncMock(return_value=True),
+        "app.routers.messenger_router.process_messenger_message",
+        new_callable=AsyncMock,
     ):
         resp = client.post(
             "/api/v1/messenger/webhook",
@@ -218,112 +356,226 @@ async def test_message_deduplication():
 
 
 # ---------------------------------------------------------------------------
-# 4. Full Conversational Flow Test
+# 4. Consent Language & Terms Flow Test
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_full_messenger_conversation_flow():
+async def test_consent_and_terms_flow(db_session):
     from app.services.messenger_service import process_messenger_message
 
-    # Step 0: User starts -> receives Consent prompt
+    # Step 0: User sends message -> receives Welcome/Language prompt
     p0 = _make_messenger_payload(mid="m0", text="Hi")
-    with patch(
-        "app.services.messenger_service.send_messenger_message",
-        new=AsyncMock(return_value=True),
-    ):
-        await process_messenger_message(p0)
+    await process_messenger_message(p0)
 
-    db = SessionLocalTest()
-    sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
+    db_session.expire_all()
+    sess = db_session.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess is not None
     assert sess.state == "CONSENT"
-    db.close()
 
-    # Step 1: User accepts consent -> moves to INCIDENT_SELECT
-    p1 = _make_messenger_payload(mid="m1", qr_payload="CONSENT_YES")
+    # Step 1: User selects English (1) -> moves to DATA_TERMS
+    p1 = _make_messenger_payload(mid="m1", qr_payload="1")
+    await process_messenger_message(p1)
+
+    db_session.expire_all()
+    sess = db_session.query(MessengerSession).filter_by(psid=TEST_PSID).first()
+    assert sess is not None
+    assert sess.state == "DATA_TERMS"
+    assert sess.language == "en"
+
+    # Step 2: User accepts terms (1) -> moves to DYNAMIC_QUESTION (first q)
+    p2 = _make_messenger_payload(mid="m2", qr_payload="1")
+    await process_messenger_message(p2)
+
+    db_session.expire_all()
+    sess = db_session.query(MessengerSession).filter_by(psid=TEST_PSID).first()
+    assert sess is not None
+    assert sess.state == "DYNAMIC_QUESTION"
+    assert sess.current_question_id is not None
+
+
+# ---------------------------------------------------------------------------
+# 5. Full Dynamic Form Traversal Test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_full_messenger_dynamic_form_traversal(db_session):
+    from app.services.messenger_service import process_messenger_message
+
+    # Set up session in DATA_TERMS
+    sess = MessengerSession(
+        psid=TEST_PSID,
+        page_id=TEST_PAGE_ID,
+        state="DATA_TERMS",
+        language="en",
+    )
+    db_session.add(sess)
+    db_session.commit()
+
     with patch(
-        "app.services.messenger_service.send_messenger_message",
-        new=AsyncMock(return_value=True),
-    ):
+        "app.services.messenger_service._save_report",
+        new=MagicMock(),
+    ) as mock_save:
+        # Step 1: Accept data terms -> advances to Q1 (incident_type)
+        p1 = _make_messenger_payload(mid="f1", qr_payload="1")
         await process_messenger_message(p1)
 
-    db = SessionLocalTest()
-    sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
-    assert sess is not None
-    assert sess.state == "INCIDENT_SELECT"
-    db.close()
+        db_session.expire_all()
+        sess = (
+            db_session.query(MessengerSession)
+            .filter_by(psid=TEST_PSID)
+            .first()
+        )
+        assert sess.state == "DYNAMIC_QUESTION"
 
-    # Step 2: User selects incident -> moves to MEDIA_UPLOAD
-    p2 = _make_messenger_payload(mid="m2", qr_payload="POLLUTION")
-    with patch(
-        "app.services.messenger_service.send_messenger_message",
-        new=AsyncMock(return_value=True),
-    ):
+        # Step 2: Answer option question (incident_type -> 2: Smell)
+        p2 = _make_messenger_payload(mid="f2", qr_payload="2")
         await process_messenger_message(p2)
 
-    db = SessionLocalTest()
-    sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
-    assert sess.state == "MEDIA_UPLOAD"
-    assert sess.incident_type == "POLLUTION"
-    db.close()
-
-    # Step 3: User uploads photo -> moves to LOCATION_SELECT
-    p3 = _make_messenger_payload(
-        mid="m3",
-        attachments=[
-            {
-                "type": "image",
-                "payload": {"url": "https://cdn.fbsbx.com/test_photo.jpg"},
-            }
-        ],
-    )
-    with patch(
-        "app.services.messenger_service.send_messenger_message",
-        new=AsyncMock(return_value=True),
-    ), patch(
-        "app.services.storage.StorageService.stream_upload_async",
-        new=AsyncMock(return_value="gs://nbd-media/media/messenger/test.jpg"),
-    ):
+        # Step 3: Answer cascade question (County -> 1: Busia)
+        p3 = _make_messenger_payload(mid="f3", text="1")
         await process_messenger_message(p3)
 
-    db = SessionLocalTest()
-    sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
-    assert sess.state == "LOCATION_SELECT"
-    assert sess.media_url == "gs://nbd-media/media/messenger/test.jpg"
-    db.close()
+        # Step 4a: Answer cascade question (Sub-county -> 1: Bumula)
+        p4a = _make_messenger_payload(mid="f4a", text="1")
+        await process_messenger_message(p4a)
 
-    # Step 4: User selects location -> Submission completed and session cleared
-    p4 = _make_messenger_payload(mid="m4", qr_payload="Bomet Central")
+        # Step 4b: Answer cascade question (Ward -> 1: Bumula Ward)
+        p4b = _make_messenger_payload(mid="f4b", text="1")
+        await process_messenger_message(p4b)
+
+        # Step 5: Answer image question (reply "skip")
+        p5 = _make_messenger_payload(mid="f5", qr_payload="skip")
+        await process_messenger_message(p5)
+
+        # Step 6: Answer photo_detail text question (reply "skip")
+        p6 = _make_messenger_payload(mid="f6", text="skip")
+        await process_messenger_message(p6)
+
+        db_session.expire_all()
+        sess = (
+            db_session.query(MessengerSession)
+            .filter_by(psid=TEST_PSID)
+            .first()
+        )
+        assert sess is not None
+        assert sess.state == "CONFIRMATION"
+
+        # Step 7: Confirm report (reply "1")
+        p7 = _make_messenger_payload(mid="f7", qr_payload="1")
+        await process_messenger_message(p7)
+
+        mock_save.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# 6. Confirmation Redo Flow Test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_confirmation_redo_flow(db_session):
+    from app.services.messenger_service import process_messenger_message
+
+    sess = MessengerSession(
+        psid=TEST_PSID,
+        page_id=TEST_PAGE_ID,
+        state="CONFIRMATION",
+        language="en",
+        answers={"1": "2", "2": str(WARD_ID)},
+    )
+    db_session.add(sess)
+    db_session.commit()
+
+    # User replies "2" to Redo
+    p_redo = _make_messenger_payload(mid="redo_1", qr_payload="2")
+    await process_messenger_message(p_redo)
+
+    db_session.expire_all()
+    sess = db_session.query(MessengerSession).filter_by(psid=TEST_PSID).first()
+    assert sess is not None
+    assert sess.state == "DYNAMIC_QUESTION"
+    assert sess.answers == {}
+
+
+# ---------------------------------------------------------------------------
+# 7. Terms Decline Test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_terms_decline_flow(db_session):
+    from app.services.messenger_service import process_messenger_message
+
+    sess = MessengerSession(
+        psid=TEST_PSID,
+        page_id=TEST_PAGE_ID,
+        state="DATA_TERMS",
+        language="en",
+    )
+    db_session.add(sess)
+    db_session.commit()
+
+    # User replies "2" to Decline
+    p_decline = _make_messenger_payload(mid="dec_1", qr_payload="2")
     with patch(
         "app.services.messenger_service.send_messenger_message",
         new=AsyncMock(return_value=True),
-    ):
-        await process_messenger_message(p4)
+    ) as mock_send:
+        await process_messenger_message(p_decline)
+        mock_send.assert_called_once()
 
-    db = SessionLocalTest()
-    # Session should be deleted upon completion
-    sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
+    db_session.expire_all()
+    sess = db_session.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess is None
 
-    # Datapoint record should be created in database
-    datapoint = (
-        db.query(Datapoint)
-        .filter(Datapoint.submitter == f"messenger-{TEST_PSID}")
-        .first()
+
+# ---------------------------------------------------------------------------
+# 8. Session Expiration Pruning Test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_session_expiration_pruning(db_session):
+    from app.services.messenger_service import process_messenger_message
+
+    stale_time = datetime.now(timezone.utc) - timedelta(hours=25)
+    stale_sess = MessengerSession(
+        psid=TEST_PSID,
+        page_id=TEST_PAGE_ID,
+        state="DYNAMIC_QUESTION",
+        created_at=stale_time,
     )
-    assert datapoint is not None
-    assert datapoint.status == "PENDING"
-    assert datapoint.geo is not None
-    db.close()
+    db_session.add(stale_sess)
+    db_session.commit()
+
+    # Incoming message resets expired session to CONSENT
+    p_new = _make_messenger_payload(mid="exp_1", text="Hello again")
+    await process_messenger_message(p_new)
+
+    db_session.expire_all()
+    sess = db_session.query(MessengerSession).filter_by(psid=TEST_PSID).first()
+    assert sess is not None
+    assert sess.state == "CONSENT"
 
 
 # ---------------------------------------------------------------------------
-# 5. Data Deletion Request Callback Test
+# 9. Data Deletion Request Callback Test
 # ---------------------------------------------------------------------------
 
 
-def test_data_deletion_callback():
+def test_data_deletion_callback(db_session):
+    # Insert transient session & message
+    sess = MessengerSession(
+        psid=TEST_PSID,
+        page_id=TEST_PAGE_ID,
+        state="DYNAMIC_QUESTION",
+    )
+    msg = ProcessedWebhookMessage(mid="mid_del_1", psid=TEST_PSID)
+    db_session.add_all([sess, msg])
+    db_session.commit()
+
     payload_data = {"user_id": TEST_PSID, "algorithm": "HMAC-SHA256"}
     payload_json = json.dumps(payload_data).encode()
     b64_payload = (
@@ -350,67 +602,8 @@ def test_data_deletion_callback():
     assert "confirmation_code" in data
     assert data["confirmation_code"].startswith("DEL-")
 
-
-# ---------------------------------------------------------------------------
-# 6. Consent Decline & Session Expiry Tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_consent_decline_flow():
-    from app.services.messenger_service import process_messenger_message
-
-    # User initiates session
-    p0 = _make_messenger_payload(mid="dec_0", text="Hi")
-    with patch(
-        "app.services.messenger_service.send_messenger_message",
-        new=AsyncMock(return_value=True),
-    ):
-        await process_messenger_message(p0)
-
-    # User replies with DECLINE
-    p1 = _make_messenger_payload(mid="dec_1", qr_payload="CONSENT_NO")
-    with patch(
-        "app.services.messenger_service.send_messenger_message",
-        new=AsyncMock(return_value=True),
-    ) as mock_send:
-        await process_messenger_message(p1)
-        mock_send.assert_called_once()
-
-    # Session should be deleted
-    db = SessionLocalTest()
-    sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
-    assert sess is None
-    db.close()
-
-
-@pytest.mark.asyncio
-async def test_session_expiration_pruning():
-    from app.services.messenger_service import process_messenger_message
-
-    db = SessionLocalTest()
-    # Create an artificially expired session (>25 hours old)
-    stale_time = datetime.now(timezone.utc) - timedelta(hours=25)
-    stale_sess = MessengerSession(
-        psid=TEST_PSID,
-        page_id=TEST_PAGE_ID,
-        state="MEDIA_UPLOAD",
-        created_at=stale_time,
+    db_session.expire_all()
+    remaining_sess = (
+        db_session.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     )
-    db.add(stale_sess)
-    db.commit()
-    db.close()
-
-    # Incoming message should detect expiry and reset to CONSENT
-    p_new = _make_messenger_payload(mid="exp_1", text="Hello again")
-    with patch(
-        "app.services.messenger_service.send_messenger_message",
-        new=AsyncMock(return_value=True),
-    ):
-        await process_messenger_message(p_new)
-
-    db = SessionLocalTest()
-    sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
-    assert sess is not None
-    assert sess.state == "CONSENT"
-    db.close()
+    assert remaining_sess is None
