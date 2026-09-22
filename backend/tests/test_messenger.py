@@ -18,7 +18,8 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.database import SessionLocal, Base, engine
+from app.database import Base
+from tests.conftest import SessionLocalTest, engine_test
 from app.models.messenger_session import (
     MessengerSession,
     ProcessedWebhookMessage,
@@ -40,22 +41,31 @@ TEST_PSID = "PSID_USER_98765"
 
 @pytest.fixture(autouse=True)
 def setup_db():
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    db.query(MessengerSession).delete()
-    db.query(ProcessedWebhookMessage).delete()
-    db.query(Datapoint).delete()
-    seed_forms(db)
-    seed_spatial(db)
-    db.commit()
-    db.close()
-    yield
-    db = SessionLocal()
-    db.query(MessengerSession).delete()
-    db.query(ProcessedWebhookMessage).delete()
-    db.query(Datapoint).delete()
-    db.commit()
-    db.close()
+    Base.metadata.create_all(bind=engine_test)
+    with patch(
+        "app.services.messenger_service.SessionLocal", SessionLocalTest
+    ), patch(
+        "app.services.messenger_service.send_messenger_message",
+        new=AsyncMock(return_value=True),
+    ), patch(
+        "app.services.storage.StorageService.stream_upload_async",
+        new=AsyncMock(return_value="gs://nbd-media/media/messenger/test.jpg"),
+    ):
+        db = SessionLocalTest()
+        db.query(MessengerSession).delete()
+        db.query(ProcessedWebhookMessage).delete()
+        db.query(Datapoint).delete()
+        seed_forms(db)
+        seed_spatial(db)
+        db.commit()
+        db.close()
+        yield
+        db = SessionLocalTest()
+        db.query(MessengerSession).delete()
+        db.query(ProcessedWebhookMessage).delete()
+        db.query(Datapoint).delete()
+        db.commit()
+        db.close()
 
 
 def _sign(body: bytes, secret: str = TEST_APP_SECRET) -> str:
@@ -224,7 +234,7 @@ async def test_full_messenger_conversation_flow():
     ):
         await process_messenger_message(p0)
 
-    db = SessionLocal()
+    db = SessionLocalTest()
     sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess is not None
     assert sess.state == "CONSENT"
@@ -238,7 +248,7 @@ async def test_full_messenger_conversation_flow():
     ):
         await process_messenger_message(p1)
 
-    db = SessionLocal()
+    db = SessionLocalTest()
     sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess is not None
     assert sess.state == "INCIDENT_SELECT"
@@ -252,7 +262,7 @@ async def test_full_messenger_conversation_flow():
     ):
         await process_messenger_message(p2)
 
-    db = SessionLocal()
+    db = SessionLocalTest()
     sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess.state == "MEDIA_UPLOAD"
     assert sess.incident_type == "POLLUTION"
@@ -277,7 +287,7 @@ async def test_full_messenger_conversation_flow():
     ):
         await process_messenger_message(p3)
 
-    db = SessionLocal()
+    db = SessionLocalTest()
     sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess.state == "LOCATION_SELECT"
     assert sess.media_url == "gs://nbd-media/media/messenger/test.jpg"
@@ -291,7 +301,7 @@ async def test_full_messenger_conversation_flow():
     ):
         await process_messenger_message(p4)
 
-    db = SessionLocal()
+    db = SessionLocalTest()
     # Session should be deleted upon completion
     sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess is None
@@ -368,7 +378,7 @@ async def test_consent_decline_flow():
         mock_send.assert_called_once()
 
     # Session should be deleted
-    db = SessionLocal()
+    db = SessionLocalTest()
     sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess is None
     db.close()
@@ -378,7 +388,7 @@ async def test_consent_decline_flow():
 async def test_session_expiration_pruning():
     from app.services.messenger_service import process_messenger_message
 
-    db = SessionLocal()
+    db = SessionLocalTest()
     # Create an artificially expired session (>25 hours old)
     stale_time = datetime.now(timezone.utc) - timedelta(hours=25)
     stale_sess = MessengerSession(
@@ -399,7 +409,7 @@ async def test_session_expiration_pruning():
     ):
         await process_messenger_message(p_new)
 
-    db = SessionLocal()
+    db = SessionLocalTest()
     sess = db.query(MessengerSession).filter_by(psid=TEST_PSID).first()
     assert sess is not None
     assert sess.state == "CONSENT"

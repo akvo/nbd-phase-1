@@ -118,6 +118,48 @@ async def iter_meta_media_chunks(
 
 
 # ---------------------------------------------------------------------------
+# Form & Question Dynamic Resolvers (Aligned with WhatsApp / USSD Pipelines)
+# ---------------------------------------------------------------------------
+
+
+def _fetch_pollution_form(db: Session):
+    """Retrieve active Pollution Reporting Form snapshot."""
+    from sqlalchemy import or_
+    from app.models.form import Form, FormNames, FormType
+
+    return (
+        db.query(Form)
+        .filter(
+            or_(
+                Form.name == FormNames.POLLUTION_REPORTING,
+                Form.type == FormType.CITIZEN_REPORTER.value,
+            )
+        )
+        .first()
+    )
+
+
+def _fetch_form_questions(db: Session, form_id: int):
+    """Fetch active questions ordered by QuestionGroup and Question order."""
+    from app.models.form import Question, QuestionGroup
+
+    return (
+        db.query(Question)
+        .join(QuestionGroup, Question.question_group_id == QuestionGroup.id)
+        .filter(
+            Question.form_id == form_id,
+            Question.deleted_at.is_(None),
+            QuestionGroup.deleted_at.is_(None),
+        )
+        .order_by(
+            QuestionGroup.order.asc().nullslast(),
+            Question.order.asc().nullslast(),
+        )
+        .all()
+    )
+
+
+# ---------------------------------------------------------------------------
 # Ingestion & State Machine Engine
 # ---------------------------------------------------------------------------
 
@@ -189,6 +231,10 @@ async def _handle_user_state(
     attachments: List[Dict[str, Any]],
 ) -> None:
     """Core state machine progression for citizen reporting."""
+    from app.models.form import Option, QuestionType
+    from app.models.spatial import SpatialBoundary, Basin
+    from geoalchemy2.shape import to_shape
+
     session = (
         db.query(MessengerSession)
         .filter_by(psid=psid, page_id=page_id)
@@ -214,6 +260,34 @@ async def _handle_user_state(
         db.refresh(session)
 
     state = session.state
+    form = _fetch_pollution_form(db)
+    questions = _fetch_form_questions(db, form.id) if form else []
+
+    q_incident = next(
+        (
+            q
+            for q in questions
+            if q.type == QuestionType.option or q.name == "incident_type"
+        ),
+        None,
+    )
+    q_media = next(
+        (
+            q
+            for q in questions
+            if q.type in (QuestionType.image, QuestionType.attachment)
+            or q.name == "media_attachment"
+        ),
+        None,
+    )
+    q_location = next(
+        (
+            q
+            for q in questions
+            if q.type == QuestionType.cascade or q.name == "location_id"
+        ),
+        None,
+    )
 
     # -----------------------------------------------------------------------
     # STATE: CONSENT
@@ -224,15 +298,37 @@ async def _handle_user_state(
             session.state = "INCIDENT_SELECT"
             db.commit()
 
-            quick_replies = [
-                {"title": "1. Water Pollution", "payload": "POLLUTION"},
-                {"title": "2. Illegal Dumping", "payload": "DUMPING"},
-                {"title": "3. Siltation / Soil", "payload": "SILTATION"},
-                {"title": "4. Other Hazard", "payload": "OTHER"},
-            ]
+            # Dynamically build quick replies from form's incident_type options
+            quick_replies = []
+            if q_incident:
+                options = (
+                    db.query(Option)
+                    .filter(Option.question_id == q_incident.id)
+                    .order_by(Option.order.asc())
+                    .all()
+                )
+                for i, opt in enumerate(options[:10], 1):
+                    # Quick reply title max length is 20 chars
+                    label = opt.label or opt.value or f"Option {i}"
+                    title = f"{i}. {label}"[:20]
+                    payload = opt.value or opt.label or f"OPTION_{i}"
+                    quick_replies.append({"title": title, "payload": payload})
+
+            if not quick_replies:
+                quick_replies = [
+                    {"title": "1. Water Pollution", "payload": "POLLUTION"},
+                    {"title": "2. Illegal Dumping", "payload": "DUMPING"},
+                    {"title": "3. Siltation / Soil", "payload": "SILTATION"},
+                    {"title": "4. Other Hazard", "payload": "OTHER"},
+                ]
+
+            prompt_label = (
+                q_incident.label
+                if q_incident and q_incident.label
+                else "What type of incident are you reporting?"
+            )
             welcome_text = (
-                "Thank you for your consent. "
-                "What type of incident are you reporting?"
+                f"Thank you for your consent. {prompt_label}"
             )
             await send_messenger_message(
                 psid,
@@ -272,9 +368,13 @@ async def _handle_user_state(
         session.state = "MEDIA_UPLOAD"
         db.commit()
 
+        photo_prompt = (
+            q_media.label
+            if q_media and q_media.label
+            else "Please take or upload a clear photo of the incident."
+        )
         prompt_text = (
-            f"Incident category '{incident_choice}' selected. "
-            "Please take or upload a clear photo of the incident."
+            f"Incident category '{incident_choice}' selected. {photo_prompt}"
         )
         await send_messenger_message(psid, prompt_text)
 
@@ -309,17 +409,32 @@ async def _handle_user_state(
             session.state = "LOCATION_SELECT"
             db.commit()
 
-            # Offer sample Sub-County quick replies
-            quick_replies = [
-                {"title": "1. Bomet Central", "payload": "Bomet Central"},
-                {"title": "2. Narok South", "payload": "Narok South"},
-                {"title": "3. Busia Town", "payload": "Busia Town"},
-                {"title": "4. Samia Sub-county", "payload": "Samia"},
-            ]
-            loc_text = (
-                "Photo received and stored! 📸 "
-                "Please select your sub-county or location:"
+            # Fetch Sub-Counties / Spatial boundaries dynamically from DB
+            subcounties = (
+                db.query(SpatialBoundary)
+                .filter(SpatialBoundary.parent_id.isnot(None))
+                .order_by(SpatialBoundary.name.asc())
+                .limit(8)
+                .all()
             )
+            quick_replies = [
+                {"title": f"{i}. {sc.name}"[:20], "payload": sc.name}
+                for i, sc in enumerate(subcounties, 1)
+            ]
+            if not quick_replies:
+                quick_replies = [
+                    {"title": "1. Bomet Central", "payload": "Bomet Central"},
+                    {"title": "2. Narok South", "payload": "Narok South"},
+                    {"title": "3. Busia Town", "payload": "Busia Town"},
+                    {"title": "4. Samia Sub-county", "payload": "Samia"},
+                ]
+
+            loc_prompt = (
+                q_location.label
+                if q_location and q_location.label
+                else "Please select your sub-county or location:"
+            )
+            loc_text = f"Photo received and stored! 📸 {loc_prompt}"
             await send_messenger_message(
                 psid,
                 loc_text,
@@ -340,16 +455,48 @@ async def _handle_user_state(
         )
         session.location = location_choice
 
-        from app.models.form import Form, Question
-        from app.models.spatial import Basin
+        selected_sc = (
+            db.query(SpatialBoundary)
+            .filter(SpatialBoundary.name == location_choice)
+            .first()
+        )
+        if not selected_sc:
+            try:
+                sc_uuid = uuid.UUID(location_choice)
+                selected_sc = (
+                    db.query(SpatialBoundary)
+                    .filter(SpatialBoundary.id == sc_uuid)
+                    .first()
+                )
+            except (ValueError, TypeError):
+                pass
 
-        form = db.query(Form).filter(Form.type == 1).first()
+        # Resolve spatial anchor & coordinates
+        basin = None
+        basin_id = None
+        geo_coord = None
+
+        if selected_sc:
+            basin_id = selected_sc.basin_id
+            centroid_geom = selected_sc.centroid_geom
+            curr_parent = selected_sc.parent
+            while not centroid_geom and curr_parent:
+                centroid_geom = curr_parent.centroid_geom
+                curr_parent = curr_parent.parent
+
+            if centroid_geom:
+                pt = to_shape(centroid_geom)
+                geo_coord = {"type": "Point", "coordinates": [pt.x, pt.y]}
+
+        if not basin_id:
+            basin = db.query(Basin).first()
+            basin_id = basin.id if basin else None
+
+        if not geo_coord:
+            geo_coord = {"type": "Point", "coordinates": [35.0, -0.5]}
+
         form_id = form.id if form else 1
         published_version_id = form.active_version_id if form else None
-
-        # Resolve spatial anchor (Basin)
-        basin = db.query(Basin).first()
-        basin_id = basin.id if basin else None
 
         datapoint = Datapoint(
             uuid=uuid.uuid4(),
@@ -359,20 +506,42 @@ async def _handle_user_state(
             submitter=f"messenger-{psid}",
             name=f"messenger-{psid}",
             status=SubmissionStatus.PENDING,
-            geo={"type": "Point", "coordinates": [35.0, -0.5]},
+            geo=geo_coord,
         )
         db.add(datapoint)
         db.flush()
 
-        if session.media_url:
-            q = db.query(Question).filter(Question.form_id == form_id).first()
-            q_id = q.id if q else 1
-            answer = Answer(
+        # Dynamically save structured Answers matching the Form's Question IDs
+        if q_incident and session.incident_type:
+            ans_incident = Answer(
                 datapoint_id=datapoint.id,
-                question_id=q_id,
-                name=session.media_url,
+                question_id=q_incident.id,
+                name=session.incident_type,
+                options=[session.incident_type],
             )
-            db.add(answer)
+            db.add(ans_incident)
+
+        if q_media and session.media_url:
+            ans_media = Answer(
+                datapoint_id=datapoint.id,
+                question_id=q_media.id,
+                name=session.media_url,
+                index=1,
+            )
+            db.add(ans_media)
+
+        if q_location and session.location:
+            ans_loc = Answer(
+                datapoint_id=datapoint.id,
+                question_id=q_location.id,
+                name=session.location,
+                options=(
+                    [str(selected_sc.id)]
+                    if selected_sc
+                    else [session.location]
+                ),
+            )
+            db.add(ans_loc)
 
         db.commit()
 
