@@ -83,3 +83,4 @@ pg-data/
 
 /task.md
 backend/*.csv
+frontend/tsconfig.tsbuildinfo
