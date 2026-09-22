@@ -29,6 +29,11 @@ IK_WEIGHTS = {
 }
 
 
+SpatialAnchorType = Optional[
+    Union[UUID, str, int, List[Union[UUID, str, int]]]
+]
+
+
 class AnswerPayload(BaseModel):
     question_id: Union[int, str]
     value: Union[float, str, list, dict, None]
@@ -37,11 +42,124 @@ class AnswerPayload(BaseModel):
     options: Optional[List[str]] = None
 
 
+def _extract_terminal_val(val: Union[UUID, str, int, list, tuple, None]):
+    if isinstance(val, (list, tuple)):
+        return val[-1] if len(val) > 0 else None
+    return val
+
+
+def _resolve_site(val, db: Session) -> Optional[UUID]:
+    if val is None:
+        return None
+    val = _extract_terminal_val(val)
+    if val is None or val in ("null", "None", ""):
+        return None
+    from app.models.spatial import Site
+    from sqlalchemy import func
+
+    # 1. Try UUID
+    try:
+        if isinstance(val, UUID):
+            site_uuid = val
+        else:
+            site_uuid = UUID(str(val).strip())
+        site = db.query(Site).filter(Site.id == site_uuid).first()
+        if site:
+            return site.id
+    except (ValueError, TypeError, AttributeError):
+        pass
+
+    # 2. Try code or name
+    val_str = str(val).strip()
+    site = (
+        db.query(Site)
+        .filter(
+            (func.lower(Site.code) == func.lower(val_str))
+            | (func.lower(Site.name) == func.lower(val_str))
+        )
+        .first()
+    )
+    return site.id if site else None
+
+
+def _resolve_wetland(val, db: Session) -> Optional[UUID]:
+    if val is None:
+        return None
+    val = _extract_terminal_val(val)
+    if val is None or val in ("null", "None", ""):
+        return None
+    from app.models.spatial import Wetland
+    from sqlalchemy import func
+
+    # 1. Try UUID
+    try:
+        if isinstance(val, UUID):
+            wetland_uuid = val
+        else:
+            wetland_uuid = UUID(str(val).strip())
+        wetland = db.query(Wetland).filter(Wetland.id == wetland_uuid).first()
+        if wetland:
+            return wetland.id
+    except (ValueError, TypeError, AttributeError):
+        pass
+
+    # 2. Try code or name
+    val_str = str(val).strip()
+    wetland = (
+        db.query(Wetland)
+        .filter(
+            (func.lower(Wetland.code) == func.lower(val_str))
+            | (func.lower(Wetland.name) == func.lower(val_str))
+        )
+        .first()
+    )
+    return wetland.id if wetland else None
+
+
+def _resolve_basin(val, db: Session) -> Optional[UUID]:
+    if val is None:
+        return None
+    val = _extract_terminal_val(val)
+    if val is None or val in ("null", "None", ""):
+        return None
+    from app.models.spatial import Basin
+    from sqlalchemy import func
+
+    # 1. Try UUID
+    try:
+        if isinstance(val, UUID):
+            basin_uuid = val
+        else:
+            basin_uuid = UUID(str(val).strip())
+        basin = db.query(Basin).filter(Basin.id == basin_uuid).first()
+        if basin:
+            return basin.id
+    except (ValueError, TypeError, AttributeError):
+        pass
+
+    # 2. Try code or name
+    val_str = str(val).strip()
+    basin = (
+        db.query(Basin)
+        .filter(
+            (func.lower(Basin.code) == func.lower(val_str))
+            | (func.lower(Basin.name) == func.lower(val_str))
+        )
+        .first()
+    )
+    return basin.id if basin else None
+
+
 def resolve_answers_and_anchors(payload: BaseModel, db: Session):
-    from app.models.form import Question
+    from app.models.form import Question, QuestionType
     from app.services.storage import StorageService, build_blob_path
     import base64
     import json
+
+    form_id = getattr(payload, "form_id")
+    questions = db.query(Question).filter(Question.form_id == form_id).all()
+    q_map = {q.id: q for q in questions}
+    q_name_map = {q.name: q for q in questions if q.name}
 
     raw_answers = []
     # If legacy answers list is already provided in the payload, use it
@@ -52,45 +170,50 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
         # Otherwise, parse from extra dictionary
         raw_data = payload.model_extra or {}
         for key, val in raw_data.items():
-            if key in (
-                "datapoint",
-                "sampling_period",
-                "wetland_id",
-                "wetland",
-                "site_id",
-                "site",
-                "basin_id",
-                "basin",
-            ):
+            if key in ("datapoint", "sampling_period"):
                 continue
             raw_answers.append((key, val))
 
-    form_id = getattr(payload, "form_id")
-    questions = db.query(Question).filter(Question.form_id == form_id).all()
-    q_map = {q.id: q for q in questions}
-    q_name_map = {q.name: q for q in questions if q.name}
+        # Check explicit anchor fields
+        # to see if they correspond to questions in this form
+        for anchor_key in (
+            "site_id",
+            "wetland_id",
+            "basin_id",
+            "location_id",
+        ):
+            anchor_val = getattr(payload, anchor_key, None)
+            if anchor_val is not None:
+                if anchor_key in q_name_map and not any(
+                    str(k) == anchor_key for k, _ in raw_answers
+                ):
+                    raw_answers.append((anchor_key, anchor_val))
 
-    answers = []
-
-    # Extract anchors from Pydantic properties and raw dict keys
+    # Also extract potential anchors from Pydantic properties and raw dict keys
     raw_data = (
         payload.model_extra or {} if not hasattr(payload, "answers") else {}
     )
-    resolved_wetland_id = (
+    raw_wetland_val = (
         getattr(payload, "wetland_id", None)
         or raw_data.get("wetland_id")
         or raw_data.get("wetland")
     )
-    resolved_site_id = (
+    raw_site_val = (
         getattr(payload, "site_id", None)
         or raw_data.get("site_id")
         or raw_data.get("site")
     )
-    resolved_basin_id = (
+    raw_basin_val = (
         getattr(payload, "basin_id", None)
         or raw_data.get("basin_id")
         or raw_data.get("basin")
     )
+
+    resolved_wetland_id = _resolve_wetland(raw_wetland_val, db)
+    resolved_site_id = _resolve_site(raw_site_val, db)
+    resolved_basin_id = _resolve_basin(raw_basin_val, db)
+
+    answers = []
 
     for key, val in raw_answers:
         if val is None:
@@ -110,8 +233,6 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
             continue
 
         q_id = q_def.id
-        from app.models.form import QuestionType
-
         q_type = q_def.type
         val_name = None
         val_num = None
@@ -120,11 +241,19 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
         # Resolve spatial anchors on the fly for cascade select
         if q_type == QuestionType.cascade:
             opt = q_def.extra.get("option") if q_def.extra else None
-            if not opt and hasattr(q_def, "option"):
+            if (
+                not opt
+                and hasattr(q_def, "option")
+                and isinstance(q_def.option, str)
+            ):
                 opt = q_def.option
+            endpoint = ""
+            if q_def.api and isinstance(q_def.api, dict):
+                endpoint = q_def.api.get("endpoint") or ""
 
-            terminal_val = val[-1] if isinstance(val, list) and val else val
-            if q_def.name == "location_id":
+            terminal_val = _extract_terminal_val(val)
+
+            if q_def.name == "location_id" or "sub-counties" in endpoint:
                 from app.models.spatial import SpatialBoundary
                 import uuid
 
@@ -148,15 +277,27 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
                     )
                 if sb and not resolved_basin_id:
                     resolved_basin_id = sb.basin_id
-            elif opt in ("wetland", "administration"):
+            elif (
+                opt in ("wetland", "administration")
+                or "wetlands" in endpoint
+                or q_def.name in ("wetland", "wetland_id", "wetland_code")
+            ):
                 if not resolved_wetland_id:
-                    resolved_wetland_id = terminal_val
-            elif opt == "site":
+                    resolved_wetland_id = _resolve_wetland(terminal_val, db)
+            elif (
+                opt == "site"
+                or "sites" in endpoint
+                or q_def.name in ("site", "site_id", "site_code")
+            ):
                 if not resolved_site_id:
-                    resolved_site_id = terminal_val
-            elif opt == "basin":
+                    resolved_site_id = _resolve_site(terminal_val, db)
+            elif (
+                opt == "basin"
+                or "basins" in endpoint
+                or q_def.name in ("basin", "basin_id", "basin_code")
+            ):
                 if not resolved_basin_id:
-                    resolved_basin_id = terminal_val
+                    resolved_basin_id = _resolve_basin(terminal_val, db)
 
         # Map type specific values
         if q_type == QuestionType.number:
@@ -165,45 +306,51 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
             except (ValueError, TypeError):
                 pass
         elif q_type == QuestionType.cascade:
-            if isinstance(val, list):
-                val_opts = [str(x) for x in val]
-                # Also resolve terminal boundary label
-                from app.models.spatial import SpatialBoundary
+            from app.models.spatial import (
+                SpatialBoundary,
+                Site,
+                Wetland,
+                Basin,
+            )
 
-                terminal_val = val[-1] if val else None
-                boundary = None
-                if terminal_val:
-                    try:
-                        if isinstance(terminal_val, UUID):
-                            uuid_val = terminal_val
-                        else:
-                            uuid_val = UUID(str(terminal_val))
-                        boundary = (
-                            db.query(SpatialBoundary)
-                            .filter(SpatialBoundary.id == uuid_val)
-                            .first()
-                        )
-                    except ValueError:
-                        pass
-                val_name = boundary.name if boundary else str(terminal_val)
-            else:
-                from app.models.spatial import SpatialBoundary
-
-                boundary = None
+            terminal_val = val[-1] if isinstance(val, list) and val else val
+            val_opts = (
+                [str(x) for x in val] if isinstance(val, list) else [str(val)]
+            )
+            resolved_entity_name = None
+            if terminal_val:
                 try:
-                    if isinstance(val, UUID):
-                        uuid_val = val
-                    else:
-                        uuid_val = UUID(str(val))
-                    boundary = (
+                    uuid_val = UUID(str(terminal_val))
+                    sb = (
                         db.query(SpatialBoundary)
                         .filter(SpatialBoundary.id == uuid_val)
                         .first()
                     )
-                except ValueError:
+                    if sb:
+                        resolved_entity_name = sb.name
+                    else:
+                        st = db.query(Site).filter(Site.id == uuid_val).first()
+                        if st:
+                            resolved_entity_name = st.name
+                        else:
+                            wt = (
+                                db.query(Wetland)
+                                .filter(Wetland.id == uuid_val)
+                                .first()
+                            )
+                            if wt:
+                                resolved_entity_name = wt.name
+                            else:
+                                ba = (
+                                    db.query(Basin)
+                                    .filter(Basin.id == uuid_val)
+                                    .first()
+                                )
+                                if ba:
+                                    resolved_entity_name = ba.name
+                except (ValueError, TypeError):
                     pass
-                val_opts = [str(val)]
-                val_name = boundary.name if boundary else str(val)
+            val_name = resolved_entity_name or str(terminal_val)
         elif q_type in (QuestionType.option, QuestionType.multiple_option):
             if isinstance(val, list):
                 val_opts = [str(x) for x in val]
@@ -246,143 +393,46 @@ def resolve_answers_and_anchors(payload: BaseModel, db: Session):
             )
         )
 
-    # 1. Cast metadata anchors to UUID objects if they are
-    # passed as valid UUID strings. If they are not valid UUIDs,
-    # set them to None to allow fallback option resolution.
-    if resolved_wetland_id:
-        if isinstance(resolved_wetland_id, str):
-            try:
-                resolved_wetland_id = UUID(resolved_wetland_id)
-            except ValueError:
-                resolved_wetland_id = None
-        elif not isinstance(resolved_wetland_id, UUID):
-            resolved_wetland_id = None
-
-    if resolved_site_id:
-        if isinstance(resolved_site_id, str):
-            try:
-                resolved_site_id = UUID(resolved_site_id)
-            except ValueError:
-                resolved_site_id = None
-        elif not isinstance(resolved_site_id, UUID):
-            resolved_site_id = None
-
-    if resolved_basin_id:
-        if isinstance(resolved_basin_id, str):
-            try:
-                resolved_basin_id = UUID(resolved_basin_id)
-            except ValueError:
-                resolved_basin_id = None
-        elif not isinstance(resolved_basin_id, UUID):
-            resolved_basin_id = None
-
-    # 2. Try to resolve site_id, wetland_id, or basin_id from
-    # option answers if not explicitly passed
-    from sqlalchemy import func
-
+    # 2. Try to resolve site_id, wetland_id, or basin_id from answers
+    # if not explicitly passed
     if not resolved_site_id:
-        from app.models.spatial import Site
-
         for ans in answers:
             q = q_map.get(ans.question_id)
             if q and q.name in ("site", "site_id", "site_code", "location_id"):
-                val_str = None
-                if ans.options:
-                    val_str = ans.options[0]
-                elif ans.name:
-                    val_str = ans.name
-                elif ans.value:
-                    val_str = str(ans.value)
-
-                if val_str:
-                    site_obj = (
-                        db.query(Site)
-                        .filter(
-                            (func.lower(Site.code) == func.lower(val_str))
-                            | (func.lower(Site.name) == func.lower(val_str))
-                        )
-                        .first()
-                    )
-                    if site_obj:
-                        resolved_site_id = site_obj.id
-                        break
+                candidate = (
+                    ans.options[-1] if ans.options else (ans.name or ans.value)
+                )
+                resolved_site_id = _resolve_site(candidate, db)
+                if resolved_site_id:
+                    break
 
     if not resolved_wetland_id:
-        from app.models.spatial import Wetland
-
         for ans in answers:
             q = q_map.get(ans.question_id)
             if q and q.name in ("wetland", "wetland_id", "wetland_code"):
-                val_str = None
-                if ans.options:
-                    val_str = ans.options[0]
-                elif ans.name:
-                    val_str = ans.name
-                elif ans.value:
-                    val_str = str(ans.value)
-
-                if val_str:
-                    wetland_obj = (
-                        db.query(Wetland)
-                        .filter(
-                            (func.lower(Wetland.code) == func.lower(val_str))
-                            | (func.lower(Wetland.name) == func.lower(val_str))
-                        )
-                        .first()
-                    )
-                    if wetland_obj:
-                        resolved_wetland_id = wetland_obj.id
-                        break
+                candidate = (
+                    ans.options[-1] if ans.options else (ans.name or ans.value)
+                )
+                resolved_wetland_id = _resolve_wetland(candidate, db)
+                if resolved_wetland_id:
+                    break
 
     if not resolved_basin_id:
-        from app.models.spatial import Basin
-
         for ans in answers:
             q = q_map.get(ans.question_id)
             if q and q.name in ("basin", "basin_id", "basin_code"):
-                val_str = None
-                if ans.options:
-                    val_str = ans.options[0]
-                elif ans.name:
-                    val_str = ans.name
-                elif ans.value:
-                    val_str = str(ans.value)
-
-                if val_str:
-                    basin_obj = (
-                        db.query(Basin)
-                        .filter(
-                            (func.lower(Basin.code) == func.lower(val_str))
-                            | (func.lower(Basin.name) == func.lower(val_str))
-                        )
-                        .first()
-                    )
-                    if basin_obj:
-                        resolved_basin_id = basin_obj.id
-                        break
-
-    # 3. Final cast check for resolved string values
-    if resolved_wetland_id and isinstance(resolved_wetland_id, str):
-        try:
-            resolved_wetland_id = UUID(resolved_wetland_id)
-        except ValueError:
-            pass
-    if resolved_site_id and isinstance(resolved_site_id, str):
-        try:
-            resolved_site_id = UUID(resolved_site_id)
-        except ValueError:
-            pass
-    if resolved_basin_id and isinstance(resolved_basin_id, str):
-        try:
-            resolved_basin_id = UUID(resolved_basin_id)
-        except ValueError:
-            pass
+                candidate = (
+                    ans.options[-1] if ans.options else (ans.name or ans.value)
+                )
+                resolved_basin_id = _resolve_basin(candidate, db)
+                if resolved_basin_id:
+                    break
 
     return answers, resolved_wetland_id, resolved_site_id, resolved_basin_id
 
 
 class FgdPayload(BaseModel):
-    wetland_id: Optional[UUID] = None
+    wetland_id: SpatialAnchorType = None
     form_id: int
     answers: Optional[List[AnswerPayload]] = None
 
@@ -390,7 +440,7 @@ class FgdPayload(BaseModel):
 
 
 class LabQaPayload(BaseModel):
-    site_id: Optional[UUID] = None
+    site_id: SpatialAnchorType = None
     sampling_period: Optional[str] = None
     form_id: int
     answers: Optional[List[AnswerPayload]] = None
@@ -400,9 +450,9 @@ class LabQaPayload(BaseModel):
 
 class GenericPayload(BaseModel):
     form_id: int
-    basin_id: Optional[UUID] = None
-    wetland_id: Optional[UUID] = None
-    site_id: Optional[UUID] = None
+    basin_id: SpatialAnchorType = None
+    wetland_id: SpatialAnchorType = None
+    site_id: SpatialAnchorType = None
     answers: Optional[List[AnswerPayload]] = None
 
     model_config = ConfigDict(extra="allow")

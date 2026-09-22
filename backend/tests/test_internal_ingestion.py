@@ -602,3 +602,178 @@ def test_internal_submit_resolves_spatial_anchors_from_options(
     assert resp.status_code == 200
     dp_basin = db_session.query(Datapoint).get(resp.json()["datapoint_id"])
     assert dp_basin.basin_id == basin.id
+
+
+def test_admin_lab_qa_cascade_array_submission(
+    auth_header, setup_lab_data, db_session: Session
+):
+    """Test Admin Lab QA submission with cascade array [site_id_uuid]."""
+    site = setup_lab_data["site"]
+    form = setup_lab_data["form"]
+    q1 = setup_lab_data["questions"][0]
+
+    payload = {
+        "form_id": form.id,
+        "site_id": [str(site.id)],
+        "sampling_period": "2026-Q3",
+        str(q1.id): 6.8,
+    }
+
+    response = client.post(
+        "/api/v1/admin/submissions/lab-qa",
+        json=payload,
+        headers=auth_header,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
+    dp = db_session.query(Datapoint).filter_by(id=data["datapoint_id"]).first()
+    assert dp is not None
+    assert dp.site_id == site.id
+    assert dp.status == "APPROVED"
+
+
+def test_admin_lab_qa_question_id_keyed_cascade_submission(
+    auth_header, setup_lab_data, db_session: Session
+):
+    """Test Admin Lab QA submission where site is passed under question.id."""
+    site = setup_lab_data["site"]
+    form = setup_lab_data["form"]
+    q_group = (
+        db_session.query(QuestionGroup).filter_by(form_id=form.id).first()
+    )
+
+    q_site_picker = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        label="Select Site",
+        name="site_id",
+        type="cascade",
+        api={"endpoint": "/api/v1/reference/sites"},
+    )
+    db_session.add(q_site_picker)
+    db_session.commit()
+
+    payload = {
+        "form_id": form.id,
+        str(q_site_picker.id): [str(site.id)],
+        "sampling_period": "2026-Q3",
+    }
+
+    response = client.post(
+        "/api/v1/admin/submissions/lab-qa",
+        json=payload,
+        headers=auth_header,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
+    dp = db_session.query(Datapoint).filter_by(id=data["datapoint_id"]).first()
+    assert dp is not None
+    assert dp.site_id == site.id
+
+
+def test_admin_fgd_cascade_array_submission(
+    auth_header, setup_fgd_data, db_session: Session
+):
+    """Test Admin FGD submission with cascade array [wetland_id_uuid]."""
+    wetland = setup_fgd_data["wetland"]
+    form = setup_fgd_data["form"]
+    q1 = setup_fgd_data["questions"][0]
+
+    payload = {
+        "form_id": form.id,
+        "wetland_id": [str(wetland.id)],
+        str(q1.id): "GOOD",
+    }
+
+    response = client.post(
+        "/api/v1/admin/submissions/fgd",
+        json=payload,
+        headers=auth_header,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
+    dp = db_session.query(Datapoint).filter_by(id=data["datapoint_id"]).first()
+    assert dp is not None
+    assert dp.wetland_id == wetland.id
+    assert dp.status == "APPROVED"
+
+
+def test_admin_submission_answers_ordered_and_resolved(
+    auth_header, setup_lab_data, db_session: Session
+):
+    """
+    Test submission details endpoint returns answers ordered by question
+    structure and properly resolved.
+    """
+    site = setup_lab_data["site"]
+    form = setup_lab_data["form"]
+    q_group_1 = (
+        db_session.query(QuestionGroup).filter_by(form_id=form.id).first()
+    )
+    q_group_1.order = 2
+    db_session.commit()
+
+    q_group_0 = QuestionGroup(
+        form_id=form.id,
+        name="Site Details",
+        label="Site Details",
+        order=1,
+    )
+    db_session.add(q_group_0)
+    db_session.commit()
+
+    q_site = Question(
+        form_id=form.id,
+        question_group_id=q_group_0.id,
+        label="Select Site",
+        name="site_id",
+        type="cascade",
+        order=1,
+        api={"endpoint": "/api/v1/reference/sites"},
+    )
+    db_session.add(q_site)
+    db_session.commit()
+
+    # Assign order to lab questions
+    for idx, q in enumerate(setup_lab_data["questions"], start=1):
+        q.order = idx
+    db_session.commit()
+
+    payload = {
+        "form_id": form.id,
+        "site_id": [str(site.id)],
+        "sampling_period": "2026-Q3",
+        setup_lab_data["questions"][0].name: 7.4,
+    }
+
+    res = client.post(
+        "/api/v1/admin/submissions/lab-qa",
+        json=payload,
+        headers=auth_header,
+    )
+    assert res.status_code == 200
+    dp_id = res.json()["datapoint_id"]
+
+    # Fetch submission details via GET
+    get_res = client.get(
+        f"/api/v1/admin/submissions/{dp_id}", headers=auth_header
+    )
+    assert get_res.status_code == 200
+    sub_data = get_res.json()
+
+    assert len(sub_data["answers"]) >= 2
+    # First answer must be Select Site (group 1, question 1)
+    first_ans = sub_data["answers"][0]
+    assert first_ans["question_name"] == "site_id"
+    assert first_ans["value"] == site.name
+
+    # Second answer must be numeric value 7.4 (not question name string)
+    second_ans = sub_data["answers"][1]
+    assert second_ans["question_name"] == setup_lab_data["questions"][0].name
+    assert second_ans["value"] == 7.4

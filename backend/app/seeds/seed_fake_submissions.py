@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from geoalchemy2.shape import to_shape
 from app.database import SessionLocal
-from app.models.form import Form, Question, FormNames
+from app.models.form import Form, Question, FormNames, QuestionType
 from app.models.spatial import Site, Wetland, Basin, SpatialBoundary
 from app.models.submission import Datapoint, Answer, SubmissionStatus
 from app.models.health_score import HealthScore
@@ -68,15 +68,22 @@ def create_fake_submission(
             if isinstance(ans_payload, dict):
                 val = ans_payload.get("value")
                 opts = ans_payload.get("options", [])
-                text_name = ans_payload.get("name", q_name)
+                text_name = ans_payload.get("name")
             else:
                 val = None
                 opts = []
-                text_name = q_name
+                text_name = None
                 if isinstance(ans_payload, list):
                     opts = ans_payload
                 elif isinstance(ans_payload, (int, float)):
                     val = float(ans_payload)
+                elif question.type in (
+                    QuestionType.cascade,
+                    QuestionType.option,
+                    QuestionType.multiple_option,
+                ):
+                    opts = [str(ans_payload)]
+                    text_name = str(ans_payload)
                 else:
                     text_name = str(ans_payload)
 

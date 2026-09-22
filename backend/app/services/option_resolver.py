@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy.orm import Session
 from app.models.submission import Datapoint
 from app.models.form import Option
-from app.models.spatial import SpatialBoundary
+from app.models.spatial import SpatialBoundary, Site, Wetland, Basin
 
 
 def is_valid_uuid(val) -> bool:
@@ -27,17 +27,19 @@ def populate_answers_option_labels(
 
     for dp in datapoints:
         for ans in dp.answers:
-            if ans.options and isinstance(ans.options, list):
-                if ans.question and ans.question.type in (
-                    "option",
-                    "multiple_option",
-                    "cascade",
-                ):
-                    answers_to_resolve.append(ans)
-                    question_ids.append(ans.question_id)
+            if ans.question and ans.question.type in (
+                "option",
+                "multiple_option",
+                "cascade",
+            ):
+                answers_to_resolve.append(ans)
+                question_ids.append(ans.question_id)
+                if ans.options and isinstance(ans.options, list):
                     for opt_val in ans.options:
                         if is_valid_uuid(opt_val):
                             all_boundary_ids.append(opt_val)
+                elif ans.name and is_valid_uuid(ans.name):
+                    all_boundary_ids.append(ans.name)
 
     if not answers_to_resolve and not all_boundary_ids:
         return
@@ -97,7 +99,7 @@ def populate_answers_option_labels(
                 except (ValueError, TypeError):
                     pass
 
-    # Query Spatial Boundaries
+    # Query Spatial Boundaries, Sites, Wetlands, Basins
     if all_boundary_ids:
         boundaries = (
             db.query(SpatialBoundary)
@@ -108,75 +110,122 @@ def populate_answers_option_labels(
             label_map[str(b.id)] = b.name
             label_map[b.id] = b.name
 
+        sites = db.query(Site).filter(Site.id.in_(all_boundary_ids)).all()
+        for s in sites:
+            label_map[str(s.id)] = s.name
+            label_map[s.id] = s.name
+
+        wetlands = (
+            db.query(Wetland).filter(Wetland.id.in_(all_boundary_ids)).all()
+        )
+        for w in wetlands:
+            label_map[str(w.id)] = w.name
+            label_map[w.id] = w.name
+
+        basins = db.query(Basin).filter(Basin.id.in_(all_boundary_ids)).all()
+        for ba in basins:
+            label_map[str(ba.id)] = ba.name
+            label_map[ba.id] = ba.name
+
     for ans in answers_to_resolve:
-        resolved = []
-        q_id = ans.question_id
-        # Flatten and resolve values. If a value contains spaces but matches
-        # directly, keep it intact. Otherwise, split it into separate values.
-        flat_options = []
-        for val in ans.options:
-            val_str = str(val).strip()
-            # If the option value is directly matched in
-            # label_map, keep it intact
-            has_direct_match = (
-                (q_id, val_str) in label_map
-                or (q_id, val) in label_map
-                or is_valid_uuid(val_str)
-            )
-            if not has_direct_match and " " in val_str:
-                flat_options.extend(
-                    x.strip() for x in val_str.split(" ") if x.strip()
-                )
-            else:
-                flat_options.append(val_str)
-
-        for val in flat_options:
-            if is_valid_uuid(val):
-                if val in label_map:
-                    resolved.append(label_map[val])
-                elif str(val) in label_map:
-                    resolved.append(label_map[str(val)])
-                else:
-                    resolved.append(str(val))
-            else:
-                try:
-                    int_val = int(val)
-                except (ValueError, TypeError):
-                    int_val = None
-
-                if int_val is not None and (q_id, int_val) in label_map:
-                    resolved.append(label_map[(q_id, int_val)])
-                elif (q_id, val) in label_map:
-                    resolved.append(label_map[(q_id, val)])
-                elif (q_id, str(val)) in label_map:
-                    resolved.append(label_map[(q_id, str(val))])
-                else:
-                    resolved.append(str(val))
-
+        # Check if options are present
         if (
-            ans.question
-            and ans.question.type == "cascade"
-            and len(resolved) > 0
+            ans.options
+            and isinstance(ans.options, list)
+            and len(ans.options) > 0
         ):
-            ans._resolved_value = resolved[-1]
-        else:
-            # Surface free-text "allow other" value stored in ans.name.
-            # When a respondent picks "Other" and types a custom answer,
-            # kobo.py stores the selected token in options and the typed
-            # text in Answer.name.  Replace the bare "other"/"others"
-            # token with the labelled free-text so the display reads
-            # e.g. "Papyrus, Other: spring fed pond".
-            if ans.name:
-                resolved = [
-                    (
-                        f"Other: {ans.name}"
-                        if r.lower()
-                        in ("other", "others", "_other", "_others")
-                        else r
+            resolved = []
+            q_id = ans.question_id
+            flat_options = []
+            for val in ans.options:
+                val_str = str(val).strip()
+                has_direct_match = (
+                    (q_id, val_str) in label_map
+                    or (q_id, val) in label_map
+                    or is_valid_uuid(val_str)
+                )
+                if not has_direct_match and " " in val_str:
+                    flat_options.extend(
+                        x.strip() for x in val_str.split(" ") if x.strip()
                     )
-                    for r in resolved
-                ]
-            ans._resolved_value = ", ".join(resolved)
+                else:
+                    flat_options.append(val_str)
+
+            for val in flat_options:
+                if is_valid_uuid(val):
+                    if val in label_map:
+                        resolved.append(label_map[val])
+                    elif str(val) in label_map:
+                        resolved.append(label_map[str(val)])
+                    else:
+                        resolved.append(str(val))
+                else:
+                    try:
+                        int_val = int(val)
+                    except (ValueError, TypeError):
+                        int_val = None
+
+                    if int_val is not None and (q_id, int_val) in label_map:
+                        resolved.append(label_map[(q_id, int_val)])
+                    elif (q_id, val) in label_map:
+                        resolved.append(label_map[(q_id, val)])
+                    elif (q_id, str(val)) in label_map:
+                        resolved.append(label_map[(q_id, str(val))])
+                    else:
+                        resolved.append(str(val))
+
+            if (
+                ans.question
+                and ans.question.type == "cascade"
+                and len(resolved) > 0
+            ):
+                ans._resolved_value = resolved[-1]
+            else:
+                if ans.name:
+                    resolved = [
+                        (
+                            f"Other: {ans.name}"
+                            if r.lower()
+                            in ("other", "others", "_other", "_others")
+                            else r
+                        )
+                        for r in resolved
+                    ]
+                ans._resolved_value = ", ".join(resolved)
+        elif ans.name:
+            val_str = str(ans.name).strip()
+            if is_valid_uuid(val_str):
+                if val_str in label_map:
+                    ans._resolved_value = label_map[val_str]
+                elif ans.name in label_map:
+                    ans._resolved_value = label_map[ans.name]
+                else:
+                    ans._resolved_value = val_str
+            else:
+                ans._resolved_value = ans.name
+        else:
+            ans._resolved_value = None
+
+        # Fallback to Datapoint spatial hierarchy if cascade question empty
+        if not getattr(ans, "_resolved_value", None) and ans.question:
+            q_name = getattr(ans.question, "name", "")
+            dp_parent = getattr(ans, "datapoint", None)
+            if dp_parent:
+                if (
+                    q_name in ("site", "site_id", "site_code")
+                    and dp_parent.site
+                ):
+                    ans._resolved_value = dp_parent.site.name
+                elif (
+                    q_name in ("wetland", "wetland_id", "wetland_code")
+                    and dp_parent.wetland
+                ):
+                    ans._resolved_value = dp_parent.wetland.name
+                elif (
+                    q_name in ("basin", "basin_id", "basin_code")
+                    and dp_parent.basin
+                ):
+                    ans._resolved_value = dp_parent.basin.name
 
 
 def resolve_datapoint_brief_attributes(

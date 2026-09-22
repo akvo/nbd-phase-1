@@ -22,6 +22,8 @@ class AnswerResponse(AnswerBase):
     id: int
     question_name: str
     question_label: str
+    question_order: Optional[int] = 0
+    group_order: Optional[int] = 0
     datapoint_id: int
     read_url: Optional[str] = None
 
@@ -86,6 +88,12 @@ class AnswerResponse(AnswerBase):
             QuestionType.option.value,
             QuestionType.multiple_option.value,
             QuestionType.cascade.value,
+            QuestionType.option,
+            QuestionType.multiple_option,
+            QuestionType.cascade,
+            "option",
+            "multiple_option",
+            "cascade",
         ):
             resolved_value = (
                 data.get("_resolved_value")
@@ -93,7 +101,9 @@ class AnswerResponse(AnswerBase):
                 else getattr(data, "_resolved_value", None)
             )
             if resolved_value is None:
-                if options is not None:
+                if options is not None and (
+                    not isinstance(options, list) or len(options) > 0
+                ):
                     resolved_value = (
                         ", ".join(str(x) for x in options)
                         if isinstance(options, list)
@@ -104,9 +114,30 @@ class AnswerResponse(AnswerBase):
                 else:
                     resolved_value = value
         elif q_type in (
+            QuestionType.number.value,
+            QuestionType.number,
+            "number",
+        ):
+            if value is not None:
+                resolved_value = value
+            elif name is not None:
+                resolved_value = name
+            elif options is not None:
+                resolved_value = (
+                    ", ".join(str(x) for x in options)
+                    if isinstance(options, list)
+                    else str(options)
+                )
+        elif q_type in (
             QuestionType.image.value,
             QuestionType.attachment.value,
             QuestionType.signature.value,
+            QuestionType.image,
+            QuestionType.attachment,
+            QuestionType.signature,
+            "image",
+            "attachment",
+            "signature",
         ):
             if name is not None:
                 resolved_value = name
@@ -115,7 +146,9 @@ class AnswerResponse(AnswerBase):
             elif options and isinstance(options, list) and len(options) > 0:
                 resolved_value = str(options[0])
         else:
-            if name is not None:
+            if value is not None and name is None:
+                resolved_value = value
+            elif name is not None:
                 resolved_value = name
             elif value is not None:
                 resolved_value = value
@@ -233,12 +266,30 @@ class AnswerResponse(AnswerBase):
                 else getattr(question, "name", None)
             )
 
+        question_order = 0
+        group_order = 0
+        if question:
+            if isinstance(question, dict):
+                question_order = question.get("order") or 0
+                group_order = question.get("group_order") or 0
+            else:
+                question_order = getattr(question, "order", 0) or 0
+                qg = getattr(question, "question_group", None)
+                if qg:
+                    group_order = (
+                        qg.get("order", 0)
+                        if isinstance(qg, dict)
+                        else getattr(qg, "order", 0)
+                    ) or 0
+
         res_dict = {
             "id": id_val,
             "datapoint_id": datapoint_id,
             "question_id": question_id,
             "question_label": question_label,
             "question_name": question_name,
+            "question_order": question_order,
+            "group_order": group_order,
             "name": name,
             "value": resolved_value,
             "options": options,
@@ -295,6 +346,20 @@ class DatapointResponse(DatapointBase):
     answers: List[AnswerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def sort_answers(self) -> "DatapointResponse":
+        if self.answers:
+            self.answers = sorted(
+                self.answers,
+                key=lambda a: (
+                    a.group_order if a.group_order is not None else 0,
+                    a.question_order if a.question_order is not None else 0,
+                    a.question_id if a.question_id is not None else 0,
+                    a.index if a.index is not None else 0,
+                ),
+            )
+        return self
 
 
 class SubmissionStatusUpdate(BaseModel):
