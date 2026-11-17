@@ -4,6 +4,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
 
+SYSTEM_USER_EMAIL = "system@nbd-wetland.org"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -35,11 +37,12 @@ class User(Base):
 
     @classmethod
     def get_or_create_system_user(cls, db) -> "User":
-        system_email = "system@nbd-wetland.org"  # TODO:: Need to updated (env)
-        system_user = db.query(cls).filter(cls.email == system_email).first()
+        system_user = (
+            db.query(cls).filter(cls.email == SYSTEM_USER_EMAIL).first()
+        )
         if not system_user:
             system_user = cls(
-                email=system_email,
+                email=SYSTEM_USER_EMAIL,
                 role="Admin",
                 organization="System Watchdog",
                 is_active=True,
