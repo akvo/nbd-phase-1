@@ -1,12 +1,19 @@
 import os
 import uuid
-from datetime import datetime
-from unittest.mock import patch
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
+import pytest
 from sqlalchemy.orm import Session
+
+from app.models.audit_log import AuditLog
+from app.models.dead_letter import DeadLetter
 from app.models.form import Form, Question, QuestionGroup
-from app.models.spatial import Basin, Wetland, Site
-from app.models.submission import Datapoint, Answer
+from app.models.spatial import Basin, Site, Wetland
+from app.models.submission import Answer, Datapoint
 from app.models.sync_watermark import SyncWatermark
+from app.models.user import SYSTEM_USER_EMAIL, User
 from app.services.kobo import (
     parse_kobo_timestamp,
     sync_kobo_submissions,
@@ -462,14 +469,16 @@ def test_sync_kobo_image_attachment_uploaded_to_gcs(
 
     mock_storage_instance.upload_file.side_effect = fake_upload_file
 
-    # --- Mock httpx download (synchronous) ---
-    with patch("app.services.kobo.httpx.get") as mock_httpx_get:
-        mock_response = mock_httpx_get.return_value
-        mock_response.raise_for_status.return_value = None
-        mock_response.content = b"fake_jpeg_bytes"
-        mock_response.headers = {"content-type": "image/jpeg"}
-
+    # --- Mock KoboService.download_attachment ---
+    with patch(
+        "app.services.kobo.KoboService.download_attachment",
+        return_value=b"fake_jpeg_bytes",
+    ) as mock_download:
         res = sync_kobo_submissions(db_session)
+
+    mock_download.assert_called_once_with(
+        "https://eu.kobotoolbox.org/api/v2/attachments/42/"
+    )
 
     # --- Assertions ---
     assert res["ingested_records"] == 1
@@ -601,10 +610,11 @@ def test_sync_kobo_image_download_failure_routes_to_dlq(
     # GCS should not be called since download fails
     mock_storage_class.return_value.upload_file.return_value = None
 
-    # httpx.get raises a network error
-    with patch("app.services.kobo.httpx.get") as mock_httpx_get:
-        mock_httpx_get.side_effect = Exception("Connection timeout to Kobo")
-
+    # download_attachment raises a network error
+    with patch(
+        "app.services.kobo.KoboService.download_attachment",
+        side_effect=Exception("Connection timeout to Kobo"),
+    ):
         res = sync_kobo_submissions(db_session)
 
     # The failed submission is quarantined in the DLQ — not ingested
@@ -1059,3 +1069,447 @@ def test_sync_kobo_submissions_repeatable_groups(
     assert answers_pct[0].index == 0
     assert answers_pct[1].value == 70.0
     assert answers_pct[1].index == 1
+
+
+@patch("app.services.kobo.random.uniform", return_value=0.0)
+@patch("app.services.kobo.time.sleep")
+@patch("app.services.kobo.httpx.Client")
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+@patch("app.services.kobo.StorageService")
+def test_sync_kobo_attachment_503_retry_recovers(
+    mock_storage_class,
+    mock_get_submissions,
+    mock_get_forms,
+    mock_client_class,
+    mock_sleep,
+    mock_uniform,
+    db_session: Session,
+    monkeypatch,
+):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("KOBOTOOLBOX_API_TOKEN", "test_token_xyz")
+    monkeypatch.setenv("GCS_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv("KOBOTOOLBOX_MAX_RETRIES", "2")
+    monkeypatch.setenv("KOBOTOOLBOX_RETRY_BACKOFF_SECONDS", "1.0")
+
+    basin = Basin(
+        code="MARA_ATT_RETRY",
+        name="Mara Attachment Retry",
+        geom=(
+            "SRID=4326;MULTIPOLYGON("
+            "((30 10, 40 40, 20 40, 10 20, 30 10)))"
+        ),
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    form = Form(
+        name="Attachment Retry Form",
+        version=1,
+        kobo_asset_id="kobo_att_retry_001",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    q_group = QuestionGroup(form_id=form.id, name="Photo Retry Group")
+    db_session.add(q_group)
+    db_session.commit()
+
+    question_img = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="site_photo",
+        label="Site Photo",
+        type="image",
+        order=1,
+    )
+    db_session.add(question_img)
+    db_session.commit()
+
+    mock_get_forms.return_value = [
+        {"uid": "kobo_att_retry_001", "name": "Attachment Retry Form"}
+    ]
+
+    download_url = "https://eu.kobotoolbox.org/api/v2/attachments/5031/"
+    sub_uuid = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid,
+            "_id": 4001,
+            "_submission_time": "2026-06-09T12:00:00Z",
+            "_submitted_by": "photographer_cara",
+            "site_photo": "site_photo.jpg",
+            "_attachments": [
+                {
+                    "filename": "site_photo.jpg",
+                    "media_file_basename": "site_photo.jpg",
+                    "download_url": download_url,
+                    "mimetype": "image/jpeg",
+                }
+            ],
+        }
+    ]
+
+    req = httpx.Request("GET", download_url)
+    resp_503 = httpx.Response(503, request=req)
+    resp_200 = httpx.Response(
+        200, content=b"recovered_jpeg_bytes", request=req
+    )
+    mock_client = MagicMock()
+    mock_client_class.return_value.__enter__.return_value = mock_client
+    mock_client.get.side_effect = [resp_503, resp_200]
+
+    res = sync_kobo_submissions(db_session)
+
+    assert res["ingested_records"] == 1
+    assert len(res["errors"]) == 0
+    assert mock_client.get.call_count == 2
+    mock_sleep.assert_called_once_with(1.0)
+    mock_storage = mock_storage_class.return_value
+    assert mock_storage.upload_file.call_count == 1
+    uploaded_bytes = mock_storage.upload_file.call_args[0][0]
+    assert uploaded_bytes == b"recovered_jpeg_bytes"
+
+
+@patch("app.services.kobo.random.uniform", return_value=0.0)
+@patch("app.services.kobo.time.sleep")
+@patch("app.services.kobo.httpx.Client")
+@patch("app.services.kobo.KoboService.get_forms")
+@patch("app.services.kobo.KoboService.get_submissions")
+@patch("app.services.kobo.StorageService")
+@patch(
+    "app.services.kobo.EmailService.send_alert_email",
+    new_callable=AsyncMock,
+)
+def test_sync_kobo_attachment_retry_exhausted_routes_to_dlq(
+    mock_send_alert,
+    mock_storage_class,
+    mock_get_submissions,
+    mock_get_forms,
+    mock_client_class,
+    mock_sleep,
+    mock_uniform,
+    db_session: Session,
+    monkeypatch,
+):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("KOBOTOOLBOX_API_TOKEN", "test_token_xyz")
+    monkeypatch.setenv("GCS_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv("KOBOTOOLBOX_MAX_RETRIES", "1")
+    monkeypatch.setenv("KOBOTOOLBOX_RETRY_BACKOFF_SECONDS", "1.0")
+
+    db_session.query(DeadLetter).filter(
+        DeadLetter.source_system == "kobotoolbox"
+    ).delete()
+    db_session.commit()
+
+    basin = Basin(
+        code="MARA_ATT_EXHAUST",
+        name="Mara Attachment Exhaust",
+        geom=(
+            "SRID=4326;MULTIPOLYGON("
+            "((30 10, 40 40, 20 40, 10 20, 30 10)))"
+        ),
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    form = Form(
+        name="Attachment Exhaust Form",
+        version=1,
+        kobo_asset_id="kobo_att_exhaust_002",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    q_group = QuestionGroup(form_id=form.id, name="Photo Exhaust Group")
+    db_session.add(q_group)
+    db_session.commit()
+
+    question_img = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="site_photo_exhaust",
+        label="Site Photo Exhaust",
+        type="image",
+        order=1,
+    )
+    db_session.add(question_img)
+    db_session.commit()
+
+    mock_get_forms.return_value = [
+        {"uid": "kobo_att_exhaust_002", "name": "Attachment Exhaust Form"}
+    ]
+
+    download_url = "https://eu.kobotoolbox.org/api/v2/attachments/5032/"
+    sub_uuid = str(uuid.uuid4())
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": sub_uuid,
+            "_id": 4002,
+            "_submission_time": "2026-06-09T12:10:00Z",
+            "_submitted_by": "photographer_dan",
+            "site_photo_exhaust": "broken_503.jpg",
+            "_attachments": [
+                {
+                    "filename": "broken_503.jpg",
+                    "media_file_basename": "broken_503.jpg",
+                    "download_url": download_url,
+                    "mimetype": "image/jpeg",
+                }
+            ],
+        }
+    ]
+
+    req = httpx.Request("GET", download_url)
+    resp_503 = httpx.Response(503, request=req)
+    mock_client = MagicMock()
+    mock_client_class.return_value.__enter__.return_value = mock_client
+    mock_client.get.return_value = resp_503
+
+    res = sync_kobo_submissions(db_session)
+
+    assert res["ingested_records"] == 0
+    assert mock_client.get.call_count == 2
+    mock_sleep.assert_called_once_with(1.0)
+    mock_storage_class.return_value.upload_file.assert_not_called()
+
+    dl_records = (
+        db_session.query(DeadLetter)
+        .filter(DeadLetter.source_system == "kobotoolbox")
+        .all()
+    )
+    assert len(dl_records) == 1
+    assert "503" in dl_records[0].error_reason
+
+    dp = (
+        db_session.query(Datapoint)
+        .filter(Datapoint.uuid == uuid.UUID(sub_uuid))
+        .first()
+    )
+    assert dp is None
+
+
+@patch(
+    "app.services.kobo.EmailService.send_alert_email",
+    new_callable=AsyncMock,
+    return_value=True,
+)
+@patch("app.services.kobo.KoboService.get_forms")
+def test_sync_crash_alert_cooldown_excludes_system_user_and_sends_recovery(
+    mock_get_forms,
+    mock_send_alert,
+    db_session: Session,
+    monkeypatch,
+):
+    monkeypatch.setenv("KOBO_CRASH_ALERT_COOLDOWN_SECONDS", "14400")
+
+    basin = Basin(
+        code="MARA_COOLDOWN",
+        name="Mara Cooldown",
+        geom=(
+            "SRID=4326;MULTIPOLYGON("
+            "((30 10, 40 40, 20 40, 10 20, 30 10)))"
+        ),
+    )
+    db_session.add(basin)
+    User.get_or_create_system_user(db_session)
+    human_admin = User(
+        email="human_admin@nbd-wetland.org",
+        role="Admin",
+        is_active=True,
+    )
+    inactive_admin = User(
+        email="inactive_admin@nbd-wetland.org",
+        role="Admin",
+        is_active=False,
+    )
+    db_session.add_all([human_admin, inactive_admin])
+    db_session.commit()
+
+    mock_get_forms.side_effect = RuntimeError("Kobo 503 outage")
+
+    with patch.object(
+        db_session, "rollback", wraps=db_session.rollback
+    ) as spy_rollback:
+        with pytest.raises(RuntimeError):
+            sync_kobo_submissions(db_session)
+        assert spy_rollback.call_count >= 1
+
+    assert mock_send_alert.call_count == 1
+    crash_kwargs = mock_send_alert.call_args.kwargs
+    assert crash_kwargs["to"] == ["human_admin@nbd-wetland.org"]
+    assert SYSTEM_USER_EMAIL not in crash_kwargs["to"]
+    assert (
+        crash_kwargs["subject"] == "[CRITICAL ALERT] Kobo Sync Service Crash"
+    )
+
+    alert_logs = (
+        db_session.query(AuditLog)
+        .filter(AuditLog.entity_type == "kobo_sync")
+        .order_by(AuditLog.timestamp.asc())
+        .all()
+    )
+    assert len(alert_logs) == 1
+    assert alert_logs[0].action == "ALERT"
+    assert alert_logs[0].entity_id == "ALERT_SENT"
+    db_session.commit()
+
+    # Second crash within cooldown window must be suppressed
+    with pytest.raises(RuntimeError):
+        sync_kobo_submissions(db_session)
+    assert mock_send_alert.call_count == 1
+
+    # Recovery after clean sync sends recovery alert and writes ALERT_RESOLVED
+    mock_get_forms.side_effect = None
+    mock_get_forms.return_value = []
+    res = sync_kobo_submissions(db_session)
+    assert res["errors"] == []
+
+    assert mock_send_alert.call_count == 2
+    recovery_kwargs = mock_send_alert.call_args.kwargs
+    assert recovery_kwargs["to"] == ["human_admin@nbd-wetland.org"]
+    assert (
+        recovery_kwargs["subject"]
+        == "[RECOVERY] KoboToolbox Sync Service Restored"
+    )
+    assert recovery_kwargs["status_message"] == "RESOLVED / HEALTHY"
+    assert recovery_kwargs["alert_level"] == "info"
+
+    logs_after = (
+        db_session.query(AuditLog)
+        .filter(AuditLog.entity_type == "kobo_sync")
+        .order_by(AuditLog.timestamp.asc())
+        .all()
+    )
+    assert len(logs_after) == 2
+    assert logs_after[1].action == "ALERT_RESOLVED"
+    assert logs_after[1].entity_id == "RESOLVED"
+
+    # Subsequent clean sync must not send duplicate recovery alert
+    sync_kobo_submissions(db_session)
+    assert mock_send_alert.call_count == 2
+
+
+@patch(
+    "app.services.kobo.EmailService.send_alert_email",
+    new_callable=AsyncMock,
+    return_value=True,
+)
+@patch("app.services.kobo.KoboService.get_forms")
+def test_sync_crash_alert_sends_again_after_cooldown_expires(
+    mock_get_forms,
+    mock_send_alert,
+    db_session: Session,
+    monkeypatch,
+):
+    monkeypatch.setenv("KOBO_CRASH_ALERT_COOLDOWN_SECONDS", "14400")
+
+    sys_user = User.get_or_create_system_user(db_session)
+    human_admin = User(
+        email="cooldown_admin@nbd-wetland.org",
+        role="Admin",
+        is_active=True,
+    )
+    db_session.add(human_admin)
+    stale_alert = AuditLog(
+        actor_id=sys_user.id,
+        action="ALERT",
+        entity_type="kobo_sync",
+        entity_id="ALERT_SENT",
+        timestamp=datetime.utcnow() - timedelta(hours=5),
+    )
+    db_session.add(stale_alert)
+    db_session.commit()
+
+    mock_get_forms.side_effect = RuntimeError("Kobo still down")
+    with pytest.raises(RuntimeError):
+        sync_kobo_submissions(db_session)
+
+    assert mock_send_alert.call_count == 1
+    assert (
+        db_session.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "kobo_sync",
+            AuditLog.action == "ALERT",
+        )
+        .count()
+        == 2
+    )
+
+
+@patch(
+    "app.services.kobo.EmailService.send_alert_email",
+    new_callable=AsyncMock,
+    return_value=True,
+)
+@patch("app.services.kobo.KoboService.get_submissions")
+@patch("app.services.kobo.KoboService.get_forms")
+def test_sync_dlq_failure_alert_excludes_system_user(
+    mock_get_forms,
+    mock_get_submissions,
+    mock_send_alert,
+    db_session: Session,
+):
+    User.get_or_create_system_user(db_session)
+    human_admin = User(
+        email="dlq_admin@nbd-wetland.org",
+        role="Admin",
+        is_active=True,
+    )
+    db_session.add(human_admin)
+
+    basin = Basin(
+        code="MARA_DLQ_FILTER",
+        name="Mara DLQ Filter",
+        geom=(
+            "SRID=4326;MULTIPOLYGON("
+            "((30 10, 40 40, 20 40, 10 20, 30 10)))"
+        ),
+    )
+    db_session.add(basin)
+    db_session.commit()
+
+    form = Form(
+        name="DLQ Filter Form",
+        version=1,
+        kobo_asset_id="kobo_dlq_filter_001",
+    )
+    db_session.add(form)
+    db_session.commit()
+
+    q_group = QuestionGroup(form_id=form.id, name="Water Group")
+    db_session.add(q_group)
+    db_session.commit()
+
+    question_ph = Question(
+        form_id=form.id,
+        question_group_id=q_group.id,
+        name="ph",
+        label="pH",
+        type="number",
+        order=1,
+    )
+    db_session.add(question_ph)
+    db_session.commit()
+
+    mock_get_forms.return_value = [
+        {"uid": "kobo_dlq_filter_001", "name": "DLQ Filter Form"}
+    ]
+    mock_get_submissions.return_value = [
+        {
+            "_uuid": str(uuid.uuid4()),
+            "_id": 7777,
+            "_submission_time": "2026-06-09T13:00:00Z",
+            "_submitted_by": "surveyor_bad",
+            "ph": "not_a_number",
+        }
+    ]
+
+    res = sync_kobo_submissions(db_session)
+    assert res["ingested_records"] == 0
+    assert mock_send_alert.call_count == 1
+    recipients = mock_send_alert.call_args.kwargs["to"]
+    assert recipients == ["dlq_admin@nbd-wetland.org"]
+    assert SYSTEM_USER_EMAIL not in recipients
