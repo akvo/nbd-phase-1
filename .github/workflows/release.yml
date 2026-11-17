@@ -31,7 +31,7 @@ jobs:
         with:
           repository: akvo/composite-actions
           path: composite-actions
-          ref: 0.0.10
+          ref: 0.0.11
 
       - name: Node Operations
         working-directory: src
@@ -125,7 +125,7 @@ jobs:
         with:
           repository: akvo/composite-actions
           path: composite-actions
-          ref: 0.0.10
+          ref: 0.0.11
 
       - name: Rollout Nginx
         uses: ./composite-actions/.github/actions/k8s-rollout
