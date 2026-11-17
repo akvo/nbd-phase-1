@@ -1,21 +1,71 @@
-import os
+import asyncio
 import json
-import uuid
 import logging
-from typing import List, Dict, Any
-from datetime import datetime
+import math
+import os
+import random
+import time
+import traceback
+import uuid
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from typing import Any, Dict, List
+
 import httpx
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+from app.mail import EmailService
+from app.models.audit_log import AuditLog
+from app.models.dead_letter import DeadLetter
 from app.models.form import Form
 from app.models.spatial import Basin, Site
-from app.models.submission import Datapoint, Answer, SubmissionStatus
+from app.models.submission import Answer, Datapoint, SubmissionStatus
 from app.models.sync_watermark import SyncWatermark
-from app.models.dead_letter import DeadLetter
-from app.mail import EmailService
+from app.models.user import SYSTEM_USER_EMAIL, User
 from app.services.storage import StorageService, build_blob_path
 
 logger = logging.getLogger(__name__)
+
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+MAX_BACKOFF_SECONDS = 60.0
+DEFAULT_TIMEOUT_SECONDS = 60.0
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_BACKOFF_SECONDS = 2.0
+DEFAULT_CRASH_ALERT_COOLDOWN_SECONDS = 14400
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = (os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning(
+            "Invalid %s value '%s'; using default %d.",
+            name,
+            raw,
+            default,
+        )
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = (os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        val = float(raw)
+        return val if math.isfinite(val) else default
+    except ValueError:
+        logger.warning(
+            "Invalid %s value '%s'; using default %.1f.",
+            name,
+            raw,
+            default,
+        )
+        return default
 
 
 class KoboService:
@@ -24,18 +74,127 @@ class KoboService:
             "KOBOTOOLBOX_API_URL", "https://eu.kobotoolbox.org"
         ).rstrip("/")
         self.api_token = os.getenv("KOBOTOOLBOX_API_TOKEN")
-        self.timeout = float(os.getenv("KOBOTOOLBOX_API_TIMEOUT", "60.0"))
+        self.timeout = _env_float(
+            "KOBOTOOLBOX_API_TIMEOUT", DEFAULT_TIMEOUT_SECONDS
+        )
+        self.max_retries = max(
+            0, _env_int("KOBOTOOLBOX_MAX_RETRIES", DEFAULT_MAX_RETRIES)
+        )
+        self.retry_backoff = max(
+            0.0,
+            _env_float(
+                "KOBOTOOLBOX_RETRY_BACKOFF_SECONDS",
+                DEFAULT_RETRY_BACKOFF_SECONDS,
+            ),
+        )
         self.headers = {}
         if self.api_token:
             self.headers["Authorization"] = f"Token {self.api_token}"
 
+    @staticmethod
+    def _parse_retry_after(header_val: str | None) -> float | None:
+        if not header_val or not isinstance(header_val, str):
+            return None
+        raw = header_val.strip()
+        if not raw:
+            return None
+        try:
+            seconds = float(raw)
+            if not math.isfinite(seconds):
+                return None
+            return max(0.0, min(MAX_BACKOFF_SECONDS, seconds))
+        except ValueError:
+            pass
+
+        try:
+            retry_dt = parsedate_to_datetime(raw)
+            if retry_dt is None:
+                return None
+            if retry_dt.tzinfo is None:
+                retry_dt = retry_dt.replace(tzinfo=timezone.utc)
+            delay = (retry_dt - datetime.now(timezone.utc)).total_seconds()
+            return max(0.0, min(MAX_BACKOFF_SECONDS, delay))
+        except (TypeError, ValueError, OverflowError, IndexError):
+            return None
+
+    def _compute_retry_delay(self, attempt: int, exc: Exception) -> float:
+        if isinstance(exc, httpx.HTTPStatusError):
+            headers = (
+                exc.response.headers
+                if exc.response.headers is not None
+                else {}
+            )
+            raw_retry_after = headers.get("Retry-After")
+            if raw_retry_after is None:
+                raw_retry_after = headers.get("retry-after")
+            retry_after = self._parse_retry_after(raw_retry_after)
+            if retry_after is not None:
+                return retry_after
+
+        base_delay = min(
+            MAX_BACKOFF_SECONDS,
+            self.retry_backoff * (2**attempt),
+        )
+        return min(
+            MAX_BACKOFF_SECONDS,
+            base_delay + random.uniform(0, 0.5 * base_delay),
+        )
+
+    def _get_with_retry(
+        self, url: str, params: dict | None = None
+    ) -> httpx.Response:
+        with httpx.Client(timeout=self.timeout) as client:
+            for attempt in range(self.max_retries + 1):
+                try:
+                    if params is None:
+                        response = client.get(url, headers=self.headers)
+                    else:
+                        response = client.get(
+                            url, headers=self.headers, params=params
+                        )
+                    response.raise_for_status()
+                    return response
+                except httpx.HTTPStatusError as exc:
+                    status = exc.response.status_code
+                    if (
+                        status not in RETRYABLE_STATUS_CODES
+                        or attempt >= self.max_retries
+                    ):
+                        raise
+                    delay = self._compute_retry_delay(attempt, exc)
+                    logger.warning(
+                        "Kobo GET %s returned HTTP %s "
+                        "(attempt %d/%d); retrying in %.2fs",
+                        url,
+                        status,
+                        attempt + 1,
+                        self.max_retries + 1,
+                        delay,
+                    )
+                    time.sleep(delay)
+                except (
+                    httpx.TimeoutException,
+                    httpx.TransportError,
+                ) as exc:
+                    if attempt >= self.max_retries:
+                        raise
+                    delay = self._compute_retry_delay(attempt, exc)
+                    logger.warning(
+                        "Kobo GET %s failed with %s "
+                        "(attempt %d/%d); retrying in %.2fs",
+                        url,
+                        type(exc).__name__,
+                        attempt + 1,
+                        self.max_retries + 1,
+                        delay,
+                    )
+                    time.sleep(delay)
+
     def get_forms(self) -> List[Dict[str, Any]]:
         url = f"{self.api_url}/api/v2/assets.json"
-        with httpx.Client(timeout=self.timeout) as client:
-            response = client.get(url, headers=self.headers)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("results", [])
+        response = self._get_with_retry(url)
+        data = response.json()
+        return data.get("results", [])
 
     def get_submissions(
         self, form_id: str, since_timestamp: str | datetime | None = None
@@ -48,12 +207,15 @@ class KoboService:
             else:
                 dt = since_timestamp
             since_str = dt.strftime("%Y-%m-%dT%H:%M:%S+0000")
-            params["query"] = f'{{"_submission_time":{{"$gt":"{since_str}"}}}}'
-        with httpx.Client(timeout=self.timeout) as client:
-            response = client.get(url, headers=self.headers, params=params)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("results", [])
+            params["query"] = (
+                f'{{"_submission_time":{{"$gt":"{since_str}"}}}}'
+            )
+        response = self._get_with_retry(url, params=params)
+        data = response.json()
+        return data.get("results", [])
+
+    def download_attachment(self, download_url: str) -> bytes:
+        return self._get_with_retry(download_url).content
 
 
 def parse_kobo_timestamp(ts_str: str | None) -> datetime:
@@ -544,14 +706,11 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                                         else "bin"
                                     )
                                     blob_path = build_blob_path("kobo", ext)
-                                    response = httpx.get(
-                                        download_url,
-                                        headers=service.headers,
-                                        timeout=service.timeout,
+                                    content = service.download_attachment(
+                                        download_url
                                     )
-                                    response.raise_for_status()
                                     StorageService().upload_file(
-                                        response.content, blob_path, mimetype
+                                        content, blob_path, mimetype
                                     )
                                     name_val = blob_path
                                 else:
@@ -623,26 +782,10 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
     # Process aggregated failure email alert
     if sync_failures:
         try:
-            from app.models.user import User
-            import asyncio
-
-            admins = (
-                db.query(User.email)
-                .filter(
-                    func.lower(User.role) == "admin", User.is_active.is_(True)
-                )
-                .all()
-            )
-            admin_emails = [a.email for a in admins]
+            admin_emails = _get_human_admin_emails(db)
 
             if admin_emails:
                 email_service = EmailService()
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-
                 failures_table = [
                     [f["uuid"], f["submitted_by"], f["error"]]
                     for f in sync_failures
@@ -665,46 +808,140 @@ def _sync_kobo_submissions_core(db: Session) -> Dict[str, Any]:
                     ],
                     details_table=failures_table,
                 )
-
-                if loop.is_running():
-                    loop.create_task(coro)
-                else:
-                    loop.run_until_complete(coro)
+                _dispatch_email_coro(coro)
         except Exception as email_err:
             logger.error(
                 f"Failed to send aggregated failure email alert: {email_err}"
             )
 
+    if not sync_results["errors"]:
+        _maybe_send_sync_recovery_alert(db)
+
     logger.info("KoboToolbox sync finished.")
     return sync_results
 
 
+def _get_human_admin_emails(db: Session) -> List[str]:
+    admins = (
+        db.query(User.email)
+        .filter(
+            func.lower(User.role) == "admin",
+            User.is_active.is_(True),
+            func.lower(User.email) != SYSTEM_USER_EMAIL.lower(),
+        )
+        .all()
+    )
+    return [a.email for a in admins]
+
+
+def _log_email_task_exception(task: asyncio.Task) -> None:
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.error("Failed to dispatch email alert task: %s", exc)
+
+
+def _dispatch_email_coro(coro) -> None:
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError("Event loop is closed")
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    if loop.is_running():
+        task = loop.create_task(coro)
+        task.add_done_callback(_log_email_task_exception)
+    else:
+        loop.run_until_complete(coro)
+
+
+def _get_latest_kobo_alert_log(db: Session) -> AuditLog | None:
+    return (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "kobo_sync",
+            AuditLog.action.in_(["ALERT", "ALERT_RESOLVED"]),
+        )
+        .order_by(AuditLog.timestamp.desc())
+        .first()
+    )
+
+
+def _maybe_send_sync_recovery_alert(db: Session) -> None:
+    try:
+        latest_alert = _get_latest_kobo_alert_log(db)
+        if latest_alert is None or latest_alert.action != "ALERT":
+            return
+
+        now = datetime.utcnow()
+        admin_emails = _get_human_admin_emails(db)
+        if admin_emails:
+            email_service = EmailService()
+            coro = email_service.send_alert_email(
+                to=admin_emails,
+                subject="[RECOVERY] KoboToolbox Sync Service Restored",
+                status_message="RESOLVED / HEALTHY",
+                description=(
+                    "The KoboToolbox background synchronization service "
+                    "has recovered and completed cleanly."
+                ),
+                alert_level="info",
+            )
+            _dispatch_email_coro(coro)
+
+        sys_user = User.get_or_create_system_user(db)
+        recovery_log = AuditLog(
+            actor_id=sys_user.id,
+            action="ALERT_RESOLVED",
+            entity_type="kobo_sync",
+            entity_id="RESOLVED",
+            timestamp=now,
+        )
+        db.add(recovery_log)
+        db.commit()
+    except Exception as email_err:
+        logger.error(f"Failed to send sync recovery email alert: {email_err}")
+
+
 def _send_sync_crash_alert(db: Session, error: Exception):
     try:
-        from app.models.user import User
-        import traceback
-        import asyncio
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
-        admins = (
-            db.query(User.email)
-            .filter(func.lower(User.role) == "admin", User.is_active.is_(True))
-            .all()
+        latest_alert = _get_latest_kobo_alert_log(db)
+        cooldown = max(
+            0,
+            _env_int(
+                "KOBO_CRASH_ALERT_COOLDOWN_SECONDS",
+                DEFAULT_CRASH_ALERT_COOLDOWN_SECONDS,
+            ),
         )
-        admin_emails = [a.email for a in admins]
+        now = datetime.utcnow()
+        if latest_alert is not None and latest_alert.action == "ALERT":
+            elapsed = (now - latest_alert.timestamp).total_seconds()
+            if elapsed < cooldown:
+                logger.warning(
+                    "Kobo sync crash alert suppressed by cooldown "
+                    "(%ds remaining).",
+                    int(cooldown - elapsed),
+                )
+                return
+
+        admin_emails = _get_human_admin_emails(db)
         if not admin_emails:
             return
 
         email_service = EmailService()
         tb_str = "".join(
-            traceback.format_exception(type(error), error, error.__traceback__)
+            traceback.format_exception(
+                type(error), error, error.__traceback__
+            )
         )
-
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
         coro = email_service.send_alert_email(
             to=admin_emails,
             subject="[CRITICAL ALERT] Kobo Sync Service Crash",
@@ -718,9 +955,17 @@ def _send_sync_crash_alert(db: Session, error: Exception):
             details_table=[[type(error).__name__, str(error)]],
             traceback=tb_str,
         )
-        if loop.is_running():
-            loop.create_task(coro)
-        else:
-            loop.run_until_complete(coro)
+        _dispatch_email_coro(coro)
+
+        sys_user = User.get_or_create_system_user(db)
+        alert_log = AuditLog(
+            actor_id=sys_user.id,
+            action="ALERT",
+            entity_type="kobo_sync",
+            entity_id="ALERT_SENT",
+            timestamp=now,
+        )
+        db.add(alert_log)
+        db.commit()
     except Exception as email_err:
         logger.error(f"Failed to send sync crash email alert: {email_err}")

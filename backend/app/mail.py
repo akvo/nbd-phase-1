@@ -3,6 +3,11 @@ from typing import List, Union
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 
 
+def _resolve_frontend_url() -> str:
+    url = (os.getenv("FRONTEND_URL") or "").strip().rstrip("/")
+    return url or "http://localhost:3000"
+
+
 class EmailConfig:
     def __init__(
         self,
@@ -99,10 +104,12 @@ class EmailService:
         details_headers: List[str] = None,
         details_table: List[List[str]] = None,
         traceback: str = None,
-        action_url: str = "http://localhost:3000/admin/data",
+        action_url: str = None,
     ) -> bool:
         from jinja2 import Template
         import datetime
+
+        action_url = action_url or f"{_resolve_frontend_url()}/admin/data"
 
         template_dir = os.path.dirname(os.path.abspath(__file__))
         template_path = os.path.join(
@@ -146,9 +153,11 @@ class EmailService:
         to: str,
         role: str,
         invited_by: str = None,
-        login_url: str = "http://localhost:3000/login",
+        login_url: str = None,
     ) -> bool:
         from jinja2 import Template
+
+        login_url = login_url or f"{_resolve_frontend_url()}/login"
 
         template_dir = os.path.dirname(os.path.abspath(__file__))
         template_path = os.path.join(

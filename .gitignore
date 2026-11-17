@@ -84,3 +84,9 @@ pg-data/
 /task.md
 backend/*.csv
 frontend/tsconfig.tsbuildinfo
+.env.*
+!.env.example
+test-results/
+playwright-report/
+.strix/
+*.log
