@@ -156,7 +156,7 @@ sequenceDiagram
    - `_send_sync_crash_alert(db: Session, error: Exception)`:
      - Run `db.rollback()` inside a `try/except` before any queries.
      - Query latest `AuditLog` with `entity_type="kobo_sync"` and `action.in_(["ALERT", "ALERT_RESOLVED"])` ordered by `AuditLog.timestamp.desc()`.
-     - Read `cooldown = int(os.getenv("KOBO_CRASH_ALERT_COOLDOWN_SECONDS", "14400"))`.
+     - Read `cooldown = max(0, _env_int("KOBO_CRASH_ALERT_COOLDOWN_SECONDS", DEFAULT_CRASH_ALERT_COOLDOWN_SECONDS))`.
      - If latest row is `"ALERT"` and `(datetime.utcnow() - latest.timestamp).total_seconds() < cooldown`, log cooldown suppression and return without sending email.
      - Fetch `admin_emails = _get_human_admin_emails(db)`. If empty, return.
      - Send `[CRITICAL ALERT]` via `EmailService().send_alert_email(...)` and append `AuditLog(actor_id=sys_user.id, action="ALERT", entity_type="kobo_sync", entity_id="ALERT_SENT", timestamp=now)` + `db.commit()`.

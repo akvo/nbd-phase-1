@@ -834,6 +834,14 @@ def _get_human_admin_emails(db: Session) -> List[str]:
     return [a.email for a in admins]
 
 
+def _log_email_task_exception(task: asyncio.Task) -> None:
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.error("Failed to dispatch email alert task: %s", exc)
+
+
 def _dispatch_email_coro(coro) -> None:
     try:
         loop = asyncio.get_event_loop()
@@ -844,7 +852,8 @@ def _dispatch_email_coro(coro) -> None:
         asyncio.set_event_loop(loop)
 
     if loop.is_running():
-        loop.create_task(coro)
+        task = loop.create_task(coro)
+        task.add_done_callback(_log_email_task_exception)
     else:
         loop.run_until_complete(coro)
 
