@@ -12,8 +12,8 @@ This low-level design document details the implementation of Task 7: Application
 
 ### Component / Module
 * **`WebhookWatchdogService`**: Background check runs every 1 minute in `scheduler.py` to check the health of Africa's Talking USSD and WhatsApp webhooks.
-* **`EmailService` (Refactored)**: Enhanced to render and send styled HTML email alerts using Jinja2 templates.
-* **`KoboSyncAlertHook`**: Refactored Kobo sync module to send structured, beautifully styled alert emails when a sync fails completely or submissions are quarantined.
+* **`EmailService`**: Renders styled Jinja2 HTML alert and invite emails and resolves default CTA URLs (`{FRONTEND_URL}/admin/data` and `{FRONTEND_URL}/login`) at call time via `_resolve_frontend_url()` (falling back to `http://localhost:3000`).
+* **`KoboSyncAlertHook`**: Executes `KoboService._get_with_retry()` and `download_attachment()` for transient Kobo API retries, throttles crash notifications with `AuditLog` (`entity_type="kobo_sync"`) cooldown (`KOBO_CRASH_ALERT_COOLDOWN_SECONDS=14400`) and `[RECOVERY]` emails, and excludes `SYSTEM_USER_EMAIL` (`system@nbd-wetland.org`) from human admin recipients.
 * **`WhatsAppSessionCleanup`**: Automated task verified and tested to prune stale sessions (> 24 hours old) daily.
 
 ### PRD References
@@ -37,8 +37,9 @@ We will extend `EmailService` and build a `WebhookWatchdog` inside the scheduler
 ```mermaid
 classDiagram
     class EmailService {
-        +send_email_async(to: list, subject: str, html_body: str) bool
-        +send_alert_email(to: list, subject: str, template_name: str, context: dict) bool
+        +send_email_async(to: list, subject: str, html_body: str, text_body: str) bool
+        +send_alert_email(to: list, subject: str, status_message: str, description: str, alert_level: str, action_url: str) bool
+        +send_invite_email(to: str, role: str, invited_by: str, login_url: str) bool
     }
 
     class WebhookWatchdog {
@@ -61,7 +62,7 @@ classDiagram
 ### Class Responsibilities:
 | Class | Responsibility | SOLID Principle |
 |-------|---------------|-----------------|
-| `EmailService` | Handles SMTP configuration, loads HTML alert templates, and dispatches asynchronous emails. | SRP — single email delivery domain concern. |
+| `EmailService` | Loads SMTP configuration, renders HTML alert and invite templates, resolves `FRONTEND_URL` defaults via `_resolve_frontend_url()`, and sends asynchronous emails. | SRP — single email delivery domain concern. |
 | `WebhookWatchdog` | Performs availability checks, audits error codes from the database logs, pings endpoints on zero-traffic state, and throttles alert dispatch. | SRP — separate concern from core scheduling. |
 | `scheduler.py` | Orchestrates the periodic execution of the monitoring, sync, and pruning tasks. | SRP — scheduling loop driver. |
 
@@ -99,27 +100,41 @@ sequenceDiagram
     Watchdog-->>Scheduler: Finished
 ```
 
-### 3.2 Kobo Ingestion DLQ Alerting Path
+### 3.2 Kobo Ingestion Retry, Crash Cooldown & DLQ Alerting Path
 
 ```mermaid
 sequenceDiagram
     participant Cron as APScheduler
-    participant Ingest as KoboSyncService
+    participant Ingest as sync_kobo_submissions
+    participant Client as KoboService._get_with_retry
     participant DB as PostgreSQL DB
     participant Mail as EmailService
 
-    Cron->>Ingest: sync_kobo_submissions()
-    Ingest->>Ingest: Poll from Kobo API
-    alt Validation fails for record
-        Ingest->>DB: Insert record into dead_letters (DLQ)
-        DB-->>Ingest: OK
-        Ingest->>Ingest: Append failure details
-    end
-    alt Complete sync execution runs with failures
-        Ingest->>DB: Query registered active Admins
-        DB-->>Ingest: Admin emails list
-        Ingest->>Mail: send_alert_email(admin_emails, "[NBD Portal] Kobo Ingestion Failures", template, context)
-        Mail-->>Ingest: OK
+    Cron->>Ingest: sync_kobo_submissions(db)
+    Ingest->>Client: get_forms() / get_submissions() / download_attachment()
+    alt Transient 429/5xx or timeout exhausts retries
+        Client-->>Ingest: Raise exception
+        Ingest->>DB: db.rollback() & query latest kobo_sync AuditLog
+        alt Latest action == ALERT within KOBO_CRASH_ALERT_COOLDOWN_SECONDS
+            Ingest-->>Cron: Suppress duplicate crash email
+        else No active alert or cooldown expired
+            Ingest->>DB: Query active human Admins (exclude SYSTEM_USER_EMAIL)
+            Ingest->>Mail: send_alert_email(action_url={FRONTEND_URL}/admin/data)
+            Ingest->>DB: INSERT AuditLog(action="ALERT", entity_type="kobo_sync", entity_id="ALERT_SENT")
+        end
+    else Sync executes
+        alt Validation fails for record
+            Ingest->>DB: Insert record into dead_letters (DLQ)
+        end
+        opt Any quarantined failures
+            Ingest->>DB: Query active human Admins (exclude SYSTEM_USER_EMAIL)
+            Ingest->>Mail: send_alert_email(human_admins, "[NBD Portal] Kobo Ingestion Failures Alert")
+        end
+        opt Sync finishes cleanly (errors == []) and latest kobo_sync AuditLog == ALERT
+            Ingest->>DB: Query active human Admins (exclude SYSTEM_USER_EMAIL)
+            Ingest->>Mail: send_alert_email(human_admins, "[RECOVERY] ...", alert_level="info")
+            Ingest->>DB: INSERT AuditLog(action="ALERT_RESOLVED", entity_type="kobo_sync", entity_id="RESOLVED")
+        end
     end
     Ingest-->>Cron: Complete
 ```
@@ -147,19 +162,25 @@ sequenceDiagram
 
 ## 5. Database Schema
 
-No new tables are introduced. Webhook logs will be persisted to the existing `audit_logs` table using a seeded **System User**:
+No new tables are introduced. Webhook logs and alert state transitions persist to the existing `audit_logs` table using the seeded **System User** (`SYSTEM_USER_EMAIL` in `backend/app/models/user.py`):
 
-* **System User Email**: `system@nbd-wetland.org`
-* **Role**: `Admin`
+* **System User Email**: `system@nbd-wetland.org` (`SYSTEM_USER_EMAIL`)
+* **Role**: `Admin` (explicitly excluded from alert email recipients by `_get_human_admin_emails()`)
 
 ### Audit Log Fields Mapping for Webhook Calls:
 * `actor_id`: UUID of the system user.
-* `action`: HTTP Method (e.g. `"POST"`).
+* `action`: HTTP Method (e.g. `"POST"`), or `"ALERT"` / `"ALERT_RESOLVED"`.
 * `entity_type`: `"ussd_webhook"` or `"whatsapp_webhook"`.
-* `entity_id`: Status Code returned by the handler (e.g., `"200"`, `"500"`, `"503"`, `"ERROR"`).
+* `entity_id`: Status Code returned by the handler (e.g., `"200"`, `"500"`, `"503"`, `"ERROR"`), `"ALERT_SENT"`, or `"RESOLVED"`.
+
+### Audit Log Fields Mapping for Kobo Sync Alerts:
+* `actor_id`: UUID of `SYSTEM_USER_EMAIL`.
+* `action`: `"ALERT"` (crash notification dispatched) or `"ALERT_RESOLVED"` (recovery notice dispatched). State transitions use append-only `INSERT` rows because `audit_logs_immutable_trigger` blocks `UPDATE` and `DELETE`.
+* `entity_type`: `"kobo_sync"`.
+* `entity_id`: `"ALERT_SENT"` or `"RESOLVED"`.
 
 ### Index Strategy:
-The existing composite index `idx_audit_logs_entity` on `(entity_type, entity_id)` and the `timestamp` column enables high-performance queries for logs in the last 5 minutes.
+The existing composite index `idx_audit_logs_entity` on `(entity_type, entity_id)` and the `timestamp` column supports fast queries for recent webhook logs and latest alert state.
 
 ---
 
@@ -201,12 +222,47 @@ FUNCTION monitor_webhook_endpoints():
                 unmark_muted(endpoint)
 ```
 
+### Kobo Sync Crash Cooldown & Recovery Logic (Hourly)
+```
+FUNCTION _send_sync_crash_alert(db, error):
+    db.rollback()
+    latest = SELECT * FROM audit_logs
+             WHERE entity_type = "kobo_sync"
+             AND action IN ("ALERT", "ALERT_RESOLVED")
+             ORDER BY timestamp DESC LIMIT 1
+
+    cooldown = INT(ENV["KOBO_CRASH_ALERT_COOLDOWN_SECONDS"] or 14400)
+    IF latest AND latest.action == "ALERT" AND (NOW() - latest.timestamp) < cooldown:
+        RETURN // Suppress duplicate outage email
+
+    recipients = _get_human_admin_emails(db) // Exclude SYSTEM_USER_EMAIL
+    IF EMPTY(recipients):
+        RETURN
+
+    EmailService().send_alert_email(to=recipients, subject="[CRITICAL ALERT] ...", alert_level="danger")
+    INSERT INTO audit_logs (actor_id=sys_user.id, action="ALERT", entity_type="kobo_sync", entity_id="ALERT_SENT")
+
+FUNCTION _maybe_send_sync_recovery_alert(db):
+    // Invoked when sync completes with zero errors
+    latest = SELECT * FROM audit_logs
+             WHERE entity_type = "kobo_sync"
+             AND action IN ("ALERT", "ALERT_RESOLVED")
+             ORDER BY timestamp DESC LIMIT 1
+
+    IF latest AND latest.action == "ALERT":
+        recipients = _get_human_admin_emails(db)
+        IF NOT EMPTY(recipients):
+            EmailService().send_alert_email(to=recipients, subject="[RECOVERY] ...", alert_level="info")
+        INSERT INTO audit_logs (actor_id=sys_user.id, action="ALERT_RESOLVED", entity_type="kobo_sync", entity_id="RESOLVED")
+```
+
 ---
 
 ## 7. Design Patterns
 
-* **Observer Pattern / Hooks**: Refactoring the end of the Kobo sync run to compile quarantined payloads and notify registered observers (Admin emails) via `EmailService`.
-* **Throttling/State pattern**: Storing the mute state for each watchdog target in the Scheduler class memory (persisted for the lifecycle of the scheduler container) to throttle repeated alerts.
+* **Observer Pattern / Hooks**: Kobo sync compiles quarantined payloads and notifies active human admins (excluding `SYSTEM_USER_EMAIL`) via `EmailService`.
+* **Append-Only State Persistence**: Both webhook watchdogs and Kobo sync crash alerting persist `ALERT` and `ALERT_RESOLVED` transitions in `audit_logs` so cooldown and recovery state survive worker restarts.
+* **Dynamic URL Resolution**: `EmailService` resolves `action_url` (`{FRONTEND_URL}/admin/data`) and `login_url` (`{FRONTEND_URL}/login`) at call time via `_resolve_frontend_url()` so production emails never render hardcoded `localhost` links.
 
 ---
 
@@ -216,7 +272,9 @@ FUNCTION monitor_webhook_endpoints():
 |----------|-----------|------------|
 | SMTP Service Down | SMTP connection timeout / exception. | Catch exception, log error to standard logger, write warning to system output. Do not crash background loop. |
 | Zero traffic on webhook | Length of recent `audit_logs` is 0. | Trigger active ping to local backend webhook endpoints to verify responsiveness. |
-| Memory leak in Scheduler | Continuous run of APScheduler. | Keep alert state variables localized and minimal. Ensure DB sessions are properly closed using `try-finally` blocks. |
+| Transient Kobo API `429`/`5xx` or timeout | `KoboService._get_with_retry()` catches `HTTPStatusError` (`429`, `500`, `502`, `503`, `504`), `TimeoutException`, or `TransportError`. | Retry with bounded exponential backoff, jitter, and `Retry-After` handling before tripping crash alerting. |
+| Dirty SQLAlchemy session on sync crash | Unhandled exception inside `sync_kobo_submissions()` transaction. | Call `db.rollback()` inside `_send_sync_crash_alert()` prior to querying `audit_logs` and `users`. |
+| Memory leak in Scheduler | Continuous run of APScheduler. | Keep alert state variables localized and minimal. Close DB sessions in `try-finally` blocks. |
 
 ---
 
